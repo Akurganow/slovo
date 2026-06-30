@@ -5,7 +5,7 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger: Logger
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     private var statusItem: NSStatusItem?
     private var statusTextItem: NSMenuItem?
     private var composition: AppComposition.Live?
@@ -39,10 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(status)
         statusTextItem = status
         menu.addItem(.separator())
-        menu.addItem(actionItem("Use Anthropic Cleanup", #selector(useAnthropicCleanup)))
-        menu.addItem(actionItem("Use OpenAI Cleanup", #selector(useOpenAICleanup)))
-        menu.addItem(actionItem("Set Anthropic Model", #selector(setAnthropicModel)))
-        menu.addItem(actionItem("Set OpenAI Model", #selector(setOpenAIModel)))
+        let config = ConfigStore.load(from: defaults)
+        menu.addItem(cleanupProviderMenu(config: config))
+        menu.addItem(modelMenu(title: "Anthropic Model", provider: .anthropic, selectedModel: config.anthropicModel))
+        menu.addItem(modelMenu(title: "OpenAI Model", provider: .openAI, selectedModel: config.openAIModel))
         menu.addItem(.separator())
         menu.addItem(actionItem("Update Anthropic Key", #selector(enterAnthropicKey)))
         menu.addItem(actionItem("Update OpenAI Key", #selector(enterOpenAIKey)))
@@ -145,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return menu
     }
 
-    private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
+    func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         return item
@@ -223,40 +223,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
-    private func useAnthropicCleanup() {
-        updateConfig { config in
-            config.cleanupProvider = .anthropic
-        }
-    }
-
-    @objc
-    private func useOpenAICleanup() {
-        updateConfig { config in
-            config.cleanupProvider = .openAI
-        }
-    }
-
-    @objc
-    private func setAnthropicModel() {
-        let current = ConfigStore.load(from: defaults).anthropicModel
-        promptForModel(title: "Set Anthropic model", currentValue: current) { [weak self] model in
-            self?.updateConfig { config in
-                config.anthropicModel = model
-            }
-        }
-    }
-
-    @objc
-    private func setOpenAIModel() {
-        let current = ConfigStore.load(from: defaults).openAIModel
-        promptForModel(title: "Set OpenAI model", currentValue: current) { [weak self] model in
-            self?.updateConfig { config in
-                config.openAIModel = model
-            }
-        }
-    }
-
-    @objc
     private func retrySetup() {
         composition?.hotkeyMonitor.stop()
         statusItem?.menu = makeMenu()
@@ -330,22 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func promptForModel(title: String, currentValue: String, save: (String) -> Void) {
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
-        field.stringValue = currentValue
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = "Enter the provider model id."
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let model = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty else { return }
-        save(model)
-    }
-
-    private func updateConfig(_ mutate: (inout Config) -> Void) {
+    func updateConfig(_ mutate: (inout Config) -> Void) {
         var config = ConfigStore.load(from: defaults)
         mutate(&config)
         do {

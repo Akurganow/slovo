@@ -11,6 +11,8 @@ and ASR remains owned by the local transcriber path.
 
 Default model: **`gpt-5.4-mini`**. It is a fast text-capable model available on
 the Responses API and is suitable for short, latency-sensitive cleanup requests.
+The app's selectable OpenAI cleanup catalog also includes **`gpt-5.4-nano`** for
+speed comparison.
 
 ## Endpoint And Headers
 
@@ -41,7 +43,8 @@ loqui sends a text-only request:
 }
 ```
 
-- `model` is the configured OpenAI cleanup model.
+- `model` is the configured OpenAI cleanup model selected from the app's typed
+  model catalog.
 - `instructions` carries the cleanup instructions and vocabulary context.
 - `input` carries the raw transcript.
 - `store: false` prevents storing the generated model response for later API
@@ -85,10 +88,13 @@ normal cleanup calls do not repeatedly prompt Keychain.
   https://platform.openai.com/docs/api-reference/responses/create
 - OpenAI `gpt-5.4-mini` model page:
   https://developers.openai.com/api/docs/models/gpt-5.4-mini
+- OpenAI `gpt-5.4-nano` model page:
+  https://developers.openai.com/api/docs/models/gpt-5.4-nano
 
 ## Verification
 
 PASS — verified on 2026-06-30 against the official OpenAI API reference and
-model page. The Responses API reference documents `input`, `instructions`,
-`store`, and output text/refusal content blocks. The model page lists
-`gpt-5.4-mini`, text output support, and the `v1/responses` endpoint.
+model pages. The Responses API reference documents `input`, `instructions`,
+`store`, and output text/refusal content blocks. The model pages list
+`gpt-5.4-mini` and `gpt-5.4-nano`, text output support, and the
+`v1/responses` endpoint.

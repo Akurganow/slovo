@@ -95,28 +95,33 @@ struct AppRuntimeSourceGuardTests {
     }
 
     @Test
-    func appMenuCanSwitchCleanupProviderAndEditProviderModels() throws {
+    func appMenuCanSwitchCleanupProviderAndSelectProviderModels() throws {
         let delegate = try Self.code("Sources/loqui/AppDelegate.swift")
+        let cleanupMenu = try Self.code("Sources/loqui/AppDelegate+CleanupMenu.swift")
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
-        let useAnthropicBody = try Self.functionBody(named: "useAnthropicCleanup", in: delegate)
-        let useOpenAIBody = try Self.functionBody(named: "useOpenAICleanup", in: delegate)
-        let setAnthropicModelBody = try Self.functionBody(named: "setAnthropicModel", in: delegate)
-        let setOpenAIModelBody = try Self.functionBody(named: "setOpenAIModel", in: delegate)
+        let providerMenuBody = try Self.functionBody(named: "cleanupProviderMenu", in: cleanupMenu)
+        let selectProviderBody = try Self.functionBody(named: "selectCleanupProvider", in: cleanupMenu)
+        let modelMenuBody = try Self.functionBody(named: "modelMenu", in: cleanupMenu)
+        let selectCleanupModelBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
 
-        #expect(menuBody.contains(#"actionItem("Use Anthropic Cleanup", #selector(useAnthropicCleanup))"#))
-        #expect(menuBody.contains(#"actionItem("Use OpenAI Cleanup", #selector(useOpenAICleanup))"#))
-        #expect(menuBody.contains(#"actionItem("Set Anthropic Model", #selector(setAnthropicModel))"#))
-        #expect(menuBody.contains(#"actionItem("Set OpenAI Model", #selector(setOpenAIModel))"#))
-        #expect(useAnthropicBody.contains("updateConfig"))
-        #expect(useAnthropicBody.contains("config.cleanupProvider = .anthropic"))
-        #expect(useOpenAIBody.contains("updateConfig"))
-        #expect(useOpenAIBody.contains("config.cleanupProvider = .openAI"))
-        #expect(setAnthropicModelBody.contains("promptForModel"))
-        #expect(setAnthropicModelBody.contains("updateConfig"))
-        #expect(setAnthropicModelBody.contains("config.anthropicModel = model"))
-        #expect(setOpenAIModelBody.contains("promptForModel"))
-        #expect(setOpenAIModelBody.contains("updateConfig"))
-        #expect(setOpenAIModelBody.contains("config.openAIModel = model"))
+        #expect(menuBody.contains("cleanupProviderMenu(config: config)"))
+        #expect(menuBody.contains(#"modelMenu(title: "Anthropic Model""#))
+        #expect(menuBody.contains(#"modelMenu(title: "OpenAI Model""#))
+        #expect(!delegate.contains("Use Anthropic Cleanup"))
+        #expect(!delegate.contains("Use OpenAI Cleanup"))
+        #expect(!delegate.contains("promptForModel"))
+        #expect(!delegate.contains("Set Anthropic Model"))
+        #expect(!delegate.contains("Set OpenAI Model"))
+        #expect(providerMenuBody.contains("item.representedObject = provider"))
+        #expect(providerMenuBody.contains("item.state = provider == config.cleanupProvider ? .on : .off"))
+        #expect(selectProviderBody.contains("sender.representedObject as? CleanupProvider"))
+        #expect(selectProviderBody.contains("config.cleanupProvider = provider"))
+        #expect(modelMenuBody.contains("CleanupModelCatalog.options(for: provider)"))
+        #expect(modelMenuBody.contains("item.representedObject = option"))
+        #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
+        #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))
+        #expect(selectCleanupModelBody.contains("config.anthropicModel = option.id"))
+        #expect(selectCleanupModelBody.contains("config.openAIModel = option.id"))
     }
 
     @Test
