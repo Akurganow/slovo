@@ -33,9 +33,10 @@ public enum FsmLogEvent: Equatable, Sendable {
     case stageFailed
 }
 
-/// User-facing status notices surfaced on a contained failure (spec §11). Each
-/// notice names the actual failing stage so the surface stays truthful.
+/// User-facing status notices surfaced during the pipeline. Each notice names
+/// the actual stage so the surface stays truthful.
 public enum StatusMessage: Equatable, Sendable {
+    case preparingSpeechModel
     case cleanupDeclinedInsertedAsSpoken
     case accessibilityDenied
     case missingKey
@@ -44,6 +45,10 @@ public enum StatusMessage: Equatable, Sendable {
     case injectionFailed
     case microphoneUnavailable
     case cleanupFailed
+
+    public var isPersistentNotice: Bool {
+        self != .preparingSpeechModel
+    }
 }
 
 /// A stage failure routed into the FSM.

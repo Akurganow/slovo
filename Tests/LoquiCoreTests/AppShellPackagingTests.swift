@@ -41,6 +41,7 @@ struct AppShellPackagingTests {
         #expect(composition.contains("keepWarmSeconds: config.keepWarmSeconds"))
         #expect(composition.contains("statusReporter: statusReporter"))
         #expect(composition.contains("CGEventTapHotkeyMonitor()"))
+        let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
         let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
         #expect(Self.containsStatement(#"startPipeline\(\)"#, in: launchBody),
                 "launch must invoke the production composition starter, not merely define it elsewhere")
@@ -52,6 +53,7 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
         #expect(delegate.contains("promptForAnthropicKey"))
         #expect(delegate.contains("keyProvider.store"))
+        #expect(menuBody.contains(#"actionItem("Update Anthropic Key", #selector(enterAnthropicKey))"#))
         #expect(delegate.contains("statusReporter"))
         #expect(delegate.contains("showStatus"))
         #expect(delegate.contains("didShowPipelineStatus"))
@@ -123,6 +125,7 @@ struct AppShellPackagingTests {
                 "DRY_RUN": "1",
                 "SIGNING_IDENTITY": "Developer ID Application: Example (TEAMID)",
                 "NOTARY_PROFILE": "loqui-notary",
+                "APP_NAME": "DryRunTestBundle-\(UUID().uuidString)",
             ]
         )
         #expect(plan.exitCode == 0, Comment(rawValue: plan.output))
@@ -318,7 +321,7 @@ struct AppShellPackagingTests {
         guard let signature = source.range(of: "func \(name)") else {
             throw NSError(domain: "AppShellPackagingTests", code: 1)
         }
-        guard let openBrace = source[signature.lowerBound...].firstIndex(of: "{") else {
+        guard let openBrace = functionOpeningBrace(after: signature.lowerBound, in: source) else {
             throw NSError(domain: "AppShellPackagingTests", code: 2)
         }
         var depth = 0
@@ -335,6 +338,22 @@ struct AppShellPackagingTests {
             index = source.index(after: index)
         }
         throw NSError(domain: "AppShellPackagingTests", code: 3)
+    }
+
+    private static func functionOpeningBrace(after start: String.Index, in source: String) -> String.Index? {
+        var index = start
+        var parenDepth = 0
+        while index < source.endIndex {
+            if source[index] == "(" {
+                parenDepth += 1
+            } else if source[index] == ")" {
+                parenDepth -= 1
+            } else if source[index] == "{", parenDepth == 0 {
+                return index
+            }
+            index = source.index(after: index)
+        }
+        return nil
     }
 
     private static var packageRoot: URL {

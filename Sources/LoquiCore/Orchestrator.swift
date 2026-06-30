@@ -26,6 +26,7 @@ public struct Dependencies: Sendable {
     /// Optional AX context the actor would surface on its status path (v1: unused).
     public var axContext: AxContext?
 
+    @preconcurrency
     public init(
         transcriber: any Transcriber,
         cleaner: any Cleaner,
@@ -46,6 +47,11 @@ public struct Dependencies: Sendable {
         self.log = log
         self.statusReporter = statusReporter
         self.axContext = axContext
+    }
+
+    public func reportStatus(_ status: StatusMessage) {
+        statusReporter(status)
+        log.event("status.\(status)")
     }
 }
 
@@ -106,6 +112,7 @@ public actor Orchestrator {
         let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
         sessionVocabulary = biasTerms
         do {
+            deps.reportStatus(.preparingSpeechModel)
             let text = try await deps.transcriber.transcribe(buffer, biasTerms: biasTerms)
             await handle(.transcriptReady(text))
         } catch let error as TranscriptionError {
@@ -181,8 +188,7 @@ public actor Orchestrator {
             return nil
 
         case .notify(let status):
-            deps.statusReporter(status)
-            deps.log.event("status.\(status)")
+            deps.reportStatus(status)
             return nil
 
         case .returnToIdle:

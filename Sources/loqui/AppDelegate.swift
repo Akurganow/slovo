@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusTextItem: NSMenuItem?
     private var composition: AppComposition.Live?
     private var didShowPipelineStatus = false
+    private var isPipelineActive = false
 
     init(logger: Logger) {
         self.logger = logger
@@ -33,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         status.isEnabled = false
         menu.addItem(status)
         statusTextItem = status
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Update Anthropic Key", #selector(enterAnthropicKey)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit Loqui",
@@ -60,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     switch phase {
                     case .down:
                         await MainActor.run {
+                            self?.isPipelineActive = true
                             self?.didShowPipelineStatus = false
                             self?.setStatusGlyph(.recording, on: self?.statusItem?.button)
                             self?.statusTextItem?.title = "Status: Recording"
@@ -76,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         await orchestrator.awaitPipelineDrain()
                         await MainActor.run {
                             self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
+                            self?.isPipelineActive = false
                             if self?.didShowPipelineStatus == false {
                                 self?.statusTextItem?.title = "Status: Idle"
                             }
@@ -109,13 +114,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         title.isEnabled = false
         menu.addItem(title)
         if steps.contains(.requestMicrophone) {
-            menu.addItem(actionItem("Open Microphone Settings", #selector(openMicrophoneSettings)))
+            menu.addItem(actionItem("Request Microphone Access", #selector(openMicrophoneSettings)))
         }
         if steps.contains(.requestAccessibility) {
-            menu.addItem(actionItem("Open Accessibility Settings", #selector(openAccessibilitySettings)))
+            menu.addItem(actionItem("Request Accessibility Access", #selector(openAccessibilitySettings)))
         }
         if steps.contains(.requestInputMonitoring) {
-            menu.addItem(actionItem("Open Input Monitoring Settings", #selector(openInputMonitoringSettings)))
+            menu.addItem(actionItem("Request Input Monitoring Access", #selector(openInputMonitoringSettings)))
         }
         if steps.contains(.requestAnthropicKey) {
             menu.addItem(actionItem("Enter Anthropic Key", #selector(enterAnthropicKey)))
@@ -139,43 +144,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: primaryActionTitle(for: steps))
         alert.addButton(withTitle: "Later")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        openPrimaryOnboardingStep(steps)
+        Task { @MainActor in
+            await requestPrimaryOnboardingStep(steps)
+        }
     }
 
-    private func openPrimaryOnboardingStep(_ steps: [OnboardingStep]) {
+    private func requestPrimaryOnboardingStep(_ steps: [OnboardingStep]) async {
         if steps.contains(.requestMicrophone) {
-            openSettingsPane("Privacy_Microphone")
+            await requestPermission(.microphone, fallbackPane: "Privacy_Microphone")
         } else if steps.contains(.requestAccessibility) {
-            openSettingsPane("Privacy_Accessibility")
+            await requestPermission(.accessibility, fallbackPane: "Privacy_Accessibility")
         } else if steps.contains(.requestInputMonitoring) {
-            openSettingsPane("Privacy_ListenEvent")
+            await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
         } else if steps.contains(.requestAnthropicKey) {
             promptForAnthropicKey()
         }
     }
 
     private func primaryActionTitle(for steps: [OnboardingStep]) -> String {
-        steps.contains(.requestAnthropicKey) && steps.count == 1 ? "Enter Key" : "Open Settings"
+        steps.contains(.requestAnthropicKey) && steps.count == 1 ? "Enter Key" : "Continue Setup"
     }
 
     private func showStatus(_ status: StatusMessage) {
-        didShowPipelineStatus = true
+        guard status.isPersistentNotice || isPipelineActive else { return }
+        if status.isPersistentNotice {
+            didShowPipelineStatus = true
+        }
         statusTextItem?.title = "Status: \(Self.title(for: status))"
     }
 
     @objc
     private func openMicrophoneSettings() {
-        openSettingsPane("Privacy_Microphone")
+        Task { @MainActor in
+            await requestPermission(.microphone, fallbackPane: "Privacy_Microphone")
+        }
     }
 
     @objc
     private func openAccessibilitySettings() {
-        openSettingsPane("Privacy_Accessibility")
+        Task { @MainActor in
+            await requestPermission(.accessibility, fallbackPane: "Privacy_Accessibility")
+        }
     }
 
     @objc
     private func openInputMonitoringSettings() {
-        openSettingsPane("Privacy_ListenEvent")
+        Task { @MainActor in
+            await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
+        }
     }
 
     @objc
@@ -192,6 +208,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettingsPane(_ pane: String) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func requestPermission(_ permission: SystemPermission, fallbackPane: String) async {
+        guard let permissionRequester = composition?.permissionRequester else {
+            openSettingsPane(fallbackPane)
+            return
+        }
+        let granted = await permissionRequester.request(permission)
+        if granted {
+            retrySetup()
+        } else {
+            openSettingsPane(fallbackPane)
         }
     }
 
@@ -229,6 +258,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static func title(for status: StatusMessage) -> String {
         switch status {
+        case .preparingSpeechModel:
+            return "Preparing Speech Model"
         case .cleanupDeclinedInsertedAsSpoken:
             return "Inserted As Spoken"
         case .accessibilityDenied:

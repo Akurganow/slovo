@@ -9,6 +9,8 @@ import Foundation
 ///
 /// L4: the grant prompts are exercised on a clean machine via the runbook.
 public struct SystemPermissionPreflighter: PermissionPreflighter {
+    private static let accessibilityPromptOption = "AXTrustedCheckOptionPrompt"
+
     public init() {}
 
     public func preflight() -> PermissionStatus {
@@ -40,5 +42,35 @@ public struct SystemPermissionPreflighter: PermissionPreflighter {
 extension SystemPermissionPreflighter: MicrophoneAuthorizer {
     public func isMicrophoneAuthorized() async -> Bool {
         AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+    }
+}
+
+extension SystemPermissionPreflighter: PermissionRequester {
+    public func request(_ permission: SystemPermission) async -> Bool {
+        switch permission {
+        case .microphone:
+            await requestMicrophoneAccess()
+        case .accessibility:
+            requestAccessibilityAccess()
+        case .inputMonitoring:
+            requestInputMonitoringAccess()
+        }
+    }
+
+    private func requestMicrophoneAccess() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+
+    private func requestAccessibilityAccess() -> Bool {
+        let options = [Self.accessibilityPromptOption: true] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
+    }
+
+    private func requestInputMonitoringAccess() -> Bool {
+        CGRequestListenEventAccess()
     }
 }

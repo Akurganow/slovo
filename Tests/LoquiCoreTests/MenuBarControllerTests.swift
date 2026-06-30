@@ -11,10 +11,10 @@ struct MenuBarControllerTests {
     private static let sentinel = "S3NT1NEL-HISTORY-51c07e9b-DO-NOT-LOG"
 
     @Test
-    func glyphMappingUsesRecordingGlyphOnlyWhileRecording() {
+    func glyphMappingUsesDistinctGlyphsForLiveStates() {
         #expect(MenuBarGlyph.forState(.recording) == "\u{2C18}")
         #expect(MenuBarGlyph.forState(.idle) == "\u{2C44}")
-        #expect(MenuBarGlyph.forState(.processing) == "\u{2C44}")
+        #expect(MenuBarGlyph.forState(.processing) == "\u{2C34}")
     }
 
     /// Stated sensitivity: append oldest-first or forget to evict past capacity →

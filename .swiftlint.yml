@@ -60,7 +60,6 @@ disabled_rules:
   - force_unwrapping
   - function_default_parameter_at_end
   - inclusive_language
-  - incompatible_concurrency_annotation
   - large_tuple
   - nesting
   - no_extension_access_modifier
@@ -79,10 +78,6 @@ disabled_rules:
   - unused_enumerated
   - unused_parameter
   - variable_shadowing
-
-  # Analyzer noise in this package today; enforce it through a focused cleanup
-  # task rather than blocking unrelated feature work.
-  - unused_import
 
 opt_in_rules:
   - all

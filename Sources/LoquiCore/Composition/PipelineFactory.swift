@@ -67,8 +67,7 @@ public enum PipelineFactory {
         let fallback = FallbackCleaner(
             chain: fallbackChain,
             statusReporter: { status in
-                dependencies.statusReporter(status)
-                dependencies.log.event("status.\(status)")
+                dependencies.reportStatus(status)
             }
         )
         var assembled = dependencies

@@ -30,6 +30,13 @@ public struct KeychainAnthropicKeyProvider: AnthropicKeyProvider {
         throw CleanupError.missingKey
     }
 
+    public func hasConfiguredKey() -> Bool {
+        if keychainItemExists() {
+            return true
+        }
+        return environmentKeyValue()?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
     public func store(_ key: String) throws {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -78,6 +85,18 @@ public struct KeychainAnthropicKeyProvider: AnthropicKeyProvider {
             return nil
         }
         return String(data: data, encoding: .utf8)
+    }
+
+    private func keychainItemExists() -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        return SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess
     }
 
     private func environmentKeyValue() -> String? {

@@ -9,6 +9,7 @@ enum AppComposition {
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
         let keyProvider: KeychainAnthropicKeyProvider
+        let permissionRequester: any PermissionRequester
     }
 
     static func makeLive(
@@ -62,9 +63,10 @@ enum AppComposition {
             hotkeyMonitor: CGEventTapHotkeyMonitor(),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight(),
-                hasKey: (try? keyProvider.apiKey()) != nil
+                hasKey: keyProvider.hasConfiguredKey()
             ),
-            keyProvider: keyProvider
+            keyProvider: keyProvider,
+            permissionRequester: permissionPreflighter
         )
     }
 

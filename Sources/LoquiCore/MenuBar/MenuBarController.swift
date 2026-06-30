@@ -5,8 +5,10 @@ public enum MenuBarGlyph {
         switch state {
         case .recording:
             return "\u{2C18}"
-        case .idle, .processing:
+        case .idle:
             return "\u{2C44}"
+        case .processing:
+            return "\u{2C34}"
         }
     }
 }

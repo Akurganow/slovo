@@ -22,3 +22,14 @@ public struct PermissionStatus: Equatable, Sendable {
 public protocol PermissionPreflighter {
     func preflight() -> PermissionStatus
 }
+
+public enum SystemPermission: Equatable, Sendable {
+    case microphone
+    case accessibility
+    case inputMonitoring
+}
+
+/// Requests one system permission step during first-run setup.
+public protocol PermissionRequester: Sendable {
+    func request(_ permission: SystemPermission) async -> Bool
+}

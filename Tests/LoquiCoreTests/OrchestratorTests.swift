@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Synchronization
 
 import LoquiCore
 import LoquiTestSupport
@@ -27,7 +28,7 @@ struct OrchestratorTests {
     /// Builds Dependencies with the given seam fakes (mic authorized; a pinned
     /// PriorAudioState for mute/restore).
     private static func deps(
-        transcriber: FakeTranscriber,
+        transcriber: any Transcriber,
         cleaner: FakeCleaner,
         injector: FakeInjector,
         vocabulary: [Term] = vocab,
@@ -35,12 +36,13 @@ struct OrchestratorTests {
             muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
         ),
         recorder: FakeAudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
-        log: RedactionSafeLog = RedactionSafeLog(subsystem: "loqui", category: "orch-test")
+        log: RedactionSafeLog = RedactionSafeLog(subsystem: "loqui", category: "orch-test"),
+        statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
             transcriber: transcriber, cleaner: cleaner, injector: injector,
             personalization: FakePersonalizationSource(terms: vocabulary),
-            audio: audio, recorder: recorder, log: log
+            audio: audio, recorder: recorder, log: log, statusReporter: statusReporter
         )
     }
 
@@ -211,6 +213,40 @@ struct OrchestratorTests {
                 "a transcription failure must not inject text; got \(injector.calls)")
         #expect(await orchestrator.currentState() == .idle,
                 "a contained transcription failure must return the session to idle")
+    }
+
+    /// A first-run ASR model download can spend seconds inside `transcribe`;
+    /// surface that precise stage before entering the transcriber.
+    /// Stated sensitivity: remove the pre-transcribe status report → the blocked
+    /// transcriber is entered with no `.preparingSpeechModel` status recorded.
+    @Test
+    func reportsSpeechModelPreparationBeforeTranscriberCall() async {
+        let reported = Mutex<[StatusMessage]>([])
+        let transcriber = BlockingTranscriber(outcome: .success("hi"))
+        let cleaner = FakeCleaner(outcome: .success("HI"))
+        let injector = FakeInjector(outcome: .success)
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            config: Config(),
+            dependencies: Self.deps(
+                transcriber: transcriber,
+                cleaner: cleaner,
+                injector: injector,
+                statusReporter: { status in reported.withLock { $0.append(status) } }
+            )
+        )
+
+        await orchestrator.handle(.startRequested)
+        #expect(reported.withLock { $0 }.isEmpty,
+                "ASR preparation status must not fire while recording before Stop")
+        await orchestrator.handle(.stopRequested)
+        await transcriber.waitUntilCalled()
+
+        let statuses = reported.withLock { $0 }
+        #expect(statuses == [.preparingSpeechModel],
+                "the user-visible status must name ASR preparation before transcribe blocks; got \(statuses)")
+
+        await transcriber.release()
+        await orchestrator.awaitPipelineDrain()
     }
 
     /// AC-4 (single-flight): a second Start while processing is IGNORED — no

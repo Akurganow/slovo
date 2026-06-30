@@ -10,6 +10,7 @@ public final class ScriptedTranscriber: Transcriber {
     private let recordedCalls = Mutex<[(audio: AudioBuffer, biasTerms: [Term])]>([])
     private let script: @Sendable (AudioBuffer) -> Result<String, TranscriptionError>
 
+    @preconcurrency
     public init(_ script: @escaping @Sendable (AudioBuffer) -> Result<String, TranscriptionError>) {
         self.script = script
     }
