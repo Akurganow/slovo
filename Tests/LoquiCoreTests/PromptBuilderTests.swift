@@ -83,4 +83,33 @@ struct PromptBuilderTests {
         #expect(request.model == "claude-test-model",
                 "the Anthropic model must come from configuration, got \(request.model)")
     }
+
+    /// Short dictation snippets are still transcripts to clean, not chat prompts.
+    /// Stated sensitivity: remove the assistant-style guardrails from the system
+    /// prompt or make the example byte-identical -> the required instruction
+    /// fragments disappear or the example assertion fails -> RED.
+    @Test
+    func promptRequiresTransformOnlyReplyForShortDictation() {
+        let raw = "1 2 3 проверяем 1 2 3"
+        let request = PromptBuilder(maxVocabularyTerms: 3)
+            .build(
+                raw: raw,
+                config: CleanupConfig(writingStyle: .casual, language: .auto),
+                context: PersonalizationContext(vocabulary: [])
+            )
+        let systemText = request.system.map(\.text).joined(separator: "\n")
+
+        #expect(request.messages.first?.content == raw,
+                "the model input must carry the exact raw transcript to be transformed")
+        #expect(systemText.contains("Return only the cleaned transcript"),
+                "the model must be constrained to output only the transcript")
+        #expect(systemText.contains("Do not ask for context"),
+                "the model must not answer short dictation as an interactive chat")
+        #expect(systemText.contains("If the transcript is a short test phrase"),
+                "short test utterances must be treated as valid dictation")
+        #expect(systemText.contains("<output>1, 2, 3, проверяем, 1, 2, 3.</output>"),
+                "the short-test example must demonstrate cleanup, not byte-identical pass-through")
+        #expect(!systemText.contains("<output>\(raw)</output>"),
+                "the prompt must not teach byte-identical output for this case")
+    }
 }
