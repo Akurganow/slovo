@@ -42,4 +42,28 @@ struct PipelineFactoryTests {
         #expect(summary.injectorCount == 1, "exactly one injector; got \(summary.injectorCount)")
         #expect(summary.sourceCount == 1, "exactly one personalization source; got \(summary.sourceCount)")
     }
+
+    /// Stated sensitivity: use the provider-specific default model or the wrong
+    /// provider model inside the orchestrator -> the fake cleaner records a
+    /// different active `CleanupConfig.model`.
+    @Test
+    func orchestratorPassesSelectedProviderModelToCleaner() async {
+        let cleaner = FakeCleaner(outcome: .success("clean"))
+        let injector = FakeInjector(outcome: .success)
+        var dependencies = Self.deps()
+        dependencies.cleaner = cleaner
+        dependencies.injector = injector
+        let config = Config(
+            cleanupProvider: .openAI,
+            anthropicModel: "claude-experiment",
+            openAIModel: "gpt-5.4-mini"
+        )
+        let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
+
+        await orchestrator.handle(.startRequested)
+        await orchestrator.handle(.stopRequested)
+        await orchestrator.awaitPipelineDrain()
+
+        #expect(cleaner.calls.last?.config.model == "gpt-5.4-mini")
+    }
 }

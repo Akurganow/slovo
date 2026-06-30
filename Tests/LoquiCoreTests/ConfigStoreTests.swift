@@ -97,6 +97,104 @@ struct ConfigStoreTests {
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
+    /// Stated sensitivity: validate inactive provider models globally -> a valid
+    /// Anthropic config is thrown away because an unused OpenAI model is empty.
+    @Test
+    func emptyInactiveOpenAIModelDoesNotRejectAnthropicConfig() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(
+                cleanupProvider: "anthropic",
+                anthropicModel: "claude-active",
+                openAIModel: ""
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.cleanupProvider == .anthropic)
+        #expect(config.cleanupConfig.model == "claude-active")
+    }
+
+    /// Stated sensitivity: ignore `cleanup.provider` or keep selecting Anthropic
+    /// while the stored config asks for OpenAI -> loaded cleanupBackend is wrong.
+    @Test
+    func openAIProviderAndModelDecodeFromCleanupConfig() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(
+                cleanupProvider: "openai",
+                anthropicModel: "claude-experiment",
+                openAIModel: "gpt-5.4-mini",
+                writingStyle: "casual"
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.cleanupProvider == .openAI)
+        #expect(config.anthropicModel == "claude-experiment")
+        #expect(config.openAIModel == "gpt-5.4-mini")
+        #expect(config.cleanupConfig.model == "gpt-5.4-mini",
+                "the active cleanup model must follow the selected provider")
+    }
+
+    /// Stated sensitivity: require the new provider/model fields unconditionally
+    /// -> old persisted configs fall back to defaults and lose valid user config.
+    @Test
+    func legacyCleanupConfigWithoutProviderStaysAnthropicCompatible() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(anthropicModel: "claude-legacy-model"),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.cleanupProvider == .anthropic)
+        #expect(config.anthropicModel == "claude-legacy-model")
+        #expect(config.openAIModel == Config.defaults.openAIModel)
+        #expect(config.cleanupConfig.model == "claude-legacy-model")
+    }
+
+    /// Stated sensitivity: accept an unknown cleanup provider -> the app silently
+    /// runs a different cloud egress path than the persisted config names.
+    @Test
+    func unknownCleanupProviderRejectsWholeConfig() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "local-llm"),
+        ])
+
+        #expect(ConfigStore.load(from: defaults) == .defaults)
+    }
+
+    /// Stated sensitivity: accept an empty OpenAI model while provider=openai ->
+    /// the live request would reach the API with an invalid model id.
+    @Test
+    func emptyOpenAIModelRejectsOpenAIConfig() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "openai", openAIModel: ""),
+        ])
+
+        #expect(ConfigStore.load(from: defaults) == .defaults)
+    }
+
+    /// Stated sensitivity: omit `cleanup.provider` or `cleanup.openAIModel`
+    /// while saving -> load round-trip falls back to Anthropic/defaults.
+    @Test
+    func saveRoundTripsCleanupProviderAndProviderModels() throws {
+        let defaults = FakeUserDefaults()
+        let config = Config(
+            cleanupProvider: .openAI,
+            anthropicModel: "claude-saved",
+            openAIModel: "gpt-saved"
+        )
+
+        try ConfigStore.save(config, to: defaults)
+        let loaded = ConfigStore.load(from: defaults)
+
+        #expect(loaded.cleanupProvider == .openAI)
+        #expect(loaded.anthropicModel == "claude-saved")
+        #expect(loaded.openAIModel == "gpt-saved")
+        #expect(loaded.cleanupConfig.model == "gpt-saved")
+    }
+
     /// Stated sensitivity: decoding persisted ASR backend from the Swift case
     /// name instead of the documented wire format must be rejected independently.
     @Test
@@ -150,7 +248,9 @@ struct ConfigStoreTests {
                 backend: "whisperkit",
                 asrModel: "large-v3-v20240930_turbo_632MB",
                 cleanupEnabled: false,
+                cleanupProvider: "openai",
                 anthropicModel: "claude-haiku-4-5",
+                openAIModel: "gpt-5.4-mini",
                 writingStyle: "formal"
             ),
         ])
@@ -161,7 +261,9 @@ struct ConfigStoreTests {
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             cleanupEnabled: false,
+            cleanupProvider: .openAI,
             anthropicModel: "claude-haiku-4-5",
+            openAIModel: "gpt-5.4-mini",
             writingStyle: .formal
         ))
     }
@@ -174,18 +276,27 @@ struct ConfigStoreTests {
         backend: String = "whisperkit",
         asrModel: String = "large-v3-v20240930_turbo_632MB",
         cleanupEnabled: Bool = true,
+        cleanupProvider: String? = nil,
         anthropicModel: String = "claude-haiku-4-5",
+        openAIModel: String? = nil,
         writingStyle: String = "casual"
     ) throws -> Data {
+        var cleanup: [String: Any] = [
+            "enabled": cleanupEnabled,
+            "anthropicModel": anthropicModel,
+            "writingStyle": writingStyle,
+        ]
+        if let cleanupProvider {
+            cleanup["provider"] = cleanupProvider
+        }
+        if let openAIModel {
+            cleanup["openAIModel"] = openAIModel
+        }
         var object: [String: Any] = [
             "language": language,
             "keepWarmSeconds": keepWarmSeconds,
             "asr": ["backend": backend, "model": asrModel],
-            "cleanup": [
-                "enabled": cleanupEnabled,
-                "anthropicModel": anthropicModel,
-                "writingStyle": writingStyle,
-            ],
+            "cleanup": cleanup,
         ]
         if let trigger {
             object["trigger"] = trigger

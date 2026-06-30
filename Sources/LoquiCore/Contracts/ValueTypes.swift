@@ -51,6 +51,12 @@ public enum WritingStyle: String, Codable, Equatable, Sendable {
     case veryCasual = "very-casual"
 }
 
+/// Cloud cleanup provider selected by configuration.
+public enum CleanupProvider: String, Codable, Equatable, Sendable {
+    case anthropic
+    case openAI = "openai"
+}
+
 /// Tunables for a single cleanup pass.
 public struct CleanupConfig: Equatable, Sendable {
     public var model: String

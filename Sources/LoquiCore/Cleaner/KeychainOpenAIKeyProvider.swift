@@ -1,22 +1,22 @@
 import Foundation
 
-/// Supplies the Anthropic key from Keychain, caching the secret in memory after
-/// the first successful read.
-public final class KeychainAnthropicKeyProvider: AnthropicKeyProvider, CleanupKeyProvider {
+/// Supplies the OpenAI key from Keychain, caching the secret in memory after the
+/// first successful read.
+public final class KeychainOpenAIKeyProvider: OpenAIKeyProvider, CleanupKeyProvider {
     public typealias StoreError = KeychainAPIKeyProvider.StoreError
     private let storage: KeychainAPIKeyProvider
 
     public convenience init(
         service: String = "loqui",
-        account: String = "anthropic-api-key",
-        environmentKey: String = "ANTHROPIC_API_KEY"
+        account: String = "openai-api-key",
+        environmentKey: String = "OPENAI_API_KEY"
     ) {
         self.init(storage: KeychainAPIKeyProvider(service: service, account: account, environmentKey: environmentKey))
     }
 
     @preconcurrency
     public init(
-        environmentKey: String = "ANTHROPIC_API_KEY",
+        environmentKey: String = "OPENAI_API_KEY",
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
         writeKey: @escaping @Sendable (String) throws -> Void

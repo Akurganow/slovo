@@ -1,12 +1,25 @@
 import Foundation
 
-/// Assembles the Anthropic request from a transcript, config, and personalization
+/// Provider-neutral cleanup prompt built from config and personalization.
+public struct CleanupPrompt: Sendable, Equatable {
+    public let model: String
+    public let systemBlocks: [String]
+    public let input: String
+
+    public init(model: String, systemBlocks: [String], input: String) {
+        self.model = model
+        self.systemBlocks = systemBlocks
+        self.input = input
+    }
+}
+
+/// Assembles the cleanup prompt from a transcript, config, and personalization
 /// context (spec §18.5). GRDB-free: it consumes the already-loaded
 /// `PersonalizationContext`, never the database.
 ///
-/// The system blocks (cleanup instructions + top-weighted vocabulary + the
-/// writing-style directive) are stable across calls, so `cache_control` sits on
-/// the LAST system block. The transcript is the uncached user block.
+/// The system blocks are stable across calls. Provider adapters decide how to
+/// encode them; Anthropic adds `cache_control` on the last block, while OpenAI
+/// sends them as `instructions`.
 public struct PromptBuilder: Sendable {
     private let maxVocabularyTerms: Int
 
@@ -19,26 +32,10 @@ public struct PromptBuilder: Sendable {
         config: CleanupConfig,
         context: PersonalizationContext
     ) -> AnthropicRequest {
-        // Top-N vocabulary by weight, descending; padding is deliberately NOT
-        // done (caching is a bonus, not a driver — P13).
-        let keptTerms = context.vocabulary
-            .sorted { $0.weight > $1.weight }
-            .prefix(maxVocabularyTerms)
-            .map(\.term)
-
-        // Build the system blocks; cache_control goes ONLY on the last one.
-        var systemBlocks: [AnthropicRequest.SystemBlock] = [
-            AnthropicRequest.SystemBlock(text: cleanupInstructions(for: config), cacheControl: nil),
-        ]
-        if !keptTerms.isEmpty {
-            systemBlocks.append(
-                AnthropicRequest.SystemBlock(
-                    text: "Preserve these terms verbatim: \(keptTerms.joined(separator: ", "))",
-                    cacheControl: nil
-                )
-            )
+        let prompt = buildPrompt(raw: raw, config: config, context: context)
+        var systemBlocks = prompt.systemBlocks.map {
+            AnthropicRequest.SystemBlock(text: $0, cacheControl: nil)
         }
-        // The last system block carries the cache marker.
         let lastIndex = systemBlocks.count - 1
         systemBlocks[lastIndex] = AnthropicRequest.SystemBlock(
             text: systemBlocks[lastIndex].text,
@@ -46,10 +43,34 @@ public struct PromptBuilder: Sendable {
         )
 
         return AnthropicRequest(
-            model: config.model,
+            model: prompt.model,
             maxTokens: 4_096,
             system: systemBlocks,
-            messages: [AnthropicRequest.Message(role: "user", content: raw)]
+            messages: [AnthropicRequest.Message(role: "user", content: prompt.input)]
+        )
+    }
+
+    public func buildPrompt(
+        raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext
+    ) -> CleanupPrompt {
+        // Top-N vocabulary by weight, descending; padding is deliberately NOT
+        // done (caching is a bonus, not a driver — P13).
+        let keptTerms = context.vocabulary
+            .sorted { $0.weight > $1.weight }
+            .prefix(maxVocabularyTerms)
+            .map(\.term)
+
+        var systemBlocks = [cleanupInstructions(for: config)]
+        if !keptTerms.isEmpty {
+            systemBlocks.append("Preserve these terms verbatim: \(keptTerms.joined(separator: ", "))")
+        }
+
+        return CleanupPrompt(
+            model: config.model,
+            systemBlocks: systemBlocks,
+            input: raw
         )
     }
 

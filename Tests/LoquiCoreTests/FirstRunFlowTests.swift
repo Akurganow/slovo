@@ -11,7 +11,9 @@ struct FirstRunFlowTests {
     func readyWhenAllPermissionsAndKeyExist() {
         let steps = FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: true, inputMonitoring: true, microphone: true),
-            hasKey: true
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: true,
+            hasOpenAIKey: false
         )
 
         #expect(steps == [.ready])
@@ -23,7 +25,9 @@ struct FirstRunFlowTests {
     func reportsEveryMissingPermissionBeforeKey() {
         let steps = FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: false, inputMonitoring: false, microphone: false),
-            hasKey: false
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: false,
+            hasOpenAIKey: false
         )
 
         #expect(steps == [
@@ -38,27 +42,49 @@ struct FirstRunFlowTests {
     func keyStepAppearsAfterGrantedPermissions() {
         let steps = FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: true, inputMonitoring: true, microphone: true),
-            hasKey: false
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: false,
+            hasOpenAIKey: false
         )
 
         #expect(steps == [.requestAnthropicKey])
+    }
+
+    /// Stated sensitivity: keep first-run hard-coded to the Anthropic key -> an
+    /// OpenAI-selected cleanup config asks for the wrong credential.
+    @Test
+    func openAIProviderRequiresOpenAIKeyOnly() {
+        let steps = FirstRunFlow.pendingSteps(
+            permissions: PermissionStatus(accessibility: true, inputMonitoring: true, microphone: true),
+            cleanupProvider: .openAI,
+            hasAnthropicKey: true,
+            hasOpenAIKey: false
+        )
+
+        #expect(steps == [.requestOpenAIKey])
     }
 
     @Test
     func eachPermissionBitIsIndependent() {
         #expect(FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: true, inputMonitoring: true, microphone: false),
-            hasKey: true
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: true,
+            hasOpenAIKey: false
         ) == [.requestMicrophone])
 
         #expect(FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: false, inputMonitoring: true, microphone: true),
-            hasKey: true
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: true,
+            hasOpenAIKey: false
         ) == [.requestAccessibility])
 
         #expect(FirstRunFlow.pendingSteps(
             permissions: PermissionStatus(accessibility: true, inputMonitoring: false, microphone: true),
-            hasKey: true
+            cleanupProvider: .anthropic,
+            hasAnthropicKey: true,
+            hasOpenAIKey: false
         ) == [.requestInputMonitoring])
     }
 }

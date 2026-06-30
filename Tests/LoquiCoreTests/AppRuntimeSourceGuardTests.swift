@@ -59,12 +59,14 @@ struct AppRuntimeSourceGuardTests {
     @Test
     func readinessCheckUsesKeyPresenceWithoutDecryptingSecret() throws {
         let composition = try Self.code("Sources/loqui/AppComposition.swift")
-        let keyProvider = try Self.code("Sources/LoquiCore/Cleaner/KeychainAnthropicKeyProvider.swift")
+        let keyProvider = try Self.code("Sources/LoquiCore/Cleaner/KeychainAPIKeyProvider.swift")
         let makeLiveBody = try Self.functionBody(named: "makeLive", in: composition)
         let hasConfiguredKeyBody = try Self.functionBody(named: "hasConfiguredKey", in: keyProvider)
         let keychainItemExistsBody = try Self.functionBody(named: "keychainItemExists", in: keyProvider)
 
-        #expect(Self.containsStatement(#"hasKey:\s*keyProvider\.hasConfiguredKey\(\),?"#, in: makeLiveBody))
+        #expect(makeLiveBody.contains("cleanupProvider: config.cleanupProvider"))
+        #expect(makeLiveBody.contains("hasAnthropicKey: anthropicKeyProvider.hasConfiguredKey()"))
+        #expect(makeLiveBody.contains("hasOpenAIKey: openAIKeyProvider.hasConfiguredKey()"))
         #expect(!Self.withoutStringLiterals(makeLiveBody).contains("keyProvider.apiKey()"))
         #expect(hasConfiguredKeyBody.contains("keyExists()"))
         for forbidden in ["apiKey()", "keychainKey()", "kSecReturnData"] {
@@ -87,9 +89,34 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(Self.containsInOrder([
             "guard live.onboardingSteps == [.ready] else",
-            "try live.keyProvider.preload()",
+            "try live.selectedKeyProvider.preload()",
             "try live.hotkeyMonitor.start()",
         ], in: startPipelineBody))
+    }
+
+    @Test
+    func appMenuCanSwitchCleanupProviderAndEditProviderModels() throws {
+        let delegate = try Self.code("Sources/loqui/AppDelegate.swift")
+        let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
+        let useAnthropicBody = try Self.functionBody(named: "useAnthropicCleanup", in: delegate)
+        let useOpenAIBody = try Self.functionBody(named: "useOpenAICleanup", in: delegate)
+        let setAnthropicModelBody = try Self.functionBody(named: "setAnthropicModel", in: delegate)
+        let setOpenAIModelBody = try Self.functionBody(named: "setOpenAIModel", in: delegate)
+
+        #expect(menuBody.contains(#"actionItem("Use Anthropic Cleanup", #selector(useAnthropicCleanup))"#))
+        #expect(menuBody.contains(#"actionItem("Use OpenAI Cleanup", #selector(useOpenAICleanup))"#))
+        #expect(menuBody.contains(#"actionItem("Set Anthropic Model", #selector(setAnthropicModel))"#))
+        #expect(menuBody.contains(#"actionItem("Set OpenAI Model", #selector(setOpenAIModel))"#))
+        #expect(useAnthropicBody.contains("updateConfig"))
+        #expect(useAnthropicBody.contains("config.cleanupProvider = .anthropic"))
+        #expect(useOpenAIBody.contains("updateConfig"))
+        #expect(useOpenAIBody.contains("config.cleanupProvider = .openAI"))
+        #expect(setAnthropicModelBody.contains("promptForModel"))
+        #expect(setAnthropicModelBody.contains("updateConfig"))
+        #expect(setAnthropicModelBody.contains("config.anthropicModel = model"))
+        #expect(setOpenAIModelBody.contains("promptForModel"))
+        #expect(setOpenAIModelBody.contains("updateConfig"))
+        #expect(setOpenAIModelBody.contains("config.openAIModel = model"))
     }
 
     @Test

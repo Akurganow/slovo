@@ -8,8 +8,18 @@ public protocol UserDefaultsReading {
 
 extension UserDefaults: UserDefaultsReading {}
 
+public protocol UserDefaultsWriting: UserDefaultsReading {
+    func set(_ value: Any?, forKey defaultName: String)
+}
+
+extension UserDefaults: UserDefaultsWriting {}
+
 public enum ConfigStore {
     public static let defaultKey = "loqui.config.v1"
+
+    public enum SaveError: Error, Sendable {
+        case invalidConfig
+    }
 
     public static func load(from defaults: UserDefaultsReading, key: String = defaultKey) -> Config {
         guard let data = defaults.data(forKey: key),
@@ -21,7 +31,16 @@ public enum ConfigStore {
         return config
     }
 
-    private struct StoredConfig: Decodable {
+    public static func save(_ config: Config, to defaults: UserDefaultsWriting, key: String = defaultKey) throws {
+        guard validated(config) != nil else {
+            throw SaveError.invalidConfig
+        }
+        let stored = StoredConfig(config: config)
+        let data = try JSONEncoder().encode(stored)
+        defaults.set(data, forKey: key)
+    }
+
+    private struct StoredConfig: Codable {
         let language: Language
         let keepWarmSeconds: Int
         let trigger: String?
@@ -30,36 +49,74 @@ public enum ConfigStore {
         let cleanup: StoredCleanup
 
         func validated() -> Config? {
-            guard (0...3_600).contains(keepWarmSeconds),
-                  trigger == nil || trigger == Config.defaultTrigger,
-                  mode == nil || mode == Config.defaultMode,
-                  asr.backend == .whisperKit,
-                  !asr.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  !cleanup.anthropicModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            guard trigger == nil || trigger == Config.defaultTrigger,
+                  mode == nil || mode == Config.defaultMode
             else {
                 return nil
             }
 
-            return Config(
+            let provider = cleanup.provider ?? .anthropic
+            let openAIModel = cleanup.openAIModel ?? Config.defaultOpenAIModel
+
+            return ConfigStore.validated(Config(
                 language: language,
                 keepWarmSeconds: keepWarmSeconds,
                 asrBackend: asr.backend,
                 asrModel: asr.model,
                 cleanupEnabled: cleanup.enabled,
+                cleanupProvider: provider,
                 anthropicModel: cleanup.anthropicModel,
+                openAIModel: openAIModel,
                 writingStyle: cleanup.writingStyle
+            ))
+        }
+
+        init(config: Config) {
+            language = config.language
+            keepWarmSeconds = config.keepWarmSeconds
+            trigger = Config.defaultTrigger
+            mode = Config.defaultMode
+            asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
+            cleanup = StoredCleanup(
+                enabled: config.cleanupEnabled,
+                provider: config.cleanupProvider,
+                anthropicModel: config.anthropicModel,
+                openAIModel: config.openAIModel,
+                writingStyle: config.writingStyle
             )
         }
     }
 
-    private struct StoredAsr: Decodable {
+    private struct StoredAsr: Codable {
         let backend: AsrBackend
         let model: String
     }
 
-    private struct StoredCleanup: Decodable {
+    private struct StoredCleanup: Codable {
         let enabled: Bool
+        let provider: CleanupProvider?
         let anthropicModel: String
+        let openAIModel: String?
         let writingStyle: WritingStyle
+    }
+
+    private static func validated(_ config: Config) -> Config? {
+        guard (0...3_600).contains(config.keepWarmSeconds),
+              config.asrBackend == .whisperKit,
+              !config.asrModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              hasModel(for: config.cleanupProvider, in: config)
+        else {
+            return nil
+        }
+        return config
+    }
+
+    private static func hasModel(for provider: CleanupProvider, in config: Config) -> Bool {
+        switch provider {
+        case .anthropic:
+            return !config.anthropicModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .openAI:
+            return !config.openAIModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 }

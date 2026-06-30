@@ -5,14 +5,18 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger: Logger
+    private let defaults: UserDefaults
     private var statusItem: NSStatusItem?
     private var statusTextItem: NSMenuItem?
     private var composition: AppComposition.Live?
     private var didShowPipelineStatus = false
     private var isPipelineActive = false
 
-    init(logger: Logger) {
+    private enum APIKeyKind { case anthropic, openAI }
+
+    init(logger: Logger, defaults: UserDefaults = .standard) {
         self.logger = logger
+        self.defaults = defaults
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -35,7 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(status)
         statusTextItem = status
         menu.addItem(.separator())
+        menu.addItem(actionItem("Use Anthropic Cleanup", #selector(useAnthropicCleanup)))
+        menu.addItem(actionItem("Use OpenAI Cleanup", #selector(useOpenAICleanup)))
+        menu.addItem(actionItem("Set Anthropic Model", #selector(setAnthropicModel)))
+        menu.addItem(actionItem("Set OpenAI Model", #selector(setOpenAIModel)))
+        menu.addItem(.separator())
         menu.addItem(actionItem("Update Anthropic Key", #selector(enterAnthropicKey)))
+        menu.addItem(actionItem("Update OpenAI Key", #selector(enterOpenAIKey)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit Loqui",
@@ -47,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startPipeline() {
         do {
-            let live = try AppComposition.makeLive(statusReporter: { [weak self] status in
+            let live = try AppComposition.makeLive(defaults: defaults, statusReporter: { [weak self] status in
                 Task { @MainActor [weak self] in
                     self?.showStatus(status)
                 }
@@ -58,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 logger.info("onboarding pending")
                 return
             }
-            try live.keyProvider.preload()
+            try live.selectedKeyProvider.preload()
             live.hotkeyMonitor.onTrigger = { [weak self, orchestrator = live.orchestrator] phase in
                 Task {
                     switch phase {
@@ -126,6 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if steps.contains(.requestAnthropicKey) {
             menu.addItem(actionItem("Enter Anthropic Key", #selector(enterAnthropicKey)))
         }
+        if steps.contains(.requestOpenAIKey) {
+            menu.addItem(actionItem("Enter OpenAI Key", #selector(enterOpenAIKey)))
+        }
         menu.addItem(.separator())
         menu.addItem(actionItem("Retry Setup", #selector(retrySetup)))
         menu.addItem(NSMenuItem(title: "Quit Loqui", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -159,11 +172,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
         } else if steps.contains(.requestAnthropicKey) {
             promptForAnthropicKey()
+        } else if steps.contains(.requestOpenAIKey) {
+            promptForOpenAIKey()
         }
     }
 
     private func primaryActionTitle(for steps: [OnboardingStep]) -> String {
-        steps.contains(.requestAnthropicKey) && steps.count == 1 ? "Enter Key" : "Continue Setup"
+        (steps.contains(.requestAnthropicKey) || steps.contains(.requestOpenAIKey)) && steps.count == 1
+            ? "Enter Key"
+            : "Continue Setup"
     }
 
     private func showStatus(_ status: StatusMessage) {
@@ -201,7 +218,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
+    private func enterOpenAIKey() {
+        promptForOpenAIKey()
+    }
+
+    @objc
+    private func useAnthropicCleanup() {
+        updateConfig { config in
+            config.cleanupProvider = .anthropic
+        }
+    }
+
+    @objc
+    private func useOpenAICleanup() {
+        updateConfig { config in
+            config.cleanupProvider = .openAI
+        }
+    }
+
+    @objc
+    private func setAnthropicModel() {
+        let current = ConfigStore.load(from: defaults).anthropicModel
+        promptForModel(title: "Set Anthropic model", currentValue: current) { [weak self] model in
+            self?.updateConfig { config in
+                config.anthropicModel = model
+            }
+        }
+    }
+
+    @objc
+    private func setOpenAIModel() {
+        let current = ConfigStore.load(from: defaults).openAIModel
+        promptForModel(title: "Set OpenAI model", currentValue: current) { [weak self] model in
+            self?.updateConfig { config in
+                config.openAIModel = model
+            }
+        }
+    }
+
+    @objc
     private func retrySetup() {
+        composition?.hotkeyMonitor.stop()
         statusItem?.menu = makeMenu()
         startPipeline()
     }
@@ -226,19 +283,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func promptForAnthropicKey() {
+        promptForAPIKey(
+            title: "Enter Anthropic API key",
+            save: { [weak self] key in
+                guard let provider = self?.composition?.anthropicKeyProvider else { return }
+                try provider.store(key)
+            },
+            kind: .anthropic
+        )
+    }
+
+    private func promptForOpenAIKey() {
+        promptForAPIKey(
+            title: "Enter OpenAI API key",
+            save: { [weak self] key in
+                guard let provider = self?.composition?.openAIKeyProvider else { return }
+                try provider.store(key)
+            },
+            kind: .openAI
+        )
+    }
+
+    private func promptForAPIKey(
+        title: String,
+        save: (String) throws -> Void,
+        kind: APIKeyKind
+    ) {
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
         let alert = NSAlert()
-        alert.messageText = "Enter Anthropic API key"
+        alert.messageText = title
         alert.informativeText = "The key is stored in Keychain."
         alert.accessoryView = field
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do {
-            try composition?.keyProvider.store(field.stringValue)
+            try save(field.stringValue)
             retrySetup()
         } catch {
-            logger.error("anthropic key save failed")
+            switch kind {
+            case .anthropic:
+                logger.error("anthropic key save failed")
+            case .openAI:
+                logger.error("openai key save failed")
+            }
+        }
+    }
+
+    private func promptForModel(title: String, currentValue: String, save: (String) -> Void) {
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.stringValue = currentValue
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = "Enter the provider model id."
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let model = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !model.isEmpty else { return }
+        save(model)
+    }
+
+    private func updateConfig(_ mutate: (inout Config) -> Void) {
+        var config = ConfigStore.load(from: defaults)
+        mutate(&config)
+        do {
+            try ConfigStore.save(config, to: defaults)
+            retrySetup()
+        } catch {
+            logger.error("config save failed")
         }
     }
 
@@ -252,6 +366,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return "Input Monitoring permission"
         case .requestAnthropicKey:
             return "Anthropic key"
+        case .requestOpenAIKey:
+            return "OpenAI key"
         case .ready:
             return "Ready"
         }
@@ -266,7 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .accessibilityDenied:
             return "Accessibility Denied"
         case .missingKey:
-            return "Missing Anthropic Key"
+            return "Missing Cleanup Key"
         case .transcriptionFailed:
             return "Transcription Failed"
         case .secureFieldActive:
@@ -278,25 +394,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .cleanupFailed:
             return "Cleanup Failed"
         }
-    }
-
-    private static func menuBarGlyphImage(_ glyph: Character) -> NSImage? {
-        guard let font = NSFont(name: "NotoSansGlagolitic-Regular", size: 16) else {
-            return nil
-        }
-        let text = NSAttributedString(
-            string: String(glyph),
-            attributes: [
-                .font: font,
-                .foregroundColor: NSColor.black,
-            ]
-        )
-        let textSize = text.size()
-        let image = NSImage(size: NSSize(width: ceil(textSize.width), height: ceil(textSize.height)))
-        image.lockFocus()
-        text.draw(at: .zero)
-        image.unlockFocus()
-        image.isTemplate = true
-        return image
     }
 }

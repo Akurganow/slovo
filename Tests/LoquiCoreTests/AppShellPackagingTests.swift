@@ -15,11 +15,15 @@ struct AppShellPackagingTests {
             contentsOfFile: Self.packageRoot.appending(path: "Sources/loqui/AppDelegate.swift").path,
             encoding: .utf8
         ))
+        let glyph = try Self.strippingComments(from: String(
+            contentsOfFile: Self.packageRoot.appending(path: "Sources/loqui/AppDelegate+Glyph.swift").path,
+            encoding: .utf8
+        ))
 
         #expect(main.contains("setActivationPolicy(.accessory)"))
         #expect(delegate.contains("NSStatusItem"))
         #expect(delegate.contains("setStatusGlyph(.idle"))
-        #expect(delegate.contains("NotoSansGlagolitic-Regular"))
+        #expect(glyph.contains("NotoSansGlagolitic-Regular"))
         #expect(delegate.contains("button.image"))
         #expect(!delegate.contains("button?.title = String(MenuBarGlyph"))
     }
@@ -31,7 +35,7 @@ struct AppShellPackagingTests {
 
         #expect(composition.contains("ConfigStore.load(from: defaults)"))
         #expect(composition.contains("WhisperKitTranscriber(configuration:"))
-        #expect(composition.contains("AnthropicCleaner("))
+        #expect(composition.contains("CleanupProviderFactory.makeCleaner"))
         #expect(composition.contains("ClipboardPasteInjector("))
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
         #expect(composition.contains("CoreAudioOutputMute()"))
@@ -52,8 +56,11 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("showOnboardingAlert"))
         #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
         #expect(delegate.contains("promptForAnthropicKey"))
-        #expect(delegate.contains("keyProvider.store"))
+        #expect(delegate.contains("composition?.anthropicKeyProvider"))
+        #expect(delegate.contains("composition?.openAIKeyProvider"))
+        #expect(delegate.contains("try provider.store(key)"))
         #expect(menuBody.contains(#"actionItem("Update Anthropic Key", #selector(enterAnthropicKey))"#))
+        #expect(menuBody.contains(#"actionItem("Update OpenAI Key", #selector(enterOpenAIKey))"#))
         #expect(delegate.contains("statusReporter"))
         #expect(delegate.contains("showStatus"))
         #expect(delegate.contains("didShowPipelineStatus"))
