@@ -45,6 +45,7 @@ and `stop_reason: "refusal"` handling are all GA and require no beta opt-in).
 {
   "model": "claude-haiku-4-5",
   "max_tokens": 4096,
+  "temperature": 0,
   "system": [
     {
       "type": "text",
@@ -63,6 +64,8 @@ and `stop_reason: "refusal"` handling are all GA and require no beta opt-in).
   roughly the same length as the input, so size this to the expected transcript
   length plus margin. Hitting the cap yields `stop_reason: "max_tokens"` and a
   truncated result — size generously rather than retry.
+- **`temperature`** — `0` for deterministic dictation cleanup and repeatable
+  benchmark runs.
 - **`system`** (optional but used here) — the cleanup instructions. Either a
   plain string or an array of text blocks. slovo uses the array form so it can
   attach `cache_control` to the stable prefix.
@@ -207,6 +210,7 @@ func cleanupTranscript(_ transcript: String, system: String) async throws -> Str
     let body: [String: Any] = [
         "model": "claude-haiku-4-5",
         "max_tokens": 4096,
+        "temperature": 0,
         "system": [
             [
                 "type": "text",

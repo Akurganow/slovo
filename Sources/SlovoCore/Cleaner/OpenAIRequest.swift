@@ -7,17 +7,26 @@ public struct OpenAIRequest: Encodable {
     public let input: String
     public let store: Bool
     public let maxOutputTokens: Int
+    public let temperature: Double
 
-    public init(model: String, instructions: String, input: String, store: Bool, maxOutputTokens: Int) {
+    public init(
+        model: String,
+        instructions: String,
+        input: String,
+        store: Bool,
+        maxOutputTokens: Int,
+        temperature: Double
+    ) {
         self.model = model
         self.instructions = instructions
         self.input = input
         self.store = store
         self.maxOutputTokens = maxOutputTokens
+        self.temperature = temperature
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, instructions, input, store
+        case model, instructions, input, store, temperature
         case maxOutputTokens = "max_output_tokens"
     }
 }

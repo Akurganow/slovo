@@ -45,6 +45,7 @@ public struct PromptBuilder: Sendable {
         return AnthropicRequest(
             model: prompt.model,
             maxTokens: 4_096,
+            temperature: 0,
             system: systemBlocks,
             messages: [AnthropicRequest.Message(role: "user", content: prompt.input)]
         )
@@ -98,6 +99,8 @@ public struct PromptBuilder: Sendable {
         Output language must match the transcript language, including mixed-language/code-switched text.
         Preserve meaning, language, code-switching, names, acronyms, numbers, commands, and intentional repetitions.
         Fix only dictation artifacts: filler words, false starts, obvious punctuation, casing, spacing, and grammar.
+        Remove discourse fillers such as ну, вот, короче, эээ, ээээ when they do not change meaning.
+        Split run-on dictated text into clear sentences when it contains multiple thoughts.
         If the transcript is a short test phrase, fragment, or clean sentence, still return cleaned text, not a chat reply.
         </output_rules>
         <examples>
@@ -114,8 +117,12 @@ public struct PromptBuilder: Sendable {
         <output>Запусти swift test и открой pull request.</output>
         </example>
         <example>
-        <transcript>ээ запушь pr в github пожалуйста</transcript>
+        <transcript>ну вот запушь pr в github пожалуйста</transcript>
         <output>Запушь PR в GitHub, пожалуйста.</output>
+        </example>
+        <example>
+        <transcript>короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup</transcript>
+        <output>Сейчас попробую поговорить подольше. Проверю, как работает cleanup.</output>
         </example>
         <example>
         <transcript>what do you think about this question mark</transcript>

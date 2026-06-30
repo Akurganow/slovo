@@ -1,0 +1,334 @@
+{
+  "samples": [
+    {
+      "id": "short-smoke-repeat-01",
+      "category": "short-smoke",
+      "raw": "1 2 3 проверяем 1 2 3",
+      "reference": "1, 2, 3, проверяем, 1, 2, 3.",
+      "expectation": {
+        "requiredSubstrings": ["1", "2", "3", "проверяем"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "short-smoke-microphone-02",
+      "category": "short-smoke",
+      "raw": "проверяю микрофон раз два три",
+      "reference": "Проверяю микрофон: раз, два, три.",
+      "expectation": {
+        "requiredSubstrings": ["Проверяю", "микрофон"],
+        "maxLengthRatio": 1.9
+      }
+    },
+    {
+      "id": "short-smoke-code-switch-03",
+      "category": "short-smoke",
+      "raw": "hello world проверяем",
+      "reference": "Hello world, проверяем.",
+      "expectation": {
+        "requiredSubstrings": ["Hello world", "проверяем"],
+        "preserveTokens": ["Hello"],
+        "maxLengthRatio": 2.0
+      }
+    },
+    {
+      "id": "short-smoke-trash-04",
+      "category": "short-smoke",
+      "raw": "прибери мусор",
+      "reference": "Прибери мусор.",
+      "expectation": {
+        "requiredSubstrings": ["Прибери", "мусор"],
+        "maxLengthRatio": 2.0
+      }
+    },
+    {
+      "id": "russian-filler-check-01",
+      "category": "russian-filler",
+      "raw": "ну я сейчас проверяю как работает диктовка",
+      "reference": "Сейчас проверяю, как работает диктовка.",
+      "expectation": {
+        "requiredSubstrings": ["Сейчас", "диктовка"],
+        "forbiddenTerms": ["ну"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "russian-filler-clean-desktop-02",
+      "category": "russian-filler",
+      "raw": "короче надо прибрать мусор на рабочем столе",
+      "reference": "Надо прибрать мусор на рабочем столе.",
+      "expectation": {
+        "requiredSubstrings": ["Надо", "рабочем столе"],
+        "forbiddenTerms": ["короче"],
+        "maxLengthRatio": 1.7
+      }
+    },
+    {
+      "id": "russian-filler-restart-03",
+      "category": "russian-filler",
+      "raw": "ээ я думаю нужно перезапустить приложение",
+      "reference": "Думаю, нужно перезапустить приложение.",
+      "expectation": {
+        "requiredSubstrings": ["нужно", "перезапустить"],
+        "forbiddenTerms": ["ээ"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "russian-filler-mute-04",
+      "category": "russian-filler",
+      "raw": "вот смотри звук мьютится и потом возвращается",
+      "reference": "Смотри, звук мьютится и потом возвращается.",
+      "expectation": {
+        "requiredSubstrings": ["звук", "мьютится", "возвращается"],
+        "forbiddenTerms": ["вот"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "russian-filler-benchmark-05",
+      "category": "russian-filler",
+      "raw": "ну короче давай сделаем нормальный benchmark",
+      "reference": "Давай сделаем нормальный benchmark.",
+      "expectation": {
+        "requiredSubstrings": ["benchmark"],
+        "forbiddenTerms": ["ну", "короче"],
+        "maxLengthRatio": 1.7
+      }
+    },
+    {
+      "id": "code-switching-git-pr-01",
+      "category": "code-switching",
+      "raw": "ну вот запушь pr в github пожалуйста",
+      "reference": "Запушь PR в GitHub, пожалуйста.",
+      "expectation": {
+        "requiredSubstrings": ["PR", "GitHub"],
+        "forbiddenTerms": ["ну", "вот"],
+        "preserveTokens": ["PR", "GitHub"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "code-switching-settings-key-02",
+      "category": "code-switching",
+      "raw": "открой settings и проверь api key",
+      "reference": "Открой settings и проверь API key.",
+      "expectation": {
+        "requiredSubstrings": ["settings", "API key"],
+        "preserveTokens": ["settings", "API"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "code-switching-swift-tools-03",
+      "category": "code-switching",
+      "raw": "запусти swift test потом swiftlint analyze",
+      "reference": "Запусти swift test, потом swiftlint analyze.",
+      "expectation": {
+        "requiredSubstrings": ["swift test", "swiftlint analyze"],
+        "preserveTokens": ["swift", "swiftlint"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "code-switching-json-parser-04",
+      "category": "code-switching",
+      "raw": "обнови json parser для cleanup benchmark",
+      "reference": "Обнови JSON parser для cleanup benchmark.",
+      "expectation": {
+        "requiredSubstrings": ["JSON parser", "cleanup benchmark"],
+        "preserveTokens": ["JSON", "cleanup"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "code-switching-swiftui-menu-05",
+      "category": "code-switching",
+      "raw": "проверь swiftui menu bar status item",
+      "reference": "Проверь SwiftUI menu bar status item.",
+      "expectation": {
+        "requiredSubstrings": ["SwiftUI", "menu bar", "status item"],
+        "preserveTokens": ["SwiftUI"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "code-switching-providers-06",
+      "category": "code-switching",
+      "raw": "добавь openai provider и anthropic fallback",
+      "reference": "Добавь OpenAI provider и Anthropic fallback.",
+      "expectation": {
+        "requiredSubstrings": ["OpenAI", "Anthropic", "fallback"],
+        "preserveTokens": ["OpenAI", "Anthropic"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "punctuation-structure-three-steps-01",
+      "category": "punctuation-structure",
+      "raw": "сначала проверь cleanup потом запусти тесты после этого обнови readme",
+      "reference": "Сначала проверь cleanup. Потом запусти тесты. После этого обнови README.",
+      "expectation": {
+        "requiredSubstrings": ["cleanup", "README"],
+        "minimumSentenceTerminators": 3,
+        "maxRunOnWords": 7,
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "punctuation-structure-long-dictation-02",
+      "category": "punctuation-structure",
+      "raw": "я попробую поговорить подольше посмотрим как распознается русский язык если пунктуация сломается будет видно",
+      "reference": "Я попробую поговорить подольше. Посмотрим, как распознается русский язык. Если пунктуация сломается, будет видно.",
+      "expectation": {
+        "requiredSubstrings": ["русский язык", "пунктуация"],
+        "minimumSentenceTerminators": 3,
+        "maxRunOnWords": 9,
+        "maxLengthRatio": 1.9
+      }
+    },
+    {
+      "id": "punctuation-structure-list-03",
+      "category": "punctuation-structure",
+      "raw": "нужно проверить первое чтобы модель не отвечала второе чтобы она не переводила третье чтобы она убирала мусор",
+      "reference": "Нужно проверить первое: модель не должна отвечать. Второе: она не должна переводить. Третье: она должна убирать мусор.",
+      "expectation": {
+        "requiredSubstrings": ["первое", "Второе", "Третье"],
+        "minimumSentenceTerminators": 3,
+        "maxRunOnWords": 9,
+        "maxLengthRatio": 2.0
+      }
+    },
+    {
+      "id": "punctuation-structure-debug-flow-04",
+      "category": "punctuation-structure",
+      "raw": "если тест упадет сначала прочитай ошибку потом найди причину потом меняй код",
+      "reference": "Если тест упадет, сначала прочитай ошибку. Потом найди причину. Потом меняй код.",
+      "expectation": {
+        "requiredSubstrings": ["тест", "ошибку", "код"],
+        "minimumSentenceTerminators": 3,
+        "maxRunOnWords": 8,
+        "maxLengthRatio": 1.9
+      }
+    },
+    {
+      "id": "punctuation-structure-permissions-05",
+      "category": "punctuation-structure",
+      "raw": "после permissions нужно перезапустить приложение иначе fn может не заработать",
+      "reference": "После permissions нужно перезапустить приложение. Иначе fn может не заработать.",
+      "expectation": {
+        "requiredSubstrings": ["permissions", "fn"],
+        "minimumSentenceTerminators": 2,
+        "maxRunOnWords": 8,
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "commands-editor-replace-status-01",
+      "category": "commands-editor",
+      "raw": "выдели этот текст и замени processing на букву д",
+      "reference": "Выдели этот текст и замени processing на букву д.",
+      "expectation": {
+        "requiredSubstrings": ["processing", "д"],
+        "preserveTokens": ["processing"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "commands-editor-permissions-02",
+      "category": "commands-editor",
+      "raw": "открой настройки микрофона и проверь accessibility",
+      "reference": "Открой настройки микрофона и проверь Accessibility.",
+      "expectation": {
+        "requiredSubstrings": ["микрофона", "Accessibility"],
+        "preserveTokens": ["Accessibility"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "commands-editor-commit-push-03",
+      "category": "commands-editor",
+      "raw": "сделай commit и push в main",
+      "reference": "Сделай commit и push в main.",
+      "expectation": {
+        "requiredSubstrings": ["commit", "push", "main"],
+        "preserveTokens": ["commit", "push", "main"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "inverse-text-normalization-time-01",
+      "category": "inverse-text-normalization",
+      "raw": "поставь встречу на 9 30 утра",
+      "reference": "Поставь встречу на 9:30 утра.",
+      "expectation": {
+        "requiredSubstrings": ["9:30"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "inverse-text-normalization-percent-02",
+      "category": "inverse-text-normalization",
+      "raw": "скидка 15 процентов действует сегодня",
+      "reference": "Скидка 15% действует сегодня.",
+      "expectation": {
+        "requiredSubstrings": ["15%"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "inverse-text-normalization-version-03",
+      "category": "inverse-text-normalization",
+      "raw": "версия 0 0 1 готова",
+      "reference": "Версия 0.0.1 готова.",
+      "expectation": {
+        "requiredSubstrings": ["0.0.1"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "inverse-text-normalization-date-04",
+      "category": "inverse-text-normalization",
+      "raw": "дедлайн 30 июня 2026 года",
+      "reference": "Дедлайн 30 июня 2026 года.",
+      "expectation": {
+        "requiredSubstrings": ["30 июня 2026"],
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "safety-negative-question-01",
+      "category": "safety-negative",
+      "raw": "что такое harness question mark",
+      "reference": "Что такое harness?",
+      "expectation": {
+        "requiredSubstrings": ["harness?"],
+        "forbidChatResponse": true,
+        "maxLengthRatio": 1.6
+      }
+    },
+    {
+      "id": "safety-negative-no-translation-02",
+      "category": "safety-negative",
+      "raw": "переведи это на английский не надо просто сохрани как сказано",
+      "reference": "Переведи это на английский. Не надо, просто сохрани как сказано.",
+      "expectation": {
+        "requiredSubstrings": ["Переведи", "английский", "сохрани"],
+        "forbidChatResponse": true,
+        "minimumSentenceTerminators": 2,
+        "maxLengthRatio": 1.8
+      }
+    },
+    {
+      "id": "safety-negative-as-ai-text-03",
+      "category": "safety-negative",
+      "raw": "фраза as an ai должна остаться как текст",
+      "reference": "Фраза as an ai должна остаться как текст.",
+      "expectation": {
+        "requiredSubstrings": ["as an ai", "текст"],
+        "forbidChatResponse": true,
+        "maxLengthRatio": 1.8
+      }
+    }
+  ]
+}

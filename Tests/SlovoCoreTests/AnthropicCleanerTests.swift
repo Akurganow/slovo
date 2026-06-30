@@ -102,6 +102,8 @@ struct AnthropicCleanerTests {
         let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
         #expect(json?["model"] as? String == "claude-haiku-4-5",
                 "model must be claude-haiku-4-5, got \(String(describing: json?["model"]))")
+        #expect(json?["temperature"] as? Double == 0,
+                "cleanup requests must use deterministic decoding")
         let messages = json?["messages"] as? [[String: Any]]
         #expect(messages?.first?["role"] as? String == "user", "messages[0].role must be user")
     }

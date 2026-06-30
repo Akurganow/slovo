@@ -76,8 +76,8 @@ struct CleanupBenchmarkTests {
     }
 
     /// Stated sensitivity: a runner that times only one provider, reuses one
-    /// provider output for all candidates, or skips samples will produce fewer
-    /// than candidates * samples runs and miss the recorded call matrix.
+    /// provider output for all candidates, skips samples, or compares providers
+    /// in candidate-major batches will miss the recorded interleaved call matrix.
     @Test
     func runnerInvokesEveryCandidateForEverySampleAndRecordsTiming() async {
         let samples = [
@@ -112,7 +112,8 @@ struct CleanupBenchmarkTests {
         )
 
         #expect(report.runs.map(\.durationNanoseconds) == [10, 20, 30, 40])
-        #expect(report.runs.map(\.sampleId) == ["one", "two", "one", "two"])
+        #expect(report.runs.map(\.sampleId) == ["one", "one", "two", "two"])
+        #expect(report.runs.map(\.candidateName) == ["fake-a:a", "fake-b:b", "fake-a:a", "fake-b:b"])
         #expect(await first.rawInputs() == ["ну проверь pr", "вот github работает"])
         #expect(await second.rawInputs() == ["ну проверь pr", "вот github работает"])
         #expect(await first.modelInputs() == ["a", "a"])
@@ -260,7 +261,7 @@ struct CleanupBenchmarkTests {
 
         #expect(result.exitCode == 2)
         #expect(result.stdout.contains("candidate,runs,passed,errors,p50_ms,p95_ms"))
-        #expect(result.stdout.contains("passthrough:none,3,0,0"))
+        #expect(result.stdout.contains("passthrough:none,30,"))
     }
 
     /// Stated sensitivity: changing the command driver to exit non-zero even

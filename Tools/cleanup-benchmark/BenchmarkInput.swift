@@ -42,34 +42,16 @@ public enum CleanupBenchmarkEnvFile {
 }
 
 public enum CleanupBenchmarkDefaults {
-    public static let samples = [
-        CleanupBenchmarkSample(
-            id: "short-repeat",
-            raw: "1 2 3 проверяем 1 2 3",
-            expectation: CleanupQualityExpectation(
-                requiredSubstrings: ["1", "2", "3", "проверяем"],
-                forbiddenSubstrings: [],
-                maxLengthRatio: 1.8
-            )
-        ),
-        CleanupBenchmarkSample(
-            id: "mixed-command",
-            raw: "ну вот запушь pr в github пожалуйста",
-            expectation: CleanupQualityExpectation(
-                requiredSubstrings: ["PR", "GitHub"],
-                forbiddenSubstrings: ["ну", "вот"],
-                maxLengthRatio: 1.8
-            )
-        ),
-        CleanupBenchmarkSample(
-            id: "filler-structure",
-            raw: "короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup",
-            expectation: CleanupQualityExpectation(
-                requiredSubstrings: ["cleanup"],
-                forbiddenSubstrings: ["короче", "ну"],
-                maxLengthRatio: 1.8,
-                minimumSentenceTerminators: 2
-            )
-        ),
-    ]
+    public static let defaultSamplesPath = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(path: "Benchmarks/cleanup/slovo-cleanup-v1.json")
+        .path
+
+    public static func samples(
+        readDataFile: (String) throws -> Data = { try Data(contentsOf: URL(fileURLWithPath: $0)) }
+    ) throws -> [CleanupBenchmarkSample] {
+        try CleanupBenchmarkSampleLoader.decode(readDataFile(defaultSamplesPath))
+    }
 }

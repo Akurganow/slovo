@@ -3,6 +3,7 @@ import SlovoCore
 
 public struct CleanupBenchmarkRun: Equatable, Sendable {
     public let sampleId: String
+    public let sampleCategory: CleanupBenchmarkCategory
     public let candidateName: String
     public let durationNanoseconds: UInt64
     public let quality: CleanupQualityResult
@@ -10,12 +11,14 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
 
     public init(
         sampleId: String,
+        sampleCategory: CleanupBenchmarkCategory = .uncategorized,
         candidateName: String,
         durationNanoseconds: UInt64,
         quality: CleanupQualityResult,
         errorKind: CleanupBenchmarkErrorKind?
     ) {
         self.sampleId = sampleId
+        self.sampleCategory = sampleCategory
         self.candidateName = candidateName
         self.durationNanoseconds = durationNanoseconds
         self.quality = quality
@@ -44,14 +47,14 @@ public struct CleanupBenchmarkRunner: Sendable {
         let safeRepetitions = max(repetitions, 1)
         var runs: [CleanupBenchmarkRun] = []
 
-        for candidate in candidates {
-            let candidateConfig = CleanupConfig(
-                model: candidate.model,
-                writingStyle: config.writingStyle,
-                language: config.language
-            )
-            for _ in 0..<safeRepetitions {
-                for sample in samples {
+        for _ in 0..<safeRepetitions {
+            for sample in samples {
+                for candidate in candidates {
+                    let candidateConfig = CleanupConfig(
+                        model: candidate.model,
+                        writingStyle: config.writingStyle,
+                        language: config.language
+                    )
                     runs.append(await runCandidate(
                         candidate,
                         sample: sample,
@@ -77,6 +80,7 @@ public struct CleanupBenchmarkRunner: Sendable {
             }
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
+                sampleCategory: sample.category,
                 candidateName: candidate.name,
                 durationNanoseconds: timed.durationNanoseconds,
                 quality: CleanupQualityGate.evaluate(output: timed.output, sample: sample),
@@ -85,6 +89,7 @@ public struct CleanupBenchmarkRunner: Sendable {
         } catch {
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
+                sampleCategory: sample.category,
                 candidateName: candidate.name,
                 durationNanoseconds: 0,
                 quality: CleanupQualityResult(passed: false, failures: ["provider-error"]),

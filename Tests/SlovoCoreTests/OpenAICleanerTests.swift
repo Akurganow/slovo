@@ -53,6 +53,8 @@ struct OpenAICleanerTests {
         #expect(json?["input"] as? String == "raw transcript")
         #expect(json?["store"] as? Bool == false,
                 "cleanup calls must not ask the provider to retain responses")
+        #expect(json?["temperature"] as? Double == 0,
+                "cleanup requests must use deterministic decoding")
         let instructions = json?["instructions"] as? String
         #expect(instructions?.contains("Return only the cleaned transcript") == true)
     }

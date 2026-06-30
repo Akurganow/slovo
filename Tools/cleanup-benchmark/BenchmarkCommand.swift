@@ -73,7 +73,13 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 PersonalizationContext(vocabulary: []),
                 options.repetitions
             )
-            let rendered = CleanupBenchmarkReportFormatter.render(report)
+            var rendered = CleanupBenchmarkReportFormatter.render(report)
+            if options.failureBreakdown {
+                rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderFailureBreakdown(report)
+            }
+            if options.categoryBreakdown {
+                rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderCategoryBreakdown(report)
+            }
             let failed = report.runs.contains { !$0.quality.passed || $0.errorKind != nil }
             return CleanupBenchmarkCommandResult(exitCode: failed ? 2 : 0, stdout: rendered, stderr: "")
         } catch {
@@ -94,6 +100,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         [--samples samples.json]
         [--repetitions N]
         [--style casual|formal|very-casual]
+        [--failure-breakdown]
+        [--category-breakdown]
 
     Notes:
       The report prints aggregate metrics only. It does not print raw transcripts, cleaned output, or API keys.
@@ -107,19 +115,25 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
     public var samplesPath: String?
     public var repetitions: Int
     public var style: WritingStyle
+    public var failureBreakdown: Bool
+    public var categoryBreakdown: Bool
 
     public init(
         providers: String = "anthropic:\(Config.defaultAnthropicModel),openai:\(Config.defaultOpenAIModel),passthrough",
         envFile: String? = nil,
         samplesPath: String? = nil,
         repetitions: Int = 1,
-        style: WritingStyle = .casual
+        style: WritingStyle = .casual,
+        failureBreakdown: Bool = false,
+        categoryBreakdown: Bool = false
     ) {
         self.providers = providers
         self.envFile = envFile
         self.samplesPath = samplesPath
         self.repetitions = repetitions
         self.style = style
+        self.failureBreakdown = failureBreakdown
+        self.categoryBreakdown = categoryBreakdown
     }
 
     public static func parse(_ arguments: ArraySlice<String>) throws -> CleanupBenchmarkCommandOptions {
@@ -145,6 +159,10 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
                     throw CleanupBenchmarkCommandError.invalidValue(argument, value)
                 }
                 options.style = parsed
+            case "--failure-breakdown":
+                options.failureBreakdown = true
+            case "--category-breakdown":
+                options.categoryBreakdown = true
             case "--help", "-h":
                 throw CleanupBenchmarkCommandError.helpRequested
             default:
@@ -169,7 +187,7 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
 
     public func samples(readDataFile: (String) throws -> Data) throws -> [CleanupBenchmarkSample] {
         guard let samplesPath else {
-            return CleanupBenchmarkDefaults.samples
+            return try CleanupBenchmarkDefaults.samples(readDataFile: readDataFile)
         }
         return try CleanupBenchmarkSampleLoader.decode(readDataFile(samplesPath))
     }

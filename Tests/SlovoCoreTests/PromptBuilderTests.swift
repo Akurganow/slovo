@@ -134,4 +134,26 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("<output>Clean up the trash.</output>"))
         #expect(!systemText.contains("<output>Run swift test and open a pull request.</output>"))
     }
+
+    /// Stated sensitivity: omit Russian filler examples or run-on splitting
+    /// guidance -> the live benchmark keeps "ну/вот/короче" and returns one
+    /// overlong sentence for filler-heavy dictation.
+    @Test
+    func promptTeachesRussianFillerRemovalAndRunOnSplitting() {
+        let request = PromptBuilder(maxVocabularyTerms: 3)
+            .build(
+                raw: "короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup",
+                config: CleanupConfig(writingStyle: .casual, language: .auto),
+                context: PersonalizationContext(vocabulary: [])
+            )
+        let systemText = request.system.map(\.text).joined(separator: "\n")
+
+        #expect(systemText.contains("Remove discourse fillers such as"))
+        #expect(systemText.contains("ну, вот, короче"))
+        #expect(systemText.contains("Split run-on dictated text into clear sentences"))
+        #expect(systemText.contains("<transcript>ну вот запушь pr в github пожалуйста</transcript>"))
+        #expect(systemText.contains("<output>Запушь PR в GitHub, пожалуйста.</output>"))
+        #expect(systemText.contains("<transcript>короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup</transcript>"))
+        #expect(systemText.contains("<output>Сейчас попробую поговорить подольше. Проверю, как работает cleanup.</output>"))
+    }
 }

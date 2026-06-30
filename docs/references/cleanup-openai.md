@@ -39,7 +39,8 @@ slovo sends a text-only request:
   "instructions": "<cleanup instructions + vocabulary>",
   "input": "<raw transcript text>",
   "store": false,
-  "max_output_tokens": 4096
+  "max_output_tokens": 4096,
+  "temperature": 0
 }
 ```
 
@@ -50,6 +51,8 @@ slovo sends a text-only request:
 - `store: false` prevents storing the generated model response for later API
   retrieval.
 - `max_output_tokens` caps the cleanup response size.
+- `temperature: 0` keeps cleanup deterministic for repeated dictation cleanup
+  and benchmark runs.
 
 ## Response Shape
 

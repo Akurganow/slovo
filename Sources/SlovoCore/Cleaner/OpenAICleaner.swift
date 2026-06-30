@@ -39,7 +39,8 @@ public struct OpenAICleaner: Cleaner {
             instructions: prompt.systemBlocks.joined(separator: "\n\n"),
             input: prompt.input,
             store: false,
-            maxOutputTokens: 4_096
+            maxOutputTokens: 4_096,
+            temperature: 0
         )
         var urlRequest = URLRequest(url: Self.endpoint)
         urlRequest.httpMethod = "POST"

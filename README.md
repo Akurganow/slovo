@@ -74,9 +74,19 @@ Compare cleanup-provider latency and quality with the non-product benchmark:
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-mini,passthrough \
-  --repetitions 3
+  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-nano \
+  --repetitions 10 \
+  --failure-breakdown \
+  --category-breakdown
 ```
+
+Latest local cleanup benchmark snapshot, measured on 2026-06-30 with 10
+repetitions over the 30-sample `slovo-cleanup-v1` suite:
+
+| Candidate | Runs | Passed | Errors | p50 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `anthropic:claude-haiku-4-5` | 300 | 230 | 0 | 884.8 ms | 1770.7 ms |
+| `openai:gpt-5.4-nano` | 300 | 211 | 0 | 690.4 ms | 1662.1 ms |
 
 ## Run Locally
 

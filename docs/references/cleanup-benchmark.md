@@ -10,19 +10,35 @@ process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-mini,passthrough \
-  --repetitions 3
+  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-nano \
+  --repetitions 10 \
+  --failure-breakdown \
+  --category-breakdown
 ```
 
 The report is CSV-like aggregate output:
 
 ```text
 candidate,runs,passed,errors,p50_ms,p95_ms
-openai:gpt-5.4-mini,9,9,0,420.1,610.8
+openai:gpt-5.4-nano,300,211,0,690.4,1662.1
 ```
 
-The report intentionally does not print raw transcripts, cleaned text, prompts,
-API keys, response bodies, or sample ids.
+With `--failure-breakdown`, the command appends aggregate failure-code counts:
+
+```text
+candidate,sample_index,failure,runs
+openai:gpt-5.4-nano,3,sentence-structure,2
+```
+
+With `--category-breakdown`, it also appends category-level aggregate rows:
+
+```text
+candidate,category,runs,passed,errors,p50_ms,p95_ms
+openai:gpt-5.4-nano,punctuation-structure,50,9,0,735.8,1954.5
+```
+
+Reports intentionally do not print raw transcripts, cleaned text, prompts, API
+keys, response bodies, or caller-provided sample ids.
 
 ## Sample File
 
@@ -34,14 +50,18 @@ array:
   "samples": [
     {
       "id": "mixed-command",
+      "category": "code-switching",
       "raw": "ну вот запушь pr в github пожалуйста",
+      "reference": "Запушь PR в GitHub, пожалуйста.",
       "expectation": {
         "requiredSubstrings": ["PR", "GitHub"],
-        "forbiddenSubstrings": ["ну", "вот"],
+        "forbiddenTerms": ["ну", "вот"],
+        "preserveTokens": ["PR", "GitHub"],
         "requireTerminalPunctuation": true,
         "forbidChatResponse": true,
         "maxLengthRatio": 1.8,
-        "minimumSentenceTerminators": 1
+        "minimumSentenceTerminators": 1,
+        "maxRunOnWords": 12
       }
     }
   ]
@@ -53,10 +73,29 @@ the failures that matter for dictation cleanup:
 
 - required mixed-language anchors are preserved;
 - filler words and false starts selected by the sample are removed;
+- forbidden filler terms are matched on token boundaries, so `ну` does not fail
+  inside legitimate words such as `нужно`;
 - chat-style answers are rejected;
 - terminal punctuation is present when expected;
 - longer samples have enough sentence boundaries when requested;
+- long run-on segments can be capped with `maxRunOnWords`;
 - the output is not wildly longer than the input.
+
+The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
+30 synthetic/public-style samples, grouped as:
+
+| Category | Count |
+| --- | ---: |
+| `short-smoke` | 4 |
+| `russian-filler` | 5 |
+| `code-switching` | 6 |
+| `punctuation-structure` | 5 |
+| `commands-editor` | 3 |
+| `inverse-text-normalization` | 4 |
+| `safety-negative` | 3 |
+
+Hugging Face datasets are used as upstream research/provenance only; the default
+benchmark does not download datasets or models at runtime.
 
 ## Wispr Flow Reference Bar
 

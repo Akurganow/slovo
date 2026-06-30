@@ -8,6 +8,7 @@ import Foundation
 public struct AnthropicRequest: Encodable {
     public let model: String
     public let maxTokens: Int
+    public let temperature: Double
     public let system: [SystemBlock]
     public let messages: [Message]
 
@@ -51,15 +52,16 @@ public struct AnthropicRequest: Encodable {
         }
     }
 
-    public init(model: String, maxTokens: Int, system: [SystemBlock], messages: [Message]) {
+    public init(model: String, maxTokens: Int, temperature: Double, system: [SystemBlock], messages: [Message]) {
         self.model = model
         self.maxTokens = maxTokens
+        self.temperature = temperature
         self.system = system
         self.messages = messages
     }
 
     enum CodingKeys: String, CodingKey {
-        case model
+        case model, temperature
         case maxTokens = "max_tokens"
         case system, messages
     }
