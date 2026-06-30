@@ -14,7 +14,7 @@ import LoquiTestSupport
 // transcriber received the resolved vocab as `biasTerms` (the fold into the
 // actor's `.endCaptureAndTranscribe`).
 //
-// SEED-LEAK RULE (P1): synthetic neutral PUBLIC anchors only (ExampleCorp, GitHub).
+// SEED-LEAK RULE: synthetic neutral public anchors only.
 @Suite("Epic 09a AC-2/AC-4/AC-5 Orchestrator")
 struct OrchestratorTests {
     // Computed (not a stored non-Sendable global) for Swift-6.

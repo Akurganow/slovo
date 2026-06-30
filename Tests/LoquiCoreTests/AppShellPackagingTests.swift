@@ -178,9 +178,9 @@ struct AppShellPackagingTests {
     }
 
     @Test
-    func l4RunbookCapturesReleaseChecks() throws {
+    func publicReleaseChecklistCapturesReleaseChecks() throws {
         let source = try String(
-            contentsOf: Self.packageRoot.appending(path: "docs/agentic-workflow/runbooks/epic-09-app-shell-L4.md"),
+            contentsOf: Self.packageRoot.appending(path: "docs/release-checklist.md"),
             encoding: .utf8
         )
 

@@ -13,7 +13,7 @@ import LoquiCore
 // `.public`), which ALSO REDs the L1 redaction lint).
 //
 // SEED-LEAK RULE (P1): the sentinel is a SYNTHETIC high-entropy string — no real
-// key, no seed term, no private term/private contact name.
+// key, no seed term, no private name.
 @Suite("Epic 08 AC-7 DB-row redaction sentinel")
 struct DbRowRedactionTests {
     private static let sentinel = "S3NT1NEL-DBROW-3f9a1c7e-DO-NOT-LOG"

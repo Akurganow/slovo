@@ -8,7 +8,7 @@
 --     improves over time (this does NOT adapt the acoustic model to your voice);
 --     recent rows are fed to the cleaner as few-shot examples.
 --   * `profile` holds a few cleaner-context facts about the user (name, languages,
---     organization, domain) — distinct from app settings, which live in UserDefaults.
+--     domain) — distinct from app settings, which live in UserDefaults.
 --
 -- Dedup: UNIQUE(term, category) lets us merge new sources with INSERT OR IGNORE.
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS vocabulary (
     expansion  TEXT,                              -- optional meaning / full form
     lang       TEXT    NOT NULL DEFAULT 'en',     -- 'ru' | 'en' (any other value maps to auto in v1)
     category   TEXT    NOT NULL,                  -- product|service|domain|release|tech|person|org|term
-    source     TEXT    NOT NULL,                  -- confluence-rcv|github|projects|manual
+    source     TEXT    NOT NULL,                  -- import|github|projects|manual
     weight     INTEGER NOT NULL DEFAULT 1,        -- priority hint for prompt ordering
     created_at TEXT    NOT NULL DEFAULT (datetime('now')),
     UNIQUE (term, category)

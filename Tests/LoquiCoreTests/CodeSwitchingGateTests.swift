@@ -12,9 +12,7 @@ import LoquiCore
 // supplied by the WRONG-ON-PURPOSE `_RedScaffold_AsrBakeoff.swift` stub that
 // requires ONLY Cyrillic — so the collapsed transcript wrongly passes → RED).
 //
-// FIXTURE ANCHOR RULE (P1): the Latin anchors are NEUTRAL PUBLIC tech terms
-// (`PR`, `GitHub`) — NEVER the organization name, a product private term, or a private contact
-// name (those live only in the gitignored seed).
+// FIXTURE ANCHOR RULE: the Latin anchors are neutral public tech terms.
 @Suite("Epic 05 AC-1 code-switching gate")
 struct CodeSwitchingGateTests {
     private static let expectation = ClipExpectation(

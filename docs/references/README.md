@@ -11,10 +11,9 @@ development doesn't stall on searching later. Each doc:
   (PASS / PARTIAL / FAIL), corrections applied (before→after), the source URLs
   validated, and any items only confirmable on a real macOS SDK / Xcode.
 
-This is the **standards / provenance / knowledge** layer for the agentic-workflow
-greenfield handoff (see `../superpowers/specs/2026-06-27-loqui-local-dictation-design.md`,
-esp. §18 for the authoritative v1 contracts). The personalization seed data lives
-under `../../data/` and is **gitignored** — it is not part of this library.
+This is the public reference layer for the APIs and platform behavior Loqui
+depends on. The personalization seed data lives under `../../data/` and is
+**gitignored** — it is not part of this library.
 
 ## Catalog
 

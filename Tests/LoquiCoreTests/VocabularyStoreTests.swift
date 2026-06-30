@@ -11,9 +11,7 @@ import LoquiCore
 // §7; CURRENTLY the `_RedScaffold_Storage.swift` stub — UNIQUE(term), unordered
 // source, no-INSERT-OR-IGNORE seed — so these go RED).
 //
-// ON-DISK temp DB (P15). SEED-LEAK RULE (P1): every term is a synthetic neutral
-// PUBLIC anchor (GitHub, ExampleCorp, kubectl) — NO organization name, private term, or
-// private contact name.
+// ON-DISK temp DB (P15). Every term is a synthetic neutral public anchor.
 @Suite("Epic 08 AC-2/AC-3/AC-4 vocabulary store")
 struct VocabularyStoreTests {
 

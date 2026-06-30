@@ -3,6 +3,8 @@
 .build/
 .swiftpm/
 .codex/
+docs/agentic-workflow/
+docs/superpowers/
 DerivedData/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
@@ -11,10 +13,9 @@ DerivedData/
 # ── Personalization data — NEVER commit ──────────────────────────────────────
 # The dictionary DB is purely local user data. The app creates an empty DB from
 # its schema on first run (create-or-get); an empty dictionary is a valid state.
-# Pre-seeding is a local-only convenience and is NEVER shipped: the seed files
-# contain personal terms AND private ExampleCorp terminology from
-# access-controlled PrivateDocs (private terms, services, release process, private contact
-# names) — committing them to a public repo would leak confidential material.
+# Pre-seeding is a local-only convenience and is NEVER shipped: seed files can
+# contain personal vocabulary or other private terms. The public repository tracks
+# only schema/migrations, no seed data and no user database.
 # The repo tracks ONLY the schema/migrations (data/schema.sql), no seed, no DB.
 # Globs (not exact names) so every future seed variant and DB sidecar is caught:
 # data/seed.dev.sql, data/seed.2.sql, data/loqui.db-shm, … all stay uncommittable.

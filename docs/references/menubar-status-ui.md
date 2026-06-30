@@ -242,10 +242,9 @@ is a small local list of recent dictations; each entry:
 "Logging redaction" and §13):**
 
 - **Local only. Never egress.** The history holds the user's actual words. It must
-  **never** be sent to the cloud, telemetry, or any third party. (The Anthropic
-  cleanup path egresses transcript text *only* inside the selected-provider policy
-  boundary per spec §13 — the history store is a *separate* surface and must not
-  become a second egress path.)
+  **never** be sent to telemetry or any unrelated third party. The selected cleanup
+  provider is the only optional text egress path; the history store is a separate
+  surface and must not become a second egress path.
 - **Never logged.** Spec §11 forbids any transcript/cleaned text reaching an
   `os.Logger` sink; the history entry's `text` is exactly that text. The §12 RED
   redaction test (a fake log sink fails if transcript text appears in a log line)

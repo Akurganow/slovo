@@ -19,7 +19,7 @@ import LoquiTestSupport
 // trap `log.event("…\(error.responseBody)")`.
 //
 // SECURITY/P1: sentinels are SYNTHETIC high-entropy strings — no real key, no
-// seed terms, no organization/private term/private contact content.
+// seed terms or private vocabulary.
 @Suite("Epic 06 AC-8 redaction sentinel sweep")
 struct RedactionSentinelTests {
     // Each channel's sentinel is unique so a leak names the exact channel.

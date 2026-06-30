@@ -194,7 +194,7 @@ enum CleanupError: Error {
 /// `system` holds the stable cleanup instructions + vocabulary; `transcript` is
 /// the raw speech-to-text output.
 func cleanupTranscript(_ transcript: String, system: String) async throws -> String {
-    // Placeholder — read the ExampleCorp API key from the Keychain/env.
+    // Placeholder — read the user-provided key from the Keychain/env.
     // NEVER hardcode the key. See "Key handling".
     let apiKey = try KeychainStore.anthropicAPIKey()
 
@@ -310,8 +310,8 @@ between calls (keep the prefix deterministic and identical).
 
 ### Key handling
 
-The Anthropic API key is supplied as a **ExampleCorp API key**, provided
-to loqui via the macOS **Keychain** (or an environment variable for local dev).
+The Anthropic API key is supplied by the user via the macOS **Keychain** (or an
+environment variable for local dev).
 The doc and any committed code must **never** hardcode it — read it at call time
 (the `KeychainStore.anthropicAPIKey()` placeholder above) and pass it in the
 `x-api-key` header. Do not log the key or include it in error messages.

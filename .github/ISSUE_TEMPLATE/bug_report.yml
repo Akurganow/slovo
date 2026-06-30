@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible Loqui problem.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not include API keys, private transcripts, local databases, seed files, or sensitive vocabulary.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest set of steps that reproduces the issue.
+      placeholder: |
+        1. Launch Loqui
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Loqui version or commit
+      placeholder: v0.0.1
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.x
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Logs or screenshots are useful only if they do not contain sensitive content.

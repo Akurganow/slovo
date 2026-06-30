@@ -13,7 +13,7 @@ import LoquiCore
 // keeps the first-N terms unsorted → RED).
 //
 // FIXTURE ANCHOR RULE (P1): vocabulary terms are neutral placeholders (term-9,
-// term-7, …) — no organization/private term/private contact content.
+// term-7, ...) and must not contain private vocabulary.
 @Suite("Epic 06 AC-4 PromptBuilder")
 struct PromptBuilderTests {
     private static func term(_ name: String, weight: Int) -> Term {
