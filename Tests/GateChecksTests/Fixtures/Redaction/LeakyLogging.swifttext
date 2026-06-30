@@ -1,0 +1,18 @@
+// FIXTURE (not compiled): logging that LEAKS payload values. The redaction lint
+// must flag every one of these lines. Per the per-payload-type rule, the leak is
+// shown across MORE THAN ONE payload type (transcript AND term), so a lint that
+// only inspects `transcript` would still miss the `term` line and is rejected.
+import os
+
+func logLeaky(transcript: String, term: Term, errorBody: String) {
+    let logger = Logger(subsystem: "com.loqui.app", category: "leak")
+
+    // Payload type #1: raw transcript text interpolated as .public.
+    logger.log("transcript=\(transcript, privacy: .public)")
+
+    // Payload type #2: a different payload type leaked via String(describing:).
+    logger.log("term=\(String(describing: term))")
+
+    // Payload type #3: an API error body must never reach the log.
+    logger.error("apiError body=\(errorBody, privacy: .public)")
+}

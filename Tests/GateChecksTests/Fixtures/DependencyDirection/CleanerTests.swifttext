@@ -1,0 +1,11 @@
+// FIXTURE (not compiled): a TEST file whose name contains "Cleaner" only because
+// it tests a Cleaner. It is NOT a role module — it lives outside any role
+// directory and is a test. A test importing GRDB is legitimate (tests may touch
+// persistence). The filename-only detector FALSE-POSITIVES on the "Cleaner"
+// substring; a location/word-boundary detector must NOT flag this file.
+import Foundation
+import GRDB
+
+struct CleanerTests {
+    func testClean() {}
+}

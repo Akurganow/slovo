@@ -1,0 +1,12 @@
+// FIXTURE (not compiled): a leaky-looking logging call that lives entirely inside
+// a LINE COMMENT, e.g. documentation showing the WRONG way. A comment is not code
+// and never reaches the log, so the redaction lint must NOT flag it. The current
+// scanner is comment-blind and flags the commented `.public` interpolation below;
+// after the fix it must strip line comments before scanning and find zero leaks.
+import os
+
+func documented() {
+    let logger = Logger(subsystem: "com.loqui.app", category: "docs")
+    // example of what NOT to do: logger.log("\(secret, privacy: .public)")
+    logger.log("ready")
+}

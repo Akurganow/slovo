@@ -1,0 +1,8 @@
+// FIXTURE (not compiled): a Cleaner-role source that obeys the dependency
+// direction rule — it imports only Foundation, never GRDB or a sibling backend.
+// The gate must pass this file (zero violations).
+import Foundation
+
+struct PassThroughCleaner {
+    func clean(_ text: String) -> String { text }
+}

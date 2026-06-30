@@ -1,0 +1,11 @@
+// FIXTURE (not compiled): a GENUINE payload leak whose logged STRING LITERAL
+// contains `//` (a URL) to the LEFT of the leak. The `//` is inside the quoted
+// string, not a comment, so the line is real code and the `.public` leak must be
+// flagged. The current scanner strips from the FIRST `//`, truncating the line
+// before the `.public` interpolation, so it silently MISSES this leak.
+import os
+
+func logWithUrl(token: String) {
+    let logger = Logger(subsystem: "com.loqui.app", category: "url")
+    logger.info("fetch https://api.example/v1 \(token, privacy: .public)")
+}

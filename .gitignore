@@ -1,0 +1,37 @@
+# macOS / Xcode / SwiftPM
+.DS_Store
+.build/
+.swiftpm/
+.codex/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# ── Personalization data — NEVER commit ──────────────────────────────────────
+# The dictionary DB is purely local user data. The app creates an empty DB from
+# its schema on first run (create-or-get); an empty dictionary is a valid state.
+# Pre-seeding is a local-only convenience and is NEVER shipped: the seed files
+# contain personal terms AND private ExampleCorp terminology from
+# access-controlled PrivateDocs (private terms, services, release process, private contact
+# names) — committing them to a public repo would leak confidential material.
+# The repo tracks ONLY the schema/migrations (data/schema.sql), no seed, no DB.
+# Globs (not exact names) so every future seed variant and DB sidecar is caught:
+# data/seed.dev.sql, data/seed.2.sql, data/loqui.db-shm, … all stay uncommittable.
+data/loqui.db*
+data/seed*.sql
+
+# ── Key material / secrets — NEVER commit ────────────────────────────────────
+# API keys, signing keys, and any credential bundles are user-owned secrets.
+secrets/
+*.key
+*.pem
+# Dotenv files, PKCS#12 / PKCS#8 signing keys, opaque token files, dropped
+# credential JSON, and SSH private keys — none of these may ever be committed.
+.env*
+*.p12
+*.p8
+*.token
+credentials*.json
+id_rsa*
+/.idea/

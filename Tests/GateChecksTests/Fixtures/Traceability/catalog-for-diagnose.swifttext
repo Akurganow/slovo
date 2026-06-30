@@ -1,0 +1,15 @@
+// FIXTURE (not compiled): a defective traceability catalog used by the
+// non-masking-diagnostic test. It carries one in-scope AC with NO mapped test so
+// `traceabilityViolations` reports a `traceability` rule. `diagnoseAll` must
+// surface that rule alongside dependency-direction and redaction-lint, proving
+// the aggregator drives EVERY check (not just the two it currently runs).
+
+@Test  // covers: FIXTURE-DIAG-GOOD
+func diagGoodHasRealAssertion() {
+    let produced = computeUnderTest()
+    #expect(produced == "expected-value")
+}
+
+// FIXTURE-DIAG-MISSING is in-scope below but has NO @Test mapped to it.
+//
+// in-scope-acs: FIXTURE-DIAG-GOOD, FIXTURE-DIAG-MISSING

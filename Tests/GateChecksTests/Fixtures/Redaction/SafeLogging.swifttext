@@ -1,0 +1,15 @@
+// FIXTURE (not compiled): redaction-safe logging. Every payload value is reduced
+// to a length, a hash, or a coarse enum and marked .private — never the raw value.
+// The redaction lint must pass this file with zero violations.
+import os
+
+func logSafe(transcript: String, term: Term, status: CleanupErrorKind) {
+    let logger = Logger(subsystem: "com.loqui.app", category: "safe")
+
+    // Lengths and hashes only — the raw transcript never appears.
+    logger.log("transcript len=\(transcript.count, privacy: .private)")
+    logger.log("term hash=\(RedactionSafeLog.hashed(term.value), privacy: .private)")
+
+    // A coarse status enum carries no payload, so it is safe as a plain value.
+    logger.log("status=\(status.rawValue)")
+}

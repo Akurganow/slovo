@@ -1,0 +1,9 @@
+// FIXTURE (not compiled): a Cleaner-role source that violates the dependency
+// direction rule by importing GRDB. The dependency-direction gate must flag it.
+// Stored as .swifttext so SwiftPM does not compile it into the test target.
+import Foundation
+import GRDB
+
+struct AnthropicCleaner {
+    func clean(_ text: String) -> String { text }
+}

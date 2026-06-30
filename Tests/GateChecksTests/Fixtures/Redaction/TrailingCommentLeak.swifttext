@@ -1,0 +1,10 @@
+// FIXTURE (not compiled): a GENUINE payload leak followed by a trailing line
+// comment on the SAME line. The leak is to the LEFT of the real `//` comment, so
+// stripping the comment leaves the leak intact and it must be flagged. This pins
+// the behavior (regression-lock): the comment strip must not swallow the leak.
+import os
+
+func logWithTrailingComment(name: String) {
+    let logger = Logger(subsystem: "com.loqui.app", category: "trailing")
+    logger.error("user=\(name, privacy: .public)") // TODO redact
+}

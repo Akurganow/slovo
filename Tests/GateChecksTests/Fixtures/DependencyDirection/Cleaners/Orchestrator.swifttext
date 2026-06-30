@@ -1,0 +1,11 @@
+// FIXTURE (not compiled): a real role source living UNDER a role DIRECTORY
+// (Cleaners/) whose FILE NAME does not contain the substring "Cleaner". The
+// filename-only detector misses it, but role is determined by LOCATION: a source
+// inside a Cleaners/ directory is a role module and must not `import GRDB`.
+// The dependency-direction gate must flag this file.
+import Foundation
+import GRDB
+
+struct Orchestrator {
+    func run() {}
+}

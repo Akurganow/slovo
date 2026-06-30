@@ -1,0 +1,11 @@
+// FIXTURE (not compiled): a payload leak through a logger whose RECEIVER is not
+// named `logger`. A leak is a leak regardless of the variable name on the left of
+// `.error(`/`.log(`/… . The current scanner keys on the literal receiver
+// `logger.` and so misses `log.error(...)`; the fix must match any receiver.
+// The redaction lint must flag the line below.
+import os
+
+func logViaRenamedReceiver(secret: String) {
+    let log = Logger(subsystem: "com.loqui.app", category: "renamed")
+    log.error("secret=\(secret, privacy: .public)")
+}

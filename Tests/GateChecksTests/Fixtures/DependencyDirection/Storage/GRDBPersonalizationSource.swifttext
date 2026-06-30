@@ -1,0 +1,10 @@
+// FIXTURE (not compiled): a Storage-layer source that legitimately imports GRDB.
+// Storage is NOT a role module (Cleaner/Transcriber/Injector) — it is the ONE
+// place GRDB is allowed (the persistence adapter). The dependency-direction gate
+// must NOT flag it: `dependencyViolations(inFileAt:)` returns empty.
+import Foundation
+import GRDB
+
+struct GRDBPersonalizationSource {
+    func vocabulary(limit: Int) -> [String] { [] }
+}

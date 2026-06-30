@@ -1,0 +1,17 @@
+// FIXTURE (not compiled): a CLEAN traceability catalog. Every in-scope AC maps to
+// a test with a real, non-placeholder assertion. The gate must pass this with
+// zero violations.
+
+@Test  // covers: FIXTURE-AC-ALPHA
+func alphaHasRealAssertion() {
+    let produced = computeAlpha()
+    #expect(produced == 42)
+}
+
+@Test  // covers: FIXTURE-AC-BETA
+func betaHasRealAssertion() {
+    let produced = computeBeta()
+    #expect(produced.contains("beta"))
+}
+
+// in-scope-acs: FIXTURE-AC-ALPHA, FIXTURE-AC-BETA

@@ -1,0 +1,87 @@
+// swift-tools-version: 6.3
+import PackageDescription
+
+let strictSwiftSettings: [SwiftSetting] = [
+    .unsafeFlags([
+        "-warnings-as-errors",
+        "-strict-concurrency=complete",
+        "-enable-actor-data-race-checks",
+    ]),
+]
+
+let swiftLintPlugins: [Target.PluginUsage] = [
+    .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
+]
+
+// Foundation shell for loqui. Each heavy dependency (e.g. WhisperKit, FluidAudio)
+// is added by the epic that first uses it, so the foundation resolves only what is
+// actually consumed. GRDB enters here (Epic 08) as the persistence library for the
+// personalization store.
+let package = Package(
+    name: "loqui",
+    // macOS-only app. The macOS 26 floor is driven by Apple's on-device
+    // SpeechTranscriber / SpeechAnalyzer APIs (macOS 26+), which the dictation
+    // pipeline depends on; earlier minimums would not resolve them.
+    platforms: [.macOS(.v26)],
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
+        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.0"),
+    ],
+    targets: [
+        // Testable core. Owns the only `import GRDB` (the persistence adapter);
+        // role-tagged source modules must NOT import GRDB (dependency-direction gate).
+        .target(
+            name: "LoquiCore",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
+            ],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // Test-only fakes for the seam protocols. A separate library target so the
+        // shipped `loqui` executable never links it; only test targets depend on it.
+        .target(
+            name: "LoquiTestSupport",
+            dependencies: ["LoquiCore"],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // The ASR bake-off armature: a NON-product measurement harness. Lives
+        // outside Sources/ (under Tools/) and is depended on ONLY by the test
+        // target — the shipped `loqui` executable never links it.
+        .target(
+            name: "AsrBakeoff",
+            dependencies: ["LoquiCore"],
+            path: "Tools/asr-bakeoff",
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // Application entrypoint and AppKit composition owner.
+        .executableTarget(
+            name: "loqui",
+            dependencies: ["LoquiCore"],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // Unit/behavioral tests for the core library.
+        .testTarget(
+            name: "LoquiCoreTests",
+            dependencies: ["LoquiCore", "LoquiTestSupport", "AsrBakeoff"],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // The L1 prevention gates, implemented as source-tree-scanning tests. The
+        // scanner (`GateChecks`) lives in this target — it is a build-time gate,
+        // not shipped product code, so it does not depend on `LoquiCore`. The
+        // `.swifttext` fixtures are read from disk via `#filePath`, not loaded as
+        // SwiftPM resources, so they are excluded from the build graph.
+        .testTarget(
+            name: "GateChecksTests",
+            exclude: ["Fixtures"],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+    ]
+)

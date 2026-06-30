@@ -1,0 +1,8 @@
+// FIXTURE (not compiled): a Transcriber-role backend that imports ANOTHER
+// backend. A backend must not import a sibling backend; the gate must flag it.
+import Foundation
+import WhisperKitBackend
+
+struct ParakeetTranscriber {
+    func transcribe() -> String { "" }
+}
