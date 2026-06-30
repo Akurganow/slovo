@@ -13,12 +13,12 @@ let swiftLintPlugins: [Target.PluginUsage] = [
     .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
 ]
 
-// Foundation shell for loqui. Each heavy dependency (e.g. WhisperKit, FluidAudio)
+// Foundation shell for slovo. Each heavy dependency (e.g. WhisperKit, FluidAudio)
 // is added by the epic that first uses it, so the foundation resolves only what is
 // actually consumed. GRDB enters here (Epic 08) as the persistence library for the
 // personalization store.
 let package = Package(
-    name: "loqui",
+    name: "slovo",
     // macOS-only app. The macOS 26 floor is driven by Apple's on-device
     // SpeechTranscriber / SpeechAnalyzer APIs (macOS 26+), which the dictation
     // pipeline depends on; earlier minimums would not resolve them.
@@ -32,7 +32,7 @@ let package = Package(
         // Testable core. Owns the only `import GRDB` (the persistence adapter);
         // role-tagged source modules must NOT import GRDB (dependency-direction gate).
         .target(
-            name: "LoquiCore",
+            name: "SlovoCore",
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
@@ -41,40 +41,61 @@ let package = Package(
             plugins: swiftLintPlugins
         ),
         // Test-only fakes for the seam protocols. A separate library target so the
-        // shipped `loqui` executable never links it; only test targets depend on it.
+        // shipped `slovo` executable never links it; only test targets depend on it.
         .target(
-            name: "LoquiTestSupport",
-            dependencies: ["LoquiCore"],
+            name: "SlovoTestSupport",
+            dependencies: ["SlovoCore"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
         // The ASR bake-off armature: a NON-product measurement harness. Lives
         // outside Sources/ (under Tools/) and is depended on ONLY by the test
-        // target — the shipped `loqui` executable never links it.
+        // target — the shipped `slovo` executable never links it.
         .target(
             name: "AsrBakeoff",
-            dependencies: ["LoquiCore"],
+            dependencies: ["SlovoCore"],
             path: "Tools/asr-bakeoff",
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        .target(
+            name: "CleanupBenchmark",
+            dependencies: ["SlovoCore"],
+            path: "Tools/cleanup-benchmark",
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        .executableTarget(
+            name: "slovo-cleanup-benchmark",
+            dependencies: ["CleanupBenchmark"],
+            path: "Tools/cleanup-benchmark-cli",
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
         // Application entrypoint and AppKit composition owner.
         .executableTarget(
-            name: "loqui",
-            dependencies: ["LoquiCore"],
+            name: "slovo",
+            dependencies: ["SlovoCore"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
         // Unit/behavioral tests for the core library.
         .testTarget(
-            name: "LoquiCoreTests",
-            dependencies: ["LoquiCore", "LoquiTestSupport", "AsrBakeoff"],
+            name: "SlovoCoreTests",
+            dependencies: ["SlovoCore", "SlovoTestSupport", "AsrBakeoff"],
+            swiftSettings: strictSwiftSettings,
+            plugins: swiftLintPlugins
+        ),
+        // Unit tests for the non-product cleanup benchmark harness.
+        .testTarget(
+            name: "CleanupBenchmarkTests",
+            dependencies: ["CleanupBenchmark", "SlovoCore"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
         // The L1 prevention gates, implemented as source-tree-scanning tests. The
         // scanner (`GateChecks`) lives in this target — it is a build-time gate,
-        // not shipped product code, so it does not depend on `LoquiCore`. The
+        // not shipped product code, so it does not depend on `SlovoCore`. The
         // `.swifttext` fixtures are read from disk via `#filePath`, not loaded as
         // SwiftPM resources, so they are excluded from the build graph.
         .testTarget(

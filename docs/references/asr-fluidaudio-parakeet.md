@@ -1,6 +1,6 @@
 # FluidAudio + Parakeet TDT v3 (candidate ASR)
 
-> Reference for loqui (native Swift macOS, Apple Silicon). Verified against the
+> Reference for slovo (native Swift macOS, Apple Silicon). Verified against the
 > official FluidAudio repository (source code at the `v0.15.4` tag) and the
 > Parakeet CoreML model card on 2026-06-27. Pinned to FluidAudio **v0.15.4**
 > (latest release, published 2026-06-16). Symbols that could not be confirmed
@@ -20,11 +20,11 @@ activity detection, speaker diarization). Inference is offloaded to the Apple
 Neural Engine (ANE) via CoreML, which lowers memory use and is generally faster
 than CPU/GPU paths.
 
-For loqui, the relevant capability is batch ASR using NVIDIA **Parakeet TDT
+For slovo, the relevant capability is batch ASR using NVIDIA **Parakeet TDT
 0.6B v3**, converted to CoreML and distributed as
 `FluidInference/parakeet-tdt-0.6b-v3-coreml`. This is the fastest local engine
 in FluidAudio's own benchmarks (~110x real-time on M4 Pro for batch ASR) and
-covers 25 European languages — including Russian (`ru`), which loqui requires.
+covers 25 European languages — including Russian (`ru`), which slovo requires.
 
 > **Code-switching caveat (read before relying on this for RU+EN):** "multilingual"
 > here means the single model can transcribe any one of 25 European languages — it
@@ -37,7 +37,7 @@ covers 25 European languages — including Russian (`ru`), which loqui requires.
 > omitting it disables filtering but does not document automatic per-token language
 > switching. Treat reliable intra-utterance RU+EN code-switching as
 > **`[UNVERIFIED]` / not claimed** — it must be empirically tested on real
-> code-switched audio before loqui depends on it. See "Model / languages notes".
+> code-switched audio before slovo depends on it. See "Model / languages notes".
 
 ## Install (SPM)
 
@@ -51,7 +51,7 @@ Add the product to your target:
 
 ```swift
 .target(
-    name: "Loqui",
+    name: "Slovo",
     dependencies: [
         .product(name: "FluidAudio", package: "FluidAudio")
     ]
@@ -147,7 +147,7 @@ An `AudioSource` enum does exist
 sliding-window and diarization paths to pick a processing route, **not** by the
 batch Parakeet TDT `transcribe` used above. The `transcribe(samples, source:
 .system)` snippet from FluidAudio's `GettingStarted.md` does not match the
-shipped `AsrManager` source — do not write loqui code against it. (A
+shipped `AsrManager` source — do not write slovo code against it. (A
 `source: AudioSource = .file` parameter does appear on a *different* manager,
 the TDT-CTC-110M model in `Documentation/ASR/TDT-CTC-110M.md`, which is a
 separate model from Parakeet TDT v3.)
@@ -202,11 +202,11 @@ func transcribeFile(at path: String) async throws -> String {
   `StreamingNemotronAsrManager` / `StreamingNemotronMultilingualAsrManager`, and
   `UnifiedAsrManager` / `StreamingUnifiedAsrManager`. Pick the one matching the
   model you load and verify its API before relying on it; the batch
-  `AsrManager` above is the right entry point for loqui's record-then-transcribe
+  `AsrManager` above is the right entry point for slovo's record-then-transcribe
   use case.
 
 Latency characteristics: batch ASR is throughput-oriented (tens-to-hundreds x
-real-time), so for "record then transcribe" UX in loqui it is effectively
+real-time), so for "record then transcribe" UX in slovo it is effectively
 instant on Apple Silicon. For live captions you would need the realtime EOU
 model, which trades model quality/coverage for low per-chunk latency.
 
@@ -250,7 +250,7 @@ model, which trades model quality/coverage for low per-chunk latency.
   (`Documentation/ASR/TokenLanguageFilter.md`) is built to *prevent* wrong-script
   emission (it can "emit wrong-language tokens — e.g. Russian-alphabet tokens
   while transcribing Polish"), and the filter is enabled by passing `language:`
-  to force a single language. For loqui's RU+EN code-switching gate this means:
+  to force a single language. For slovo's RU+EN code-switching gate this means:
   the model *can* recognize both RU and EN, but mixed RU+EN inside one utterance
   is **not a documented capability** and the language-filter machinery actively
   pushes toward a single script. Verify empirically on real code-switched audio
@@ -260,9 +260,9 @@ model, which trades model quality/coverage for low per-chunk latency.
   multilingual default (`version: .v3`). v2 also ships (English-only, "better
   recall"). So v3 is not v2-only — both are available.
 
-## loqui gotchas
+## slovo gotchas
 
-- **macOS 14 minimum.** FluidAudio targets macOS 14 / iOS 17. If loqui must
+- **macOS 14 minimum.** FluidAudio targets macOS 14 / iOS 17. If slovo must
   support macOS 13 or earlier, this backend is out without forking.
 - **First-run model download.** `downloadAndLoad` pulls the CoreML model from
   Hugging Face on first use. Plan for: network access on first launch, a
@@ -277,9 +277,9 @@ model, which trades model quality/coverage for low per-chunk latency.
   kHz directly — convert via FluidAudio's `AudioConverter` (or `AVAudioConverter`)
   first, or transcription quality degrades / fails.
 - **Batch, not live.** Parakeet TDT v3 is batch ASR. For live captioning in
-  loqui you need the separate realtime EOU model and a different code path.
+  slovo you need the separate realtime EOU model and a different code path.
 - **Swift 6 / concurrency.** Package is `swift-tools-version: 6.0` and the API is
-  `async`/`await` throughout (and likely actor-isolated). Ensure loqui's audio
+  `async`/`await` throughout (and likely actor-isolated). Ensure slovo's audio
   pipeline crosses concurrency boundaries cleanly.
 - **Result type is `ASRResult`** (not `TranscriptionResult`). Word/token-level
   timestamps ARE available via `tokenTimings: [TokenTiming]?` (each `TokenTiming`

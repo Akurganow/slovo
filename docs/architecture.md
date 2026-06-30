@@ -1,6 +1,6 @@
 # Architecture
 
-Loqui is a native Swift menu-bar app with a small composition root and testable
+Slovo is a native Swift menu-bar app with a small composition root and testable
 core seams.
 
 ## Pipeline
@@ -26,7 +26,7 @@ Raw audio stays on the Mac. The optional cloud step receives transcript text onl
 - `PersonalizationSource` supplies local vocabulary hints.
 - `Orchestrator` serializes the pipeline and owns the runtime state transitions.
 
-The app target owns OS-specific adapters and production composition. `LoquiCore`
+The app target owns OS-specific adapters and production composition. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
 injection behavior.
 
@@ -43,7 +43,7 @@ calls.
 
 ## Storage
 
-Loqui uses SQLite through GRDB for local personalization data:
+Slovo uses SQLite through GRDB for local personalization data:
 
 - `vocabulary` stores spelling anchors and term weights.
 - `corrections` is reserved for future correction memory.

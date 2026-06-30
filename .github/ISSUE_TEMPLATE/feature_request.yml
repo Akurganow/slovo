@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement for Loqui.
+description: Suggest an improvement for Slovo.
 title: "Feature: "
 labels: ["enhancement"]
 body:
@@ -14,7 +14,7 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: What should Loqui do?
+      description: What should Slovo do?
     validations:
       required: true
   - type: textarea

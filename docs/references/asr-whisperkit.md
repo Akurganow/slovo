@@ -1,6 +1,6 @@
 # WhisperKit (fallback ASR)
 
-> Reference for **loqui** (native Swift, macOS, Apple Silicon). WhisperKit is the
+> Reference for **slovo** (native Swift, macOS, Apple Silicon). WhisperKit is the
 > **fallback** on-device ASR backend: Whisper running locally via CoreML on the
 > Apple Neural Engine (ANE) / GPU / CPU. No network, no cloud, fully private.
 
@@ -12,15 +12,15 @@
   Open-Source SDK**. The Git repo is now `argmaxinc/argmax-oss-swift`; the old
   `argmaxinc/WhisperKit` URL redirects to it. The SDK bundles three products:
   `WhisperKit` (STT), `SpeakerKit` (diarization), `TTSKit` (TTS), plus an
-  umbrella `ArgmaxOSS` product. **loqui only needs the `WhisperKit` product.**
+  umbrella `ArgmaxOSS` product. **slovo only needs the `WhisperKit` product.**
 - License: MIT.
 
 ## Purpose
 
-loqui captures microphone audio, and on key release transcribes the captured
+slovo captures microphone audio, and on key release transcribes the captured
 buffer in one batch. WhisperKit is the offline fallback when the primary
 (cloud) ASR is unavailable or privacy-restricted. Its `transcribe(audioArray:)`
-takes `[Float]` PCM samples (16 kHz, mono) — the same shape as loqui's captured
+takes `[Float]` PCM samples (16 kHz, mono) — the same shape as slovo's captured
 buffer — so no file round-trip is required.
 
 ## Install (Swift Package Manager)
@@ -36,7 +36,7 @@ dependencies: [
 ],
 targets: [
     .target(
-        name: "Loqui",
+        name: "Slovo",
         dependencies: [
             .product(name: "WhisperKit", package: "argmax-oss-swift"),
         ]
@@ -49,7 +49,7 @@ import WhisperKit
 ```
 
 **Minimum platforms (WhisperKit product):** macOS 14.0+, Xcode 16.0+.
-(Other products differ — SpeakerKit macOS 13.0+, TTSKit macOS 15.0+ — but loqui
+(Other products differ — SpeakerKit macOS 13.0+, TTSKit macOS 15.0+ — but slovo
 uses only WhisperKit, so macOS 14.0 is the floor.)
 
 ## Key API
@@ -96,7 +96,7 @@ public init(model: String? = nil,
             useBackgroundDownloadSession: Bool = false)
 ```
 
-Knobs loqui will care about:
+Knobs slovo will care about:
 - `model` — variant name (see table). `nil` ⇒ library-recommended default.
 - `modelRepo` — override Hugging Face repo. The init default is `nil`; when
   unset, model resolution falls back to `"argmaxinc/whisperkit-coreml"`. Set
@@ -107,7 +107,7 @@ Knobs loqui will care about:
 - `download` — set `false` to forbid network fetches (fail instead of downloading).
 - `prewarm` / `load` — control eager ANE compile + weight load at init.
 
-### Transcribe (Float array — loqui's path)
+### Transcribe (Float array — slovo's path)
 
 Verbatim from `Sources/WhisperKit/Core/WhisperKit.swift`:
 
@@ -144,7 +144,7 @@ Both return **`[TranscriptionResult]`** (one element per audio clip / chunk).
 @TranscriptionPropertyLock public var seekTime: Float?
 ```
 
-For loqui's "insert text on release", read `result.text` (concatenate over the
+For slovo's "insert text on release", read `result.text` (concatenate over the
 array if more than one result). `TranscriptionSegment` carries per-segment
 `start`/`end`/`text`/`tokens`/`avgLogprob`/`noSpeechProb` and optional
 `words: [WordTiming]?` if word timestamps are enabled.
@@ -174,12 +174,12 @@ public init(
 
 - **Russian:** `DecodingOptions(language: "ru")` (ISO 639-1 code).
 - **Auto-detect:** leave `language: nil` and set `detectLanguage: true`.
-- **Task:** `DecodingTask` is `case transcribe` / `case translate`. loqui wants
+- **Task:** `DecodingTask` is `case transcribe` / `case translate`. slovo wants
   `.transcribe` (the default). `.translate` would force English output.
 - Language selection requires a **multilingual** model (the `large-v3*` variants
   are multilingual; `*.en` variants are English-only).
 
-## Minimal Swift example (loqui's batch-on-release path)
+## Minimal Swift example (slovo's batch-on-release path)
 
 ```swift
 import WhisperKit
@@ -252,7 +252,7 @@ string you pass to `WhisperKitConfig(model:)` is the `<name>` suffix (e.g.
 
 ## Real-time / streaming
 
-loqui is **batch-on-release**, so streaming is informational only. WhisperKit
+slovo is **batch-on-release**, so streaming is informational only. WhisperKit
 ships a real-time transcriber actor for those who need it:
 
 ```swift
@@ -264,13 +264,13 @@ featureExtractor, segmentSeeker, textDecoder, tokenizer, audioProcessor) plus
 `decodingOptions`, with knobs like `requiredSegmentsForConfirmation`,
 `silenceThreshold`, `useVAD`, and a `stateChangeCallback`. The SDK's bundled CLI
 also exposes streaming via OpenAI-compatible `/v1/audio/transcriptions`
-endpoints. **loqui does not need any of this** — `transcribe(audioArray:)` is
+endpoints. **slovo does not need any of this** — `transcribe(audioArray:)` is
 the right call.
 
-## loqui gotchas
+## slovo gotchas
 
 - **Audio format:** Whisper expects **16 kHz mono Float** PCM normalized to
-  roughly [-1, 1]. Resample/downmix loqui's capture before
+  roughly [-1, 1]. Resample/downmix slovo's capture before
   `transcribe(audioArray:)`, or the output degrades. WhisperKit's
   `AudioProcessor` helpers can load/convert files, but for the in-memory buffer
   you own the resampling.
@@ -288,7 +288,7 @@ the right call.
   array and read `.text`; don't assume a single element.
 - **Swift 6 strict concurrency:** `v1.0.0` adopts Swift 6 concurrency and
   vendors swift-transformers internally (no transitive HF Hub dependency).
-  Expect `Sendable`/actor-isolation requirements when calling from loqui's
+  Expect `Sendable`/actor-isolation requirements when calling from slovo's
   concurrency context.
 - **Repo/URL drift:** depend on the **`argmax-oss-swift`** package and the
   **`WhisperKit`** product name. The old `WhisperKit` repo URL works via

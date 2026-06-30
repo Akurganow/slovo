@@ -6,6 +6,6 @@
 import os
 
 func logViaRenamedReceiver(secret: String) {
-    let log = Logger(subsystem: "com.loqui.app", category: "renamed")
+    let log = Logger(subsystem: "com.slovo.app", category: "renamed")
     log.error("secret=\(secret, privacy: .public)")
 }

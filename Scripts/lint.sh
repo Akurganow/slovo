@@ -131,7 +131,7 @@ for script in Scripts/*.sh; do
     run_stage "bash-syntax:$script" bash -n "$script"
 done
 
-run_stage "plist-lint" plutil -lint Resources/Info.plist loqui.entitlements
+run_stage "plist-lint" plutil -lint Resources/Info.plist slovo.entitlements
 
 run_stage "swiftlint-strict" swift_package_plugin swiftlint
 run_stage "swiftlint-compiler-log" generate_swiftlint_compiler_log

@@ -4,7 +4,7 @@
 
 `SpeechAnalyzer` + `SpeechTranscriber` are the new on-device speech-to-text APIs Apple
 introduced at WWDC25 (macOS 26 "Tahoe" generation, all platforms are `26.0+`). This is
-loqui's **default ASR backend**: a native Swift, fully on-device transcription engine for
+slovo's **default ASR backend**: a native Swift, fully on-device transcription engine for
 Apple Silicon, the same technology that powers system Notes / Voice Memos / Journal /
 Call Summarization.
 
@@ -18,14 +18,14 @@ The design splits three responsibilities:
   reserve). Transcription is on-device, but the language models must be fetched first.
 
 > [!IMPORTANT]
-> For loqui's **short push-to-talk dictation**, evaluate **`DictationTranscriber`** instead
+> For slovo's **short push-to-talk dictation**, evaluate **`DictationTranscriber`** instead
 > of `SpeechTranscriber`. Apple's own abstracts: `SpeechTranscriber` is "appropriate for
 > normal conversation and general purposes" (WWDC25 framing: long-form audio, "optimized
 > for lectures, meetings, and conversations"), while `DictationTranscriber` is "similar to
 > system dictation features and compatible with older devices" — it "uses the same
 > speech-to-text machine learning models as system dictation features do, or as
 > `SFSpeechRecognizer` does when it is configured for on-device operation." Both are modules
-> that plug into the same `SpeechAnalyzer`. See [loqui gotchas](#loqui-gotchas). The task
+> that plug into the same `SpeechAnalyzer`. See [slovo gotchas](#slovo-gotchas). The task
 > framed `SpeechTranscriber` as the default; this distinction is a decision point, not a
 > contradiction.
 
@@ -203,7 +203,7 @@ func transcribeRussian() async throws -> String {
     //    supportedLocales / installedLocales are ASYNC — note the `await`.
     guard await SpeechTranscriber.supportedLocales.contains(where: {
         $0.identifier(.bcp47) == locale.identifier(.bcp47)
-    }) else { throw NSError(domain: "loqui", code: 1) }   // locale not supported
+    }) else { throw NSError(domain: "slovo", code: 1) }   // locale not supported
 
     let transcriber = SpeechTranscriber(
         locale: locale,
@@ -257,7 +257,7 @@ func transcribeRussian() async throws -> String {
 > `yield(AnalyzerInput(buffer:))`. `bestAvailableAudioFormat` returns the format the
 > installed model prefers — convert to it rather than assuming a fixed sample rate.
 
-## loqui gotchas
+## slovo gotchas
 
 - **Russian and English are confirmed supported.** `SpeechTranscriber.supportedLocales`
   includes `ru_RU` and the full English family (`en_US`, `en_GB`, `en_AU`, `en_CA`,
@@ -266,12 +266,12 @@ func transcribeRussian() async throws -> String {
   `supportedLocales`; do not hard-code the list. Remember `supportedLocales` /
   `installedLocales` are **async** (`await` them).
 - **One locale per transcriber — no documented intra-utterance RU+EN code-switching.**
-  This is project-defining for loqui, so be precise: a `SpeechTranscriber` /
+  This is project-defining for slovo, so be precise: a `SpeechTranscriber` /
   `DictationTranscriber` is constructed with a **single** `locale: Locale`, and **no Apple
   documentation, WWDC25 session 277 material, or the sample article states that one session
   transcribes mixed Cyrillic+Latin (RU+EN) within a single utterance.** The supported-/
   installed-locale docs are silent on multi-language sessions; the API shape (one locale per
-  module) implies one language per session. Do **not** assume code-switching works. If loqui
+  module) implies one language per session. Do **not** assume code-switching works. If slovo
   needs mixed RU+EN in one breath, this must be **empirically tested** on-device (and may
   require running two transcribers, language pre-detection, or an alternate backend). Treat
   "handles code-switching" as **unproven** until measured, not as a feature Apple promises.
@@ -281,14 +281,14 @@ func transcribeRussian() async throws -> String {
   the request's `progress` to the user. First run for a new language downloads hundreds of
   MB; budget for it.
 - **Reserve the locale.** Apps may keep only `maximumReservedLocales` language models
-  resident. Call `AssetInventory.reserve(locale:)` for loqui's active language so the OS
+  resident. Call `AssetInventory.reserve(locale:)` for slovo's active language so the OS
   doesn't evict it; `release(reservedLocale:)` when switching. Plan for at most ~2
   (Russian + English) and handle the reservation limit.
 - **OS version gate.** Every type here is `macOS 26.0+` (confirmed on each type's
   developer.apple.com page; `DictationTranscriber` omits tvOS, all others list iOS / iPadOS
   / Mac Catalyst / macOS / tvOS / visionOS 26.0+). Guard all usage with
   `if #available(macOS 26.0, *)` / `@available(macOS 26.0, *)` and keep a fallback path
-  (older `SFSpeechRecognizer`, or an alternate backend) for pre-Tahoe Macs — loqui targets
+  (older `SFSpeechRecognizer`, or an alternate backend) for pre-Tahoe Macs — slovo targets
   Apple Silicon but not necessarily only macOS 26.
 - **Hardware gate is runtime, not just OS.** Apple does not publish a minimum-chip
   requirement; instead `SpeechTranscriber.isAvailable` (`static var isAvailable: Bool`) is
@@ -298,7 +298,7 @@ func transcribeRussian() async throws -> String {
   `SFSpeechRecognizer` rather than assuming a specific Mac will work.
 - **Push-to-talk fit: prefer `DictationTranscriber` for short clips.** `SpeechTranscriber`
   is tuned for long sustained audio; `DictationTranscriber` matches short dictation
-  utterances (the `SFSpeechRecognizer` replacement) and is the better match for loqui's
+  utterances (the `SFSpeechRecognizer` replacement) and is the better match for slovo's
   hold-to-talk model. It uses the same on-device dictation models and the *same* analyzer /
   asset / results machinery (same `supportedLocales` / `installedLocales`, same `results`
   stream). The init shape is *similar but not identical*: `DictationTranscriber`'s full init
@@ -344,7 +344,7 @@ needs the Xcode SDK headers or a real device, not a doc page:
   certain regardless.)
 - **`DictationTranscriber` vs `SpeechTranscriber` latency/accuracy for short PTT** — Apple's
   abstracts establish the positioning (conversation/general-purpose vs dictation-like /
-  older-device-compatible) but give no benchmark. Must be measured on real loqui ru/en clips.
+  older-device-compatible) but give no benchmark. Must be measured on real slovo ru/en clips.
 - **Intra-utterance RU+EN code-switching** — *not* documented anywhere (see the gotcha
   above). The single-`locale` API shape implies one language per session. Must be empirically
   tested on-device; do not assume it works.

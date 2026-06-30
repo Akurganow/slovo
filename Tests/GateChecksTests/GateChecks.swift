@@ -6,7 +6,7 @@ import Foundation
 /// tests match on; `detail` names the specific offending construct (an import,
 /// a payload variable, an AC id).
 ///
-/// Lives in the `GateChecksTests` target rather than shipped `LoquiCore`: the
+/// Lives in the `GateChecksTests` target rather than shipped `SlovoCore`: the
 /// scanners are a build-time gate, never product code, and their only consumers
 /// are the gate tests here.
 struct GateViolation: Equatable, Sendable {

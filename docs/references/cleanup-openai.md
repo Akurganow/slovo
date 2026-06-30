@@ -1,6 +1,6 @@
 # OpenAI Responses API (cleanup)
 
-> Authoritative reference for loqui's optional OpenAI text-cleanup provider:
+> Authoritative reference for slovo's optional OpenAI text-cleanup provider:
 > calling the OpenAI Responses API from native Swift via `URLSession`.
 
 ## Purpose
@@ -31,7 +31,7 @@ Required request headers:
 
 ## Request Shape
 
-loqui sends a text-only request:
+slovo sends a text-only request:
 
 ```json
 {
@@ -55,7 +55,7 @@ loqui sends a text-only request:
 
 OpenAI text output appears as `output[].content[]` blocks with
 `type: "output_text"` and a `text` field. Some client surfaces also expose a
-convenience `output_text` string; loqui accepts both shapes and treats a missing
+convenience `output_text` string; slovo accepts both shapes and treats a missing
 text block as an API error that degrades through `FallbackCleaner`.
 
 Refusal blocks use `type: "refusal"` and must not be interpreted as cleaned
@@ -75,7 +75,7 @@ never reach logs.
 
 The OpenAI key is stored separately from the Anthropic key:
 
-- Keychain service: `loqui`
+- Keychain service: `slovo`
 - Keychain account: `openai-api-key`
 - Dev env override: `OPENAI_API_KEY`
 

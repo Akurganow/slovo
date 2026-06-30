@@ -1,9 +1,9 @@
 # Anthropic Messages API (cleanup)
 
-> Authoritative reference for loqui's text-cleanup layer: calling the Anthropic
+> Authoritative reference for slovo's text-cleanup layer: calling the Anthropic
 > Messages API with Claude Haiku to clean up raw speech-to-text transcripts.
-> loqui is native Swift on macOS; there is **no official Anthropic Swift SDK**,
-> so loqui calls the REST API directly via `URLSession`. Every fact below is
+> slovo is native Swift on macOS; there is **no official Anthropic Swift SDK**,
+> so slovo calls the REST API directly via `URLSession`. Every fact below is
 > verified against the official docs (see [Full sources](#full-sources)).
 
 ## Purpose
@@ -64,7 +64,7 @@ and `stop_reason: "refusal"` handling are all GA and require no beta opt-in).
   length plus margin. Hitting the cap yields `stop_reason: "max_tokens"` and a
   truncated result — size generously rather than retry.
 - **`system`** (optional but used here) — the cleanup instructions. Either a
-  plain string or an array of text blocks. loqui uses the array form so it can
+  plain string or an array of text blocks. slovo uses the array form so it can
   attach `cache_control` to the stable prefix.
 - **`messages`** (required) — the conversation. For cleanup this is a single
   `user` turn carrying the raw transcript. `content` is either a string (as
@@ -151,7 +151,7 @@ block here:
 
 - **Minimum cacheable prefix for Haiku 4.5 is ~4096 tokens.** A shorter prefix
   silently won't cache — no error, just `cache_creation_input_tokens: 0` and
-  `cache_read_input_tokens: 0`. loqui's vocabulary prefix must reach ~4096
+  `cache_read_input_tokens: 0`. slovo's vocabulary prefix must reach ~4096
   tokens for caching to engage on Haiku. (For comparison: Opus 4.8 / Sonnet 4.6
   is 1024 tokens; Opus 4.6 is also 4096.)
 - **Default TTL is 5 minutes** (`{"type": "ephemeral"}`); `{"type":
@@ -290,7 +290,7 @@ Swift, consume the body with `URLSession.bytes(for:)` and parse SSE lines
 manually (no SDK helper exists). `stop_reason` arrives on the `message_delta`
 event — check it there for refusals.
 
-## loqui gotchas
+## slovo gotchas
 
 ### Refusal handling
 
@@ -302,7 +302,7 @@ keep the raw transcript unchanged rather than crash or block the user.
 ### Caching threshold
 
 Haiku 4.5's minimum cacheable prefix is **~4096 tokens** — higher than the
-Opus 4.8 / Sonnet 4.6 minimum of 1024. If loqui's cached vocabulary prefix is
+Opus 4.8 / Sonnet 4.6 minimum of 1024. If slovo's cached vocabulary prefix is
 below ~4096 tokens it **silently won't cache** (no error). Confirm caching is
 working by checking `usage.cache_read_input_tokens > 0` on the second and later
 calls; if it stays 0, either the prefix is too short or a byte in it changed
@@ -398,5 +398,5 @@ Canonical Anthropic documentation (verified for this doc):
 ### Still unverifiable
 
 - None material. The Swift `KeychainStore.anthropicAPIKey()` / `CleanupError`
-  symbols are intentionally illustrative placeholders (loqui-side), not
+  symbols are intentionally illustrative placeholders (slovo-side), not
   Anthropic API surface, so they are out of scope for source verification.

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for taking the time to improve Loqui.
+Thanks for taking the time to improve Slovo.
 
 ## Development Setup
 
@@ -36,7 +36,7 @@ Scripts/diagnose.sh
 
 ## Tests
 
-Loqui uses Swift Testing and source-tree gate checks. New behavior should have a
+Slovo uses Swift Testing and source-tree gate checks. New behavior should have a
 test that can fail on a concrete broken implementation, not just pass on the
 current code.
 
@@ -53,7 +53,7 @@ Scripts/diagnose.sh
 Local packaging requires a stable signing identity:
 
 ```sh
-SIGNING_IDENTITY="Loqui Local Development" Scripts/sign-and-notarize.sh
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, because

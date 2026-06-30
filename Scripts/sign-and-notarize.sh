@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-release}"
-APP_NAME="${APP_NAME:-Loqui}"
+APP_NAME="${APP_NAME:-Slovo}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 DRY_RUN="${DRY_RUN:-0}"
 DIST_DIR="$ROOT/.build/dist"
@@ -45,7 +45,7 @@ run() {
 
 APP_PATH="$DIST_DIR/$APP_NAME.app"
 CONTENTS_PATH="$APP_PATH/Contents"
-BINARY_PATH="$ROOT/.build/$CONFIGURATION/loqui"
+BINARY_PATH="$ROOT/.build/$CONFIGURATION/slovo"
 
 if [[ -e "$APP_PATH" ]]; then
     echo "$APP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
@@ -61,13 +61,13 @@ run swift build \
     -c "$CONFIGURATION"
 
 run install -d "$CONTENTS_PATH/MacOS" "$CONTENTS_PATH/Resources"
-run install "$BINARY_PATH" "$CONTENTS_PATH/MacOS/loqui"
+run install "$BINARY_PATH" "$CONTENTS_PATH/MacOS/slovo"
 run install -m 0644 "$ROOT/Resources/Info.plist" "$CONTENTS_PATH/Info.plist"
 
 CODESIGN_ARGS=(
     --force
     --options runtime
-    --entitlements "$ROOT/loqui.entitlements"
+    --entitlements "$ROOT/slovo.entitlements"
 )
 
 if [[ "$SIGNING_IDENTITY" != "-" ]]; then

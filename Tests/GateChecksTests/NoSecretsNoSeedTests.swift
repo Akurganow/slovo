@@ -7,14 +7,14 @@ import Testing
 //
 //  1. `scriptEnforcesGlobOnIsolatedRepo`: invokes the checked-in helper
 //     `Scripts/check-no-seed-in-vcs.sh`. The helper must exit 0 only when EVERY
-//     required glob (`data/seed*.sql`, `data/loqui.db*`, key material) is ignored
-//     in a repo carrying loqui's `.gitignore`. RED today because the script is
+//     required glob (`data/seed*.sql`, `data/slovo.db*`, key material) is ignored
+//     in a repo carrying slovo's `.gitignore`. RED today because the script is
 //     absent (the implementer creates it in T7).
 //
 //  2. `realGitignoreIgnoresGlobMatch`: a direct `git check-ignore` probe in an
 //     ISOLATED temp repo seeded with the REAL `.gitignore`. It uses glob-matching
 //     probe names the OLD literal list MISSED (`data/seed.dev.sql`,
-//     `data/loqui.db.x`) — never one of the two literal filenames, or it would be
+//     `data/slovo.db.x`) — never one of the two literal filenames, or it would be
 //     false-green against the regression. RED today because the un-hardened
 //     `.gitignore` lists exact filenames, so the glob match is NOT ignored.
 //
@@ -25,11 +25,11 @@ import Testing
 @Suite("AC-6 no-secrets / no-seed in VCS")
 struct NoSecretsNoSeedTests {
     /// Names that match the required GLOBS but are NOT in the literal list — the
-    /// exact gap the hardening closes. Deliberately not `seed.sql`/`loqui.db`.
+    /// exact gap the hardening closes. Deliberately not `seed.sql`/`slovo.db`.
     private static let globOnlyProbes = [
         "data/seed.dev.sql",   // matches data/seed*.sql, missed by literal list
         "data/seed.2.sql",     // matches data/seed*.sql, missed by literal list
-        "data/loqui.db.x",     // matches data/loqui.db*, missed by literal list
+        "data/slovo.db.x",     // matches data/slovo.db*, missed by literal list
     ]
 
     @Test
@@ -90,7 +90,7 @@ struct NoSecretsNoSeedTests {
     // MARK: - Isolated temp repo (touches nothing real)
 
     private static func makeTempRepoWithRealGitignore() throws -> String {
-        let repo = NSTemporaryDirectory() + "loqui-noseed-" + UUID().uuidString
+        let repo = NSTemporaryDirectory() + "slovo-noseed-" + UUID().uuidString
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
         _ = try run("/usr/bin/git", ["-C", repo, "init", "-q"])
 

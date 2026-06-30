@@ -1,8 +1,8 @@
 # Ollama local API (fallback cleanup)
 
-Authoritative reference for loqui's offline/fallback transcript-cleanup backend: a
+Authoritative reference for slovo's offline/fallback transcript-cleanup backend: a
 locally running [Ollama](https://ollama.com) server hosting a small multilingual
-instruct model (e.g. `qwen2.5`). loqui talks to Ollama over plain HTTP on
+instruct model (e.g. `qwen2.5`). slovo talks to Ollama over plain HTTP on
 `localhost` only.
 
 All endpoint shapes below are verified against the official API docs (see
@@ -11,13 +11,13 @@ official source are marked `[UNVERIFIED]`.
 
 ## Purpose
 
-- loqui's primary cleanup path is a hosted LLM. When the network or a hosted key
-  is unavailable, loqui falls back to a **local** model served by Ollama, so
+- slovo's primary cleanup path is a hosted LLM. When the network or a hosted key
+  is unavailable, slovo falls back to a **local** model served by Ollama, so
   cleanup keeps working fully offline.
-- loqui's responsibility is narrow: it **only speaks HTTP** to an Ollama server
-  the user already runs. loqui does **not** install Ollama, pull models, or
+- slovo's responsibility is narrow: it **only speaks HTTP** to an Ollama server
+  the user already runs. slovo does **not** install Ollama, pull models, or
   manage the model lifecycle beyond the per-request `keep_alive` hint.
-- If Ollama is not running or not installed, loqui must degrade to `PassThrough`
+- If Ollama is not running or not installed, slovo must degrade to `PassThrough`
   (return the raw transcript unchanged) rather than error — see
   [Detect not running / degrade](#detect-not-running--degrade).
 
@@ -28,13 +28,13 @@ endpoint for cleanup is `POST /api/chat`.
 
 ### POST /api/chat
 
-Request body (fields loqui uses):
+Request body (fields slovo uses):
 
 | Field        | Type    | Notes                                                                 |
 |--------------|---------|-----------------------------------------------------------------------|
-| `model`      | string  | Required. e.g. `"qwen2.5"`. loqui does not pull it; the user must.     |
+| `model`      | string  | Required. e.g. `"qwen2.5"`. slovo does not pull it; the user must.     |
 | `messages`   | array   | Required. Each item: `{ "role": "system"\|"user"\|"assistant"\|"tool", "content": "..." }`. |
-| `stream`     | bool    | Optional, **defaults to `true`**. loqui sets `false` for one-shot.     |
+| `stream`     | bool    | Optional, **defaults to `true`**. slovo sets `false` for one-shot.     |
 | `options`    | object  | Optional model params (e.g. `temperature`, `seed`).                    |
 | `keep_alive` | string/number | Optional. See [keep_alive](#keep_alive).                         |
 
@@ -42,9 +42,9 @@ Streaming vs `stream: false`:
 
 - With `stream: true` (the default), the response is a sequence of JSON objects,
   one per token chunk, each with `done: false` until a final object with
-  `done: true`. loqui would have to concatenate `message.content` across chunks.
+  `done: true`. slovo would have to concatenate `message.content` across chunks.
 - With `stream: false`, the server returns a **single** JSON object containing
-  the full assistant message. loqui uses this for cleanup — simpler to parse.
+  the full assistant message. slovo uses this for cleanup — simpler to parse.
 
 Non-streaming response (verbatim from official docs):
 
@@ -89,7 +89,7 @@ Streaming response objects look like (verbatim):
 `POST /api/generate` is the single-prompt sibling of `/api/chat`. Same base URL.
 Request uses `prompt` (string) instead of `messages`, plus the same `model`,
 `stream`, `options`, `keep_alive`. The non-streaming response carries the text in
-the `response` field (not `message.content`). loqui prefers `/api/chat` because a
+the `response` field (not `message.content`). slovo prefers `/api/chat` because a
 `system` + `user` message split expresses the cleanup instruction more cleanly,
 but `/api/generate` is a valid alternative.
 
@@ -97,16 +97,16 @@ but `/api/generate` is a valid alternative.
 
 Ollama also exposes an OpenAI-compatible surface at
 `http://localhost:11434/v1`, including `POST /v1/chat/completions`. It accepts the
-standard OpenAI Chat Completions request/response shape, so loqui could reuse an
+standard OpenAI Chat Completions request/response shape, so slovo could reuse an
 OpenAI client by pointing `base_url` at it. An API key is **required by the
 client but ignored** by Ollama — pass any non-empty string (e.g. `"ollama"`).
-This is useful if loqui shares one code path between the hosted OpenAI-style
+This is useful if slovo shares one code path between the hosted OpenAI-style
 backend and the local fallback; otherwise `/api/chat` is the native choice.
 
 ## keep_alive
 
 `keep_alive` controls how long the model stays resident in memory after a
-request (default: `5m`). This maps directly to loqui's `keepWarmSeconds` idea —
+request (default: `5m`). This maps directly to slovo's `keepWarmSeconds` idea —
 "load the model only around processing, then let it go".
 
 Accepted values (verbatim semantics from the official FAQ):
@@ -117,7 +117,7 @@ Accepted values (verbatim semantics from the official FAQ):
   (e.g. `-1` or `"-1m"`)
 - `0`, which unloads the model immediately after generating a response
 
-Mapping to loqui's `keepWarmSeconds`:
+Mapping to slovo's `keepWarmSeconds`:
 
 - `keepWarmSeconds == 0` → send `"keep_alive": 0` to unload right after the call.
 - `keepWarmSeconds == N > 0` → send `"keep_alive": N` (seconds) so the model
@@ -126,12 +126,12 @@ Mapping to loqui's `keepWarmSeconds`:
 
 A request with only `{ "model": "...", "keep_alive": 0 }` (no messages/prompt) is
 a lifecycle-only call: it returns `done_reason: "unload"`. Likewise loading a
-model returns `done_reason: "load"`. loqui generally does not need these — it
+model returns `done_reason: "load"`. slovo generally does not need these — it
 sets `keep_alive` on the actual cleanup request — but they exist for explicit
 warm-up/teardown if desired.
 
 The server-wide default can also be set via the `OLLAMA_KEEP_ALIVE` environment
-variable, but per-request `keep_alive` overrides it. loqui should always send an
+variable, but per-request `keep_alive` overrides it. slovo should always send an
 explicit per-request value and not rely on the server default.
 
 ## Minimal Swift URLSession example
@@ -224,7 +224,7 @@ func cleanTranscript(
 
 `[UNVERIFIED]` The exact `URLError.Code` raised when nothing is listening on
 `11434` is environment-dependent; `.cannotConnectToHost` is the typical case on
-macOS, but loqui should treat the broader set of "cannot reach host" `URLError`
+macOS, but slovo should treat the broader set of "cannot reach host" `URLError`
 codes (and timeouts) as "not running" and fall back. The request/response JSON
 shapes and `keep_alive` semantics above are verified against the official docs.
 
@@ -235,25 +235,25 @@ Ollama not running or not installed surfaces as a **connection failure** to
 In `URLSession` this is a thrown `URLError` (commonly `.cannotConnectToHost`),
 caught in the example above.
 
-loqui's fallback policy:
+slovo's fallback policy:
 
 1. Attempt `POST /api/chat` against `localhost:11434`.
 2. On connection refused / cannot connect / timeout → treat as "Ollama
    unavailable" and **degrade to `PassThrough`** (return the raw transcript).
 3. On HTTP 404 for the model or a non-200 status (e.g. model not pulled) → also
-   degrade to `PassThrough`; do not attempt to pull the model (loqui does not
+   degrade to `PassThrough`; do not attempt to pull the model (slovo does not
    manage models).
 
 Optional liveness probe before sending a large transcript: a cheap
 `GET http://localhost:11434/api/tags` (lists locally available models) succeeds
-only if the server is up, and lets loqui confirm the configured `model` is
+only if the server is up, and lets slovo confirm the configured `model` is
 present in the returned `models[].name` list. If the probe fails to connect,
 skip straight to `PassThrough`.
 
-## loqui gotchas
+## slovo gotchas
 
-- **loqui does not manage models.** Pulling (`ollama pull qwen2.5`) and updates
-  are the user's responsibility, done out-of-band via the Ollama CLI. loqui only
+- **slovo does not manage models.** Pulling (`ollama pull qwen2.5`) and updates
+  are the user's responsibility, done out-of-band via the Ollama CLI. slovo only
   issues HTTP calls; if the model is missing, degrade rather than pull.
 - **`stream` defaults to `true`.** Always send `"stream": false` for one-shot
   cleanup, or you must reassemble chunked `message.content` yourself.
@@ -267,9 +267,9 @@ skip straight to `PassThrough`.
   `message.content`; `/api/generate` returns it under `response`. Decode the
   shape that matches the endpoint you call.
 - **First call after a cold start is slow** (model load), reflected in the
-  response's `load_duration`. Size loqui's request timeout to allow for the cold
+  response's `load_duration`. Size slovo's request timeout to allow for the cold
   load, or warm the model first with a lifecycle-only call.
-- **Localhost only.** loqui targets `127.0.0.1:11434`; do not expose or assume a
+- **Localhost only.** slovo targets `127.0.0.1:11434`; do not expose or assume a
   remote Ollama host.
 
 ## Full sources

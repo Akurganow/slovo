@@ -6,7 +6,7 @@
 import os
 
 func documented() {
-    let logger = Logger(subsystem: "com.loqui.app", category: "docs")
+    let logger = Logger(subsystem: "com.slovo.app", category: "docs")
     // example of what NOT to do: logger.log("\(secret, privacy: .public)")
     logger.log("ready")
 }

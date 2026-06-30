@@ -2,7 +2,7 @@
 
 ## Purpose
 
-loqui shows ONE menu-bar status item whose icon switches by dictation state, and
+slovo shows ONE menu-bar status item whose icon switches by dictation state, and
 a popover (on click) carrying the recent-dictation **history** plus the current
 **status**. The user chose **Glagolitic** glyphs for the two primary states:
 
@@ -25,7 +25,7 @@ JS-rendered) and Apple Support's bundled-font lists; canonical URLs are in
 
 ## ★ Q2 — Glagolitic rendering verdict (the make-or-break item)
 
-**VERDICT: FEASIBLE OUT OF THE BOX on loqui's target (macOS 26 "Tahoe", and also
+**VERDICT: FEASIBLE OUT OF THE BOX on slovo's target (macOS 26 "Tahoe", and also
 macOS 15 "Sequoia"). No font needs to be bundled.** macOS ships
 **`Noto Sans Glagolitic` Regular (v2.000)** in `/System/Library/Fonts/Supplemental`,
 and it contains the real Glagolitic letterforms (142 glyphs covering the whole
@@ -119,7 +119,7 @@ statusItem.button?.image = isRecording ? recordingIcon : idleIcon
   height of ~16–18 pt fills the bar without clipping. Render at point size, not a
   fixed pixel bitmap, so it stays crisp on Retina. (HIG = guidance, not a pinned
   numeric API — treat the exact size as a tuning value to eyeball on device.)
-- loqui has more than two states in the broader design (idle / recording /
+- slovo has more than two states in the broader design (idle / recording /
   processing / error). Glagolitic covers the two the user named; the other states
   can reuse SF Symbols (e.g. `waveform`, `exclamationmark.triangle`) or additional
   Glagolitic letters. The swap mechanism is identical.
@@ -128,11 +128,11 @@ statusItem.button?.image = isRecording ? recordingIcon : idleIcon
 
 ## Q3 — Popover from the status item
 
-Two routes. For loqui (existing non-sandboxed AppKit `.accessory` agent — spec §9,
+Two routes. For slovo (existing non-sandboxed AppKit `.accessory` agent — spec §9,
 `menubar-packaging.md`), the **AppKit `NSStatusItem` + `NSPopover`** route is the
 recommended fit; `MenuBarExtra` is the SwiftUI-native alternative.
 
-### Route A (recommended for loqui): `NSPopover` anchored to the status-item button
+### Route A (recommended for slovo): `NSPopover` anchored to the status-item button
 
 `NSPopover` is a concrete AppKit class — "A means to display additional content
 related to existing content on the screen." Anchor it to the status-item button:
@@ -168,12 +168,12 @@ final class StatusController {
   bar). Confirmed against Apple docs.
 - **`behavior`** (`NSPopover.Behavior`) — confirmed cases:
   - `.transient` — "closed in response to most user interactions"; closes when the
-    user clicks anywhere outside. **Recommended for loqui** (click icon → toggle).
+    user clicks anywhere outside. **Recommended for slovo** (click icon → toggle).
   - `.semitransient` — "closed when the user interacts with the window containing
     the popover's positioning view."
   - `.applicationDefined` — you manage closing explicitly.
 - **`contentViewController`** (`NSViewController?`) — "manages the content of the
-  popover." Put loqui's history view here. For SwiftUI content, wrap it in
+  popover." Put slovo's history view here. For SwiftUI content, wrap it in
   `NSHostingController(rootView:)` — that's an `NSViewController` and slots straight
   in, so the history list / status line can be a SwiftUI view inside an AppKit shell.
 - **`contentSize`** (`NSSize`) — set it before showing or the popover may
@@ -182,7 +182,7 @@ final class StatusController {
   the `menu`-vs-action precedence caveat from `menubar-packaging.md`: do **not** also
   assign `statusItem.menu`, or the click opens the menu instead of firing the action.
 - **`NSPopover` vs `NSMenu`:** a plain `NSMenu` only renders menu items (text rows),
-  which can't host a scrollable history list + a live status line. loqui needs custom
+  which can't host a scrollable history list + a live status line. slovo needs custom
   content → `NSPopover` (or `MenuBarExtra(.window)`), not `NSMenu`.
 
 ### Route B (SwiftUI-native alternative): `MenuBarExtra` with `.window` style
@@ -194,7 +194,7 @@ body is any SwiftUI view (perfect for a history list + status line):
 
 ```swift
 @main
-struct LoquiApp: App {
+struct SlovoApp: App {
     var body: some Scene {
         MenuBarExtra {
             HistoryView()              // SwiftUI: scrollable history + status line
@@ -209,19 +209,19 @@ struct LoquiApp: App {
 - `menuBarExtraStyle(_:)` is a `Scene` modifier; `MenuBarExtraStyle` has `.window`
   (popover-like), `.menu` (dropdown), `.automatic` (`.menu` not visible in the JSON
   extract pulled — treat the exact `.menu`/`.automatic` names as TO-VERIFY on the
-  SDK; `.window` is confirmed and is the one loqui needs).
+  SDK; `.window` is confirmed and is the one slovo needs).
 - The custom label still needs the Glagolitic glyph as a Noto-rendered `NSImage`
   (`Image(nsImage:)`) — the Q2 verdict applies unchanged.
 
-### Recommended choice for loqui: **Route A (AppKit `NSStatusItem` + `NSPopover`).**
+### Recommended choice for slovo: **Route A (AppKit `NSStatusItem` + `NSPopover`).**
 
-Reasons, in loqui's actual context:
-- loqui is already an AppKit `NSApplication` + `AppDelegate` agent (spec §9 sample,
+Reasons, in slovo's actual context:
+- slovo is already an AppKit `NSApplication` + `AppDelegate` agent (spec §9 sample,
   `menubar-packaging.md`), driven by `CGEventTap`, codesign, TCC preflight — all
   AppKit/CoreGraphics. Staying in AppKit keeps one consistent app model.
 - `NSPopover` gives explicit control over toggle, anchoring edge, behavior, and
-  content size — matching loqui's "click icon → toggle history" interaction exactly.
-- `MenuBarExtra` is lower-friction *if the whole app is SwiftUI*, but loqui is not;
+  content size — matching slovo's "click icon → toggle history" interaction exactly.
+- `MenuBarExtra` is lower-friction *if the whole app is SwiftUI*, but slovo is not;
   bridging `MenuBarExtra`'s status-item internals (e.g. to coordinate icon swaps with
   the FSM, or programmatically open/close) historically needs workarounds. SwiftUI
   history content is still available to Route A via `NSHostingController`, so Route A
@@ -231,14 +231,14 @@ Reasons, in loqui's actual context:
 
 ## Q4 — The dictation-history model (PRIVACY-SENSITIVE)
 
-This is a **loqui privacy/design question, not an Apple-API question.** The history
+This is a **slovo privacy/design question, not an Apple-API question.** The history
 is a small local list of recent dictations; each entry:
 
 - `timestamp` — when the dictation happened;
 - `text` — the dictated text (RECOGNIZED USER SPEECH — sensitive);
 - `outcome` — a status enum: cleaned / inserted-as-spoken / refused / failed.
 
-**Privacy constraints loqui MUST honor (these are invariants, cross-ref spec §11
+**Privacy constraints slovo MUST honor (these are invariants, cross-ref spec §11
 "Logging redaction" and §13):**
 
 - **Local only. Never egress.** The history holds the user's actual words. It must
@@ -271,12 +271,12 @@ contract above.
 ## Q5 — Works from a menu-bar agent (`LSUIElement` / `.accessory`)
 
 **Yes.** A status item + popover is the canonical UI for exactly this kind of agent.
-`menubar-packaging.md` (verified PASS) establishes that loqui runs as `LSUIElement
+`menubar-packaging.md` (verified PASS) establishes that slovo runs as `LSUIElement
 = true` with activation policy `.accessory` (no Dock icon, no main window) — and the
 *entire reason* a status item exists is to give such a background agent its only
 persistent UI affordance. `NSPopover` is presented relative to the status-item
 button, so it needs no app main window and no Dock presence; it appears anchored to
-the menu bar. loqui's decisions D4/D26 (non-sandboxed, `.accessory`) are unchanged by
+the menu bar. slovo's decisions D4/D26 (non-sandboxed, `.accessory`) are unchanged by
 this feature. (Spec §9; cross-ref `menubar-packaging.md` → `LSUIElement` /
 `NSApplication.ActivationPolicy.accessory`.)
 
@@ -315,7 +315,7 @@ Cross-references (do not duplicate):
 - `menubar-packaging.md` — NSStatusItem / NSStatusBar / squareLength / button /
   isTemplate / LSUIElement / .accessory / codesign / TCC (all verified PASS).
 - `storage-grdb.md` — local SQLite store if history is persisted.
-- Spec `2026-06-27-loqui-local-dictation-design.md` §9 (packaging, D4/D26), §11
+- Spec `2026-06-27-slovo-local-dictation-design.md` §9 (packaging, D4/D26), §11
   (logging-redaction invariant), §12 (RED redaction test), §13 (egress boundary).
 
 ---
@@ -339,7 +339,7 @@ corroborating sources.
   listed on Apple Support's *Fonts included with macOS Tahoe* AND *…Sequoia* pages,
   in the Supplemental set (corroborated across the Apple pages + search index). ✓
 - **macOS 26 = "Tahoe"** (Apple's year-based versioning; succeeds Sequoia = 15).
-  loqui targets macOS 26, so the bundled-Noto verdict applies to the target. ✓
+  slovo targets macOS 26, so the bundled-Noto verdict applies to the target. ✓
 - **LastResort is a placeholder fallback**, not real letterforms: draws a rounded
   square with the Unicode hex range + block name, one generic glyph per block
   (fileformat.info LastResort page + Wikipedia "Fallback font"). This is *why*
@@ -385,7 +385,7 @@ corroborating sources.
    quote from the rendered page should be re-confirmed in a browser (or by checking
    `/System/Library/Fonts/Supplemental` on device — the authoritative ground truth).
 3. **`MenuBarExtraStyle.menu` / `.automatic` names** were not in the JSON extract
-   pulled (only `.window` was). Marked TO-VERIFY; immaterial to loqui, which uses
+   pulled (only `.window` was). Marked TO-VERIFY; immaterial to slovo, which uses
    Route A (NSPopover) or `.window`.
 
 No FAIL items. The make-or-break verdict (Glagolitic renders out-of-the-box via the

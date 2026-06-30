@@ -1,6 +1,6 @@
 # Security Policy
 
-Loqui is an early-stage local dictation app. The security model is intentionally
+Slovo is an early-stage local dictation app. The security model is intentionally
 simple: raw audio stays on the Mac, while transcript text may be sent to the
 selected cleanup provider when cleanup is enabled.
 
@@ -27,7 +27,7 @@ Do not share:
 - Anthropic or OpenAI API keys.
 - `.env` files or credential bundles.
 - Signing keys, certificates, or notarization profiles.
-- Local `data/loqui.db*` files.
+- Local `data/slovo.db*` files.
 - `data/seed*.sql` files.
 - Raw transcripts containing personal or sensitive content.
 

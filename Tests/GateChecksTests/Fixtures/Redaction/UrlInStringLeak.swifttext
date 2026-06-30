@@ -6,6 +6,6 @@
 import os
 
 func logWithUrl(token: String) {
-    let logger = Logger(subsystem: "com.loqui.app", category: "url")
+    let logger = Logger(subsystem: "com.slovo.app", category: "url")
     logger.info("fetch https://api.example/v1 \(token, privacy: .public)")
 }

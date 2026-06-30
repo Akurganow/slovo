@@ -18,8 +18,9 @@ DerivedData/
 # only schema/migrations, no seed data and no user database.
 # The repo tracks ONLY the schema/migrations (data/schema.sql), no seed, no DB.
 # Globs (not exact names) so every future seed variant and DB sidecar is caught:
-# data/seed.dev.sql, data/seed.2.sql, data/loqui.db-shm, … all stay uncommittable.
-data/loqui.db*
+# data/seed.dev.sql, data/seed.2.sql, data/*.db-shm, and every DB sidecar stay
+# uncommittable even across app renames.
+data/*.db*
 data/seed*.sql
 
 # ── Key material / secrets — NEVER commit ────────────────────────────────────

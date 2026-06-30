@@ -1,6 +1,6 @@
 # GRDB.swift (personalization store)
 
-> Reference doc for loqui (native Swift, macOS). Pinned to **GRDB.swift 7.x**
+> Reference doc for slovo (native Swift, macOS). Pinned to **GRDB.swift 7.x**
 > (latest release at time of writing: **v7.11.1**, 2026-06-18). All APIs below
 > are verified against the official repository and its in-repo DocC sources
 > ([github.com/groue/GRDB.swift](https://github.com/groue/GRDB.swift)). See the
@@ -9,7 +9,7 @@
 ## Purpose
 
 GRDB.swift is a Swift toolkit over SQLite with a record layer, a type-safe query
-interface, and a first-class migration system. In loqui it backs the
+interface, and a first-class migration system. In slovo it backs the
 **personalization DB** — vocabulary, corrections, and profile data that feed
 few-shot prompting. Requirements it satisfies:
 
@@ -34,7 +34,7 @@ In `Package.swift`:
 .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
 // ...
 .target(
-    name: "Loqui",
+    name: "Slovo",
     dependencies: [
         .product(name: "GRDB", package: "GRDB.swift"),
     ]
@@ -60,7 +60,7 @@ these.
 
 Both expose the same thread-safe API. Writes performed through a single
 `DatabaseQueue`/`DatabasePool` instance are serialized, which avoids
-`SQLITE_BUSY` between your own accesses. For loqui's small personalization store
+`SQLITE_BUSY` between your own accesses. For slovo's small personalization store
 either works; `DatabasePool` is the better default if reads (few-shot lookups)
 can run while a correction is being written.
 
@@ -74,7 +74,7 @@ let dbQueue = try DatabaseQueue(path: "/path/to/database.sqlite")
 let dbPool  = try DatabasePool(path: "/path/to/database.sqlite")
 ```
 
-Compute loqui's path under Application Support and ensure the directory exists
+Compute slovo's path under Application Support and ensure the directory exists
 before opening (standard Foundation; not GRDB-specific):
 
 ```swift
@@ -87,10 +87,10 @@ func makePersonalizationDatabase() throws -> DatabasePool {
         in: .userDomainMask,
         appropriateFor: nil,
         create: true)
-    let dir = appSupport.appendingPathComponent("Loqui", isDirectory: true)
+    let dir = appSupport.appendingPathComponent("slovo", isDirectory: true)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-    let dbURL = dir.appendingPathComponent("personalization.sqlite")
+    let dbURL = dir.appendingPathComponent("slovo.db")
     let dbPool = try DatabasePool(path: dbURL.path)
     try migrator.migrate(dbPool)   // create-or-get: builds schema on first run
     return dbPool
@@ -102,7 +102,7 @@ func makePersonalizationDatabase() throws -> DatabasePool {
 A `DatabaseMigrator` registers named migrations that run **in order, once and
 only once**. On a fresh empty database every migration runs (the schema is
 created); on an existing database only the not-yet-applied ones run; on an
-up-to-date database `migrate` is a no-op. This *is* loqui's "create-or-get DB on
+up-to-date database `migrate` is a no-op. This *is* slovo's "create-or-get DB on
 startup; empty is valid" behavior — there is nothing special to do for the
 first run.
 
@@ -294,10 +294,10 @@ try dbPool.write { db in
 }
 ```
 
-## loqui gotchas
+## slovo gotchas
 
 - **WAL sidecar files.** A `DatabasePool` runs in WAL mode and creates
-  `personalization.sqlite-wal` and `personalization.sqlite-shm` next to the main
+  `slovo.db-wal` and `slovo.db-shm` next to the main
   file. Treat all three as the database: back them up together, and do not delete
   the `-wal`/`-shm` files out from under an open connection. `DatabaseQueue` does
   not use WAL by default: per GRDB's `Configuration.journalMode` docs, *"The

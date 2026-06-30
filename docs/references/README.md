@@ -1,4 +1,4 @@
-# loqui — Development Reference Library
+# slovo — Development Reference Library
 
 Curated, source-verified API/documentation references gathered up front so v0
 development doesn't stall on searching later. Each doc:
@@ -11,13 +11,13 @@ development doesn't stall on searching later. Each doc:
   (PASS / PARTIAL / FAIL), corrections applied (before→after), the source URLs
   validated, and any items only confirmable on a real macOS SDK / Xcode.
 
-This is the public reference layer for the APIs and platform behavior Loqui
+This is the public reference layer for the APIs and platform behavior Slovo
 depends on. The personalization seed data lives under `../../data/` and is
 **gitignored** — it is not part of this library.
 
 ## Catalog
 
-| Doc | Covers | Primary canonical source(s) | loqui role |
+| Doc | Covers | Primary canonical source(s) | slovo role |
 |---|---|---|---|
 | [macos-fn-hotkey.md](macos-fn-hotkey.md) | `fn`/Globe as a global hotkey via an active `CGEventTap`; suppressing the OS default; Accessibility vs Input Monitoring | Apple CoreGraphics (`CGEvent.tapCreate`, `CGEventFlags`, `maskSecondaryFn`) | D1 trigger (§8) |
 | [audio-capture.md](audio-capture.md) | Mic capture via `AVAudioEngine.installTap` → 16 kHz mono `Float` via `AVAudioConverter`; mic permission | Apple AVFAudio + TN3136 | `AudioRecorder` (§4/§5) |
@@ -26,6 +26,7 @@ depends on. The personalization seed data lives under `../../data/` and is
 | [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | ASR candidate (I3 code-switching favorite) |
 | [cleanup-anthropic.md](cleanup-anthropic.md) | Anthropic Messages API, Claude Haiku 4.5, prompt caching, refusal handling (URLSession) | platform.claude.com (messages, prompt-caching, errors) | Default cleanup provider |
 | [cleanup-openai.md](cleanup-openai.md) | OpenAI Responses API, `gpt-5.4-mini`, text output/refusal handling (URLSession) | platform.openai.com + developers.openai.com | Optional cleanup provider |
+| [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, Wispr Flow reference bar, local-provider candidates | Wispr Flow pages + MLX/Qwen/Ollama official sources | Provider comparison harness |
 | [cleanup-ollama.md](cleanup-ollama.md) | Ollama local HTTP API (`/api/chat`, `keep_alive`); not-running detection | github.com/ollama/ollama docs + docs.ollama.com | Local cleanup fallback (deferred past v1) |
 | [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE` | github.com/groue/GRDB.swift (DocC) | Personalization store (§8.6) |
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `Injector` (§3/§11) |
@@ -42,8 +43,8 @@ depends on. The personalization seed data lives under `../../data/` and is
 
 ## Verification status
 
-All 11 docs independently verified against live canonical sources (author ≠
-verifier). **8 PASS, 3 PARTIAL, 0 FAIL** — every PARTIAL was *corrected in-file*,
+All 12 docs independently verified against live canonical sources (author ≠
+verifier). **9 PASS, 3 PARTIAL, 0 FAIL** — every PARTIAL was *corrected in-file*,
 so all docs are now source-accurate. Each doc's full verdict (corrections
 before→after, validated URLs, residual SDK/device-only gaps) is in its own
 `## Verification` section.
@@ -52,6 +53,7 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 |---|---|---|
 | cleanup-anthropic.md | PASS | Confirmed Haiku cache minimum = exactly 4096 tokens; refusal → branch on `stop_reason` |
 | cleanup-openai.md | PASS | Confirmed Responses endpoint, text input/output shape, `store`, and `gpt-5.4-mini` availability |
+| cleanup-benchmark.md | PASS | Confirmed Wispr reference features; MLX/Ollama are viable benchmark candidates, with embedded MLX still requiring a product spike |
 | asr-whisperkit.md | PASS | Package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |

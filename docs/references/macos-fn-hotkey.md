@@ -2,7 +2,7 @@
 
 ## Purpose
 
-loqui is a menu-bar push-to-talk dictation app for Apple Silicon. It needs to use the
+slovo is a menu-bar push-to-talk dictation app for Apple Silicon. It needs to use the
 `fn` / Globe key as a **global** push-to-talk trigger (hold to record, release to
 transcribe) while **suppressing** the OS default `fn` action (the emoji picker / system
 Dictation that macOS shows on a `fn` press). Only a CoreGraphics **active event tap** can
@@ -77,7 +77,7 @@ class func addGlobalMonitorForEvents(
 - Receives **copies** of events posted to *other* apps; the handler returns `Void`, so it
   **cannot modify or swallow** the event — the OS default `fn` action still fires.
 - Read `event.modifierFlags.contains(.function)` to detect `fn`.
-- Use this only if loqui is willing to let macOS also act on `fn` (not acceptable for
+- Use this only if slovo is willing to let macOS also act on `fn` (not acceptable for
   push-to-talk, where suppression is required). It is simpler and lower-risk than a tap.
 
 ## Minimal Swift example — active suppressing tap on `fn` press/release
@@ -153,7 +153,7 @@ final class FnHotkeyTap {
 > Track previous state (`isFnDown`) to distinguish a real `fn` press/release from other
 > modifier changes, and to avoid emitting duplicate events.
 
-## loqui gotchas
+## slovo gotchas
 
 - **Suppression requires `.defaultTap`.** `.listenOnly` taps cannot return `nil` to
   swallow the event — the emoji picker / Dictation will still pop up. Suppress only the
@@ -174,9 +174,9 @@ final class FnHotkeyTap {
     and that you "only need the Accessibility privilege if you're doing other stuff with
     Accessibility APIs" — i.e. DTS does **not** endorse the "active tap ⇒ Accessibility"
     rule as such (https://developer.apple.com/forums/thread/744440). Because the documented
-    behavior is ambiguous and has shifted across macOS releases, loqui should **preflight
+    behavior is ambiguous and has shifted across macOS releases, slovo should **preflight
     both** permissions and degrade gracefully rather than rely on one mapping.
-  - In practice loqui most likely needs Accessibility (because it suppresses) and it is good
+  - In practice slovo most likely needs Accessibility (because it suppresses) and it is good
     UX to also preflight Input Monitoring. `IOHIDCheckAccess` /
     `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)` are the lower-level IOKit equivalents
     of the `CGPreflight/RequestListenEventAccess` pair (both map to the same TCC
@@ -184,7 +184,7 @@ final class FnHotkeyTap {
     `IOHIDAccessType` (`granted`/`denied`/`unknown`); `IOHIDRequestAccess` returns a `Bool`.
   - **Activation-policy trap:** a tap can also fail to be created if the app uses
     `LSBackgroundOnly` (`NSApplicationActivationPolicyProhibited`). Apple DTS recommends
-    `LSUIElement` / `NSApplicationActivationPolicyAccessory` for menu-bar agents like loqui
+    `LSUIElement` / `NSApplicationActivationPolicyAccessory` for menu-bar agents like slovo
     (https://developer.apple.com/forums/thread/758554).
   - `tapCreate` returning `nil` almost always means the required permission is not yet
     granted. Preflight, and if missing, prompt and guide the user to System Settings; the
@@ -232,7 +232,7 @@ Permission / code-signing behavior:
 
 Open-source precedents (hold-a-modifier push-to-talk dictation, native Swift, Apple Silicon).
 Note: neither hard-codes `fn` — both make the trigger key **configurable**, which is a
-useful pattern for loqui to copy (offer `fn` as a default but allow a fallback, since some
+useful pattern for slovo to copy (offer `fn` as a default but allow a fallback, since some
 external keyboards do not report `fn` reliably):
 
 - Parakey (rcourtman/parakey) — CGEventTap hotkey + Parakeet/ANE, ~100 ms key-release-to-text.

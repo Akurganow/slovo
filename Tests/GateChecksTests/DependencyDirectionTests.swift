@@ -3,7 +3,7 @@ import Testing
 
 // AC-4 — dependency-direction gate.
 //
-// Contract under test (the implementer must build this in `LoquiCore`):
+// Contract under test (the implementer must build this in `SlovoCore`):
 //
 //     enum GateChecks {
 //         /// A role-tagged source file (Cleaner/Transcriber/Injector) must not

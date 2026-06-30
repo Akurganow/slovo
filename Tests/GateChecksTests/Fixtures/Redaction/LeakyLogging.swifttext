@@ -5,7 +5,7 @@
 import os
 
 func logLeaky(transcript: String, term: Term, errorBody: String) {
-    let logger = Logger(subsystem: "com.loqui.app", category: "leak")
+    let logger = Logger(subsystem: "com.slovo.app", category: "leak")
 
     // Payload type #1: raw transcript text interpolated as .public.
     logger.log("transcript=\(transcript, privacy: .public)")

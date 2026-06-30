@@ -1,6 +1,6 @@
 # Privacy And Security
 
-Loqui is designed around a narrow data boundary: raw audio stays local, and only
+Slovo is designed around a narrow data boundary: raw audio stays local, and only
 transcript text may leave the machine when cloud cleanup is enabled.
 
 ## Data Paths
@@ -19,8 +19,8 @@ transcript text may leave the machine when cloud cleanup is enabled.
 Anthropic and OpenAI keys are stored as separate macOS Keychain generic-password
 items:
 
-- `loqui` / `anthropic-api-key`
-- `loqui` / `openai-api-key`
+- `slovo` / `anthropic-api-key`
+- `slovo` / `openai-api-key`
 
 The selected key is read once during startup setup and cached in process memory.
 Updating a key through the app writes the new value to Keychain and replaces the
@@ -34,7 +34,7 @@ frequently changing bundle identities can cause repeated prompts.
 
 These files are intentionally not tracked:
 
-- `data/loqui.db*`
+- `data/slovo.db*`
 - `data/seed*.sql`
 - `.env*`
 - signing keys and certificate bundles

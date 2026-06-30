@@ -1,5 +1,5 @@
 import Foundation
-import LoquiCore
+import SlovoCore
 
 /// A candidate backend's full per-clip result. Clip outcomes use the PRODUCT
 /// `ClipScore` type — the same one the on-device bake-off gate produces — so the

@@ -5,6 +5,6 @@
 import os
 
 func logWithTrailingComment(name: String) {
-    let logger = Logger(subsystem: "com.loqui.app", category: "trailing")
+    let logger = Logger(subsystem: "com.slovo.app", category: "trailing")
     logger.error("user=\(name, privacy: .public)") // TODO redact
 }

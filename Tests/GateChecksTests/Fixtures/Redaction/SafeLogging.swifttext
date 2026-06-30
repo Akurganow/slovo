@@ -4,7 +4,7 @@
 import os
 
 func logSafe(transcript: String, term: Term, status: CleanupErrorKind) {
-    let logger = Logger(subsystem: "com.loqui.app", category: "safe")
+    let logger = Logger(subsystem: "com.slovo.app", category: "safe")
 
     // Lengths and hashes only — the raw transcript never appears.
     logger.log("transcript len=\(transcript.count, privacy: .private)")

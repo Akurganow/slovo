@@ -5,13 +5,13 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>loqui</string>
+    <string>slovo</string>
     <key>CFBundleIdentifier</key>
-    <string>com.loqui.app</string>
+    <string>com.slovo.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Loqui</string>
+    <string>Slovo</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -23,9 +23,9 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Loqui records dictation audio only while the hold-to-talk trigger is pressed.</string>
+    <string>Slovo records dictation audio only while the hold-to-talk trigger is pressed.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Loqui transcribes dictated speech into text for insertion into the active app.</string>
+    <string>Slovo transcribes dictated speech into text for insertion into the active app.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

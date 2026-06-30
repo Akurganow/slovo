@@ -1,9 +1,9 @@
 #!/bin/sh
 # AC-6 — no-secrets / no-seed-in-VCS gate.
 #
-# Asserts loqui's .gitignore would keep every confidential seed/DB variant and
+# Asserts slovo's .gitignore would keep every confidential seed/DB variant and
 # key-material file out of version control. For each required glob, this creates
-# a glob-matching probe file in an ISOLATED temp repo carrying loqui's real
+# a glob-matching probe file in an ISOLATED temp repo carrying slovo's real
 # .gitignore, then requires `git check-ignore -q` to report it ignored. Exit 0
 # only when EVERY probe is ignored; exit 1 naming the first probe that is not.
 #
@@ -22,9 +22,9 @@ fi
 
 # Probe names matching each required glob. Deliberately NOT the literal filenames
 # the old exact list already covered — these are the variants the hardening adds.
-probes="data/seed.dev.sql data/seed.2.sql data/loqui.db.x data/loqui.db-shm secrets/anthropic.key"
+probes="data/seed.dev.sql data/seed.2.sql data/slovo.db.x data/slovo.db-shm secrets/anthropic.key"
 
-repo=$(mktemp -d "${TMPDIR:-/tmp}/loqui-noseed-XXXXXX")
+repo=$(mktemp -d "${TMPDIR:-/tmp}/slovo-noseed-XXXXXX")
 trap 'rm -rf "$repo"' EXIT INT TERM
 
 git -C "$repo" init -q

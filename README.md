@@ -1,7 +1,7 @@
-# Loqui
+# Slovo
 
-Loqui is an experimental macOS menu-bar dictation app for Apple Silicon. Hold the
-`fn` / Globe key, speak, release, and Loqui inserts the dictated text into the
+Slovo is an experimental macOS menu-bar dictation app for Apple Silicon. Hold the
+`fn` / Globe key, speak, release, and Slovo inserts the dictated text into the
 focused field.
 
 The privacy boundary is deliberately narrow: raw audio stays on the Mac. If cloud
@@ -31,7 +31,7 @@ progress.
 
 ## Privacy Model
 
-Loqui has two different data paths:
+Slovo has two different data paths:
 
 - Audio path: microphone audio is captured and transcribed locally.
 - Cleanup path: transcript text may be sent to the selected cleanup provider when
@@ -69,13 +69,22 @@ Scripts/diagnose.sh
 `Scripts/diagnose.sh` runs build, tests, and strict lint as independent stages so
 one failure does not hide another.
 
+Compare cleanup-provider latency and quality with the non-product benchmark:
+
+```sh
+swift run --disable-automatic-resolution slovo-cleanup-benchmark \
+  --env-file .env \
+  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-mini,passthrough \
+  --repetitions 3
+```
+
 ## Run Locally
 
 Package and sign the app with a stable identity:
 
 ```sh
-SIGNING_IDENTITY="Loqui Local Development" Scripts/sign-and-notarize.sh
-open .build/dist/Loqui.app
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
+open .build/dist/Slovo.app
 ```
 
 The signing script intentionally rejects ad-hoc signing by default because macOS
@@ -87,15 +96,15 @@ ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh
 ```
 
 After first launch, grant the requested permissions in System Settings, then use
-the Loqui menu to retry setup and enter provider keys.
+the Slovo menu to retry setup and enter provider keys.
 
 ## Configuration
 
 Runtime settings are stored in `UserDefaults`. Provider API keys are stored in
 Keychain:
 
-- Anthropic service/account: `loqui` / `anthropic-api-key`
-- OpenAI service/account: `loqui` / `openai-api-key`
+- Anthropic service/account: `slovo` / `anthropic-api-key`
+- OpenAI service/account: `slovo` / `openai-api-key`
 
 The app also accepts environment variables as development-only overrides:
 
@@ -109,6 +118,7 @@ The app also accepts environment variables as development-only overrides:
 - [Development](docs/development.md)
 - [Development reference library](docs/references/README.md)
 - [Release checklist](docs/release-checklist.md)
+- [Cleanup benchmark reference](docs/references/cleanup-benchmark.md)
 - [OpenAI cleanup reference](docs/references/cleanup-openai.md)
 - [Anthropic cleanup reference](docs/references/cleanup-anthropic.md)
 

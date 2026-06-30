@@ -55,17 +55,35 @@ The lint script runs:
 The gate has an intentional red-path check:
 
 ```sh
-LOQUI_GATE_SELFTEST=red swift test --disable-automatic-resolution
+SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution
 ```
 
 This command is expected to fail. It proves the gate can go red when armed.
+
+## Cleanup Benchmark
+
+Compare cleanup providers with the non-product benchmark executable:
+
+```sh
+swift run --disable-automatic-resolution slovo-cleanup-benchmark \
+  --env-file .env \
+  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-mini,passthrough \
+  --repetitions 3
+```
+
+The benchmark reads API keys from environment variables or the optional env file,
+not from Keychain. It prints aggregate latency and quality counts only; transcripts
+and cleaned output stay out of the report.
+
+See [cleanup-benchmark.md](references/cleanup-benchmark.md) for sample-file
+format and local-provider research notes.
 
 ## Packaging
 
 Package with a stable signing identity:
 
 ```sh
-SIGNING_IDENTITY="Loqui Local Development" Scripts/sign-and-notarize.sh
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set.

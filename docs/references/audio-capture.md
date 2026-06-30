@@ -2,12 +2,12 @@
 
 ## Purpose
 
-loqui captures microphone audio during a push-to-talk window and feeds it to an
+slovo captures microphone audio during a push-to-talk window and feeds it to an
 ASR model that expects **16 kHz, mono, 32-bit float, non-interleaved** PCM. The
 microphone hardware almost never delivers that format natively (Apple Silicon
 built-in mics and most USB/Bluetooth devices run at 44.1 kHz or 48 kHz, often
 mono but sometimes stereo). This document is the authoritative reference for the
-two things loqui must do:
+two things slovo must do:
 
 1. Capture raw microphone buffers with `AVAudioEngine` + an input tap.
 2. Convert each captured buffer to the ASR target format with `AVAudioConverter`,
@@ -18,7 +18,7 @@ any capture can succeed.
 
 All APIs below are verified against current Apple Developer documentation; see
 [Full sources](#full-sources). Platform availability is given per symbol so you
-can confirm the macOS deployment target loqui needs.
+can confirm the macOS deployment target slovo needs.
 
 ## Key APIs (signatures)
 
@@ -53,7 +53,7 @@ func installAudioTap(onBus bus: AVAudioNodeBus,
 > (a `throws`ing call whose tap block is `@Sendable` and delivers
 > `AVReadOnlyAudioPCMBuffer`). `installTap` still functions; on any macOS
 > deployment target below 27.0 it remains the only option, so the example below
-> uses it. When loqui's deployment target reaches macOS 27.0, migrate to
+> uses it. When slovo's deployment target reaches macOS 27.0, migrate to
 > `installAudioTap` (note its block hands you a *read-only* buffer, so copy the
 > samples you need out of it). `removeTap(onBus:)` is unchanged and not deprecated.
 
@@ -102,7 +102,7 @@ Status enums:
   `.error`
 
 The simpler `convert(to:from:)` exists but **cannot do sample-rate conversion** —
-loqui must use the `withInputFrom:` callback form because mic rate ≠ 16 kHz.
+slovo must use the `withInputFrom:` callback form because mic rate ≠ 16 kHz.
 
 ### Permission — `AVCaptureDevice` and `AVAudioApplication`
 
@@ -136,10 +136,10 @@ and save media") is built entirely around **`AVCaptureDevice` with
 `AVMediaType.audio`** — it does not mention `AVAudioApplication` or
 `AVAudioSession` at all. `AVCaptureDevice` is therefore the broadly documented,
 lower-deployment-target path (macOS 10.14+) for an `AVAudioEngine`-based capture
-app on macOS. **Recommendation for loqui: use `AVCaptureDevice` with
+app on macOS. **Recommendation for slovo: use `AVCaptureDevice` with
 `.audio`** (as the example does). It is the documented path, has a lower
 deployment floor, and is exactly what the system-level TCC requirement keys off
-of. Use `AVAudioApplication.requestRecordPermission` only if loqui deliberately
+of. Use `AVAudioApplication.requestRecordPermission` only if slovo deliberately
 adopts that API; there is no documented requirement to do so for AVAudioEngine
 input on macOS.
 
@@ -155,11 +155,11 @@ input on macOS.
   Apple's docs tie it to enabling Hardened Runtime (Xcode → Resource Access →
   Audio Input), and TCC denies the mic to a hardened-runtime binary lacking it
   ("kTCCServiceMicrophone requires entitlement com.apple.security.device.audio-input").
-  **This applies to loqui even though loqui is non-sandboxed:** notarized macOS
-  apps distributed outside the App Store use Hardened Runtime, so loqui must add
+  **This applies to slovo even though slovo is non-sandboxed:** notarized macOS
+  apps distributed outside the App Store use Hardened Runtime, so slovo must add
   this entitlement (it is the App-Sandbox status that is irrelevant here, not the
   entitlement). The earlier assumption that the entitlement is sandbox-only is
-  wrong for loqui's distribution model.
+  wrong for slovo's distribution model.
 
 ## Minimal Swift example
 
@@ -265,7 +265,7 @@ from the input callback, and read `floatChannelData[0]` for mono output. For
 short push-to-talk windows this batch-on-release approach keeps memory trivial
 (seconds of 16 kHz mono float = a few hundred KB).
 
-## loqui gotchas
+## slovo gotchas
 
 - **Never hardcode the source format.** Read `inputNode.outputFormat(forBus: 0)`
   at capture start and build the converter from it. The user can switch mics
@@ -357,8 +357,8 @@ Corrections (before -> after):
 - Entitlement scope: "Sandboxed macOS apps also need the
   `com.apple.security.device.audio-input` entitlement" -> corrected to: required
   for Hardened Runtime apps shipping outside the Mac App Store (which includes
-  non-sandboxed-but-notarized apps like loqui), tied to Hardened Runtime, not the
-  App Sandbox. Explicitly flagged that this DOES apply to loqui despite loqui being
+  non-sandboxed-but-notarized apps like slovo), tied to Hardened Runtime, not the
+  App Sandbox. Explicitly flagged that this DOES apply to slovo despite slovo being
   non-sandboxed.
 - Permission-gate `[UNVERIFIED]` flag: removed and resolved (see conclusion below).
 - NSMicrophoneUsageDescription wording: tightened to quote the actual Apple
@@ -386,7 +386,7 @@ sufficient. The OS-enforced requirements are the `NSMicrophoneUsageDescription`
 key and the audio-input entitlement (for Hardened Runtime). Apple's canonical
 macOS capture guidance is written exclusively around `AVCaptureDevice` with
 `.audio` and never mentions `AVAudioApplication`/`AVAudioSession`, so
-`AVCaptureDevice` is the recommended path for loqui (documented, lower deployment
+`AVCaptureDevice` is the recommended path for slovo (documented, lower deployment
 floor). Recommendation: keep the `AVCaptureDevice` approach the example uses.
 
 URLs validated (HTTP 200, content matched):

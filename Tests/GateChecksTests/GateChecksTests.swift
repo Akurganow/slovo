@@ -6,14 +6,14 @@ import Testing
 // repo seeded with the REAL `.gitignore` (touches nothing real).
 //
 // RED today: the un-hardened `.gitignore` lists exact filenames, so the glob
-// matches (`data/seed*.sql`, `data/loqui.db*`) and the key-material pattern are
+// matches (`data/seed*.sql`, `data/slovo.db*`) and the key-material pattern are
 // NOT ignored. Build-artifact patterns ARE already present, so those sub-checks
 // would pass — the RED comes specifically from the seed/db globs + key material,
 // which is the intended hardening signal.
 //
 // Stated sensitivity: drop ANY required pattern from `.gitignore` → that probe is
 // no longer ignored → RED. Reverting the glob to the literal list re-breaks the
-// `data/seed.dev.sql` / `data/loqui.db.x` probes specifically.
+// `data/seed.dev.sql` / `data/slovo.db.x` probes specifically.
 @Suite("AC-9 .gitignore hardening")
 struct GitignoreHardeningTests {
     /// Each probe must be IGNORED by the hardened `.gitignore`. Build artifacts
@@ -23,7 +23,7 @@ struct GitignoreHardeningTests {
         ".build/some-artifact.o",
         "DerivedData/Index/index.db",
         "data/seed.dev.sql",     // glob data/seed*.sql, missed by the literal list
-        "data/loqui.db.x",       // glob data/loqui.db*, missed by the literal list
+        "data/slovo.db.x",       // glob data/slovo.db*, missed by the literal list
         "secrets/anthropic.key",  // key material must be ignored
         // Env files and credential bundles — currently TRACKABLE (RED). The
         // hardened `.gitignore` must cover dotenv files, PKCS#12 / PEM-8 signing
@@ -58,7 +58,7 @@ struct GitignoreHardeningTests {
     // MARK: - Isolated temp repo helpers (mirror AC-6; touch nothing real)
 
     private static func makeTempRepoWithRealGitignore() throws -> String {
-        let repo = NSTemporaryDirectory() + "loqui-gitignore-" + UUID().uuidString
+        let repo = NSTemporaryDirectory() + "slovo-gitignore-" + UUID().uuidString
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
         _ = try run("/usr/bin/git", ["-C", repo, "init", "-q"])
 

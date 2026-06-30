@@ -8,7 +8,7 @@ clipboard-manager hygiene.
 
 ## Purpose
 
-loqui dictates arbitrary text (often Cyrillic) into whatever app the user has focused.
+slovo dictates arbitrary text (often Cyrillic) into whatever app the user has focused.
 There is no public, app-agnostic macOS API to "type a string" into the frontmost app's
 focused control. The two practical options are:
 
@@ -18,7 +18,7 @@ focused control. The two practical options are:
    `Cmd-V`, then restore the previous clipboard. Layout-independent and Unicode-safe
    because the receiving app reads a `String` from the pasteboard, not key codes.
 
-loqui uses option 2. The cost is that the transcript transits the system clipboard for a
+slovo uses option 2. The cost is that the transcript transits the system clipboard for a
 short window, which is why secure-input detection and clipboard hygiene below are
 mandatory, not optional.
 
@@ -205,7 +205,7 @@ func injectText(_ text: String) throws {
 > the clipboard before the paste reads it. The robust pattern is to delay the restore
 > (e.g. `DispatchQueue.main.asyncAfter` by ~50-150 ms, tuned for slow/remote apps), or to
 > poll until you observe the paste completed. Do not pick the value blindly; verify on the
-> slowest target apps loqui supports.
+> slowest target apps slovo supports.
 
 ## Secure input + clipboard-manager hygiene
 
@@ -227,7 +227,7 @@ dictation was suppressed rather than failing silently.
 ### Clipboard-manager hygiene (nspasteboard.org convention)
 
 Clipboard history apps (Maccy, Yippy, Paste, etc.) snapshot every clipboard change. To
-keep loqui's transcript out of those histories, mark the pasteboard item with the
+keep slovo's transcript out of those histories, mark the pasteboard item with the
 community marker types defined at [nspasteboard.org](https://nspasteboard.org/):
 
 | Marker UTI                          | Meaning                                                              |
@@ -240,15 +240,15 @@ Write each marker with an **empty payload** (`Data()`) on the *same* `NSPasteboa
 as the string — the presence of the type is the signal, per the canonical example
 (`[generalPasteboard setData:[NSData data] forType:@"org.nspasteboard.TransientType"]`).
 
-Because loqui both restores the clipboard *and* marks the item transient/concealed, a
+Because slovo both restores the clipboard *and* marks the item transient/concealed, a
 well-behaved clipboard manager will never persist the transcript. These markers are a
 convention, not enforced by the OS — they reduce exposure but do not guarantee it, hence
 restoring the original clipboard is still required.
 
-## loqui gotchas
+## slovo gotchas
 
 - **Restore on the failure path too.** Use `defer`. A thrown error after `clearContents()`
-  must still put the user's clipboard back, or loqui silently eats whatever they had
+  must still put the user's clipboard back, or slovo silently eats whatever they had
   copied. This plane was a security MAJOR — the restore must be unconditional.
 - **`NSPasteboardItem` is invalidated by `clearContents()`.** Deep-copy the saved items
   (copy each type's `Data`) before clearing; do not hold references to the live items.
@@ -268,8 +268,8 @@ restoring the original clipboard is still required.
 - **Cyrillic correctness is the whole reason for clipboard paste.** Do not "optimize" to
   per-character `CGEvent` key synthesis — it breaks on non-Latin layouts. The receiving
   app reads a Unicode `String` from the pasteboard, so layout is irrelevant.
-- **Frontmost-app focus is assumed.** loqui pastes into whatever currently has keyboard
-  focus; there is no targeting. If focus is on loqui's own window, the paste lands there.
+- **Frontmost-app focus is assumed.** slovo pastes into whatever currently has keyboard
+  focus; there is no targeting. If focus is on slovo's own window, the paste lands there.
 
 <a id="accessibility-requirement"></a>
 ### Accessibility requirement

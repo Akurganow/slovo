@@ -2,7 +2,7 @@
 
 ## Purpose
 
-loqui is a native Swift macOS dictation tool that lives only in the menu bar (no
+slovo is a native Swift macOS dictation tool that lives only in the menu bar (no
 Dock icon, no main window) and is driven by a global hotkey. This reference
 collects the verified AppKit APIs and packaging/codesigning facts needed to:
 
@@ -14,7 +14,7 @@ collects the verified AppKit APIs and packaging/codesigning facts needed to:
    understand why Accessibility / Input Monitoring are TCC grants, not plist keys.
 4. Package a SwiftPM-built executable into a `.app` bundle.
 5. Sign with a **stable** identity so Accessibility / Input-Monitoring grants
-   survive rebuilds — the central packaging caveat for loqui.
+   survive rebuilds — the central packaging caveat for slovo.
 6. Notarize for distribution (covered briefly).
 
 All symbols below were verified against Apple Developer documentation; the few
@@ -37,7 +37,7 @@ directly; you ask the shared `NSStatusBar` to vend one.
   - `NSStatusItem.variableLength` (Obj-C `NSVariableStatusItemLength`) — width
     grows to fit contents; use for text.
   - `NSStatusItem.squareLength` (Obj-C `NSSquareStatusItemLength`) — width equals
-    the bar thickness; use for a single icon. loqui wants `squareLength` (icon
+    the bar thickness; use for a single icon. slovo wants `squareLength` (icon
     only) or `variableLength` if it ever shows text.
 
 The visible control is the item's **button**, an `NSStatusBarButton` exposed via
@@ -53,7 +53,7 @@ final class StatusController {
     func install() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "loqui")
+            button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "slovo")
             button.image?.isTemplate = true   // adapt to light/dark menu bar
         }
         statusItem.menu = buildMenu()
@@ -69,10 +69,10 @@ final class StatusController {
 ```
 
 Notes:
-- `NSImage(systemSymbolName:accessibilityDescription:)` lets loqui map each state
+- `NSImage(systemSymbolName:accessibilityDescription:)` lets slovo map each state
   to an SF Symbol (e.g. `mic`, `mic.fill`, `waveform`, `exclamationmark.triangle`).
   Mark template images so the system tints them for menu-bar contrast.
-- For the four loqui states, the simplest design is one status item whose button
+- For the four slovo states, the simplest design is one status item whose button
   `image` is swapped on state change; no API beyond the above is required.
 - Apple documents the `menu` property as "The pull-down menu displayed when the
   user clicks the status item." So if you assign `statusItem.menu`, clicking the
@@ -104,7 +104,7 @@ window. Two mechanisms, used together:
 2. **Activation policy** — `NSApplication.ActivationPolicy.accessory`. Per Apple,
    when `LSUIElement` is `true`, `NSApp.activationPolicy()` reports `.accessory`.
    You can also set it at runtime; `.regular` would override `LSUIElement` and
-   bring back the Dock icon, so do not set `.regular` for loqui.
+   bring back the Dock icon, so do not set `.regular` for slovo.
 
 Minimal app entry (no Storyboard, no main window):
 
@@ -133,22 +133,22 @@ app.run()
 - `.prohibited` — "doesn't appear in the Dock and may not create windows or be
   activated."
 
-loqui = `.accessory`.
+slovo = `.accessory`.
 
 ---
 
 ## Info.plist keys
 
-Required / relevant keys for loqui's `Info.plist`:
+Required / relevant keys for slovo's `Info.plist`:
 
 | Key | Type | Purpose |
 | --- | --- | --- |
-| `CFBundleIdentifier` | String | Stable bundle id, e.g. `com.<you>.loqui`. TCC ties grants to (bundle id + code signature); keep it constant. |
+| `CFBundleIdentifier` | String | Stable bundle id, e.g. `com.<you>.slovo`. TCC ties grants to (bundle id + code signature); keep it constant. |
 | `CFBundleName` / `CFBundleExecutable` | String | Bundle and executable names. |
 | `CFBundleShortVersionString` / `CFBundleVersion` | String | Version metadata. |
 | `LSMinimumSystemVersion` | String | Minimum macOS. |
 | `LSUIElement` | Boolean (`true`) | Run as menu-bar agent (see above). |
-| `NSMicrophoneUsageDescription` | String | **Required** to record audio. Shown in the system permission prompt the first time loqui touches the mic via `AVCaptureDevice` / Core Audio. Omitting it crashes the app on first mic access. |
+| `NSMicrophoneUsageDescription` | String | **Required** to record audio. Shown in the system permission prompt the first time slovo touches the mic via `AVCaptureDevice` / Core Audio. Omitting it crashes the app on first mic access. |
 | `NSPrincipalClass` | String | `NSApplication` for an AppKit app. |
 
 **Important — TCC grants vs. Info.plist keys.** Accessibility and Input
@@ -169,15 +169,15 @@ Accessibility / Input Monitoring**:
   published on the Mac App Store."
 
 `NSAccessibilityUsageDescription` exists as a plist string for the prompt text
-in some configurations, but it does **not** grant the permission. Whether loqui
+in some configurations, but it does **not** grant the permission. Whether slovo
 needs Accessibility, Input Monitoring, or both depends on how it captures the
-global hotkey (see loqui gotchas).
+global hotkey (see slovo gotchas).
 
 ---
 
 ## Codesign & permission persistence
 
-This is the crux for loqui: **TCC identifies the app by its bundle identifier +
+This is the crux for slovo: **TCC identifies the app by its bundle identifier +
 its code signature (its "designated requirement").** If the signature changes
 between builds, macOS treats the new build as a *different* app, and previously
 granted Accessibility / Input Monitoring / Microphone permissions silently stop
@@ -191,7 +191,7 @@ applying — the user has to re-grant them every rebuild.
   Accessibility to and rebuild often.
 - **Developer ID Application** certificate: a stable identity. macOS recognizes
   successive builds as the same app, so TCC grants survive rebuilds. This is the
-  signing identity loqui should use even for personal local use, precisely so you
+  signing identity slovo should use even for personal local use, precisely so you
   don't re-grant Accessibility on every `swift build`.
 
 ### Basic `codesign`
@@ -199,14 +199,14 @@ applying — the user has to re-grant them every rebuild.
 ```bash
 # Sign the bundle with a stable Developer ID identity + hardened runtime + entitlements
 codesign --force --deep --options runtime \
-  --entitlements loqui.entitlements \
+  --entitlements slovo.entitlements \
   --sign "Developer ID Application: Your Name (TEAMID)" \
-  loqui.app
+  slovo.app
 
 # Verify
-codesign --verify --deep --strict --verbose=2 loqui.app
-codesign --display --entitlements - loqui.app   # inspect entitlements
-spctl --assess --type execute --verbose loqui.app   # Gatekeeper assessment
+codesign --verify --deep --strict --verbose=2 slovo.app
+codesign --display --entitlements - slovo.app   # inspect entitlements
+spctl --assess --type execute --verbose slovo.app   # Gatekeeper assessment
 ```
 
 - `--options runtime` enables the **Hardened Runtime** (required for
@@ -215,9 +215,9 @@ spctl --assess --type execute --verbose loqui.app   # Gatekeeper assessment
   convenience but Apple recommends signing inside-out explicitly for anything
   non-trivial.
 
-### Entitlements relevant to loqui
+### Entitlements relevant to slovo
 
-In `loqui.entitlements` (a plist):
+In `slovo.entitlements` (a plist):
 
 - `com.apple.security.device.audio-input` (Boolean `true`) — "Audio Input
   Entitlement": "indicates whether the app may record audio using the built-in
@@ -233,7 +233,7 @@ In `loqui.entitlements` (a plist):
 
 ### App Sandbox vs. Accessibility / event taps — a real conflict
 
-**Do not enable App Sandbox if loqui needs the Accessibility permission.**
+**Do not enable App Sandbox if slovo needs the Accessibility permission.**
 Verified behavior:
 
 - With `com.apple.security.app-sandbox` enabled, the **Accessibility** prompt
@@ -244,13 +244,13 @@ Verified behavior:
   **Input Monitoring** (not Accessibility); Input Monitoring is available to
   sandboxed and Mac App Store apps.
 
-Practical guidance for loqui (a personal/OSS dictation tool distributed outside
+Practical guidance for slovo (a personal/OSS dictation tool distributed outside
 the Mac App Store, needing a reliable global hotkey + audio capture):
 
 - **Non-sandboxed + Developer ID + Hardened Runtime.** Skip App Sandbox so
   Accessibility (if needed) works; rely on a Developer ID signature so grants
   persist; enable Hardened Runtime for notarization.
-- If loqui only *listens* for a hotkey (listen-only tap), Input Monitoring may
+- If slovo only *listens* for a hotkey (listen-only tap), Input Monitoring may
   suffice and you could stay sandboxed — but mixing that with full dictation
   ergonomics is more constrained. Decide based on whether you ever need a
   default (active) event tap.
@@ -264,7 +264,7 @@ This entitlement removes that restriction; Apple's guidance: "Use the Disable
 Library Validation Entitlement if your program loads plug-ins that are signed by
 other third-party developers." Note Apple's caveat: "Because library validation
 is such an important security-hardening feature, Gatekeeper runs extra security
-checks on programs that have it disabled." loqui needs this **only** if it loads
+checks on programs that have it disabled." slovo needs this **only** if it loads
 third-party / differently-signed dylibs under Hardened Runtime — do not add it
 otherwise. (Doc verified at the `bundleresources/entitlements` path; the earlier
 404 was a stale URL, now listed under Full sources.)
@@ -279,15 +279,15 @@ the "unidentified developer" / Gatekeeper block. Requirements: signed with a
 
 ```bash
 # 1) Store credentials once (App Store Connect app-specific password)
-xcrun notarytool store-credentials "loqui-notary" \
+xcrun notarytool store-credentials "slovo-notary" \
   --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-pw"
 
 # 2) Submit a zip/dmg/pkg and wait
-ditto -c -k --keepParent loqui.app loqui.zip
-xcrun notarytool submit loqui.zip --keychain-profile "loqui-notary" --wait
+ditto -c -k --keepParent slovo.app slovo.zip
+xcrun notarytool submit slovo.zip --keychain-profile "slovo-notary" --wait
 
 # 3) Staple the ticket so Gatekeeper works offline
-xcrun stapler staple loqui.app
+xcrun stapler staple slovo.app
 ```
 
 `notarytool` uploads to the Apple Notary Service, which scans for malware and
@@ -298,7 +298,7 @@ Developer ID signing.
 
 ---
 
-## loqui gotchas
+## slovo gotchas
 
 - **Stable signature is non-negotiable.** Sign every build with the same
   Developer ID identity and keep `CFBundleIdentifier` constant, or you will
@@ -307,7 +307,7 @@ Developer ID signing.
 - **Pick Accessibility vs. Input Monitoring deliberately.** A *default*
   `CGEventTap` (to observe/inject keystrokes actively) needs **Accessibility**
   and is incompatible with App Sandbox. A *listen-only* tap (to observe a hotkey)
-  needs **Input Monitoring** and works sandboxed. loqui should choose the minimal
+  needs **Input Monitoring** and works sandboxed. slovo should choose the minimal
   tap mode its hotkey design requires.
 - **Don't sandbox if you need Accessibility.** App Sandbox silently breaks
   Accessibility (`AXIsProcessTrusted()` → `false`, no prompt). Non-sandboxed +
@@ -316,9 +316,9 @@ Developer ID signing.
   via `AVCaptureDevice` / Core Audio crashes the process. The string is shown in
   the permission prompt.
 - **SwiftPM executables don't produce a `.app` by default.** `swift build`
-  yields a bare Mach-O in `.build/<config>/loqui`. You must construct the bundle
-  by hand (or with a build script): create `loqui.app/Contents/{MacOS,Resources}`,
-  copy the executable into `Contents/MacOS/loqui`, and write
+  yields a bare Mach-O in `.build/<config>/slovo`. You must construct the bundle
+  by hand (or with a build script): create `slovo.app/Contents/{MacOS,Resources}`,
+  copy the executable into `Contents/MacOS/slovo`, and write
   `Contents/Info.plist` (with `LSUIElement`, `CFBundleExecutable`, etc.). SwiftPM
   forbids a top-level `Info.plist` *resource*; embedding one in a pure CLI binary
   requires linker-section flags. For a menu-bar app, prefer building the `.app`

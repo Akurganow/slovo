@@ -1,4 +1,4 @@
--- loqui — personalization store (SQLite, accessed from Swift via GRDB.swift).
+-- slovo — personalization store (SQLite, accessed from Swift via GRDB.swift).
 --
 -- Purpose:
 --   * `vocabulary` seeds the cleanup prompt's known-vocabulary prefix so the

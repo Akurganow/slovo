@@ -1,6 +1,6 @@
 # Release Checklist
 
-Use this checklist before publishing a Loqui build or tag.
+Use this checklist before publishing a Slovo build or tag.
 
 ## Automated Gate
 
@@ -14,7 +14,7 @@ The gate must pass build, tests, strict lint, and analyzer checks. Also verify t
 gate can fail intentionally:
 
 ```sh
-LOQUI_GATE_SELFTEST=red swift test --disable-automatic-resolution
+SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution
 ```
 
 The self-test command is expected to exit non-zero.
@@ -24,7 +24,7 @@ The self-test command is expected to exit non-zero.
 Package with a stable development signing identity or a Developer ID identity:
 
 ```sh
-SIGNING_IDENTITY="Loqui Local Development" Scripts/sign-and-notarize.sh
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
 ```
 
 The app bundle must use `LSUIElement=true` and a stable bundle identifier. Avoid
@@ -34,8 +34,8 @@ survive rebuild.
 Verify the signed bundle:
 
 ```sh
-codesign --verify --deep --strict --verbose=2 .build/dist/Loqui.app
-spctl --assess --type execute --verbose .build/dist/Loqui.app
+codesign --verify --deep --strict --verbose=2 .build/dist/Slovo.app
+spctl --assess --type execute --verbose .build/dist/Slovo.app
 ```
 
 When a notarization profile is available, set `NOTARY_PROFILE` and confirm the
