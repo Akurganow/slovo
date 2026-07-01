@@ -97,11 +97,12 @@ but `/api/generate` is a valid alternative.
 
 Ollama also exposes an OpenAI-compatible surface at
 `http://localhost:11434/v1`, including `POST /v1/chat/completions`. It accepts the
-standard OpenAI Chat Completions request/response shape, so slovo could reuse an
-OpenAI client by pointing `base_url` at it. An API key is **required by the
-client but ignored** by Ollama — pass any non-empty string (e.g. `"ollama"`).
-This is useful if slovo shares one code path between the hosted OpenAI-style
-backend and the local fallback; otherwise `/api/chat` is the native choice.
+standard OpenAI Chat Completions request/response shape. Slovo does not keep a
+direct OpenAI or Ollama runtime provider after the OpenRouter-only cleanup
+migration; if Ollama is revisited, keep it as a benchmark-only adapter or a new
+explicit runtime decision rather than reviving the removed provider path. An API
+key is **required by the client but ignored** by Ollama — pass any non-empty
+string (e.g. `"ollama"`). Otherwise `/api/chat` is the native choice.
 
 ## keep_alive
 
@@ -317,7 +318,10 @@ Checked:
   use the literal `"ollama"`).
 - Base URL `http://localhost:11434`.
 
-Corrections (before → after): none — all shapes and values matched the
+Corrections (before → after): Slovo-side guidance now treats the
+OpenAI-compatible Ollama endpoint as benchmark-only or a future explicit runtime
+decision, not a reason to revive the removed direct provider path. Ollama API
+shapes and values still matched the
 canonical docs.
 
 URLs validated:
