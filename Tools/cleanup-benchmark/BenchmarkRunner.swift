@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 public struct CleanupBenchmarkRun: Equatable, Sendable {
@@ -42,23 +41,33 @@ public struct CleanupBenchmarkRunner: Sendable {
         samples: [CleanupBenchmarkSample],
         config: CleanupConfig,
         context: PersonalizationContext,
-        repetitions: Int = 1
+        repetitions: Int = 1,
+        warmupRepetitions: Int = 0
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
+        let safeWarmupRepetitions = max(warmupRepetitions, 0)
         var runs: [CleanupBenchmarkRun] = []
+
+        for _ in 0..<safeWarmupRepetitions {
+            for sample in samples {
+                for candidate in candidates {
+                    await warmCandidate(
+                        candidate,
+                        sample: sample,
+                        config: candidateConfig(for: candidate, base: config),
+                        context: context
+                    )
+                }
+            }
+        }
 
         for _ in 0..<safeRepetitions {
             for sample in samples {
                 for candidate in candidates {
-                    let candidateConfig = CleanupConfig(
-                        model: candidate.model,
-                        writingStyle: config.writingStyle,
-                        language: config.language
-                    )
                     runs.append(await runCandidate(
                         candidate,
                         sample: sample,
-                        config: candidateConfig,
+                        config: candidateConfig(for: candidate, base: config),
                         context: context
                     ))
                 }
@@ -66,6 +75,23 @@ public struct CleanupBenchmarkRunner: Sendable {
         }
 
         return CleanupBenchmarkReport(runs: runs)
+    }
+
+    private func candidateConfig(for candidate: CleanupBenchmarkCandidate, base: CleanupConfig) -> CleanupConfig {
+        CleanupConfig(
+            model: candidate.model,
+            writingStyle: base.writingStyle,
+            language: base.language
+        )
+    }
+
+    private func warmCandidate(
+        _ candidate: CleanupBenchmarkCandidate,
+        sample: CleanupBenchmarkSample,
+        config: CleanupConfig,
+        context: PersonalizationContext
+    ) async {
+        _ = try? await candidate.cleaner.clean(sample.raw, config: config, context: context)
     }
 
     private func runCandidate(

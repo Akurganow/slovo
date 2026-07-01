@@ -1,5 +1,3 @@
-import Foundation
-
 /// Provider-neutral cleanup prompt built from config and personalization.
 public struct CleanupPrompt: Sendable, Equatable {
     public let model: String
@@ -14,41 +12,13 @@ public struct CleanupPrompt: Sendable, Equatable {
 }
 
 /// Assembles the cleanup prompt from a transcript, config, and personalization
-/// context (spec §18.5). GRDB-free: it consumes the already-loaded
-/// `PersonalizationContext`, never the database.
-///
-/// The system blocks are stable across calls. Provider adapters decide how to
-/// encode them; Anthropic adds `cache_control` on the last block, while OpenAI
-/// sends them as `instructions`.
+/// context. GRDB-free: it consumes the already-loaded `PersonalizationContext`,
+/// never the database.
 public struct PromptBuilder: Sendable {
     private let maxVocabularyTerms: Int
 
     public init(maxVocabularyTerms: Int) {
         self.maxVocabularyTerms = maxVocabularyTerms
-    }
-
-    public func build(
-        raw: String,
-        config: CleanupConfig,
-        context: PersonalizationContext
-    ) -> AnthropicRequest {
-        let prompt = buildPrompt(raw: raw, config: config, context: context)
-        var systemBlocks = prompt.systemBlocks.map {
-            AnthropicRequest.SystemBlock(text: $0, cacheControl: nil)
-        }
-        let lastIndex = systemBlocks.count - 1
-        systemBlocks[lastIndex] = AnthropicRequest.SystemBlock(
-            text: systemBlocks[lastIndex].text,
-            cacheControl: AnthropicRequest.CacheControl()
-        )
-
-        return AnthropicRequest(
-            model: prompt.model,
-            maxTokens: 4_096,
-            temperature: 0,
-            system: systemBlocks,
-            messages: [AnthropicRequest.Message(role: "user", content: prompt.input)]
-        )
     }
 
     public func buildPrompt(

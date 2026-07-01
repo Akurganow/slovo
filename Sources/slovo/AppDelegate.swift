@@ -11,8 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var composition: AppComposition.Live?
     private var didShowPipelineStatus = false
     private var isPipelineActive = false
-
-    private enum APIKeyKind { case anthropic, openAI }
+    private var isShowingSadToFailStatus = false
+    private var sadToFailResetTask: Task<Void, Never>?
 
     init(logger: Logger, defaults: UserDefaults = .standard) {
         self.logger = logger
@@ -40,12 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusTextItem = status
         menu.addItem(.separator())
         let config = ConfigStore.load(from: defaults)
-        menu.addItem(cleanupProviderMenu(config: config))
-        menu.addItem(modelMenu(title: "Anthropic Model", provider: .anthropic, selectedModel: config.anthropicModel))
-        menu.addItem(modelMenu(title: "OpenAI Model", provider: .openAI, selectedModel: config.openAIModel))
+        menu.addItem(modelMenu(
+            title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: config.openRouterModel))",
+            selectedModel: config.openRouterModel
+        ))
         menu.addItem(.separator())
-        menu.addItem(actionItem("Update Anthropic Key", #selector(enterAnthropicKey)))
-        menu.addItem(actionItem("Update OpenAI Key", #selector(enterOpenAIKey)))
+        menu.addItem(actionItem("Update OpenRouter Key", #selector(enterOpenRouterKey)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit Slovo",
@@ -68,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 logger.info("onboarding pending")
                 return
             }
-            try live.selectedKeyProvider.preload()
+            try? live.openRouterKeyProvider.preload()
             live.hotkeyMonitor.onTrigger = { [weak self, orchestrator = live.orchestrator] phase in
                 Task {
                     switch phase {
@@ -90,8 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         await orchestrator.handle(.stopRequested)
                         await orchestrator.awaitPipelineDrain()
                         await MainActor.run {
-                            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
                             self?.isPipelineActive = false
+                            if self?.isShowingSadToFailStatus == false {
+                                self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
+                            }
                             if self?.didShowPipelineStatus == false {
                                 self?.statusTextItem?.title = "Status: Idle"
                             }
@@ -109,8 +111,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setStatusGlyph(_ state: DictationState, on button: NSStatusBarButton?) {
         guard let button else { return }
         button.title = ""
+        button.contentTintColor = nil
         button.image = Self.menuBarGlyphImage(MenuBarGlyph.forState(state))
             ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+    }
+
+    private func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
+        guard let button, let glyph = MenuBarGlyph.forStatus(status) else { return }
+        button.title = ""
+        button.contentTintColor = MenuBarGlyph.tint(forStatus: status) == .error ? .systemRed : nil
+        button.image = Self.menuBarGlyphImage(glyph)
+            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
     }
 
     private func presentOnboarding(_ steps: [OnboardingStep]) {
@@ -132,12 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if steps.contains(.requestInputMonitoring) {
             menu.addItem(actionItem("Request Input Monitoring Access", #selector(openInputMonitoringSettings)))
-        }
-        if steps.contains(.requestAnthropicKey) {
-            menu.addItem(actionItem("Enter Anthropic Key", #selector(enterAnthropicKey)))
-        }
-        if steps.contains(.requestOpenAIKey) {
-            menu.addItem(actionItem("Enter OpenAI Key", #selector(enterOpenAIKey)))
         }
         menu.addItem(.separator())
         menu.addItem(actionItem("Retry Setup", #selector(retrySetup)))
@@ -170,23 +175,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await requestPermission(.accessibility, fallbackPane: "Privacy_Accessibility")
         } else if steps.contains(.requestInputMonitoring) {
             await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
-        } else if steps.contains(.requestAnthropicKey) {
-            promptForAnthropicKey()
-        } else if steps.contains(.requestOpenAIKey) {
-            promptForOpenAIKey()
         }
     }
 
     private func primaryActionTitle(for steps: [OnboardingStep]) -> String {
-        (steps.contains(.requestAnthropicKey) || steps.contains(.requestOpenAIKey)) && steps.count == 1
-            ? "Enter Key"
-            : "Continue Setup"
+        "Continue Setup"
     }
 
     private func showStatus(_ status: StatusMessage) {
-        guard status.isPersistentNotice || isPipelineActive else { return }
+        guard status.isPersistentNotice || status.isSadToFailNotice || isPipelineActive else {
+            return
+        }
         if status.isPersistentNotice {
             didShowPipelineStatus = true
+        }
+        if status.isSadToFailNotice {
+            didShowPipelineStatus = true
+            isShowingSadToFailStatus = true
+            setStatusGlyph(status: status, on: statusItem?.button)
+            sadToFailResetTask?.cancel()
+            sadToFailResetTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(5))
+                self?.isShowingSadToFailStatus = false
+                self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
+                if self?.isPipelineActive == false {
+                    self?.statusTextItem?.title = "Status: Idle"
+                }
+            }
         }
         statusTextItem?.title = "Status: \(Self.title(for: status))"
     }
@@ -213,13 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
-    private func enterAnthropicKey() {
-        promptForAnthropicKey()
-    }
-
-    @objc
-    private func enterOpenAIKey() {
-        promptForOpenAIKey()
+    private func enterOpenRouterKey() {
+        promptForOpenRouterKey()
     }
 
     @objc
@@ -248,32 +258,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func promptForAnthropicKey() {
+    private func promptForOpenRouterKey() {
         promptForAPIKey(
-            title: "Enter Anthropic API key",
+            title: "Enter OpenRouter API key",
             save: { [weak self] key in
-                guard let provider = self?.composition?.anthropicKeyProvider else { return }
+                guard let provider = self?.composition?.openRouterKeyProvider else { return }
                 try provider.store(key)
-            },
-            kind: .anthropic
-        )
-    }
-
-    private func promptForOpenAIKey() {
-        promptForAPIKey(
-            title: "Enter OpenAI API key",
-            save: { [weak self] key in
-                guard let provider = self?.composition?.openAIKeyProvider else { return }
-                try provider.store(key)
-            },
-            kind: .openAI
+            }
         )
     }
 
     private func promptForAPIKey(
         title: String,
-        save: (String) throws -> Void,
-        kind: APIKeyKind
+        save: (String) throws -> Void
     ) {
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
         let alert = NSAlert()
@@ -287,12 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try save(field.stringValue)
             retrySetup()
         } catch {
-            switch kind {
-            case .anthropic:
-                logger.error("anthropic key save failed")
-            case .openAI:
-                logger.error("openai key save failed")
-            }
+            logger.error("openrouter key save failed")
         }
     }
 
@@ -315,35 +307,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return "Accessibility permission"
         case .requestInputMonitoring:
             return "Input Monitoring permission"
-        case .requestAnthropicKey:
-            return "Anthropic key"
-        case .requestOpenAIKey:
-            return "OpenAI key"
         case .ready:
             return "Ready"
-        }
-    }
-
-    private static func title(for status: StatusMessage) -> String {
-        switch status {
-        case .preparingSpeechModel:
-            return "Preparing Speech Model"
-        case .cleanupDeclinedInsertedAsSpoken:
-            return "Inserted As Spoken"
-        case .accessibilityDenied:
-            return "Accessibility Denied"
-        case .missingKey:
-            return "Missing Cleanup Key"
-        case .transcriptionFailed:
-            return "Transcription Failed"
-        case .secureFieldActive:
-            return "Secure Field Active"
-        case .injectionFailed:
-            return "Insertion Failed"
-        case .microphoneUnavailable:
-            return "Microphone Unavailable"
-        case .cleanupFailed:
-            return "Cleanup Failed"
         }
     }
 }

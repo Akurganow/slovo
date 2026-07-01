@@ -1,8 +1,7 @@
 import Foundation
 
 public enum CleanupBenchmarkProvider: String, Codable, Equatable, Sendable {
-    case anthropic
-    case openAI = "openai"
+    case openRouter = "openrouter"
     case passThrough = "passthrough"
 }
 
@@ -41,9 +40,7 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
 
     private static func defaultModel(for provider: CleanupBenchmarkProvider) throws -> String {
         switch provider {
-        case .anthropic:
-            throw CleanupBenchmarkProviderSpecError.missingModel(provider)
-        case .openAI:
+        case .openRouter:
             throw CleanupBenchmarkProviderSpecError.missingModel(provider)
         case .passThrough:
             return "none"

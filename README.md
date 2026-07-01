@@ -4,9 +4,9 @@ Slovo is an experimental macOS menu-bar dictation app for Apple Silicon. Hold th
 `fn` / Globe key, speak, release, and Slovo inserts the dictated text into the
 focused field.
 
-The privacy boundary is deliberately narrow: raw audio stays on the Mac. If cloud
-cleanup is enabled, only the already-transcribed text is sent to the selected text
-cleanup provider.
+The privacy boundary is deliberately narrow: raw audio stays on the Mac. If
+cleanup is enabled, only the already-transcribed text is sent to OpenRouter for
+model-routed text cleanup.
 
 ## Status
 
@@ -21,9 +21,9 @@ progress.
 - Push-to-talk dictation from the global `fn` / Globe key.
 - Local speech capture and on-device transcription through the configured ASR
   backend.
-- Optional cleanup through Anthropic or OpenAI, with provider-specific model
-  selection.
-- Provider API keys stored in macOS Keychain and cached in memory after startup.
+- Optional text cleanup through OpenRouter, with curated routed models and custom
+  OpenRouter model ids.
+- OpenRouter API key stored in macOS Keychain and cached in memory after startup.
 - Clipboard-based text insertion with secure-input checks and clipboard restore.
 - Local SQLite personalization store for vocabulary hints.
 - Menu-bar status glyphs for idle, recording, and processing states.
@@ -34,12 +34,12 @@ progress.
 Slovo has two different data paths:
 
 - Audio path: microphone audio is captured and transcribed locally.
-- Cleanup path: transcript text may be sent to the selected cleanup provider when
-  cleanup is enabled.
+- Cleanup path: transcript text may be sent to OpenRouter when cleanup is
+  enabled. OpenRouter routes the request to the selected model id.
 
-Secrets are not stored in the repository. Anthropic and OpenAI API keys are
-stored as separate macOS Keychain items. Local personalization databases, seed
-files, dotenv files, signing keys, and credential bundles are ignored by Git.
+Secrets are not stored in the repository. The OpenRouter API key is stored as a
+macOS Keychain item. Local personalization databases, seed files, dotenv files,
+signing keys, and credential bundles are ignored by Git.
 
 ## Requirements
 
@@ -48,7 +48,7 @@ files, dotenv files, signing keys, and credential bundles are ignored by Git.
 - Xcode with Swift 6.3 toolchain.
 - A stable code-signing identity for local app packaging.
 - Microphone, Accessibility, and Input Monitoring permissions.
-- Anthropic or OpenAI API key if cloud cleanup is enabled.
+- OpenRouter API key if cleanup is enabled.
 
 ## Build And Test
 
@@ -69,24 +69,28 @@ Scripts/diagnose.sh
 `Scripts/diagnose.sh` runs build, tests, and strict lint as independent stages so
 one failure does not hide another.
 
-Compare cleanup-provider latency and quality with the non-product benchmark:
+Compare cleanup latency and quality with the non-product benchmark:
 
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-nano \
+  --providers openrouter:openai/gpt-5.4-nano,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-2.5-flash-lite,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
 ```
 
-Latest local cleanup benchmark snapshot, measured on 2026-06-30 with 10
-repetitions over the 30-sample `slovo-cleanup-v1` suite:
+Latest live OpenRouter benchmark snapshot, measured on 2026-07-01 with 10
+repetitions over the 30-sample `slovo-cleanup-v1` suite. The curated shortlist
+was selected from OpenRouter catalog metadata and fast-model comparisons, then
+validated through this benchmark.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `anthropic:claude-haiku-4-5` | 300 | 230 | 0 | 884.8 ms | 1770.7 ms |
-| `openai:gpt-5.4-nano` | 300 | 211 | 0 | 690.4 ms | 1662.1 ms |
+| `openrouter:anthropic/claude-haiku-4.5` | 300 | 230 | 0 | 1198.1 ms | 2659.0 ms |
+| `openrouter:openai/gpt-5.4-nano` | 300 | 211 | 0 | 787.5 ms | 3054.2 ms |
+| `openrouter:google/gemini-2.5-flash-lite` | 300 | 184 | 1 | 524.5 ms | 1893.6 ms |
+| `passthrough:none` | 300 | 0 | 0 | 0.0 ms | 0.0 ms |
 
 ## Run Locally
 
@@ -106,20 +110,22 @@ ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh
 ```
 
 After first launch, grant the requested permissions in System Settings, then use
-the Slovo menu to retry setup and enter provider keys.
+the Slovo menu to retry setup and enter the OpenRouter key.
 
 ## Configuration
 
-Runtime settings are stored in `UserDefaults`. Provider API keys are stored in
-Keychain:
+Runtime settings are stored in `UserDefaults`. The OpenRouter API key is stored
+in Keychain:
 
-- Anthropic service/account: `slovo` / `anthropic-api-key`
-- OpenAI service/account: `slovo` / `openai-api-key`
+- OpenRouter service/account: `slovo` / `openrouter-api-key`
 
-The app also accepts environment variables as development-only overrides:
+The app also accepts an environment variable as a development-only override:
 
-- `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`
+
+If cleanup is unavailable, Slovo inserts the direct transcript instead of
+dropping the dictation. The menu-bar glyph briefly switches to the Glagolitic
+letter `Ⱁ` in the error tint, then returns to idle.
 
 ## Documentation
 
@@ -129,8 +135,6 @@ The app also accepts environment variables as development-only overrides:
 - [Development reference library](docs/references/README.md)
 - [Release checklist](docs/release-checklist.md)
 - [Cleanup benchmark reference](docs/references/cleanup-benchmark.md)
-- [OpenAI cleanup reference](docs/references/cleanup-openai.md)
-- [Anthropic cleanup reference](docs/references/cleanup-anthropic.md)
 
 ## Contributing
 

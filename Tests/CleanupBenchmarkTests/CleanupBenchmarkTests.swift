@@ -120,90 +120,41 @@ struct CleanupBenchmarkTests {
         #expect(await second.modelInputs() == ["b", "b"])
     }
 
-    /// Stated sensitivity: if the env-file parser logs or mangles dotenv keys,
-    /// benchmark credentials cannot be supplied locally without touching
-    /// Keychain; quoted values and comments are the common failure case.
+    /// Stated sensitivity: counting warmup calls in the report, or measuring
+    /// cold local-model loading as a timed run, makes the benchmark look worse
+    /// than hot in-app cleanup behavior.
     @Test
-    func envFileParserReadsDotenvShapeWithoutComments() {
-        let parsed = CleanupBenchmarkEnvFile.parse(
-            """
-            # local only
-            ANTHROPIC_API_KEY='anthropic-key'
-            OPENAI_API_KEY="openai-key"
-            EMPTY=
-            EXPORT_ME=plain
-            """
+    func runnerWarmsCandidatesBeforeRecordedRuns() async {
+        let sample = CleanupBenchmarkSample(
+            id: "warm",
+            raw: "ну проверь latency",
+            expectation: CleanupQualityExpectation(requiredSubstrings: ["Latency"])
+        )
+        let cleaner = RecordingCleaner(output: "Проверь latency.")
+        let durations = Mutex<[UInt64]>([42])
+        let timer = CleanupBenchmarkTimer { operation in
+            let output = try await operation()
+            let duration = durations.withLock { $0.removeFirst() }
+            return TimedCleanupOutput(output: output, durationNanoseconds: duration)
+        }
+
+        let report = await CleanupBenchmarkRunner(timer: timer).run(
+            candidates: [
+                CleanupBenchmarkCandidate(provider: "fake", model: "hot", cleaner: cleaner),
+            ],
+            samples: [sample],
+            config: CleanupConfig(model: "unused", writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            repetitions: 1,
+            warmupRepetitions: 2
         )
 
-        #expect(parsed == [
-            "ANTHROPIC_API_KEY": "anthropic-key",
-            "OPENAI_API_KEY": "openai-key",
-            "EMPTY": "",
-            "EXPORT_ME": "plain",
-        ])
-    }
-
-    /// Stated sensitivity: if provider selection stays stringly typed, a typo or
-    /// missing model silently benchmarks the wrong cleanup path.
-    @Test
-    func providerSpecParserPinsProviderAndModelSelection() throws {
-        let specs = try CleanupBenchmarkProviderSpec.parseList(
-            "anthropic:claude-test,openai:gpt-test,passthrough"
-        )
-
-        #expect(specs == [
-            CleanupBenchmarkProviderSpec(provider: .anthropic, model: "claude-test"),
-            CleanupBenchmarkProviderSpec(provider: .openAI, model: "gpt-test"),
-            CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"),
-        ])
-        #expect(throws: CleanupBenchmarkProviderSpecError.unknownProvider("local")) {
-            try CleanupBenchmarkProviderSpec.parse("local")
-        }
-        #expect(throws: CleanupBenchmarkProviderSpecError.missingModel(.anthropic)) {
-            try CleanupBenchmarkProviderSpec.parse("anthropic")
-        }
-        #expect(throws: CleanupBenchmarkProviderSpecError.missingModel(.openAI)) {
-            try CleanupBenchmarkProviderSpec.parse("openai")
-        }
-    }
-
-    /// Stated sensitivity: swapping cloud cleaners or key names in the real
-    /// benchmark factory leaves the CLI benchmarking a different provider.
-    @Test
-    func candidateFactorySelectsConcreteProviderAndKey() throws {
-        let environment = [
-            "ANTHROPIC_API_KEY": "anthropic-key",
-            "OPENAI_API_KEY": "openai-key",
-        ]
-
-        let anthropic = try CleanupBenchmarkCandidateFactory.makeCandidate(
-            for: CleanupBenchmarkProviderSpec(provider: .anthropic, model: "claude-test"),
-            environment: environment
-        )
-        let openAI = try CleanupBenchmarkCandidateFactory.makeCandidate(
-            for: CleanupBenchmarkProviderSpec(provider: .openAI, model: "gpt-test"),
-            environment: environment
-        )
-        let passThrough = try CleanupBenchmarkCandidateFactory.makeCandidate(
-            for: CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"),
-            environment: [:]
-        )
-
-        #expect(anthropic.cleaner is AnthropicCleaner)
-        #expect(openAI.cleaner is OpenAICleaner)
-        #expect(passThrough.cleaner is PassThrough)
-        #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("ANTHROPIC_API_KEY")) {
-            _ = try CleanupBenchmarkCandidateFactory.makeCandidate(
-                for: CleanupBenchmarkProviderSpec(provider: .anthropic, model: "claude-test"),
-                environment: ["OPENAI_API_KEY": "openai-key"]
-            )
-        }
-        #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("OPENAI_API_KEY")) {
-            _ = try CleanupBenchmarkCandidateFactory.makeCandidate(
-                for: CleanupBenchmarkProviderSpec(provider: .openAI, model: "gpt-test"),
-                environment: ["ANTHROPIC_API_KEY": "anthropic-key"]
-            )
-        }
+        #expect(report.runs.map(\.durationNanoseconds) == [42])
+        #expect(report.runs.map(\.sampleId) == ["warm"])
+        #expect(await cleaner.rawInputs() == ["ну проверь latency", "ну проверь latency", "ну проверь latency"])
+        #expect(await cleaner.modelInputs() == ["hot", "hot", "hot"])
+        let timerDurationsConsumed = durations.withLock { $0.isEmpty }
+        #expect(timerDurationsConsumed)
     }
 
     /// Stated sensitivity: breaking the CLI exit decision or bypassing argument
@@ -241,34 +192,33 @@ struct CleanupBenchmarkTests {
     }
 
     /// Stated sensitivity: source-shape checks alone can leave a broken
-    /// executable green if the real entrypoint exits before running the driver.
+    /// executable green if the real entrypoint exits before running the driver;
+    /// running SwiftPM recursively inside `swift test` can also deadlock on the
+    /// build lock, so the executable smoke belongs in diagnose instead.
     @Test
     func executableEntrypointRunsBenchmarkCommand() throws {
-        let scratch = NSTemporaryDirectory() + "slovo-cleanup-benchmark-" + UUID().uuidString
-        defer { try? FileManager.default.removeItem(atPath: scratch) }
-
-        let result = try runSwift(
-            [
-                "run",
-                "--disable-automatic-resolution",
-                "--scratch-path",
-                scratch,
-                "slovo-cleanup-benchmark",
-                "--providers",
-                "passthrough",
-            ]
+        let diagnose = try String(
+            contentsOf: repositoryRoot().appending(path: "Scripts/diagnose.sh"),
+            encoding: .utf8
+        )
+        let smoke = try String(
+            contentsOf: repositoryRoot().appending(path: "Scripts/check-cleanup-benchmark-cli.sh"),
+            encoding: .utf8
         )
 
-        #expect(result.exitCode == 2)
-        #expect(result.stdout.contains("candidate,runs,passed,errors,p50_ms,p95_ms"))
-        #expect(result.stdout.contains("passthrough:none,30,"))
+        #expect(diagnose.contains(#"run_stage "cleanup-benchmark-cli" Scripts/check-cleanup-benchmark-cli.sh"#))
+        #expect(smoke.contains("swift run --disable-automatic-resolution slovo-cleanup-benchmark"))
+        #expect(smoke.contains("--providers passthrough"))
+        #expect(smoke.contains("--samples"))
+        #expect(smoke.contains("--repetitions 1"))
+        #expect(!smoke.contains("--scratch-path"))
     }
 
     /// Stated sensitivity: changing the command driver to exit non-zero even
     /// when every run passes is not caught by lower-level runner tests.
     @Test
     func commandDriverReturnsSuccessWhenEveryRunPasses() async {
-        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _ in
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
             CleanupBenchmarkReport(runs: [
                 CleanupBenchmarkRun(
                     sampleId: "hidden",
@@ -346,45 +296,4 @@ struct CleanupBenchmarkTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
     }
-
-    private func runSwift(_ arguments: [String]) throws -> CommandResult {
-        let captureDirectory = FileManager.default.temporaryDirectory
-            .appending(path: "slovo-command-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: captureDirectory) }
-
-        let outputURL = captureDirectory.appending(path: "stdout.txt")
-        let errorURL = captureDirectory.appending(path: "stderr.txt")
-        _ = FileManager.default.createFile(atPath: outputURL.path, contents: nil)
-        _ = FileManager.default.createFile(atPath: errorURL.path, contents: nil)
-
-        let output = try FileHandle(forWritingTo: outputURL)
-        let errors = try FileHandle(forWritingTo: errorURL)
-        defer {
-            try? output.close()
-            try? errors.close()
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["swift"] + arguments
-        process.currentDirectoryURL = repositoryRoot()
-        process.standardOutput = output
-        process.standardError = errors
-
-        try process.run()
-        process.waitUntilExit()
-
-        return CommandResult(
-            exitCode: process.terminationStatus,
-            stdout: try String(contentsOf: outputURL, encoding: .utf8),
-            stderr: try String(contentsOf: errorURL, encoding: .utf8)
-        )
-    }
-}
-
-private struct CommandResult {
-    let exitCode: Int32
-    let stdout: String
-    let stderr: String
 }

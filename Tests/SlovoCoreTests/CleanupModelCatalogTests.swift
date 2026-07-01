@@ -8,12 +8,27 @@ struct CleanupModelCatalogTests {
     /// model from the provider catalog -> the selectable option lookup goes RED.
     @Test
     func defaultsAreBackedByTypedProviderModelOptions() {
-        let anthropicModels = CleanupModelCatalog.options(for: .anthropic)
-        let openAIModels = CleanupModelCatalog.options(for: .openAI)
+        #expect(CleanupModelCatalog.options.contains { $0.id == Config.defaultOpenRouterModel })
+        #expect(CleanupModelCatalog.options.allSatisfy { !$0.id.isEmpty && !$0.displayName.isEmpty })
+    }
 
-        #expect(anthropicModels.contains { $0.id == Config.defaultAnthropicModel })
-        #expect(openAIModels.contains { $0.id == Config.defaultOpenAIModel })
-        #expect(anthropicModels.allSatisfy { $0.provider == .anthropic && !$0.id.isEmpty })
-        #expect(openAIModels.allSatisfy { $0.provider == .openAI && !$0.id.isEmpty })
+    /// Stated sensitivity: leave MLX-era local options in the catalog or omit
+    /// OpenRouter's routed cloud models -> the exact provider list goes RED.
+    @Test
+    func openRouterCatalogExposesRoutedCloudCandidatesOnly() {
+        let ids = CleanupModelCatalog.options.map(\.id)
+
+        #expect(ids == [
+            "openai/gpt-5.4-nano",
+            "anthropic/claude-haiku-4.5",
+            "google/gemini-2.5-flash-lite",
+        ])
+    }
+
+    /// Stated sensitivity: custom model ids must remain selectable even when
+    /// they are not in the curated shortlist.
+    @Test
+    func customModelDisplayNameFallsBackToModelId() {
+        #expect(CleanupModelCatalog.displayName(for: "custom/vendor-model") == "custom/vendor-model")
     }
 }

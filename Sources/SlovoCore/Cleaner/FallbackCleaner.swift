@@ -1,13 +1,12 @@
-import Foundation
-
 /// A composite `Cleaner` that walks a chain, advancing to the next cleaner on any
 /// `CleanupError` and terminating at `PassThrough` (spec §11, §18.3). A
 /// non-`CleanupError` (e.g. `CancellationError`) PROPAGATES — it is never
 /// swallowed and silently degraded.
 ///
-/// `.refused` advances WITH a user-visible status; every other `CleanupError`
-/// advances silently. The decision is a no-`default` switch so a future
-/// `CleanupError` case forces a deliberate silent-vs-visible choice.
+/// Every expected `CleanupError` advances WITH a user-visible sad-to-fail status.
+/// Cleanup is optional; preserving the user's voice-to-text intent is not. The
+/// decision is a no-`default` switch so a future `CleanupError` case forces a
+/// deliberate visibility choice.
 /// `@unchecked Sendable` because of the `statusReporter` closure: it is invoked
 /// only synchronously from within `clean(...)` (never concurrently), and keeping
 /// it a plain closure lets existing tests pass an ordinary capturing reporter (a
@@ -51,10 +50,10 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
     /// no-`default` switch makes a new `CleanupError` case a compile error here.
     private func report(_ error: CleanupError) {
         switch error {
-        case .refused:
-            statusReporter(.cleanupDeclinedInsertedAsSpoken)
         case .offline, .missingKey, .rateLimited, .apiError:
-            break  // advance silently
+            statusReporter(.cleanupUnavailableInsertedAsSpoken)
+        case .refused:
+            statusReporter(.cleanupUnavailableInsertedAsSpoken)
         }
     }
 }

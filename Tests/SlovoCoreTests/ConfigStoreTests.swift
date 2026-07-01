@@ -86,113 +86,115 @@ struct ConfigStoreTests {
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// Stated sensitivity: accept an empty Anthropic model string → the invalid
-    /// config survives and this defaults assertion fails.
+    /// Stated sensitivity: accept an empty OpenRouter model string -> the live
+    /// request would reach OpenRouter with an invalid model id.
     @Test
-    func emptyAnthropicModelRejectsWholeConfig() throws {
+    func emptyOpenRouterModelRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(anthropicModel: ""),
+            ConfigStore.defaultKey: try Self.configData(openRouterModel: ""),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// Stated sensitivity: validate inactive provider models globally -> a valid
-    /// Anthropic config is thrown away because an unused OpenAI model is empty.
+    /// Stated sensitivity: accepting a forbidden direct provider as active, or
+    /// falling back to cleanup-enabled defaults, can silently egress transcripts.
     @Test
-    func emptyInactiveOpenAIModelDoesNotRejectAnthropicConfig() throws {
+    func forbiddenAnthropicProviderDisablesCleanupWithoutResettingSettings() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try Self.configData(
+                cleanupEnabled: true,
                 cleanupProvider: "anthropic",
-                anthropicModel: "claude-active",
-                openAIModel: ""
+                writingStyle: "formal"
             ),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.cleanupProvider == .anthropic)
-        #expect(config.cleanupConfig.model == "claude-active")
+        #expect(config.language == .ru)
+        #expect(config.keepWarmSeconds == 45)
+        #expect(config.cleanupEnabled == false)
+        #expect(config.openRouterModel == Config.defaultOpenRouterModel)
+        #expect(config.writingStyle == .formal)
     }
 
-    /// Stated sensitivity: ignore `cleanup.provider` or keep selecting Anthropic
-    /// while the stored config asks for OpenAI -> loaded cleanupBackend is wrong.
+    /// Stated sensitivity: keep treating a forbidden OpenAI provider as active
+    /// instead of forcing local pass-through behavior.
     @Test
-    func openAIProviderAndModelDecodeFromCleanupConfig() throws {
+    func forbiddenOpenAIProviderDisablesCleanup() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "openai"),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.cleanupEnabled == false)
+        #expect(config.openRouterModel == Config.defaultOpenRouterModel)
+        #expect(config.cleanupConfig.model == Config.defaultOpenRouterModel)
+    }
+
+    /// Stated sensitivity: treat OpenRouter as an ad hoc string or forget its
+    /// model field -> stored routed-cloud cleanup selection is rejected or falls
+    /// back to a different provider.
+    @Test
+    func openRouterProviderAndModelDecodeFromCleanupConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try Self.configData(
-                cleanupProvider: "openai",
-                anthropicModel: "claude-experiment",
-                openAIModel: "gpt-5.4-mini",
-                writingStyle: "casual"
+                cleanupProvider: "openrouter",
+                openRouterModel: "openai/gpt-5.4-nano"
             ),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.cleanupProvider == .openAI)
-        #expect(config.anthropicModel == "claude-experiment")
-        #expect(config.openAIModel == "gpt-5.4-mini")
-        #expect(config.cleanupConfig.model == "gpt-5.4-mini",
-                "the active cleanup model must follow the selected provider")
+        #expect(config.openRouterModel == "openai/gpt-5.4-nano")
+        #expect(config.cleanupConfig.model == "openai/gpt-5.4-nano")
     }
 
-    /// Stated sensitivity: require the new provider/model fields unconditionally
-    /// -> old persisted configs fall back to defaults and lose valid user config.
+    /// Stated sensitivity: require the provider field unconditionally -> a
+    /// minimal persisted config falls back to defaults and loses valid settings.
     @Test
-    func legacyCleanupConfigWithoutProviderStaysAnthropicCompatible() throws {
+    func cleanupConfigWithoutProviderStaysOpenRouterCompatible() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(anthropicModel: "claude-legacy-model"),
+            ConfigStore.defaultKey: try Self.configData(openRouterModel: "openai/gpt-5.4-nano"),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.cleanupProvider == .anthropic)
-        #expect(config.anthropicModel == "claude-legacy-model")
-        #expect(config.openAIModel == Config.defaults.openAIModel)
-        #expect(config.cleanupConfig.model == "claude-legacy-model")
+        #expect(config.openRouterModel == "openai/gpt-5.4-nano")
+        #expect(config.cleanupConfig.model == "openai/gpt-5.4-nano")
     }
 
-    /// Stated sensitivity: accept an unknown cleanup provider -> the app silently
-    /// runs a different cloud egress path than the persisted config names.
+    /// Stated sensitivity: accept an unknown cleanup provider as active -> the
+    /// app silently runs a different cloud egress path than persisted config.
     @Test
-    func unknownCleanupProviderRejectsWholeConfig() throws {
+    func unknownCleanupProviderDisablesCleanup() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try Self.configData(cleanupProvider: "local-llm"),
         ])
 
-        #expect(ConfigStore.load(from: defaults) == .defaults)
+        #expect(ConfigStore.load(from: defaults).cleanupEnabled == false)
     }
 
-    /// Stated sensitivity: accept an empty OpenAI model while provider=openai ->
-    /// the live request would reach the API with an invalid model id.
+    /// Stated sensitivity: omit `cleanup.openRouterModel` while saving -> load
+    /// round-trip falls back to defaults.
     @Test
-    func emptyOpenAIModelRejectsOpenAIConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "openai", openAIModel: ""),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: omit `cleanup.provider` or `cleanup.openAIModel`
-    /// while saving -> load round-trip falls back to Anthropic/defaults.
-    @Test
-    func saveRoundTripsCleanupProviderAndProviderModels() throws {
+    func saveRoundTripsOpenRouterModelWithoutProviderField() throws {
         let defaults = FakeUserDefaults()
         let config = Config(
-            cleanupProvider: .openAI,
-            anthropicModel: "claude-saved",
-            openAIModel: "gpt-saved"
+            openRouterModel: "openrouter-saved"
         )
 
         try ConfigStore.save(config, to: defaults)
         let loaded = ConfigStore.load(from: defaults)
 
-        #expect(loaded.cleanupProvider == .openAI)
-        #expect(loaded.anthropicModel == "claude-saved")
-        #expect(loaded.openAIModel == "gpt-saved")
-        #expect(loaded.cleanupConfig.model == "gpt-saved")
+        #expect(loaded.openRouterModel == "openrouter-saved")
+        #expect(loaded.cleanupConfig.model == "openrouter-saved")
+
+        let raw = try #require(defaults.data(forKey: ConfigStore.defaultKey))
+        let object = try #require(JSONSerialization.jsonObject(with: raw) as? [String: Any])
+        let cleanup = try #require(object["cleanup"] as? [String: Any])
+        #expect(cleanup["provider"] == nil)
     }
 
     /// Stated sensitivity: decoding persisted ASR backend from the Swift case
@@ -248,9 +250,8 @@ struct ConfigStoreTests {
                 backend: "whisperkit",
                 asrModel: "large-v3-v20240930_turbo_632MB",
                 cleanupEnabled: false,
-                cleanupProvider: "openai",
-                anthropicModel: "claude-haiku-4-5",
-                openAIModel: "gpt-5.4-mini",
+                cleanupProvider: "openrouter",
+                openRouterModel: "openai/gpt-5.4-nano",
                 writingStyle: "formal"
             ),
         ])
@@ -261,9 +262,7 @@ struct ConfigStoreTests {
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             cleanupEnabled: false,
-            cleanupProvider: .openAI,
-            anthropicModel: "claude-haiku-4-5",
-            openAIModel: "gpt-5.4-mini",
+            openRouterModel: "openai/gpt-5.4-nano",
             writingStyle: .formal
         ))
     }
@@ -277,20 +276,18 @@ struct ConfigStoreTests {
         asrModel: String = "large-v3-v20240930_turbo_632MB",
         cleanupEnabled: Bool = true,
         cleanupProvider: String? = nil,
-        anthropicModel: String = "claude-haiku-4-5",
-        openAIModel: String? = nil,
+        openRouterModel: String? = nil,
         writingStyle: String = "casual"
     ) throws -> Data {
         var cleanup: [String: Any] = [
             "enabled": cleanupEnabled,
-            "anthropicModel": anthropicModel,
             "writingStyle": writingStyle,
         ]
         if let cleanupProvider {
             cleanup["provider"] = cleanupProvider
         }
-        if let openAIModel {
-            cleanup["openAIModel"] = openAIModel
+        if let openRouterModel {
+            cleanup["openRouterModel"] = openRouterModel
         }
         var object: [String: Any] = [
             "language": language,

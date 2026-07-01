@@ -9,9 +9,7 @@ enum AppComposition {
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
         let config: Config
-        let anthropicKeyProvider: KeychainAnthropicKeyProvider
-        let openAIKeyProvider: KeychainOpenAIKeyProvider
-        let selectedKeyProvider: any CleanupKeyProvider
+        let openRouterKeyProvider: KeychainOpenRouterKeyProvider
         let permissionRequester: any PermissionRequester
     }
 
@@ -23,8 +21,7 @@ enum AppComposition {
         let config = ConfigStore.load(from: defaults)
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
         let permissionPreflighter = SystemPermissionPreflighter()
-        let anthropicKeyProvider = KeychainAnthropicKeyProvider()
-        let openAIKeyProvider = KeychainOpenAIKeyProvider()
+        let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
         let database = try PersonalizationDatabase.open(
             at: personalizationDatabasePath(fileManager: fileManager).path
         )
@@ -36,10 +33,10 @@ enum AppComposition {
                 keepWarmSeconds: config.keepWarmSeconds
             ))
         }
-        let cleaner = makeCleaner(
-            for: config.cleanupProvider,
-            anthropicKeyProvider: anthropicKeyProvider,
-            openAIKeyProvider: openAIKeyProvider,
+        let cleaner = OpenRouterCleaner(
+            session: .shared,
+            keyProvider: openRouterKeyProvider,
+            promptBuilder: PromptBuilder(maxVocabularyTerms: vocabularyLimit),
             log: log
         )
         let injector = ClipboardPasteInjector(
@@ -66,48 +63,11 @@ enum AppComposition {
             ),
             hotkeyMonitor: CGEventTapHotkeyMonitor(),
             onboardingSteps: FirstRunFlow.pendingSteps(
-                permissions: permissionPreflighter.preflight(),
-                cleanupProvider: config.cleanupProvider,
-                hasAnthropicKey: anthropicKeyProvider.hasConfiguredKey(),
-                hasOpenAIKey: openAIKeyProvider.hasConfiguredKey()
+                permissions: permissionPreflighter.preflight()
             ),
             config: config,
-            anthropicKeyProvider: anthropicKeyProvider,
-            openAIKeyProvider: openAIKeyProvider,
-            selectedKeyProvider: selectedKeyProvider(
-                for: config.cleanupProvider,
-                anthropicKeyProvider: anthropicKeyProvider,
-                openAIKeyProvider: openAIKeyProvider
-            ),
+            openRouterKeyProvider: openRouterKeyProvider,
             permissionRequester: permissionPreflighter
-        )
-    }
-
-    private static func makeCleaner(
-        for provider: CleanupProvider,
-        anthropicKeyProvider: KeychainAnthropicKeyProvider,
-        openAIKeyProvider: KeychainOpenAIKeyProvider,
-        log: RedactionSafeLog
-    ) -> any Cleaner {
-        CleanupProviderFactory.makeCleaner(
-            for: provider,
-            session: .shared,
-            anthropicKeyProvider: anthropicKeyProvider,
-            openAIKeyProvider: openAIKeyProvider,
-            promptBuilder: PromptBuilder(maxVocabularyTerms: vocabularyLimit),
-            log: log
-        )
-    }
-
-    private static func selectedKeyProvider(
-        for provider: CleanupProvider,
-        anthropicKeyProvider: KeychainAnthropicKeyProvider,
-        openAIKeyProvider: KeychainOpenAIKeyProvider
-    ) -> any CleanupKeyProvider {
-        CleanupProviderFactory.selectedKeyProvider(
-            for: provider,
-            anthropicKeyProvider: anthropicKeyProvider,
-            openAIKeyProvider: openAIKeyProvider
         )
     }
 

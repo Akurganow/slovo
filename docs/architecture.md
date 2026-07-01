@@ -12,7 +12,8 @@ fn down -> mute output -> capture microphone
 fn up   -> stop capture -> restore output -> transcribe -> clean -> inject
 ```
 
-Raw audio stays on the Mac. The optional cloud step receives transcript text only.
+Raw audio stays on the Mac. Optional cleanup sends transcript text only to
+OpenRouter for the selected routed model id.
 
 ## Core Components
 
@@ -30,16 +31,19 @@ The app target owns OS-specific adapters and production composition. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
 injection behavior.
 
-## Cleanup Providers
+## Cleanup
 
-Cleanup is provider-selectable:
+Cleanup has one runtime provider:
 
-- Anthropic Messages API.
-- OpenAI Responses API.
+- OpenRouter Chat Completions API.
 
-Each provider has its own Keychain item and model selection. The selected
-provider key is preloaded once at startup and cached in memory for normal cleanup
-calls.
+The app stores one OpenRouter key in Keychain and exposes model selection as
+curated OpenRouter model ids plus a custom id entry. The key is preloaded once at
+startup and cached in memory for normal cleanup calls.
+
+Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, rate-limited, or
+returns an unusable response, Slovo inserts the direct transcript and briefly
+shows the `Ⱁ` error glyph instead of cancelling the dictation.
 
 ## Storage
 
@@ -55,7 +59,7 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
-an `NSStatusItem` for status, setup actions, provider selection, and quit.
+an `NSStatusItem` for status, setup actions, cleanup model selection, and quit.
 
 ## Build Boundaries
 

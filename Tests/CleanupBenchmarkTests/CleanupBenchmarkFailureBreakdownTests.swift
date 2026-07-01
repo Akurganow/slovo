@@ -47,7 +47,7 @@ struct CleanupBenchmarkFailureBreakdownTests {
     /// runs.
     @Test
     func commandDriverCanAppendFailureBreakdown() async {
-        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _ in
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
             CleanupBenchmarkReport(runs: [
                 CleanupBenchmarkRun(
                     sampleId: "sample-secret",

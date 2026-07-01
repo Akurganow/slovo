@@ -1,5 +1,3 @@
-import Foundation
-
 // The dictation finite-state machine (spec §6 flow, §11 containment, §18.7).
 //
 // `DictationFsm.transition(_:on:)` is a PURE function: it reads no clock,
@@ -38,6 +36,7 @@ public enum FsmLogEvent: Equatable, Sendable {
 public enum StatusMessage: Equatable, Sendable {
     case preparingSpeechModel
     case cleanupDeclinedInsertedAsSpoken
+    case cleanupUnavailableInsertedAsSpoken
     case accessibilityDenied
     case missingKey
     case transcriptionFailed
@@ -47,7 +46,23 @@ public enum StatusMessage: Equatable, Sendable {
     case cleanupFailed
 
     public var isPersistentNotice: Bool {
-        self != .preparingSpeechModel
+        switch self {
+        case .preparingSpeechModel, .cleanupUnavailableInsertedAsSpoken:
+            return false
+        case .cleanupDeclinedInsertedAsSpoken,
+             .accessibilityDenied,
+             .missingKey,
+             .transcriptionFailed,
+             .secureFieldActive,
+             .injectionFailed,
+             .microphoneUnavailable,
+             .cleanupFailed:
+            return true
+        }
+    }
+
+    public var isSadToFailNotice: Bool {
+        self == .cleanupUnavailableInsertedAsSpoken
     }
 }
 

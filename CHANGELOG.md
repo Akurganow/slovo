@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [Unreleased]
+
+### Changed
+
+- Simplified transcript cleanup to OpenRouter-only routed model selection.
+- Removed direct Anthropic/OpenAI cleanup providers and embedded local cleanup
+  models.
+- Updated the cleanup benchmark to compare OpenRouter model ids against the
+  local pass-through baseline.
+
 ## [0.0.1] - 2026-06-30
 
 ### Added

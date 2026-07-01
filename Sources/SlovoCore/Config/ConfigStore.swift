@@ -55,18 +55,16 @@ public enum ConfigStore {
                 return nil
             }
 
-            let provider = cleanup.provider ?? .anthropic
-            let openAIModel = cleanup.openAIModel ?? Config.defaultOpenAIModel
+            let hasForbiddenProvider = cleanup.provider != nil && cleanup.provider != "openrouter"
+            let openRouterModel = cleanup.openRouterModel ?? Config.defaultOpenRouterModel
 
             return ConfigStore.validated(Config(
                 language: language,
                 keepWarmSeconds: keepWarmSeconds,
                 asrBackend: asr.backend,
                 asrModel: asr.model,
-                cleanupEnabled: cleanup.enabled,
-                cleanupProvider: provider,
-                anthropicModel: cleanup.anthropicModel,
-                openAIModel: openAIModel,
+                cleanupEnabled: hasForbiddenProvider ? false : cleanup.enabled,
+                openRouterModel: openRouterModel,
                 writingStyle: cleanup.writingStyle
             ))
         }
@@ -79,9 +77,8 @@ public enum ConfigStore {
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(
                 enabled: config.cleanupEnabled,
-                provider: config.cleanupProvider,
-                anthropicModel: config.anthropicModel,
-                openAIModel: config.openAIModel,
+                provider: nil,
+                openRouterModel: config.openRouterModel,
                 writingStyle: config.writingStyle
             )
         }
@@ -94,9 +91,8 @@ public enum ConfigStore {
 
     private struct StoredCleanup: Codable {
         let enabled: Bool
-        let provider: CleanupProvider?
-        let anthropicModel: String
-        let openAIModel: String?
+        let provider: String?
+        let openRouterModel: String?
         let writingStyle: WritingStyle
     }
 
@@ -104,19 +100,10 @@ public enum ConfigStore {
         guard (0...3_600).contains(config.keepWarmSeconds),
               config.asrBackend == .whisperKit,
               !config.asrModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              hasModel(for: config.cleanupProvider, in: config)
+              !config.openRouterModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             return nil
         }
         return config
-    }
-
-    private static func hasModel(for provider: CleanupProvider, in config: Config) -> Bool {
-        switch provider {
-        case .anthropic:
-            return !config.anthropicModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .openAI:
-            return !config.openAIModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
     }
 }

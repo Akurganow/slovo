@@ -2,8 +2,7 @@
 --
 -- Purpose:
 --   * `vocabulary` seeds the cleanup prompt's known-vocabulary prefix so the
---     cloud cleaner (Claude Haiku) preserves the user's terms verbatim. (Prompt
---     caching is a bonus if the prompt grows large enough, never a day-one driver.)
+--     OpenRouter-routed cleaner preserves the user's terms verbatim.
 --   * `corrections` accumulates (raw -> corrected) edits so the cleaned OUTPUT
 --     improves over time (this does NOT adapt the acoustic model to your voice);
 --     recent rows are fed to the cleaner as few-shot examples.

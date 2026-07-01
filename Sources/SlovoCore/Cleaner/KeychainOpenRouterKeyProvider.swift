@@ -1,22 +1,20 @@
-import Foundation
-
-/// Supplies the Anthropic key from Keychain, caching the secret in memory after
+/// Supplies the OpenRouter key from Keychain, caching the secret in memory after
 /// the first successful read.
-public final class KeychainAnthropicKeyProvider: AnthropicKeyProvider, CleanupKeyProvider {
+public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider, CleanupKeyProvider {
     public typealias StoreError = KeychainAPIKeyProvider.StoreError
     private let storage: KeychainAPIKeyProvider
 
     public convenience init(
         service: String = "slovo",
-        account: String = "anthropic-api-key",
-        environmentKey: String = "ANTHROPIC_API_KEY"
+        account: String = "openrouter-api-key",
+        environmentKey: String = "OPENROUTER_API_KEY"
     ) {
         self.init(storage: KeychainAPIKeyProvider(service: service, account: account, environmentKey: environmentKey))
     }
 
     @preconcurrency
     public init(
-        environmentKey: String = "ANTHROPIC_API_KEY",
+        environmentKey: String = "OPENROUTER_API_KEY",
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
         writeKey: @escaping @Sendable (String) throws -> Void

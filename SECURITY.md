@@ -1,8 +1,8 @@
 # Security Policy
 
 Slovo is an early-stage local dictation app. The security model is intentionally
-simple: raw audio stays on the Mac, while transcript text may be sent to the
-selected cleanup provider when cleanup is enabled.
+simple: raw audio stays on the Mac, while transcript text may be sent to
+OpenRouter when cleanup is enabled.
 
 ## Supported Versions
 
@@ -24,7 +24,7 @@ channel.
 
 Do not share:
 
-- Anthropic or OpenAI API keys.
+- OpenRouter API keys.
 - `.env` files or credential bundles.
 - Signing keys, certificates, or notarization profiles.
 - Local `data/slovo.db*` files.
@@ -35,7 +35,7 @@ Do not share:
 
 - API keys are stored in macOS Keychain.
 - Raw audio is intended to stay local.
-- Transcript text can leave the machine only through the selected cleanup
-  provider.
+- Transcript text can leave the machine only through OpenRouter when cleanup is
+  enabled.
 - The app is not sandboxed because it needs Accessibility/Input Monitoring
   behavior for the global push-to-talk workflow.

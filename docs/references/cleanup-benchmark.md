@@ -1,16 +1,16 @@
 # Cleanup benchmark
 
-Slovo needs cleanup providers to be compared by latency and by product quality.
+Slovo needs cleanup candidates to be compared by latency and by product quality.
 The benchmark is a non-product SwiftPM executable: it is not linked into the
-menu-bar app and it does not read Keychain. Local API keys can be supplied from
-process environment variables or a gitignored dotenv file.
+menu-bar app and it does not read Keychain. The OpenRouter API key can be
+supplied from process environment variables or a gitignored dotenv file.
 
 ## Command
 
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-nano \
+  --providers openrouter:openai/gpt-5.4-nano,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-2.5-flash-lite,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
@@ -20,21 +20,21 @@ The report is CSV-like aggregate output:
 
 ```text
 candidate,runs,passed,errors,p50_ms,p95_ms
-openai:gpt-5.4-nano,300,211,0,690.4,1662.1
+openrouter:openai/gpt-5.4-nano,300,211,0,787.5,3054.2
 ```
 
 With `--failure-breakdown`, the command appends aggregate failure-code counts:
 
 ```text
 candidate,sample_index,failure,runs
-openai:gpt-5.4-nano,3,sentence-structure,2
+openrouter:openai/gpt-5.4-nano,3,sentence-structure,2
 ```
 
 With `--category-breakdown`, it also appends category-level aggregate rows:
 
 ```text
 candidate,category,runs,passed,errors,p50_ms,p95_ms
-openai:gpt-5.4-nano,punctuation-structure,50,9,0,735.8,1954.5
+openrouter:openai/gpt-5.4-nano,punctuation-structure,50,9,0,866.0,2093.4
 ```
 
 Reports intentionally do not print raw transcripts, cleaned text, prompts, API
@@ -94,8 +94,7 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 | `inverse-text-normalization` | 4 |
 | `safety-negative` | 3 |
 
-Hugging Face datasets are used as upstream research/provenance only; the default
-benchmark does not download datasets or models at runtime.
+The default benchmark does not download datasets or models at runtime.
 
 ## Wispr Flow Reference Bar
 
@@ -113,24 +112,24 @@ Privacy Mode and Cloud Sync controls. Slovo should not copy that architecture:
 Slovo's audio path remains local, and only already-transcribed text may leave the
 Mac when cloud cleanup is enabled.
 
-## Local Provider Candidates
+## Providers
 
-Two local paths are plausible for the next implementation step:
+The benchmark accepts two provider forms:
 
-- **Embedded MLX Swift / MLX Swift LM.** This is the best fit for a built-in
-  Apple Silicon provider. Apple's MLX project is optimized for unified memory on
-  Apple silicon, and the official Swift examples include LLM apps/tools that
-  download models from Hugging Face and generate text locally.
-- **Ollama localhost adapter.** This is easier to test because it is a local HTTP
-  API with `/api/chat`, `stream: false`, and `keep_alive`, but it is not embedded
-  in Slovo. It is useful as a benchmark candidate or fallback experiment, not as
-  the final built-in provider.
+- `openrouter:<model-id>` sends transcript text to OpenRouter with the selected
+  routed model id and requires `OPENROUTER_API_KEY`.
+- `passthrough` preserves the raw transcript locally and provides a latency and
+  quality floor.
 
-For the first embedded model candidate, prefer a small multilingual Qwen3 model
-in non-thinking mode. Qwen documents broad multilingual support, and its repo
-explicitly calls out MLX support on Apple Silicon. The benchmark should decide
-between `0.6B`, `1.7B`, and larger variants by observed latency and quality on
-Slovo's own samples rather than by model-card claims alone.
+The curated OpenRouter shortlist currently mirrors the app menu:
+
+- `openai/gpt-5.4-nano`
+- `anthropic/claude-haiku-4.5`
+- `google/gemini-2.5-flash-lite`
+
+Ollama remains a useful external experiment because it exposes a local HTTP API
+with `/api/chat`, `stream: false`, and `keep_alive`, but it is not a Slovo
+runtime provider.
 
 ## Sources
 
@@ -138,18 +137,14 @@ Slovo's own samples rather than by model-card claims alone.
 - Wispr Flow data controls: https://wisprflow.ai/data-controls
 - Wispr Flow privacy: https://wisprflow.ai/privacy
 - Wispr Flow release notes: https://wisprflow.ai/whats-new
-- Apple MLX overview: https://opensource.apple.com/projects/mlx
-- MLX Swift: https://github.com/ml-explore/mlx-swift
-- MLX Swift examples: https://github.com/ml-explore/mlx-swift-examples
-- MLX Swift LM: https://github.com/ml-explore/mlx-swift-lm
-- Qwen3 blog: https://qwenlm.github.io/blog/qwen3/
-- Qwen3 repository: https://github.com/qwenLM/qwen3
+- OpenRouter API docs: https://openrouter.ai/docs
+- OpenRouter Chat Completions API: https://openrouter.ai/docs/api-reference/chat-completion
+- OpenRouter model list API: https://openrouter.ai/api/v1/models
 - Ollama API: https://github.com/ollama/ollama/blob/main/docs/api.md
 
 ## Verification
 
-PASS — verified on 2026-06-30 against public Wispr Flow pages and official
-MLX/Qwen/Ollama sources. Wispr internals are not public; statements about its
-implementation are limited to public privacy/data-control text and product
-features. MLX integration details still require an implementation spike against
-the current Swift packages before becoming product code.
+PASS — updated on 2026-07-01 against Slovo's OpenRouter-only cleanup path and a
+live 10-repetition OpenRouter benchmark. Wispr internals are not public; statements
+about its implementation are limited to public privacy/data-control text and
+product features.

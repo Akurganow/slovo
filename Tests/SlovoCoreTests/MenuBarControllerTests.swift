@@ -17,6 +17,15 @@ struct MenuBarControllerTests {
         #expect(MenuBarGlyph.forState(.processing) == "\u{2C34}")
     }
 
+    /// Stated sensitivity: reuse the processing glyph for cleanup degradation or
+    /// forget the error tint -> the status bar cannot tell "inserted as spoken"
+    /// from normal processing.
+    @Test
+    func cleanupUnavailableUsesSadToFailGlyphAndErrorTint() {
+        #expect(MenuBarGlyph.forStatus(.cleanupUnavailableInsertedAsSpoken) == "\u{2C11}")
+        #expect(MenuBarGlyph.tint(forStatus: .cleanupUnavailableInsertedAsSpoken) == .error)
+    }
+
     /// Stated sensitivity: append oldest-first or forget to evict past capacity →
     /// the exact newest-first/capped sequence changes and this goes RED.
     @Test

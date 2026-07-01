@@ -3,6 +3,8 @@
 .build/
 .swiftpm/
 .codex/
+.agentic/project-profile.md
+*_handoff*
 docs/agentic-workflow/
 docs/superpowers/
 DerivedData/

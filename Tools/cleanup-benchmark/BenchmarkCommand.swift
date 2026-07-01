@@ -17,7 +17,14 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     private let makeCandidates:
         @Sendable ([CleanupBenchmarkProviderSpec], [String: String]) throws -> [CleanupBenchmarkCandidate]
     private let runBenchmark:
-        @Sendable ([CleanupBenchmarkCandidate], [CleanupBenchmarkSample], CleanupConfig, PersonalizationContext, Int) async -> CleanupBenchmarkReport
+        @Sendable (
+            [CleanupBenchmarkCandidate],
+            [CleanupBenchmarkSample],
+            CleanupConfig,
+            PersonalizationContext,
+            Int,
+            Int
+        ) async -> CleanupBenchmarkReport
     private let readTextFile: @Sendable (String) throws -> String
     private let readDataFile: @Sendable (String) throws -> Data
 
@@ -33,14 +40,16 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             [CleanupBenchmarkSample],
             CleanupConfig,
             PersonalizationContext,
+            Int,
             Int
-        ) async -> CleanupBenchmarkReport = { candidates, samples, config, context, repetitions in
+        ) async -> CleanupBenchmarkReport = { candidates, samples, config, context, repetitions, warmupRepetitions in
             await CleanupBenchmarkRunner().run(
                 candidates: candidates,
                 samples: samples,
                 config: config,
                 context: context,
-                repetitions: repetitions
+                repetitions: repetitions,
+                warmupRepetitions: warmupRepetitions
             )
         },
         readTextFile: @escaping @Sendable (String) throws -> String = {
@@ -71,7 +80,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 samples,
                 CleanupConfig(model: "selected-per-candidate", writingStyle: options.style, language: .auto),
                 PersonalizationContext(vocabulary: []),
-                options.repetitions
+                options.repetitions,
+                options.warmupRepetitions
             )
             var rendered = CleanupBenchmarkReportFormatter.render(report)
             if options.failureBreakdown {
@@ -96,9 +106,10 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     Usage:
       swift run slovo-cleanup-benchmark
         [--env-file .env]
-        [--providers anthropic:MODEL,openai:MODEL,passthrough]
+        [--providers openrouter:MODEL,passthrough]
         [--samples samples.json]
         [--repetitions N]
+        [--warmup-repetitions N]
         [--style casual|formal|very-casual]
         [--failure-breakdown]
         [--category-breakdown]
@@ -114,15 +125,17 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
     public var envFile: String?
     public var samplesPath: String?
     public var repetitions: Int
+    public var warmupRepetitions: Int
     public var style: WritingStyle
     public var failureBreakdown: Bool
     public var categoryBreakdown: Bool
 
     public init(
-        providers: String = "anthropic:\(Config.defaultAnthropicModel),openai:\(Config.defaultOpenAIModel),passthrough",
+        providers: String = "openrouter:\(Config.defaultOpenRouterModel),passthrough",
         envFile: String? = nil,
         samplesPath: String? = nil,
         repetitions: Int = 1,
+        warmupRepetitions: Int = 0,
         style: WritingStyle = .casual,
         failureBreakdown: Bool = false,
         categoryBreakdown: Bool = false
@@ -131,6 +144,7 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
         self.envFile = envFile
         self.samplesPath = samplesPath
         self.repetitions = repetitions
+        self.warmupRepetitions = warmupRepetitions
         self.style = style
         self.failureBreakdown = failureBreakdown
         self.categoryBreakdown = categoryBreakdown
@@ -153,6 +167,12 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
                     throw CleanupBenchmarkCommandError.invalidValue(argument, value)
                 }
                 options.repetitions = parsed
+            case "--warmup-repetitions":
+                let value = try value(after: argument, from: &iterator)
+                guard let parsed = Int(value), parsed >= 0 else {
+                    throw CleanupBenchmarkCommandError.invalidValue(argument, value)
+                }
+                options.warmupRepetitions = parsed
             case "--style":
                 let value = try value(after: argument, from: &iterator)
                 guard let parsed = WritingStyle(rawValue: value) else {

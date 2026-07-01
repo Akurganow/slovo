@@ -7,33 +7,16 @@ public enum CleanupBenchmarkCandidateFactory {
         environment: [String: String]
     ) throws -> CleanupBenchmarkCandidate {
         switch spec.provider {
-        case .anthropic:
+        case .openRouter:
             let keyProvider = StaticCleanupKeyProvider(
-                key: try key("ANTHROPIC_API_KEY", in: environment)
+                key: try key("OPENROUTER_API_KEY", in: environment)
             )
             return CleanupBenchmarkCandidate(
                 provider: spec.provider.rawValue,
                 model: spec.model,
-                cleaner: CleanupProviderFactory.makeCleaner(
-                    for: .anthropic,
+                cleaner: OpenRouterCleaner(
                     session: .shared,
-                    anthropicKeyProvider: keyProvider,
-                    openAIKeyProvider: StaticCleanupKeyProvider(key: ""),
-                    promptBuilder: PromptBuilder(maxVocabularyTerms: 50)
-                )
-            )
-        case .openAI:
-            let keyProvider = StaticCleanupKeyProvider(
-                key: try key("OPENAI_API_KEY", in: environment)
-            )
-            return CleanupBenchmarkCandidate(
-                provider: spec.provider.rawValue,
-                model: spec.model,
-                cleaner: CleanupProviderFactory.makeCleaner(
-                    for: .openAI,
-                    session: .shared,
-                    anthropicKeyProvider: StaticCleanupKeyProvider(key: ""),
-                    openAIKeyProvider: keyProvider,
+                    keyProvider: keyProvider,
                     promptBuilder: PromptBuilder(maxVocabularyTerms: 50)
                 )
             )
@@ -60,7 +43,7 @@ public enum CleanupBenchmarkCandidateFactoryError: Error, Equatable, Sendable {
     case missingEnvironmentKey(String)
 }
 
-private struct StaticCleanupKeyProvider: AnthropicKeyProvider, OpenAIKeyProvider {
+private struct StaticCleanupKeyProvider: OpenRouterKeyProvider {
     let key: String
 
     func apiKey() throws -> String {

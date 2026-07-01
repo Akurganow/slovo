@@ -8,22 +8,20 @@ transcript text may leave the machine when cloud cleanup is enabled.
 | Data | Location | Network |
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
-| Transcript text | Local process memory | Sent only to the selected cleanup provider when cleanup is enabled |
+| Transcript text | Local process memory | Sent only to OpenRouter when cleanup is enabled |
 | Cleaned text | Local process memory and target app field | Not logged |
-| Provider API keys | macOS Keychain | Used only as authorization headers |
+| OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
 | Clipboard snapshot | Local pasteboard restore path | Never sent |
 
 ## Keychain
 
-Anthropic and OpenAI keys are stored as separate macOS Keychain generic-password
-items:
+The OpenRouter key is stored as a macOS Keychain generic-password item:
 
-- `slovo` / `anthropic-api-key`
-- `slovo` / `openai-api-key`
+- `slovo` / `openrouter-api-key`
 
-The selected key is read once during startup setup and cached in process memory.
-Updating a key through the app writes the new value to Keychain and replaces the
+The key is read once during startup setup and cached in process memory. Updating
+the key through the app writes the new value to Keychain and replaces the
 in-memory copy.
 
 Stable code signing matters. macOS Keychain and privacy permissions use the app's
@@ -65,6 +63,9 @@ fields.
 
 ## Cloud Cleanup
 
-Cloud cleanup is optional and text-only. Turning cleanup off uses local
-pass-through behavior, preserving the recognized words without contacting a
-provider.
+Cleanup is optional and text-only. Turning cleanup off uses local pass-through
+behavior, preserving the recognized words without contacting OpenRouter.
+
+If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
+unusable response, Slovo falls back to the direct transcript and shows a
+transient error glyph instead of dropping the dictation.

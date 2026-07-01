@@ -43,8 +43,7 @@ script runs `notarytool` and `stapler`.
 
 ## Manual L4 Checks
 
-- first launch shows setup only when required permissions or provider keys are
-  missing.
+- first launch shows setup only when required permissions are missing.
 - Microphone, Accessibility, and Input Monitoring prompts or deep links lead to
   the correct System Settings panes.
 - TCC grants survive rebuild when the signing identity is stable.
@@ -56,8 +55,8 @@ script runs `notarytool` and `stapler`.
   clipboard.
 - Offline or refused cleanup falls back to `PassThrough` and preserves the user's
   words.
-- The selected provider key is read from Keychain once at startup and cached in
-  memory for normal cleanup calls.
+- The OpenRouter key is read from Keychain once at startup and cached in memory
+  for normal cleanup calls.
 - `biasTerms` reach the transcriber path on a real on-device run.
 - privacy holds: raw audio stays local, secrets are never logged, and transcript
-  text leaves the machine only through the selected cleanup provider.
+  text leaves the machine only through OpenRouter when cleanup is enabled.

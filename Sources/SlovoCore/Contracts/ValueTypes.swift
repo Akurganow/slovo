@@ -1,5 +1,4 @@
 import AVFoundation
-import Foundation
 
 // Authoritative value types for the dictation pipeline (spec §18.3). These are
 // plain data carriers shared across the seam protocols; behavior lives in the
@@ -51,10 +50,8 @@ public enum WritingStyle: String, Codable, Equatable, Sendable {
     case veryCasual = "very-casual"
 }
 
-/// Cloud cleanup provider selected by configuration.
-public enum CleanupProvider: String, Codable, Equatable, Sendable {
-    case anthropic
-    case openAI = "openai"
+public enum CleanupDefaults {
+    public static let openRouterModel = "openai/gpt-5.4-nano"
 }
 
 /// Tunables for a single cleanup pass.
@@ -63,7 +60,7 @@ public struct CleanupConfig: Equatable, Sendable {
     public var writingStyle: WritingStyle
     public var language: Language
 
-    public init(model: String = "claude-haiku-4-5", writingStyle: WritingStyle, language: Language) {
+    public init(model: String = CleanupDefaults.openRouterModel, writingStyle: WritingStyle, language: Language) {
         self.model = model
         self.writingStyle = writingStyle
         self.language = language

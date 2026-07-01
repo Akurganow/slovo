@@ -1,11 +1,9 @@
-import Foundation
-
 /// A description of what the composition root wired, so AC-1 can assert the shape
 /// without reaching into private fields.
 public struct CompositionSummary: Sendable, Equatable {
     public let transcriberCount: Int
     public let cleanerIsFallback: Bool
-    /// The fallback chain's cleaner kinds, in order (e.g. `["AnthropicCleaner", "PassThrough"]`).
+    /// The fallback chain's cleaner kinds, in order.
     public let fallbackChainKinds: [String]
     public let injectorCount: Int
     public let sourceCount: Int

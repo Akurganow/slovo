@@ -38,6 +38,7 @@ run_stage "swift-test" swift test \
     --config-path "$package_root/.build/swiftpm-config" \
     --security-path "$package_root/.build/swiftpm-security" \
     --disable-automatic-resolution
+run_stage "cleanup-benchmark-cli" Scripts/check-cleanup-benchmark-cli.sh
 run_stage "strict-lint" Scripts/lint.sh
 
 if [ -n "$failures" ]; then

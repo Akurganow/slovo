@@ -1,4 +1,7 @@
-import Foundation
+public enum MenuBarGlyphTint: Equatable, Sendable {
+    case normal
+    case error
+}
 
 public enum MenuBarGlyph {
     public static func forState(_ state: DictationState) -> Character {
@@ -9,6 +12,40 @@ public enum MenuBarGlyph {
             return "\u{2C44}"
         case .processing:
             return "\u{2C34}"
+        }
+    }
+
+    public static func forStatus(_ status: StatusMessage) -> Character? {
+        switch status {
+        case .cleanupUnavailableInsertedAsSpoken:
+            return "\u{2C11}"
+        case .preparingSpeechModel,
+             .cleanupDeclinedInsertedAsSpoken,
+             .accessibilityDenied,
+             .missingKey,
+             .transcriptionFailed,
+             .secureFieldActive,
+             .injectionFailed,
+             .microphoneUnavailable,
+             .cleanupFailed:
+            return nil
+        }
+    }
+
+    public static func tint(forStatus status: StatusMessage) -> MenuBarGlyphTint {
+        switch status {
+        case .cleanupUnavailableInsertedAsSpoken:
+            return .error
+        case .preparingSpeechModel,
+             .cleanupDeclinedInsertedAsSpoken,
+             .accessibilityDenied,
+             .missingKey,
+             .transcriptionFailed,
+             .secureFieldActive,
+             .injectionFailed,
+             .microphoneUnavailable,
+             .cleanupFailed:
+            return .normal
         }
     }
 }

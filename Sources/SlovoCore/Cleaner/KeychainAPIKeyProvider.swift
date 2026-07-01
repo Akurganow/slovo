@@ -2,7 +2,8 @@ import Foundation
 import Security
 import Synchronization
 
-/// Keychain-backed API key storage with a process-local memory cache.
+/// Keychain-backed API key storage with an environment override and
+/// process-local memory cache.
 public final class KeychainAPIKeyProvider: CleanupKeyProvider {
     public enum StoreError: Error, Sendable {
         case emptyKey
@@ -41,7 +42,7 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         if let key = cachedKey.withLock({ $0 }) {
             return key
         }
-        if let key = Self.normalized(readKey() ?? environmentKeyValue()) {
+        if let key = Self.normalized(environmentKeyValue() ?? readKey()) {
             cachedKey.withLock { $0 = key }
             return key
         }
@@ -56,10 +57,7 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         if cachedKey.withLock({ $0 != nil }) {
             return true
         }
-        if keyExists() {
-            return true
-        }
-        return Self.normalized(environmentKeyValue()) != nil
+        return Self.normalized(environmentKeyValue()) != nil || keyExists()
     }
 
     public func store(_ key: String) throws {

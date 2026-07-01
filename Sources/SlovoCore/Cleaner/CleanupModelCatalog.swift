@@ -1,43 +1,36 @@
-import Foundation
-
-/// A selectable cleanup model option for a specific cleanup provider.
+/// A selectable routed cleanup model option.
 public struct CleanupModelOption: Equatable, Sendable {
-    public let provider: CleanupProvider
     public let id: String
     public let displayName: String
 
-    public init(provider: CleanupProvider, id: String, displayName: String) {
-        self.provider = provider
+    public init(id: String, displayName: String) {
         self.id = id
         self.displayName = displayName
     }
 }
 
-/// Provider-specific model options exposed by the app UI.
+/// OpenRouter model options exposed by the app UI.
 public enum CleanupModelCatalog {
-    public static func options(for provider: CleanupProvider) -> [CleanupModelOption] {
-        switch provider {
-        case .anthropic:
-            return [
-                CleanupModelOption(
-                    provider: .anthropic,
-                    id: Config.defaultAnthropicModel,
-                    displayName: "Claude Haiku 4.5"
-                ),
-            ]
-        case .openAI:
-            return [
-                CleanupModelOption(
-                    provider: .openAI,
-                    id: Config.defaultOpenAIModel,
-                    displayName: "GPT-5.4 mini"
-                ),
-                CleanupModelOption(
-                    provider: .openAI,
-                    id: "gpt-5.4-nano",
-                    displayName: "GPT-5.4 nano"
-                ),
-            ]
-        }
+    public static var options: [CleanupModelOption] {
+        openRouterOptions
     }
+
+    public static func displayName(for model: String) -> String {
+        options.first { $0.id == model }?.displayName ?? model
+    }
+
+    private static let openRouterOptions: [CleanupModelOption] = [
+        CleanupModelOption(
+            id: Config.defaultOpenRouterModel,
+            displayName: "GPT-5.4 nano"
+        ),
+        CleanupModelOption(
+            id: "anthropic/claude-haiku-4.5",
+            displayName: "Claude Haiku 4.5"
+        ),
+        CleanupModelOption(
+            id: "google/gemini-2.5-flash-lite",
+            displayName: "Gemini 2.5 Flash Lite"
+        ),
+    ]
 }

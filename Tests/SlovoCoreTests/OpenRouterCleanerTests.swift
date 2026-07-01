@@ -5,16 +5,16 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-@Suite("Cleanup provider OpenAI cleaner")
-struct OpenAICleanerTests {
-    private static let sentinelTranscript = "S3NT1NEL-OPENAI-TRANSCRIPT-72d8-DO-NOT-LOG"
-    private static let sentinelCleaned = "S3NT1NEL-OPENAI-CLEANED-49bc-DO-NOT-LOG"
-    private static let sentinelVocab = "S3NT1NEL-OPENAI-VOCAB-18af-DO-NOT-LOG"
-    private static let sentinelBody = "S3NT1NEL-OPENAI-BODY-65de-DO-NOT-LOG"
-    private static let sentinelKey = "S3NT1NEL-OPENAI-KEY-90c1-DO-NOT-LOG"
+@Suite("Cleanup provider OpenRouter cleaner")
+struct OpenRouterCleanerTests {
+    private static let sentinelTranscript = "S3NT1NEL-OPENROUTER-TRANSCRIPT-2d2b-DO-NOT-LOG"
+    private static let sentinelCleaned = "S3NT1NEL-OPENROUTER-CLEANED-59fe-DO-NOT-LOG"
+    private static let sentinelVocab = "S3NT1NEL-OPENROUTER-VOCAB-bd04-DO-NOT-LOG"
+    private static let sentinelBody = "S3NT1NEL-OPENROUTER-BODY-d09b-DO-NOT-LOG"
+    private static let sentinelKey = "S3NT1NEL-OPENROUTER-KEY-18e7-DO-NOT-LOG"
 
     private static var config: CleanupConfig {
-        CleanupConfig(model: "gpt-5.4-mini", writingStyle: .casual, language: .auto)
+        CleanupConfig(model: "openai/gpt-5.4-nano", writingStyle: .casual, language: .auto)
     }
 
     private static var context: PersonalizationContext {
@@ -24,19 +24,20 @@ struct OpenAICleanerTests {
     private static func successBody(text: String) -> Data {
         Data(
             """
-            {"output":[{"content":[{"type":"output_text","text":"\(text)"}]}]}
+            {"choices":[{"message":{"role":"assistant","content":"\(text)"}}]}
             """.utf8
         )
     }
 
-    /// Stated sensitivity: use Chat Completions, omit `instructions`, omit
-    /// `store=false`, or hard-code the model -> the recorded request shape fails.
+    /// Stated sensitivity: using the old OpenAI Responses endpoint/body, omitting
+    /// the configured routed model, or sending an unauthenticated request makes
+    /// the recorded request-shape assertions go RED.
     @Test
-    func outboundRequestUsesResponsesShapeAndConfiguredModel() async throws {
+    func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
-        let cleaner = OpenAICleaner(
+        let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
-            keyProvider: FakeOpenAIKeyProvider(.success("synthetic-openai-key")),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         )
 
@@ -44,29 +45,32 @@ struct OpenAICleanerTests {
 
         try #require(scenario.recordedRequests.count == 1, "exactly one request expected")
         let (request, body) = scenario.recordedRequests[0]
-        #expect(request.url?.absoluteString == "https://api.openai.com/v1/responses")
-        #expect(request.value(forHTTPHeaderField: "authorization") == "Bearer synthetic-openai-key")
+        #expect(request.url?.absoluteString == "https://openrouter.ai/api/v1/chat/completions")
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "authorization") == "Bearer synthetic-openrouter-key")
         #expect(request.value(forHTTPHeaderField: "content-type") == "application/json")
+        #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/slovo-app/slovo")
+        #expect(request.value(forHTTPHeaderField: "X-Title") == "Slovo")
+        #expect(request.timeoutInterval == 30)
 
-        let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
-        #expect(json?["model"] as? String == "gpt-5.4-mini")
-        #expect(json?["input"] as? String == "raw transcript")
-        #expect(json?["store"] as? Bool == false,
-                "cleanup calls must not ask the provider to retain responses")
-        #expect(json?["temperature"] as? Double == 0,
-                "cleanup requests must use deterministic decoding")
-        let instructions = json?["instructions"] as? String
-        #expect(instructions?.contains("Return only the cleaned transcript") == true)
+        let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["model"] as? String == "openai/gpt-5.4-nano")
+        #expect(json["temperature"] as? Double == 0)
+        #expect(json["max_tokens"] as? Int == 1_024)
+        let messages = try #require(json["messages"] as? [[String: String]])
+        #expect(messages.map(\.["role"]) == ["system", "user"])
+        #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
+        #expect(messages.last?["content"] == "raw transcript")
     }
 
-    /// Stated sensitivity: parse only an SDK-only `output_text` convenience field
-    /// or the first top-level item instead of content text -> this returns empty.
+    /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
+    /// reading the wrong Chat Completions field, returns no cleaned text.
     @Test
-    func success200ReturnsOutputTextContent() async throws {
+    func success200ReturnsAssistantMessageContent() async throws {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned prose")))
-        let cleaner = OpenAICleaner(
+        let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
-            keyProvider: FakeOpenAIKeyProvider(.success("synthetic-openai-key")),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         )
 
@@ -80,9 +84,9 @@ struct OpenAICleanerTests {
     @Test
     func failClosedSendsExactlyOneRequest() async {
         let scenario = StubScenario(response: .transportError(URLError(.timedOut)))
-        let cleaner = OpenAICleaner(
+        let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
-            keyProvider: FakeOpenAIKeyProvider(.success("synthetic-openai-key")),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         )
 
@@ -92,19 +96,54 @@ struct OpenAICleanerTests {
                 "fail-closed: exactly one outbound POST, got \(scenario.recordedRequests.count)")
     }
 
-    /// Stated sensitivity: map 429 to generic apiError -> the `.rateLimited`
-    /// match fails and the fallback chain cannot distinguish throttling.
+    /// Stated sensitivity: mapping 429 to generic apiError makes the fallback
+    /// chain lose throttling information.
     @Test
     func http429MapsToRateLimited() async {
         let scenario = StubScenario(response: .http(status: 429, headers: ["retry-after": "5"], body: Data()))
-        let cleaner = OpenAICleaner(
+        let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
-            keyProvider: FakeOpenAIKeyProvider(.success("synthetic-openai-key")),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         )
 
         await Self.expectThrows(cleaner) { error in
-            guard case .rateLimited = error else { return "expected .rateLimited, got \(error)" }
+            guard case .rateLimited(let retryAfter) = error else { return "expected .rateLimited, got \(error)" }
+            guard retryAfter == 5 else { return "expected retry-after 5, got \(String(describing: retryAfter))" }
+            return nil
+        }
+    }
+
+    /// Stated sensitivity: letting a raw DecodingError escape on malformed 2xx
+    /// bypasses `FallbackCleaner`'s CleanupError degradation path.
+    @Test
+    func malformed200MapsToCleanupError() async {
+        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data("{}".utf8)))
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .apiError(status: 200) = error else { return "expected .apiError(status: 200), got \(error)" }
+            return nil
+        }
+    }
+
+    /// Stated sensitivity: a key-sourcing error must not become offline/apiError
+    /// or carry the key value into the thrown error.
+    @Test
+    func keySourcingFailureMapsToMissingKey() async {
+        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.failure(.missingKey)),
+            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .missingKey = error else { return "expected .missingKey, got \(error)" }
             return nil
         }
     }
@@ -112,12 +151,12 @@ struct OpenAICleanerTests {
     /// Stated sensitivity: remove the provider cache -> two cleanup calls invoke
     /// the secret reader twice and can trigger repeated Keychain prompts.
     @Test
-    func openAIKeyProviderCachesSecretAcrossCleanupCalls() async throws {
+    func openRouterKeyProviderCachesSecretAcrossCleanupCalls() async throws {
         let reads = Mutex<Int>(0)
-        let keyProvider = KeychainOpenAIKeyProvider(
+        let keyProvider = KeychainOpenRouterKeyProvider(
             readKey: {
                 reads.withLock { $0 += 1 }
-                return "synthetic-openai-key"
+                return "synthetic-openrouter-key"
             },
             keyExists: { true },
             writeKey: { _ in }
@@ -125,51 +164,51 @@ struct OpenAICleanerTests {
         let first = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
         let second = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))
 
-        _ = try await OpenAICleaner(
+        _ = try await OpenRouterCleaner(
             session: first.makeSession(),
             keyProvider: keyProvider,
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         ).clean("raw one", config: Self.config, context: Self.context)
-        _ = try await OpenAICleaner(
+        _ = try await OpenRouterCleaner(
             session: second.makeSession(),
             keyProvider: keyProvider,
             promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
         ).clean("raw two", config: Self.config, context: Self.context)
 
         #expect(reads.withLock { $0 } == 1,
-                "one process-scoped OpenAI key provider must read the Keychain secret once")
+                "one process-scoped OpenRouter key provider must read the Keychain secret once")
     }
 
-    /// Stated sensitivity: log the OpenAI request body, response body, output, or
-    /// bearer key -> the matching synthetic sentinel reaches the capturing sink.
+    /// Stated sensitivity: logging the request body, response body, output, or
+    /// bearer key makes the matching synthetic sentinel reach the capturing sink.
     @Test
-    func openAIPayloadChannelsNeverReachLog() async {
+    func openRouterPayloadChannelsNeverReachLog() async {
         let body = Data(#"{"error":{"message":"\#(Self.sentinelBody)"}}"#.utf8)
-        let cases: [(String, FakeOpenAIKeyProvider.Outcome, StubResponse, String, [Term])] = [
+        let cases: [(String, FakeOpenRouterKeyProvider.Outcome, StubResponse, String, [Term])] = [
             (
                 "transcript",
-                .success("synthetic-openai-key"),
+                .success("synthetic-openrouter-key"),
                 .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")),
                 Self.sentinelTranscript,
                 []
             ),
             (
                 "cleaned-output",
-                .success("synthetic-openai-key"),
+                .success("synthetic-openrouter-key"),
                 .http(status: 200, headers: [:], body: Self.successBody(text: Self.sentinelCleaned)),
                 "raw",
                 []
             ),
             (
                 "vocabulary",
-                .success("synthetic-openai-key"),
+                .success("synthetic-openrouter-key"),
                 .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")),
                 "raw",
                 [Term(term: Self.sentinelVocab, expansion: nil, lang: .en, weight: 9)]
             ),
             (
                 "error-body",
-                .success("synthetic-openai-key"),
+                .success("synthetic-openrouter-key"),
                 .http(status: 400, headers: [:], body: body),
                 "raw",
                 []
@@ -191,25 +230,26 @@ struct OpenAICleanerTests {
                 vocabulary: vocabulary
             )
             let joined = lines.joined(separator: "\n")
+            #expect(!lines.isEmpty, "OpenRouter \(channel) must emit coarse logs so this redaction guard is non-vacuous")
             for sentinel in [Self.sentinelTranscript, Self.sentinelCleaned, Self.sentinelVocab, Self.sentinelBody, Self.sentinelKey] {
                 #expect(!joined.contains(sentinel),
-                        "REDACTION LEAK on OpenAI \(channel): sentinel reached log sink:\n\(joined)")
+                        "REDACTION LEAK on OpenRouter \(channel): sentinel reached log sink:\n\(joined)")
             }
         }
     }
 
     private static func capturedLogLines(
-        keyOutcome: FakeOpenAIKeyProvider.Outcome,
+        keyOutcome: FakeOpenRouterKeyProvider.Outcome,
         stub: StubResponse,
         raw: String,
         vocabulary: [Term]
     ) async -> [String] {
         let scenario = StubScenario(response: stub)
         var captured: [String] = []
-        let log = RedactionSafeLog(subsystem: "slovo", category: "openai-cleaner-test") { captured.append($0) }
-        let cleaner = OpenAICleaner(
+        let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
+        let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
-            keyProvider: FakeOpenAIKeyProvider(keyOutcome),
+            keyProvider: FakeOpenRouterKeyProvider(keyOutcome),
             promptBuilder: PromptBuilder(maxVocabularyTerms: 8),
             log: log
         )
@@ -222,7 +262,7 @@ struct OpenAICleanerTests {
     }
 
     private static func expectThrows(
-        _ cleaner: OpenAICleaner,
+        _ cleaner: OpenRouterCleaner,
         _ check: (CleanupError) -> String?
     ) async {
         do {

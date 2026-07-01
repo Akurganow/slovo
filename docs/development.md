@@ -62,12 +62,12 @@ This command is expected to fail. It proves the gate can go red when armed.
 
 ## Cleanup Benchmark
 
-Compare cleanup providers with the non-product benchmark executable:
+Compare cleanup candidates with the non-product benchmark executable:
 
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers anthropic:claude-haiku-4-5,openai:gpt-5.4-nano \
+  --providers openrouter:openai/gpt-5.4-nano,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-2.5-flash-lite,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
@@ -76,9 +76,11 @@ swift run --disable-automatic-resolution slovo-cleanup-benchmark \
 The benchmark reads API keys from environment variables or the optional env file,
 not from Keychain. It prints aggregate latency, quality counts, and optional
 failure-code counts only; transcripts and cleaned output stay out of the report.
+OpenRouter candidates require `OPENROUTER_API_KEY`; `passthrough` is the local
+baseline and does not read network credentials.
 
 See [cleanup-benchmark.md](references/cleanup-benchmark.md) for sample-file
-format and local-provider research notes.
+format and benchmark reporting notes.
 
 ## Packaging
 
@@ -96,4 +98,4 @@ The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set.
 - Do not commit local databases, seed files, dotenv files, signing keys, tokens,
   or credential bundles.
 - Keep workflow scratch notes outside Git.
-- Update public docs when setup, privacy, packaging, or provider behavior changes.
+- Update public docs when setup, privacy, packaging, or cleanup behavior changes.

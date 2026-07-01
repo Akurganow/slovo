@@ -64,9 +64,8 @@ struct AppRuntimeSourceGuardTests {
         let hasConfiguredKeyBody = try Self.functionBody(named: "hasConfiguredKey", in: keyProvider)
         let keychainItemExistsBody = try Self.functionBody(named: "keychainItemExists", in: keyProvider)
 
-        #expect(makeLiveBody.contains("cleanupProvider: config.cleanupProvider"))
-        #expect(makeLiveBody.contains("hasAnthropicKey: anthropicKeyProvider.hasConfiguredKey()"))
-        #expect(makeLiveBody.contains("hasOpenAIKey: openAIKeyProvider.hasConfiguredKey()"))
+        #expect(makeLiveBody.contains("FirstRunFlow.pendingSteps("))
+        #expect(!makeLiveBody.contains("hasOpenRouterKey"))
         #expect(!Self.withoutStringLiterals(makeLiveBody).contains("keyProvider.apiKey()"))
         #expect(hasConfiguredKeyBody.contains("keyExists()"))
         for forbidden in ["apiKey()", "keychainKey()", "kSecReturnData"] {
@@ -83,63 +82,83 @@ struct AppRuntimeSourceGuardTests {
     }
 
     @Test
-    func readyPipelinePreloadsKeyBeforeHotkeyStart() throws {
+    func readyPipelineDoesNotRequireCleanupKeyBeforeHotkeyStart() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
 
         #expect(Self.containsInOrder([
             "guard live.onboardingSteps == [.ready] else",
-            "try live.selectedKeyProvider.preload()",
+            "live.openRouterKeyProvider.preload()",
             "try live.hotkeyMonitor.start()",
         ], in: startPipelineBody))
+        #expect(!startPipelineBody.contains("try live.openRouterKeyProvider.preload()"))
     }
 
     @Test
-    func appMenuCanSwitchCleanupProviderAndSelectProviderModels() throws {
+    func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
-        let providerMenuBody = try Self.functionBody(named: "cleanupProviderMenu", in: cleanupMenu)
-        let selectProviderBody = try Self.functionBody(named: "selectCleanupProvider", in: cleanupMenu)
         let modelMenuBody = try Self.functionBody(named: "modelMenu", in: cleanupMenu)
         let selectCleanupModelBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
 
-        #expect(menuBody.contains("cleanupProviderMenu(config: config)"))
-        #expect(menuBody.contains(#"modelMenu(title: "Anthropic Model""#))
-        #expect(menuBody.contains(#"modelMenu(title: "OpenAI Model""#))
+        #expect(!menuBody.contains("cleanupProviderMenu(config: config)"))
+        #expect(!menuBody.contains(#"modelMenu(title: "Anthropic Model""#))
+        #expect(!menuBody.contains(#"modelMenu(title: "OpenAI Model""#))
+        #expect(menuBody.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName"#))
+        #expect(menuBody.contains("selectedModel: config.openRouterModel"))
+        #expect(!menuBody.contains(#"modelMenu(title: "Local Model""#))
         #expect(!delegate.contains("Use Anthropic Cleanup"))
         #expect(!delegate.contains("Use OpenAI Cleanup"))
         #expect(!delegate.contains("promptForModel"))
         #expect(!delegate.contains("Set Anthropic Model"))
         #expect(!delegate.contains("Set OpenAI Model"))
-        #expect(providerMenuBody.contains("item.representedObject = provider"))
-        #expect(providerMenuBody.contains("item.state = provider == config.cleanupProvider ? .on : .off"))
-        #expect(selectProviderBody.contains("sender.representedObject as? CleanupProvider"))
-        #expect(selectProviderBody.contains("config.cleanupProvider = provider"))
-        #expect(modelMenuBody.contains("CleanupModelCatalog.options(for: provider)"))
+        #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
+        #expect(modelMenuBody.contains(#"actionItem("Custom Model...", #selector(promptForCustomCleanupModel))"#))
         #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))
-        #expect(selectCleanupModelBody.contains("config.anthropicModel = option.id"))
-        #expect(selectCleanupModelBody.contains("config.openAIModel = option.id"))
+        #expect(selectCleanupModelBody.contains("config.openRouterModel = option.id"))
     }
 
     @Test
-    func transientProgressStatusDoesNotBecomeSticky() throws {
+    func appRuntimeDoesNotLinkOrWarmLocalCleanupModels() throws {
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let makeLiveBody = try Self.functionBody(named: "makeLive", in: composition)
+
+        #expect(!composition.contains("import SlovoLocalModels"))
+        #expect(!composition.contains("MLXCleaner("))
+        #expect(!makeLiveBody.contains("localCleanupModel"))
+        #expect(!delegate.contains("startLocalCleanupModelWarmupIfNeeded"))
+        #expect(!delegate.contains("preparingCleanupModel"))
+        #expect(!delegate.contains("cleanupModelReady"))
+    }
+
+    @Test
+    func transientProgressAndSadToFailStatusDoNotBecomeSticky() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
         let showStatusBody = try Self.functionBody(named: "showStatus", in: delegate)
 
         #expect(!StatusMessage.preparingSpeechModel.isPersistentNotice)
-        #expect(StatusMessage.cleanupFailed.isPersistentNotice)
+        #expect(StatusMessage.cleanupUnavailableInsertedAsSpoken.isSadToFailNotice)
+        #expect(!StatusMessage.cleanupUnavailableInsertedAsSpoken.isPersistentNotice)
         #expect(Self.containsStatement(
-            #"guard status\.isPersistentNotice \|\| isPipelineActive else \{ return \}"#,
+            #"guard status\.isPersistentNotice \|\| status\.isSadToFailNotice \|\| isPipelineActive else \{"#,
             in: showStatusBody
         ))
         #expect(Self.containsInOrder([
             "if status.isPersistentNotice",
             "didShowPipelineStatus = true",
             "statusTextItem?.title",
+        ], in: showStatusBody))
+        #expect(Self.containsInOrder([
+            "if status.isSadToFailNotice",
+            "setStatusGlyph(status",
+            "Task { @MainActor",
+            "try? await Task.sleep(for: .seconds(5))",
+            "setStatusGlyph(.idle",
         ], in: showStatusBody))
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*false"#, in: startPipelineBody) == 1)
@@ -149,8 +168,9 @@ struct AppRuntimeSourceGuardTests {
         ], in: startPipelineBody))
         #expect(Self.containsInOrder([
             "await orchestrator.awaitPipelineDrain()",
-            "self?.setStatusGlyph(.idle",
             "self?.isPipelineActive = false",
+            "if self?.isShowingSadToFailStatus == false",
+            "self?.setStatusGlyph(.idle",
             "if self?.didShowPipelineStatus == false",
         ], in: startPipelineBody))
     }

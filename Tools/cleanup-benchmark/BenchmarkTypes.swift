@@ -1,4 +1,4 @@
-import Foundation
+import Dispatch
 import SlovoCore
 
 public struct TimedCleanupOutput: Equatable, Sendable {
