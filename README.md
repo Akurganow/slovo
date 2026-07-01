@@ -94,6 +94,15 @@ validated through this benchmark.
 
 ## Run Locally
 
+For a fast unsigned development launch, build and open a staged menu-bar bundle:
+
+```sh
+script/build_and_run.sh --verify
+```
+
+The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`, opens
+it, and verifies that the `slovo` process is running.
+
 Package and sign the app with a stable identity:
 
 ```sh

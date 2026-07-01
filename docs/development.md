@@ -13,6 +13,17 @@
 swift build --disable-automatic-resolution
 ```
 
+## Run
+
+```sh
+script/build_and_run.sh --verify
+```
+
+The development run script rebuilds the `slovo` product, stages
+`.build/dev-run/Slovo.app`, opens the menu-bar app, and verifies that the
+`slovo` process is running. Use the signing path below when testing TCC
+permission persistence or release packaging.
+
 ## Test
 
 ```sh
