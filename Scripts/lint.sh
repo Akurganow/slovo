@@ -127,7 +127,8 @@ run_swiftlint_analyze() {
 run_stage "explicit-target-imports" swift_build_resolved \
     --explicit-target-dependency-import-check error
 
-for script in Scripts/*.sh; do
+for script in Scripts/*.sh script/*.sh; do
+    [ -f "$script" ] || continue
     run_stage "bash-syntax:$script" bash -n "$script"
 done
 

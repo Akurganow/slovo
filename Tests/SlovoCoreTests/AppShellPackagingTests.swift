@@ -11,6 +11,10 @@ struct AppShellPackagingTests {
             contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/main.swift").path,
             encoding: .utf8
         ))
+        let appMainMenu = try Self.strippingComments(from: String(
+            contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/AppMainMenu.swift").path,
+            encoding: .utf8
+        ))
         let delegate = try Self.strippingComments(from: String(
             contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/AppDelegate.swift").path,
             encoding: .utf8
@@ -21,6 +25,10 @@ struct AppShellPackagingTests {
         ))
 
         #expect(main.contains("setActivationPolicy(.accessory)"))
+        #expect(main.contains("app.mainMenu = AppMainMenu.make()"))
+        #expect(appMainMenu.contains(#"NSMenu(title: "Edit")"#))
+        #expect(appMainMenu.contains(#"#selector(NSText.paste(_:))"#))
+        #expect(appMainMenu.contains(#"#selector(NSText.selectAll(_:))"#))
         #expect(delegate.contains("NSStatusItem"))
         #expect(delegate.contains("setStatusGlyph(.idle"))
         #expect(glyph.contains("NotoSansGlagolitic-Regular"))
