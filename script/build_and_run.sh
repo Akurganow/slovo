@@ -6,6 +6,7 @@ APP_NAME="Slovo"
 PROCESS_NAME="slovo"
 BUNDLE_ID="com.slovo.app"
 SUBSYSTEM="com.slovo.app"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_CACHE_DIR="$ROOT_DIR/.build/swiftpm-cache"
@@ -43,6 +44,51 @@ stage_bundle() {
   cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
 }
 
+available_signing_identities() {
+  security find-identity -v -p codesigning | awk -F'"' '/[)] [A-F0-9]+ "/ { print $2 }'
+}
+
+resolve_signing_identity() {
+  if [[ -n "$SIGNING_IDENTITY" ]]; then
+    printf '%s\n' "$SIGNING_IDENTITY"
+    return
+  fi
+
+  local identities preferred count
+  identities="$(available_signing_identities)"
+  preferred="$(printf '%s\n' "$identities" | grep -Fx "Slovo Local Development" || true)"
+  if [[ -n "$preferred" ]]; then
+    printf '%s\n' "$preferred"
+    return
+  fi
+
+  count="$(printf '%s\n' "$identities" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [[ "$count" == "1" ]]; then
+    printf '%s\n' "$identities"
+    return
+  fi
+
+  if [[ "${ALLOW_AD_HOC_SIGNING:-0}" == "1" ]]; then
+    printf '%s\n' "-"
+    return
+  fi
+
+  echo "SIGNING_IDENTITY is required for TCC-stable development launches." >&2
+  echo "Set SIGNING_IDENTITY or ALLOW_AD_HOC_SIGNING=1 for non-persistent permission tests." >&2
+  exit 64
+}
+
+sign_bundle() {
+  local identity
+  identity="$(resolve_signing_identity)"
+  codesign \
+    --force \
+    --options runtime \
+    --entitlements "$ROOT_DIR/slovo.entitlements" \
+    --sign "$identity" \
+    "$APP_BUNDLE"
+}
+
 stop_app() {
   pkill -x "$PROCESS_NAME" >/dev/null 2>&1 || true
 }
@@ -71,6 +117,7 @@ usage() {
 stop_app
 build_app
 stage_bundle
+sign_bundle
 
 case "$MODE" in
   run)

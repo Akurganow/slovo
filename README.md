@@ -94,14 +94,16 @@ validated through this benchmark.
 
 ## Run Locally
 
-For a fast unsigned development launch, build and open a staged menu-bar bundle:
+For a fast signed development launch, build and open a staged menu-bar bundle:
 
 ```sh
 script/build_and_run.sh --verify
 ```
 
-The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`, opens
-it, and verifies that the `slovo` process is running.
+The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`, signs
+it with a stable local code-signing identity and the app entitlements, opens it,
+and verifies that the `slovo` process is running. Stable signing is required for
+macOS TCC permission persistence.
 
 Package and sign the app with a stable identity:
 

@@ -3,7 +3,9 @@ import SlovoCore
 import os
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private static let setupAlertStepsKey = "setup.alert.steps"
+
     private let logger: Logger
     let defaults: UserDefaults
     private var statusItem: NSStatusItem?
@@ -12,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var didShowPipelineStatus = false
     private var isPipelineActive = false
     private var isShowingSadToFailStatus = false
+    private var onboardingSteps: [OnboardingStep] = []
     private var sadToFailResetTask: Task<Void, Never>?
 
     init(logger: Logger, defaults: UserDefaults = .standard) {
@@ -68,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 logger.info("onboarding pending")
                 return
             }
+            defaults.removeObject(forKey: Self.setupAlertStepsKey)
             try? live.openRouterKeyProvider.preload()
             live.hotkeyMonitor.onTrigger = { [weak self, orchestrator = live.orchestrator] phase in
                 Task {
@@ -125,13 +129,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func presentOnboarding(_ steps: [OnboardingStep]) {
+        onboardingSteps = steps
         statusTextItem?.title = "Status: Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
-        showOnboardingAlert(for: steps)
+        showOnboardingAlertIfNeeded(for: steps)
     }
 
     private func makeOnboardingMenu(for steps: [OnboardingStep]) -> NSMenu {
         let menu = NSMenu()
+        menu.delegate = self
         let title = NSMenuItem(title: "Slovo Setup Required", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
@@ -150,6 +156,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return menu
     }
 
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        refreshOnboardingMenuIfNeeded()
+    }
+
+    private func refreshOnboardingMenuIfNeeded() {
+        let latestSteps = FirstRunFlow.pendingSteps(permissions: SystemPermissionPreflighter().preflight())
+        guard latestSteps != onboardingSteps else { return }
+        onboardingSteps = latestSteps
+        if latestSteps == [.ready] {
+            retrySetup()
+        } else {
+            statusItem?.menu = makeOnboardingMenu(for: latestSteps)
+        }
+    }
+
     func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
@@ -166,6 +187,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             await requestPrimaryOnboardingStep(steps)
         }
+    }
+
+    private func showOnboardingAlertIfNeeded(for steps: [OnboardingStep]) {
+        let signature = steps.map(Self.title(for:)).joined(separator: "|")
+        guard defaults.string(forKey: Self.setupAlertStepsKey) != signature else { return }
+        defaults.set(signature, forKey: Self.setupAlertStepsKey)
+        showOnboardingAlert(for: steps)
     }
 
     private func requestPrimaryOnboardingStep(_ steps: [OnboardingStep]) async {
