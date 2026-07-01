@@ -127,10 +127,6 @@ The curated OpenRouter shortlist currently mirrors the app menu:
 - `anthropic/claude-haiku-4.5`
 - `google/gemini-2.5-flash-lite`
 
-Ollama remains a useful external experiment because it exposes a local HTTP API
-with `/api/chat`, `stream: false`, and `keep_alive`, but it is not a Slovo
-runtime provider.
-
 ## Sources
 
 - Wispr Flow features: https://wisprflow.ai/features
@@ -140,7 +136,6 @@ runtime provider.
 - OpenRouter API docs: https://openrouter.ai/docs
 - OpenRouter Chat Completions API: https://openrouter.ai/docs/api-reference/chat-completion
 - OpenRouter model list API: https://openrouter.ai/api/v1/models
-- Ollama API: https://github.com/ollama/ollama/blob/main/docs/api.md
 
 ## Verification
 

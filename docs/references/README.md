@@ -24,8 +24,7 @@ depends on. The personalization seed data lives under `../../data/` and is
 | [asr-apple-speech.md](asr-apple-speech.md) | `SpeechAnalyzer` / `SpeechTranscriber` / `AssetInventory` on-device STT (macOS 26+); `ru_RU` | Apple Speech framework + WWDC25 277 | ASR — provisional default (§18.1); I3 gate |
 | [asr-whisperkit.md](asr-whisperkit.md) | WhisperKit (`argmax-oss-swift`, product `WhisperKit`) on-device Whisper CoreML/ANE | github.com/argmaxinc/argmax-oss-swift + HF whisperkit-coreml | ASR backend (bake-off) |
 | [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | ASR candidate (I3 code-switching favorite) |
-| [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, Wispr Flow reference bar, OpenRouter-routed candidates | Wispr Flow pages + OpenRouter/Ollama sources | Cleanup comparison harness |
-| [cleanup-ollama.md](cleanup-ollama.md) | Ollama local HTTP API (`/api/chat`, `keep_alive`); not-running detection | github.com/ollama/ollama docs + docs.ollama.com | Local cleanup fallback (deferred past v1) |
+| [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, Wispr Flow reference bar, OpenRouter-routed candidates | Wispr Flow pages + OpenRouter sources | Cleanup comparison harness |
 | [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE` | github.com/groue/GRDB.swift (DocC) | Personalization store (§8.6) |
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `Injector` (§3/§11) |
 | [menubar-packaging.md](menubar-packaging.md) | `NSStatusItem`, `LSUIElement`/`.accessory`, codesign/notarization, sandbox↔Accessibility conflict | Apple AppKit + Developer ID / App Sandbox docs | App shell + packaging (§9) |
@@ -53,8 +52,8 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 | asr-whisperkit.md | PASS | Package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |
+| menubar-status-ui.md | PASS | Glagolitic status glyphs render through bundled Noto Sans Glagolitic when pinned explicitly |
 | storage-grdb.md | PASS | `DatabaseQueue` default = DELETE/rollback (WAL only via `Configuration.journalMode=.wal`) |
-| cleanup-ollama.md | PASS | API shapes / `keep_alive` semantics confirmed |
 | text-injection.md | PASS | Signatures (`CGEvent` keyboard init, `IsSecureEventInputEnabled`, nspasteboard markers) confirmed |
 | audio-capture.md | PARTIAL→fixed | **`audio-input` entitlement required under Hardened Runtime**; `installTap` deprecated (macOS 27) → `installAudioTap` |
 | macos-fn-hotkey.md | PARTIAL→fixed | enum/flag integers all correct; "active⇒Accessibility" is practitioner-observed, not Apple doctrine → preflight both |
