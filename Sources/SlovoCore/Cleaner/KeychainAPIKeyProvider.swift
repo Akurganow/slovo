@@ -49,10 +49,6 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         throw CleanupError.missingKey
     }
 
-    public func preload() throws {
-        _ = try apiKey()
-    }
-
     public func hasConfiguredKey() -> Bool {
         if cachedKey.withLock({ $0 != nil }) {
             return true

@@ -35,10 +35,6 @@ public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider, Cleanup
         try storage.apiKey()
     }
 
-    public func preload() throws {
-        try storage.preload()
-    }
-
     public func hasConfiguredKey() -> Bool {
         storage.hasConfiguredKey()
     }

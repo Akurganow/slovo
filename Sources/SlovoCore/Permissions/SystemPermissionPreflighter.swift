@@ -1,11 +1,8 @@
 import ApplicationServices
 import AVFoundation
 import CoreGraphics
-import Foundation
 
-/// Real TCC implementation of `PermissionPreflighter` (P22): checks all three
-/// permissions independently so slovo degrades gracefully if any is missing,
-/// rather than assuming Accessibility implies the rest.
+/// Real TCC implementation of `PermissionPreflighter`.
 ///
 /// L4: the grant prompts are exercised on a clean machine via the runbook.
 public struct SystemPermissionPreflighter: PermissionPreflighter {

@@ -17,6 +17,8 @@ struct AppRuntimeSourceGuardTests {
         let requestInputMonitoringBody = try Self.functionBody(named: "requestInputMonitoringAccess", in: systemPermissions)
         let requestBody = try Self.functionBody(named: "requestPermission", in: delegate)
         let primaryBody = try Self.functionBody(named: "requestPrimaryOnboardingStep", in: delegate)
+        let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
+        let hotkeyMenuBody = try Self.functionBody(named: "makeHotkeyRecoveryMenu", in: delegate)
 
         #expect(permissions.contains("public enum SystemPermission: Equatable, Sendable"))
         #expect(permissions.contains("func request(_ permission: SystemPermission) async -> Bool"))
@@ -50,7 +52,18 @@ struct AppRuntimeSourceGuardTests {
         ], in: requestBody))
         #expect(primaryBody.contains("await requestPermission(.microphone"))
         #expect(primaryBody.contains("await requestPermission(.accessibility"))
-        #expect(primaryBody.contains("await requestPermission(.inputMonitoring"))
+        #expect(!primaryBody.contains("await requestPermission(.inputMonitoring"))
+        #expect(Self.containsInOrder([
+            "do",
+            "try live.hotkeyMonitor.start()",
+            "catch",
+            "presentHotkeyRecovery()",
+        ], in: startPipelineBody))
+        #expect(hotkeyMenuBody.contains("Request Input Monitoring Access"))
+        #expect(hotkeyMenuBody.contains("#selector(openInputMonitoringSettings)"))
+        #expect(delegate.contains("showHotkeyRecoveryAlertIfNeeded"))
+        #expect(delegate.contains("Slovo could not start the hold-to-talk hotkey."))
+        #expect(!delegate.contains("Slovo needs setup before dictation starts.\\nInput Monitoring"))
         #expect(delegate.contains("NSMenuDelegate"))
         #expect(delegate.contains("menu.delegate = self"))
         #expect(delegate.contains("func menuNeedsUpdate(_ menu: NSMenu)"))
@@ -98,10 +111,10 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(Self.containsInOrder([
             "guard live.onboardingSteps == [.ready] else",
-            "live.openRouterKeyProvider.preload()",
             "try live.hotkeyMonitor.start()",
         ], in: startPipelineBody))
-        #expect(!startPipelineBody.contains("try live.openRouterKeyProvider.preload()"))
+        #expect(!startPipelineBody.contains("openRouterKeyProvider.preload()"),
+                "launch must not read the Keychain secret; cleanup reads it lazily when needed")
     }
 
     @Test

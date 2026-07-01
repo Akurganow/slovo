@@ -5,6 +5,7 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let setupAlertStepsKey = "setup.alert.steps"
+    private static let hotkeyAlertShownKey = "hotkey.alert.shown"
 
     private let logger: Logger
     let defaults: UserDefaults
@@ -72,7 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return
             }
             defaults.removeObject(forKey: Self.setupAlertStepsKey)
-            try? live.openRouterKeyProvider.preload()
             live.hotkeyMonitor.onTrigger = { [weak self, orchestrator = live.orchestrator] phase in
                 Task {
                     switch phase {
@@ -105,8 +105,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     }
                 }
             }
-            try live.hotkeyMonitor.start()
-            logger.info("production composition started")
+            do {
+                try live.hotkeyMonitor.start()
+                defaults.removeObject(forKey: Self.hotkeyAlertShownKey)
+                logger.info("production composition started")
+            } catch {
+                presentHotkeyRecovery()
+                logger.error("hotkey monitor failed")
+            }
         } catch {
             logger.error("production composition failed")
         }
@@ -147,9 +153,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if steps.contains(.requestAccessibility) {
             menu.addItem(actionItem("Request Accessibility Access", #selector(openAccessibilitySettings)))
         }
-        if steps.contains(.requestInputMonitoring) {
-            menu.addItem(actionItem("Request Input Monitoring Access", #selector(openInputMonitoringSettings)))
-        }
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Retry Setup", #selector(retrySetup)))
+        menu.addItem(NSMenuItem(title: "Quit Slovo", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        return menu
+    }
+
+    private func presentHotkeyRecovery() {
+        statusTextItem?.title = "Status: Hotkey Setup Required"
+        statusItem?.menu = makeHotkeyRecoveryMenu()
+        showHotkeyRecoveryAlertIfNeeded()
+    }
+
+    private func makeHotkeyRecoveryMenu() -> NSMenu {
+        let menu = NSMenu()
+        let title = NSMenuItem(title: "Slovo Hotkey Setup Required", action: nil, keyEquivalent: "")
+        title.isEnabled = false
+        menu.addItem(title)
+        menu.addItem(actionItem("Request Input Monitoring Access", #selector(openInputMonitoringSettings)))
         menu.addItem(.separator())
         menu.addItem(actionItem("Retry Setup", #selector(retrySetup)))
         menu.addItem(NSMenuItem(title: "Quit Slovo", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -201,8 +222,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             await requestPermission(.microphone, fallbackPane: "Privacy_Microphone")
         } else if steps.contains(.requestAccessibility) {
             await requestPermission(.accessibility, fallbackPane: "Privacy_Accessibility")
-        } else if steps.contains(.requestInputMonitoring) {
-            await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
         }
     }
 
@@ -286,6 +305,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private func showHotkeyRecoveryAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Slovo could not start the hold-to-talk hotkey."
+        alert.informativeText = "Input Monitoring may be required for the fn hotkey on this macOS version."
+        alert.addButton(withTitle: "Open Input Monitoring")
+        alert.addButton(withTitle: "Later")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { @MainActor in
+            await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
+        }
+    }
+
+    private func showHotkeyRecoveryAlertIfNeeded() {
+        guard !defaults.bool(forKey: Self.hotkeyAlertShownKey) else { return }
+        defaults.set(true, forKey: Self.hotkeyAlertShownKey)
+        showHotkeyRecoveryAlert()
+    }
+
     private func promptForOpenRouterKey() {
         promptForAPIKey(
             title: "Enter OpenRouter API key",
@@ -333,8 +370,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return "Microphone permission"
         case .requestAccessibility:
             return "Accessibility permission"
-        case .requestInputMonitoring:
-            return "Input Monitoring permission"
         case .ready:
             return "Ready"
         }

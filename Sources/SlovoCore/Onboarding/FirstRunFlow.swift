@@ -1,7 +1,6 @@
 public enum OnboardingStep: Equatable, Sendable {
     case requestMicrophone
     case requestAccessibility
-    case requestInputMonitoring
     case ready
 }
 
@@ -15,9 +14,6 @@ public enum FirstRunFlow {
         }
         if !permissions.accessibility {
             steps.append(.requestAccessibility)
-        }
-        if !permissions.inputMonitoring {
-            steps.append(.requestInputMonitoring)
         }
         return steps.isEmpty ? [.ready] : steps
     }
