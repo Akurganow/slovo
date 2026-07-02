@@ -194,4 +194,8 @@ issues.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+GNU General Public License v3.0. See [LICENSE](LICENSE).
+
+Slovo is copyleft: any distributed work based on this source must itself be
+released under the GPLv3. The bundled dependencies (GRDB.swift, argmax-oss-swift
+/ WhisperKit) are MIT-licensed and compatible with this license.

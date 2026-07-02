@@ -1,12 +1,15 @@
-# slovo — Agent Instructions
+# Agent & contributor guide
 
-> Minimal working set of the constraints the user has stated. Work in progress —
-> to be expanded and curated manually. The user's global rules
-> (`~/.claude/CLAUDE.md`) still apply on top of this file.
+This file is the shared brief for anyone changing Slovo — human contributor or AI
+coding agent. It follows the [agents.md](https://agents.md) convention: it states
+what the app must do and the invariants a change must never break. For the human
+workflow (setup, tests, packaging, the pull-request checklist) see
+[CONTRIBUTING.md](CONTRIBUTING.md); for the licensing terms see
+[LICENSE](LICENSE).
 
 ## Product intent — how the app must work
 
-slovo is a private, on-device push-to-talk dictation app for macOS. One dictation:
+Slovo is a private, on-device push-to-talk dictation app for macOS. One dictation:
 
 1. **Key down** — microphone capture AND speech recognition both start immediately.
 2. **While the key is held** — recognition receives audio continuously and
@@ -27,14 +30,19 @@ Clarifications:
   Glagolitic letter Nashi "Ⱀ" (U+2C10) in the menu bar, insert nothing, show no
   alert and no persistent notice — do not distract the user. This is NOT an error,
   and is distinct from a genuine recognition failure (which is surfaced honestly).
-- Runs fully on-device (privacy). Must recognize mixed RU + English within a single
-  utterance at quality at least the current Whisper large-v3 level (see principles).
+- **Errors surface only through the menu-bar icon/status** — never an alert,
+  dialog, or focus-stealing notification. Slovo types into the user's current app;
+  stealing focus destroys the workflow it exists to serve.
+- Runs fully on-device for recognition (privacy). Must recognize mixed RU + English
+  within a single utterance at quality at least the current Whisper large-v3 level
+  (see principles).
 
 ## Non-negotiable principles
 
-1. **Intent is primary.** Understand the user's *real* intent. Never reinterpret,
-   substitute, or "translate" it into a more convenient concept. If the intent is
-   genuinely ambiguous, ask before building — do not guess-and-assemble.
+1. **Intent is primary.** Understand the *real* intent behind a request or issue.
+   Never reinterpret, substitute, or "translate" it into a more convenient concept.
+   If the intent is genuinely ambiguous, ask before building — do not
+   guess-and-assemble.
 
 2. **Do not react — engineer.** Do not jam the intent into the first
    implementation that seems to fit. That is not engineering.
@@ -52,7 +60,7 @@ Clarifications:
    fix." Never degrade working functionality as a step toward a goal.
 
 6. **Do not regress quality.** Recognition/output quality must be at least as good
-   as the current baseline. For slovo specifically: mixed Russian + English within
+   as the current baseline. For Slovo specifically: mixed Russian + English within
    a single utterance (RU+EN intra-utterance code-switching) must keep working, as
    it does today; recognition quality must be at least the current Whisper
    large-v3 level.
@@ -64,7 +72,9 @@ Clarifications:
 8. **Communicate in plain, behavior-level language** — describe behavior the user
    observes, not internal code or jargon.
 
-## Process — gate RED→GREEN by Cynefin
+## Engineering process
+
+### Gate RED→GREEN by Cynefin
 
 Before starting a RED→GREEN cycle, classify the change with Cynefin and decide
 whether the cycle is warranted at all:
@@ -79,5 +89,20 @@ whether the cycle is warranted at all:
   or concurrency are involved, or the failure mode is not directly observable:
   full RED→GREEN applies (proven-red test first, then the fix).
 
-Whenever a test IS written (either path), the false-green rules still apply in
-full: the test must be demonstrably able to go red on broken code.
+### Tests must be able to fail
+
+Whenever a test is written (either path above), it must be demonstrably able to go
+red on broken code. A test that stays green on both the correct and a mutated
+implementation proves nothing — prove RED before GREEN, and document the concrete
+breakage each regression test catches.
+
+### Before you open a pull request
+
+- Run `Scripts/diagnose.sh` (build, tests, and strict lint as independent stages).
+- Keep raw audio local; only transcript text may leave the machine, and only for
+  cleanup.
+- Never commit secrets, local databases, seed files, or signing material.
+- Update the docs when user-visible behavior, setup, privacy, or the release
+  workflow changes.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
