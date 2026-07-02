@@ -4,12 +4,27 @@ import Foundation
 // pipeline — transcribe, clean, inject — is an async seam with a closed error
 // enum so callers can switch exhaustively over every failure mode (no `default`).
 
-/// Produces text from a captured audio buffer, biased toward the given terms.
+/// A live-streaming speech recognition session, biased toward the given terms.
+///
+/// One session at a time: `begin` (key-down) opens the recognizer, `feed` pushes
+/// each captured chunk during the hold, `finish` (key-up) finalizes and returns
+/// the transcript, and `cancel` tears down without a result.
 ///
 /// `Sendable` so the `actor Orchestrator` can hold it across suspension points
 /// without a data race.
 public protocol Transcriber: Sendable {
-    func transcribe(_ audio: AudioBuffer, biasTerms: [Term]) async throws -> String
+    /// Opens a recognition session biased toward `biasTerms`. Throws if the
+    /// backend, locale assets, or engine cannot be brought up.
+    func begin(biasTerms: [Term]) async throws
+
+    /// Feeds one live audio chunk into the open session.
+    func feed(_ chunk: AudioChunk) async throws
+
+    /// Finalizes the session and returns the trimmed transcript (may be empty).
+    func finish() async throws -> String
+
+    /// Tears the session down without producing a transcript.
+    func cancel() async
 }
 
 /// Failure modes of a transcription attempt.

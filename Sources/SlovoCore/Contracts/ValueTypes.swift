@@ -4,7 +4,15 @@ import AVFoundation
 // plain data carriers shared across the seam protocols; behavior lives in the
 // conforming implementations, not here.
 
-/// The language a transcript or term is in. `auto` defers detection to the engine.
+/// The single persisted ASR backend wire value for the shipped WhisperKit runtime.
+/// Apple Speech left the runtime and FluidAudio was refuted (no adapter); raw-value
+/// additivity keeps any future case wire-safe.
+public enum AsrBackend: String, Codable, Equatable, Sendable {
+    case whisperKit = "whisperkit"
+}
+
+/// The language a transcript or term is in. `auto` chooses the best supported
+/// system locale; it is not live per-utterance language detection.
 public enum Language: String, Codable, Equatable, Sendable {
     case auto
     case ru
@@ -40,6 +48,21 @@ public struct AudioBuffer: @unchecked Sendable {
     public init(samples: [Float], format: AVAudioFormat) {
         self.samples = samples
         self.format = format
+    }
+}
+
+/// One live microphone chunk streamed from an `AudioRecorder` to a `Transcriber`
+/// during a hold. It carries the tap's NATIVE `AVAudioPCMBuffer` unchanged;
+/// conversion to the analyzer's format happens once inside the transcriber.
+///
+/// `@unchecked Sendable`: `AVAudioPCMBuffer` is not marked `Sendable` in the SDK,
+/// but each chunk wraps a freshly copied buffer that is handed off and never
+/// mutated after construction.
+public struct AudioChunk: @unchecked Sendable {
+    public let buffer: AVAudioPCMBuffer
+
+    public init(buffer: AVAudioPCMBuffer) {
+        self.buffer = buffer
     }
 }
 

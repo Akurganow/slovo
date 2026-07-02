@@ -25,10 +25,10 @@ public struct CompositionSummary: Sendable, Equatable {
 
 /// The composition root (spec §18.2): assembles the single configured pipeline.
 ///
-/// EXACTLY ONE `Transcriber` (the bake-off winner via `TranscriberFactory` — no
-/// runtime multi-backend switch), a fallback cleaner chain, one injector, one
-/// personalization source. Enabled cleanup wraps the configured upstream cleaner
-/// before `PassThrough`; disabled cleanup is `PassThrough` only.
+/// EXACTLY ONE injected `Transcriber` (the system Speech runtime — no runtime
+/// multi-backend switch), a fallback cleaner chain, one injector, one
+/// personalization source. Cleanup always wraps the configured upstream cleaner
+/// before `PassThrough`.
 public enum PipelineFactory {
     /// Builds the orchestrator from the injected dependencies (production passes
     /// the real adapters; tests pass fakes).
@@ -46,9 +46,9 @@ public enum PipelineFactory {
     }
 
     /// The composition shape this factory produces — one transcriber, a fallback
-    /// cleaner chain, one injector, one source. Enabled cleanup wraps the
-    /// configured upstream cleaner before `PassThrough`; disabled cleanup is
-    /// `PassThrough` only. A multi-backend switch would be wrong.
+    /// cleaner chain, one injector, one source. Cleanup always wraps the
+    /// configured upstream cleaner before `PassThrough`. A multi-backend switch
+    /// would be wrong.
     public static func describeComposition(config: Config, dependencies: Dependencies) -> CompositionSummary {
         assemble(config: config, dependencies: dependencies).summary
     }
@@ -59,9 +59,7 @@ public enum PipelineFactory {
     }
 
     private static func assemble(config: Config, dependencies: Dependencies) -> Assembly {
-        let fallbackChain: [any Cleaner] = config.cleanupEnabled
-            ? [dependencies.cleaner, PassThrough()]
-            : [PassThrough()]
+        let fallbackChain: [any Cleaner] = [dependencies.cleaner, PassThrough()]
         let fallback = FallbackCleaner(
             chain: fallbackChain,
             statusReporter: { status in

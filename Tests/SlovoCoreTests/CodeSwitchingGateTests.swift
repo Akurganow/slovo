@@ -3,14 +3,14 @@ import Testing
 
 import SlovoCore
 
-// Epic 05 — AC-1 (CI-half, gate logic): the I3 code-switching gate passes a
-// transcript ONLY when BOTH a Cyrillic run AND every required Latin anchor
-// survive; a collapsed one-alphabet transcript FAILS. ≥M-of-N aggregate bar.
+// The code-switching gate passes a transcript ONLY when BOTH a Cyrillic run AND
+// every required Latin anchor survive; a collapsed one-alphabet transcript
+// FAILS. Aggregate bar is ≥M-of-N passing clips.
 //
-// Contract under test (implementer builds the PRODUCT gate in
-// `Sources/SlovoCore/ASR/CodeSwitchingGate.swift` per plan §3; CURRENTLY
-// supplied by the WRONG-ON-PURPOSE `_RedScaffold_AsrBakeoff.swift` stub that
-// requires ONLY Cyrillic — so the collapsed transcript wrongly passes → RED).
+// Contract under test: the implementer restores the production gate in
+// `Sources/SlovoCore/ASR/CodeSwitchingGate.swift` (deleted by the abandoned
+// Apple-Speech migration). RED mode now is a COMPILE failure — `CodeSwitchingGate`,
+// `ClipExpectation`, `ClipScore`, and `PassBar` do not exist in the working tree.
 //
 // FIXTURE ANCHOR RULE: the Latin anchors are neutral public tech terms.
 @Suite("Epic 05 AC-1 code-switching gate")
@@ -28,15 +28,14 @@ struct CodeSwitchingGateTests {
                 "a Cyrillic + PR + GitHub transcript must pass the gate")
     }
 
-    /// THE §19.3 FALSE-GREEN GUARD: a collapsed one-alphabet transcript (the
-    /// Latin anchors transliterated into Cyrillic — `пиар`/`гитхаб`) must FAIL.
-    /// This reproduces the FluidAudio `TokenLanguageFilter`-collapse failure mode
-    /// without FluidAudio.
+    /// THE FALSE-GREEN GUARD: a collapsed one-alphabet transcript (the Latin
+    /// anchors transliterated into Cyrillic — `пиар`/`гитхаб`) must FAIL. This
+    /// reproduces the one-alphabet-collapse failure mode a language filter can
+    /// introduce.
     /// Stated sensitivity: mutate `clipPasses` to require ONLY Cyrillic (drop the
     /// required-Latin check) → this collapsed transcript wrongly passes → RED.
     /// (Symmetrically, requiring ONLY the Latin terms would wrongly pass a
-    /// Latin-only transcript — covered by `latinOnlyTranscriptFails`.) The
-    /// scaffold requires only Cyrillic, so this test is RED now.
+    /// Latin-only transcript — covered by `latinOnlyTranscriptFails`.)
     @Test
     func collapsedTranscriptFails() {
         let collapsed = "запушь пиар в гитхаб репозиторий"
@@ -79,7 +78,7 @@ struct CodeSwitchingGateTests {
                 "3-of-3 passing must meet a ≥2-of-3 bar")
     }
 
-    // MARK: - Dalek coverage tests (green on correct code; RED on the named mutation)
+    // MARK: - Required-anchor and boundary coverage (green on correct code; RED on the named mutation)
 
     /// `clipPasses` requires EVERY required Latin anchor, not just any one. A
     /// transcript with Cyrillic + `PR` but MISSING `GitHub`, expecting both, must

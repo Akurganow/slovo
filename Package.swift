@@ -13,10 +13,10 @@ let swiftLintPlugins: [Target.PluginUsage] = [
     .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
 ]
 
-// Foundation shell for slovo. Each heavy dependency (e.g. WhisperKit, FluidAudio)
-// is added by the epic that first uses it, so the foundation resolves only what is
-// actually consumed. GRDB enters here (Epic 08) as the persistence library for the
-// personalization store.
+// Foundation shell for slovo. Production dictation runs on WhisperKit (argmax
+// oss-swift); each heavy dependency is added by the epic that first uses it, so
+// the foundation resolves only what is actually consumed. GRDB enters here
+// (Epic 08) as the persistence library for the personalization store.
 let package = Package(
     name: "slovo",
     // macOS-only app. The macOS 26 floor is driven by Apple's on-device
@@ -37,6 +37,9 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
+            // The abandoned Apple-Speech transcriber is retained on disk but left
+            // out of the build until its deletion is approved.
+            exclude: ["ASR/SystemSpeechTranscriber.swift"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
@@ -45,16 +48,6 @@ let package = Package(
         .target(
             name: "SlovoTestSupport",
             dependencies: ["SlovoCore"],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
-        ),
-        // The ASR bake-off armature: a NON-product measurement harness. Lives
-        // outside Sources/ (under Tools/) and is depended on ONLY by the test
-        // target — the shipped `slovo` executable never links it.
-        .target(
-            name: "AsrBakeoff",
-            dependencies: ["SlovoCore"],
-            path: "Tools/asr-bakeoff",
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),
@@ -82,7 +75,7 @@ let package = Package(
         // Unit/behavioral tests for the core library.
         .testTarget(
             name: "SlovoCoreTests",
-            dependencies: ["SlovoCore", "SlovoTestSupport", "AsrBakeoff"],
+            dependencies: ["SlovoCore", "SlovoTestSupport"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

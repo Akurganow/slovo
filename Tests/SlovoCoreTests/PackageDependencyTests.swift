@@ -1,27 +1,24 @@
 import Foundation
 import Testing
 
-// Epic 09c — the second external dependency is pinned through SwiftPM. This is
-// source-level because SwiftPM dependency graph APIs are not available inside
-// tests without shelling out.
+// Epic 09c — source-level package guards because SwiftPM dependency graph APIs
+// are not available inside tests without shelling out.
 @Suite("Epic 09c package dependencies")
 struct PackageDependencyTests {
+    /// The restored WhisperKit turbo path requires the argmax-oss-swift package
+    /// as a dependency and the `WhisperKit` product linked into `SlovoCore`.
+    /// Stated sensitivity: drop the argmax dependency or stop linking the
+    /// `WhisperKit` product into `SlovoCore` (as the abandoned Apple-Speech
+    /// migration did) → the transcriber cannot be built → RED.
     @Test
-    func packageDeclaresWhisperKitProduct() throws {
+    func packageLinksWhisperKitFromArgmaxOssSwift() throws {
         let source = try String(contentsOfFile: Self.packagePath, encoding: .utf8)
         let code = Self.strippingComments(from: source)
         let coreTarget = try #require(Self.targetBlock(named: "SlovoCore", in: code))
-        let adapter = try String(
-            contentsOfFile: Self.packageRoot
-                .appending(path: "Sources/SlovoCore/ASR/WhisperKitTranscriber.swift")
-                .path,
-            encoding: .utf8
-        )
 
-        #expect(code.contains("https://github.com/argmaxinc/argmax-oss-swift.git"))
-        #expect(code.contains("from: \"1.0.0\""))
-        #expect(coreTarget.contains(".product(name: \"WhisperKit\", package: \"argmax-oss-swift\")"))
-        #expect(Self.strippingComments(from: adapter).contains("import WhisperKit"))
+        #expect(code.contains("argmaxinc/argmax-oss-swift"))
+        #expect(coreTarget.contains("WhisperKit"))
+        #expect(coreTarget.contains("argmax-oss-swift"))
     }
 
     @Test
