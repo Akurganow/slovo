@@ -4,9 +4,9 @@
 /// swallowed and silently degraded.
 ///
 /// Every expected `CleanupError` advances WITH a user-visible sad-to-fail status.
-/// Cleanup is optional; preserving the user's voice-to-text intent is not. The
-/// decision is a no-`default` switch so a future `CleanupError` case forces a
-/// deliberate visibility choice.
+/// Cleanup is always attempted upstream; preserving the user's voice-to-text
+/// intent is non-negotiable. The decision is a no-`default` switch so a future
+/// `CleanupError` case forces a deliberate visibility choice.
 /// `@unchecked Sendable` because of the `statusReporter` closure: it is invoked
 /// only synchronously from within `clean(...)` (never concurrently), and keeping
 /// it a plain closure lets existing tests pass an ordinary capturing reporter (a

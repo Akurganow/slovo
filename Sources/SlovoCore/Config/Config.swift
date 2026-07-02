@@ -2,15 +2,18 @@
 public struct Config: Equatable, Sendable {
     public static let defaultTrigger = "fn"
     public static let defaultMode = "hold"
+    public static let defaultAsrModel = "large-v3-v20240930_turbo_632MB"
     public static let defaultOpenRouterModel = CleanupDefaults.openRouterModel
 
     public static let defaults = Config()
 
     public var language: Language
-    public var keepWarmSeconds: Int
+    /// WhisperKit model retention: `nil` keeps the model resident by default
+    /// (fastest first word), `0` releases immediately after each dictation, a
+    /// positive value is the idle-seconds window before release.
+    public var keepWarmSeconds: Int?
     public var asrBackend: AsrBackend
     public var asrModel: String
-    public var cleanupEnabled: Bool
     public var openRouterModel: String
     public var writingStyle: WritingStyle
 
@@ -24,10 +27,9 @@ public struct Config: Equatable, Sendable {
 
     public init(
         language: Language = .auto,
-        keepWarmSeconds: Int = 120,
+        keepWarmSeconds: Int? = nil,
         asrBackend: AsrBackend = .whisperKit,
-        asrModel: String = "large-v3-v20240930_turbo_632MB",
-        cleanupEnabled: Bool = true,
+        asrModel: String = Config.defaultAsrModel,
         openRouterModel: String = Config.defaultOpenRouterModel,
         writingStyle: WritingStyle = .casual
     ) {
@@ -35,7 +37,6 @@ public struct Config: Equatable, Sendable {
         self.keepWarmSeconds = keepWarmSeconds
         self.asrBackend = asrBackend
         self.asrModel = asrModel
-        self.cleanupEnabled = cleanupEnabled
         self.openRouterModel = openRouterModel
         self.writingStyle = writingStyle
     }

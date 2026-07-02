@@ -44,7 +44,10 @@ public struct OpenRouterCleaner: Cleaner {
                 OpenRouterRequest.Message(role: "user", content: prompt.input),
             ],
             maxTokens: Self.maxCleanupTokens,
-            temperature: 0
+            temperature: 0,
+            // Cleanup is a constrained rewrite; provider-default reasoning (on for
+            // some catalog models) only adds key-up latency.
+            reasoning: OpenRouterRequest.Reasoning(effort: "none")
         )
         var urlRequest = URLRequest(url: Self.endpoint)
         urlRequest.timeoutInterval = Self.requestTimeout

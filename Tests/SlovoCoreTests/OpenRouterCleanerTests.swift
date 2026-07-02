@@ -30,8 +30,9 @@ struct OpenRouterCleanerTests {
     }
 
     /// Stated sensitivity: using the old OpenAI Responses endpoint/body, omitting
-    /// the configured routed model, or sending an unauthenticated request makes
-    /// the recorded request-shape assertions go RED.
+    /// the configured routed model, sending an unauthenticated request, or letting
+    /// the provider's default reasoning mode stand (no `reasoning.effort: none` in
+    /// the body) makes the recorded request-shape assertions go RED.
     @Test
     func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
@@ -57,6 +58,11 @@ struct OpenRouterCleanerTests {
         #expect(json["model"] as? String == "openai/gpt-5.4-nano")
         #expect(json["temperature"] as? Double == 0)
         #expect(json["max_tokens"] as? Int == 1_024)
+        let reasoning = try #require(
+            json["reasoning"] as? [String: Any],
+            "reasoning must be pinned off; provider defaults enable it on some models"
+        )
+        #expect(reasoning["effort"] as? String == "none")
         let messages = try #require(json["messages"] as? [[String: String]])
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)

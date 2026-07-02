@@ -14,6 +14,11 @@ struct ConfigStoreTests {
         let defaults = FakeUserDefaults()
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
+        #expect(Config.defaults.asrBackend == .whisperKit)
+        #expect(Config.defaults.asrModel == "large-v3-v20240930_turbo_632MB")
+        #expect(Config.defaults.cleanupModel == Config.defaultOpenRouterModel)
+        // Resident by default: nil keepWarm means the model is never released.
+        #expect(Config.defaults.keepWarmSeconds == nil)
     }
 
     /// Stated sensitivity: force-unwrap/decode directly or keep partially decoded
@@ -32,33 +37,38 @@ struct ConfigStoreTests {
     @Test
     func unknownBackendRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(backend: "experimentalBackend"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "experimentalBackend"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// Stated sensitivity: accepting a documented-but-unwired backend makes the
-    /// production composition silently run WhisperKit for a non-WhisperKit config.
+    /// A refuted backend id (FluidAudio: no shipped adapter) must fail closed, not
+    /// be silently rerouted to WhisperKit. This is distinct from the legacy
+    /// Apple-Speech id, which is intentionally migrated (see
+    /// `legacyAppleSpeechConfigMigratesToWhisperKit`): the migration is SPECIFIC,
+    /// not a catch-all that swallows any unrecognized backend into the runtime.
+    /// Stated sensitivity: make backend decoding map every unrecognized id to
+    /// `.whisperKit` → "fluidaudio" loads as a whisperKit config (keepWarm 45)
+    /// instead of falling back to defaults → RED.
     @Test
-    func unsupportedRuntimeBackendRejectsWholeConfig() throws {
-        for backend in ["speechtranscriber", "fluidaudio"] {
-            let defaults = FakeUserDefaults(dataByKey: [
-                ConfigStore.defaultKey: try Self.configData(backend: backend),
-            ])
+    func refutedRuntimeBackendRejectsWholeConfig() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "fluidaudio"),
+        ])
 
-            #expect(ConfigStore.load(from: defaults) == .defaults,
-                    "backend \(backend) must stay fail-closed until a production adapter is wired")
-        }
+        #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// The keep-warm setting is load-bearing for the live WhisperKit adapter.
+    /// The keep-warm setting is load-bearing for WhisperKit model retention: a
+    /// positive value keeps the loaded engine warm for that many idle seconds
+    /// before release, while zero releases immediately after each use.
     /// Stated sensitivity: dropping the decoded value or silently defaulting it
     /// means this no longer round-trips.
     @Test
-    func keepWarmSecondsIsLoadedForLiveModelLifecycle() throws {
+    func keepWarmSecondsIsLoadedForWhisperKitRetention() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(keepWarmSeconds: 45),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 45),
         ])
 
         #expect(ConfigStore.load(from: defaults).keepWarmSeconds == 45)
@@ -69,7 +79,7 @@ struct ConfigStoreTests {
     @Test
     func negativeKeepWarmRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(keepWarmSeconds: -1),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: -1),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -80,7 +90,7 @@ struct ConfigStoreTests {
     @Test
     func emptyAsrModelRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(asrModel: ""),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(asrModel: ""),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -91,19 +101,20 @@ struct ConfigStoreTests {
     @Test
     func emptyOpenRouterModelRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(openRouterModel: ""),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(openRouterModel: ""),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// Stated sensitivity: accepting a forbidden direct provider as active, or
-    /// falling back to cleanup-enabled defaults, can silently egress transcripts.
+    /// Stated sensitivity: preserving a forbidden direct provider or converting
+    /// it into a user-off state lets legacy provider config keep controlling
+    /// cleanup instead of failing closed to the always-on OpenRouter contract.
     @Test
-    func forbiddenAnthropicProviderDisablesCleanupWithoutResettingSettings() throws {
+    func forbiddenAnthropicProviderRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(
-                cleanupEnabled: true,
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                legacyEnabledField: true,
                 cleanupProvider: "anthropic",
                 writingStyle: "formal"
             ),
@@ -111,24 +122,21 @@ struct ConfigStoreTests {
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.language == .ru)
-        #expect(config.keepWarmSeconds == 45)
-        #expect(config.cleanupEnabled == false)
+        #expect(config == .defaults)
         #expect(config.openRouterModel == Config.defaultOpenRouterModel)
-        #expect(config.writingStyle == .formal)
     }
 
     /// Stated sensitivity: keep treating a forbidden OpenAI provider as active
-    /// instead of forcing local pass-through behavior.
+    /// or disabled instead of failing closed to the OpenRouter default contract.
     @Test
-    func forbiddenOpenAIProviderDisablesCleanup() throws {
+    func forbiddenOpenAIProviderRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "openai"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(cleanupProvider: "openai"),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.cleanupEnabled == false)
+        #expect(config == .defaults)
         #expect(config.openRouterModel == Config.defaultOpenRouterModel)
         #expect(config.cleanupConfig.model == Config.defaultOpenRouterModel)
     }
@@ -139,7 +147,7 @@ struct ConfigStoreTests {
     @Test
     func openRouterProviderAndModelDecodeFromCleanupConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
                 cleanupProvider: "openrouter",
                 openRouterModel: "openai/gpt-5.4-nano"
             ),
@@ -156,7 +164,10 @@ struct ConfigStoreTests {
     @Test
     func cleanupConfigWithoutProviderStaysOpenRouterCompatible() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(openRouterModel: "openai/gpt-5.4-nano"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                legacyEnabledField: false,
+                openRouterModel: "openai/gpt-5.4-nano"
+            ),
         ])
 
         let config = ConfigStore.load(from: defaults)
@@ -165,15 +176,15 @@ struct ConfigStoreTests {
         #expect(config.cleanupConfig.model == "openai/gpt-5.4-nano")
     }
 
-    /// Stated sensitivity: accept an unknown cleanup provider as active -> the
-    /// app silently runs a different cloud egress path than persisted config.
+    /// Stated sensitivity: accept an unknown cleanup provider as active or as a
+    /// user-off state -> the app silently preserves a forbidden cleanup contract.
     @Test
-    func unknownCleanupProviderDisablesCleanup() throws {
+    func unknownCleanupProviderRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(cleanupProvider: "local-llm"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(cleanupProvider: "local-llm"),
         ])
 
-        #expect(ConfigStore.load(from: defaults).cleanupEnabled == false)
+        #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
     /// Stated sensitivity: omit `cleanup.openRouterModel` while saving -> load
@@ -195,6 +206,7 @@ struct ConfigStoreTests {
         let object = try #require(JSONSerialization.jsonObject(with: raw) as? [String: Any])
         let cleanup = try #require(object["cleanup"] as? [String: Any])
         #expect(cleanup["provider"] == nil)
+        #expect(cleanup["enabled"] as? Bool == true)
     }
 
     /// Stated sensitivity: decoding persisted ASR backend from the Swift case
@@ -202,7 +214,7 @@ struct ConfigStoreTests {
     @Test
     func swiftCaseBackendRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(backend: "whisperKit"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "whisperKit"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -213,7 +225,7 @@ struct ConfigStoreTests {
     @Test
     func swiftCaseWritingStyleRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(writingStyle: "veryCasual"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(writingStyle: "veryCasual"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -224,7 +236,7 @@ struct ConfigStoreTests {
     @Test
     func invalidFixedTriggerRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(trigger: "capslock"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(trigger: "capslock"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -235,7 +247,7 @@ struct ConfigStoreTests {
     @Test
     func invalidFixedModeRejectsWholeConfig() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(mode: "toggle"),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(mode: "toggle"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -244,12 +256,12 @@ struct ConfigStoreTests {
     @Test
     func validConfigDecodesSpecShape() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try Self.configData(
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
                 language: "ru",
                 keepWarmSeconds: 45,
                 backend: "whisperkit",
                 asrModel: "large-v3-v20240930_turbo_632MB",
-                cleanupEnabled: false,
+                legacyEnabledField: false,
                 cleanupProvider: "openrouter",
                 openRouterModel: "openai/gpt-5.4-nano",
                 writingStyle: "formal"
@@ -261,50 +273,120 @@ struct ConfigStoreTests {
             keepWarmSeconds: 45,
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
-            cleanupEnabled: false,
             openRouterModel: "openai/gpt-5.4-nano",
             writingStyle: .formal
         ))
     }
 
-    private static func configData(
-        trigger: String? = "fn",
-        mode: String? = "hold",
-        language: String = "ru",
-        keepWarmSeconds: Int = 45,
-        backend: String = "whisperkit",
-        asrModel: String = "large-v3-v20240930_turbo_632MB",
-        cleanupEnabled: Bool = true,
-        cleanupProvider: String? = nil,
-        openRouterModel: String? = nil,
-        writingStyle: String = "casual"
-    ) throws -> Data {
-        var cleanup: [String: Any] = [
-            "enabled": cleanupEnabled,
-            "writingStyle": writingStyle,
-        ]
-        if let cleanupProvider {
-            cleanup["provider"] = cleanupProvider
-        }
-        if let openRouterModel {
-            cleanup["openRouterModel"] = openRouterModel
-        }
-        var object: [String: Any] = [
-            "language": language,
-            "keepWarmSeconds": keepWarmSeconds,
-            "asr": ["backend": backend, "model": asrModel],
-            "cleanup": cleanup,
-        ]
-        if let trigger {
-            object["trigger"] = trigger
-        }
-        if let mode {
-            object["mode"] = mode
-        }
-        return try encoded(object)
+    /// Persisted configs from the abandoned Apple-Speech migration used backend
+    /// "speechtranscriber" + model "system-dictation". Those legacy values MIGRATE
+    /// to the WhisperKit turbo runtime on load (a mapping, NOT whole-config
+    /// rejection): the single-case `AsrBackend`'s synthesized Codable cannot even
+    /// represent "speechtranscriber", so the implementer must map the legacy string
+    /// BEFORE raw-value matching. keepWarmSeconds RESETS to resident (nil) for any
+    /// legacy value (legacy keepWarm meant Apple retention, not an idle window).
+    /// Unrelated cleanup/style fields survive untouched.
+    ///
+    /// Anti-tautology: after migration asrBackend/asrModel/keepWarmSeconds ALL equal
+    /// their new defaults (.whisperKit / turbo / nil), so asserting any of those
+    /// alone is false-green — the BROKEN discard-to-defaults path satisfies them too.
+    /// The load-bearing assertion is a NON-DEFAULT surviving sibling: `writingStyle:
+    /// .formal` (≠ .casual default) and a non-default openRouterModel the user set.
+    /// Stated sensitivity: reject-instead-of-migrate (whole config → defaults) → the
+    /// non-default writingStyle/openRouterModel are lost → RED. Skip the model remap
+    /// → asrModel stays "system-dictation" → RED.
+    @Test
+    func legacyAppleSpeechConfigMigratesToWhisperKit() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                keepWarmSeconds: 999,
+                backend: "speechtranscriber",
+                asrModel: "system-dictation",
+                cleanupProvider: "openrouter",
+                openRouterModel: "openai/gpt-6-nano",
+                writingStyle: "formal"
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        // Load-bearing anti-tautology siblings: NON-DEFAULT fields the user set, which
+        // a whole-config fallback to defaults would destroy.
+        #expect(config.writingStyle == .formal)
+        #expect(config.openRouterModel == "openai/gpt-6-nano")
+        #expect(config != .defaults)
+        // The migration mapping itself (each equals a NEW default, hence tautological alone).
+        #expect(config.asrBackend == .whisperKit)
+        #expect(config.asrModel == "large-v3-v20240930_turbo_632MB")
+        #expect(config.keepWarmSeconds == nil)
     }
 
-    private static func encoded(_ object: [String: Any]) throws -> Data {
-        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    /// `ConfigStore.validated` accepts a WhisperKit config with a non-empty model,
+    /// so such a config survives a save→load cycle unchanged.
+    /// Stated sensitivity: reject `.whisperKit` at validation, or drop the model on
+    /// save/load, → the reloaded config differs from the saved one → RED.
+    @Test
+    func whisperKitConfigRoundTripsThroughSaveAndLoad() throws {
+        let defaults = FakeUserDefaults()
+        let config = Config(
+            keepWarmSeconds: 90,
+            asrBackend: .whisperKit,
+            asrModel: "large-v3-v20240930_turbo_632MB",
+            openRouterModel: "openai/gpt-5.4-nano"
+        )
+
+        try ConfigStore.save(config, to: defaults)
+
+        #expect(ConfigStore.load(from: defaults) == config)
+    }
+
+    /// Wire compat: a persisted blob with NO keepWarm field decodes to the resident
+    /// default (nil), not a numeric fallback or a whole-config rejection.
+    /// Stated sensitivity: decode an absent keepWarm field as 0/120 (or reject the
+    /// config) → keepWarmSeconds is not nil → RED.
+    @Test
+    func absentKeepWarmDecodesAsResident() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: nil),
+        ])
+
+        #expect(ConfigStore.load(from: defaults).keepWarmSeconds == nil)
+    }
+
+    /// Legacy keepWarm resets to resident (nil) REGARDLESS of value — the 120 case,
+    /// companion to the 999 case in `legacyAppleSpeechConfigMigratesToWhisperKit`.
+    /// Testing both values proves the reset is not value-specific (120, the old
+    /// Apple-Speech default, is not special).
+    /// Stated sensitivity: carry a legacy keepWarm verbatim (no reset) → 120 survives
+    /// as 120 instead of nil → RED.
+    @Test
+    func legacyKeepWarm120ResetsToResident() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                keepWarmSeconds: 120,
+                backend: "speechtranscriber",
+                asrModel: "system-dictation"
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.keepWarmSeconds == nil, "legacy keepWarm resets to resident (nil) for any value")
+        #expect(config.asrBackend == .whisperKit)
+        #expect(config.asrModel == "large-v3-v20240930_turbo_632MB")
+    }
+
+    /// The keepWarm reset is LEGACY-ONLY: a current WhisperKit blob PRESERVES its
+    /// explicit keepWarm window (the user's choice) — only "speechtranscriber" blobs
+    /// reset to resident.
+    /// Stated sensitivity: reset non-legacy keepWarm too → a WhisperKit user's
+    /// explicit 30 s window is silently lost to nil → RED.
+    @Test
+    func whisperKitKeepWarmIsPreserved() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 30, backend: "whisperkit"),
+        ])
+
+        #expect(ConfigStore.load(from: defaults).keepWarmSeconds == 30)
     }
 }

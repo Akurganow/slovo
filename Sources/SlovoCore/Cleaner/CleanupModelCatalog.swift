@@ -29,8 +29,20 @@ public enum CleanupModelCatalog {
             displayName: "Claude Haiku 4.5"
         ),
         CleanupModelOption(
-            id: "google/gemini-2.5-flash-lite",
-            displayName: "Gemini 2.5 Flash Lite"
+            id: "google/gemini-3.1-flash-lite",
+            displayName: "Gemini 3.1 Flash Lite"
+        ),
+        CleanupModelOption(
+            id: "qwen/qwen3.6-flash",
+            displayName: "Qwen3.6 Flash"
+        ),
+        CleanupModelOption(
+            id: "deepseek/deepseek-v4-flash",
+            displayName: "DeepSeek V4 Flash"
+        ),
+        CleanupModelOption(
+            id: "mistralai/mistral-small-2603",
+            displayName: "Mistral Small 4"
         ),
     ]
 }

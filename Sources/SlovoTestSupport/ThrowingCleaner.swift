@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 /// A `Cleaner` that always throws the given error — used to prove a

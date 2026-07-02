@@ -4,18 +4,8 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 06 — AC-1 (every CleanupError ⇒ advance to PassThrough, raw inserted),
-// AC-2 (a NON-CleanupError PROPAGATES, no silent degrade), AC-9 (every expected
-// cleanup provider failure surfaces the same sad-to-fail status).
-//
-// Contract under test (implementer builds `Sources/SlovoCore/Cleaner/FallbackCleaner.swift`
-// per plan §4; CURRENTLY the WRONG-ON-PURPOSE `_RedScaffold_Cleaner.swift` stub
-// uses a BARE catch that advances everything silently — so AC-2 + AC-9 RED. AC-1
-// is GREEN on this scaffold; its RED (a terminal, non-advancing case) is proven
-// out-of-band).
-//
-// `CleanupError` is NOT Equatable: AC-1 asserts via the returned raw; AC-2 via a
-// `#expect(throws:)` + `switch`; AC-9 via the Equatable StatusMessage callback.
+// Epic 06 — fallback cleanup must preserve insertion when upstream cleanup fails
+// while still propagating non-cleanup failures.
 @Suite("Epic 06 AC-1/AC-2/AC-9 FallbackCleaner")
 struct FallbackCleanerTests {
     private static let raw = "Um, so like, запушь the PR"
@@ -31,9 +21,7 @@ struct FallbackCleanerTests {
     /// AC-1: every `CleanupError` case ⇒ the chain advances to `PassThrough`,
     /// returning the raw input unchanged.
     /// Stated sensitivity: make a case "terminal" (re-throw instead of advancing)
-    /// → that case throws instead of returning raw → RED. (Proven out-of-band:
-    /// the scaffold's bare-catch advances all cases, so this is GREEN here; a
-    /// non-advancing mutation REDs it.)
+    /// → that case throws instead of returning raw → RED.
     @Test
     func everyCleanupErrorAdvancesToPassThrough() async throws {
         let cases: [CleanupError] = [
@@ -49,8 +37,7 @@ struct FallbackCleanerTests {
     /// AC-2: a NON-`CleanupError` (here `CancellationError`) must PROPAGATE —
     /// not be swallowed and degraded.
     /// Stated sensitivity: `catch let e as CleanupError` → bare `catch` → the
-    /// CancellationError is swallowed + degraded → does NOT throw → RED. (The
-    /// scaffold uses a bare catch → swallows → RED now.)
+    /// CancellationError is swallowed + degraded → does NOT throw → RED.
     @Test
     func nonCleanupErrorPropagates() async {
         let chain: [Cleaner] = [ThrowingCleaner(CancellationError()), PassThrough()]
@@ -66,7 +53,9 @@ struct FallbackCleanerTests {
     }
 
     /// AC-9: every expected cleanup failure advances to `PassThrough` WITH the
-    /// user-visible sad-to-fail status. Cleanup is optional; insertion is not.
+    /// user-visible sad-to-fail status. Cleanup is always attempted upstream;
+    /// insertion falls back to the direct transcript only when cleanup fails with
+    /// `CleanupError` because the provider is unavailable, refused, or misconfigured.
     /// Stated sensitivity: keep `.offline`, `.missingKey`, `.rateLimited`, and
     /// `.apiError` silent, or keep reporting the old refused-only status -> RED.
     @Test

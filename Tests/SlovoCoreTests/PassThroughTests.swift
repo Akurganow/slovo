@@ -3,18 +3,14 @@ import Testing
 
 import SlovoCore
 
-// Epic 06 — AC-3: `PassThrough` returns its input byte-identical (the terminal
-// fallback that never loses the user's words).
-//
-// Contract under test (implementer builds `Sources/SlovoCore/Cleaner/PassThrough.swift`
-// per plan §4; CURRENTLY the WRONG-ON-PURPOSE `_RedScaffold_Cleaner.swift` stub
-// UPPERCASES → RED).
+// Epic 06 — AC-3: `PassThrough` returns its input byte-identical so fallback
+// cleanup never loses the user's words.
 @Suite("Epic 06 AC-3 PassThrough")
 struct PassThroughTests {
     /// Input chosen to be filler-laden text a real cleaner WOULD change (so the
     /// test is non-tautological: a no-op cleaner and a real cleaner differ here).
-    /// Stated sensitivity: make PassThrough uppercase / trim / mutate → output ≠
-    /// input → RED. (The scaffold uppercases → RED now.)
+    /// Stated sensitivity: make PassThrough uppercase / trim / mutate → output !=
+    /// input → RED.
     @Test
     func returnsInputUnchanged() async throws {
         let input = "Um, so like, запушь the PR, you know"
