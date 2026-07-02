@@ -12,9 +12,9 @@ fn down -> mute output -> capture microphone
 fn up   -> stop capture -> restore output -> transcribe -> clean -> inject
 ```
 
-Raw audio stays on the Mac and is transcribed through Apple's system Speech
-framework. Cleanup is always attempted through OpenRouter and sends only
-transcript text for the selected routed model id.
+Raw audio stays on the Mac and is transcribed on-device through WhisperKit
+(Whisper large-v3 turbo). Cleanup is always attempted through OpenRouter and
+sends only transcript text for the selected routed model id.
 
 ## Core Components
 
@@ -22,8 +22,8 @@ transcript text for the selected routed model id.
 - `SystemAudioController` mutes and restores system output during recording.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
-- `SystemSpeechTranscriber` turns audio into text through
-  `DictationTranscriber` and `SpeechAnalyzer`.
+- `WhisperKitTranscriber` turns audio into text through `WhisperKitEngine`
+  (Whisper large-v3 turbo), keeping the model resident between dictations.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
   succeeds.
 - `Injector` inserts the final text into the focused field.

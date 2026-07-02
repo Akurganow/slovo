@@ -19,8 +19,8 @@ progress.
 ## Features
 
 - Push-to-talk dictation from the global `fn` / Globe key.
-- Local speech capture and on-device transcription through Apple's system
-  Speech framework.
+- Local speech capture and on-device transcription through WhisperKit
+  (Whisper large-v3 turbo), including mixed Russian + English in one utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup runs.
@@ -34,7 +34,10 @@ progress.
 Slovo has two different data paths:
 
 - Audio path: microphone audio is captured and transcribed locally through
-  Apple system Speech. Slovo does not download or cache third-party ASR models.
+  WhisperKit. Raw audio never leaves the machine. The Whisper model itself is a
+  third-party asset: WhisperKit downloads it once (from Hugging Face) on first
+  use and caches it under Application Support; transcription then runs fully
+  on-device with no per-dictation network calls.
 - Cleanup path: transcript text is sent to OpenRouter when cleanup is available.
   OpenRouter routes the request to the selected model id.
 
@@ -50,9 +53,9 @@ signing keys, and credential bundles are ignored by Git.
 - A stable code-signing identity for local app packaging.
 - Microphone and Accessibility permissions. Input Monitoring may be requested
   only as a targeted hotkey recovery step if the event tap cannot start.
-- The app declares a Speech Recognition usage string for Apple Speech
-  compatibility, but first-run setup tracks only proven blockers: Microphone and
-  Accessibility.
+- On first use, WhisperKit downloads the Whisper model over the network; after
+  that, transcription is fully on-device.
+- First-run setup tracks only the proven blockers: Microphone and Accessibility.
 - OpenRouter API key for cleanup.
 
 ## Build And Test
@@ -161,7 +164,7 @@ Runtime settings are stored in `UserDefaults`. The OpenRouter API key is stored
 in Keychain:
 
 - OpenRouter service/account: `slovo` / `openrouter-api-key`
-- ASR backend/model: `speechtranscriber` / `system-dictation`
+- ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
 
 The app also accepts an environment variable as a development-only override:
 

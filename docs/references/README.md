@@ -21,8 +21,8 @@ depends on. The personalization seed data lives under `../../data/` and is
 |---|---|---|---|
 | [macos-fn-hotkey.md](macos-fn-hotkey.md) | `fn`/Globe as a global hotkey via an active `CGEventTap`; suppressing the OS default; Accessibility vs Input Monitoring | Apple CoreGraphics (`CGEvent.tapCreate`, `CGEventFlags`, `maskSecondaryFn`) | D1 trigger (§8) |
 | [audio-capture.md](audio-capture.md) | Mic capture via `AVAudioEngine.installTap` → 16 kHz mono `Float` via `AVAudioConverter`; mic permission | Apple AVFAudio + TN3136 | `AudioRecorder` (§4/§5) |
-| [asr-apple-speech.md](asr-apple-speech.md) | `DictationTranscriber` / `SpeechAnalyzer` / `AssetInventory` on-device STT (macOS 26+); `ru_RU` | Apple Speech framework + WWDC25 277 | Only runtime ASR path; Apple-managed model retention |
-| [asr-whisperkit.md](asr-whisperkit.md) | WhisperKit (`argmax-oss-swift`, product `WhisperKit`) on-device Whisper CoreML/ANE | github.com/argmaxinc/argmax-oss-swift + HF whisperkit-coreml | Archived historical ASR comparison; not linked by runtime |
+| [asr-apple-speech.md](asr-apple-speech.md) | `DictationTranscriber` / `SpeechAnalyzer` / `AssetInventory` on-device STT (macOS 26+); `ru_RU` | Apple Speech framework + WWDC25 277 | Superseded ASR research; not the runtime path (see asr-engine-selection.md) |
+| [asr-whisperkit.md](asr-whisperkit.md) | WhisperKit (`argmax-oss-swift`, product `WhisperKit`) on-device Whisper CoreML/ANE | github.com/argmaxinc/argmax-oss-swift + HF whisperkit-coreml | Runtime ASR engine (Whisper large-v3 turbo) |
 | [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | Archived historical ASR comparison; not linked by runtime |
 | [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, Wispr Flow reference bar, OpenRouter-routed candidates | Wispr Flow pages + OpenRouter sources | Cleanup comparison harness |
 | [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE` | github.com/groue/GRDB.swift (DocC) | Personalization store (§8.6) |
@@ -36,8 +36,9 @@ depends on. The personalization seed data lives under `../../data/` and is
   §17 (agent `feat1-mute`); a standalone `coreaudio-mute.md` can be added if needed.
 - Apple Foundation Models `LanguageModel` protocol — only when the cleanup seam
   targets it (spec §18.6 marks the protocol shape TO-VERIFY).
-- GigaAM (Russian-specific ASR) — historical note only; legacy ASR backends are
-  not product candidates while runtime ASR is Apple system Speech only.
+- GigaAM (Russian-specific ASR) — historical note only; alternative ASR backends
+  are not product candidates while the runtime ASR engine is WhisperKit
+  (Whisper large-v3 turbo).
 
 ## Verification status
 
@@ -62,6 +63,6 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 
 **Cross-cutting finding folded into the spec (§9, §18.8):** the permission/packaging
 story (non-sandboxed + Hardened Runtime + `audio-input` entitlement + stable Team
-ID + preflight Accessibility & Input Monitoring), and — load-bearing — Apple
-system Speech is the only runtime ASR path. The third-party ASR notes remain
-historical comparison material, not active candidate selection.
+ID + preflight Accessibility & Input Monitoring). The runtime ASR engine is
+WhisperKit (Whisper large-v3 turbo); the Apple Speech notes are superseded
+research (see asr-engine-selection.md), not the active path.
