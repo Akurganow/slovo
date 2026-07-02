@@ -8,7 +8,7 @@ OpenRouter when cleanup is enabled.
 
 | Version | Supported |
 |---|---|
-| 0.0.x | Yes |
+| 0.2.x | Yes |
 
 ## Reporting A Vulnerability
 

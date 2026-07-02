@@ -10,7 +10,7 @@ for model-routed text cleanup.
 
 ## Status
 
-Current release: `v0.0.1`
+Current release: `v0.2.0`
 
 This is an early developer release. The app is usable, but performance tuning,
 Developer ID signing, notarization, and broader installer packaging are still in
