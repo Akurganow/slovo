@@ -26,6 +26,16 @@ struct MenuBarControllerTests {
         #expect(MenuBarGlyph.tint(forStatus: .cleanupUnavailableInsertedAsSpoken) == .error)
     }
 
+    /// Model-loading must be visible as its own glyph, not silence: Zhivete Ⰶ
+    /// with a normal (non-error) tint — loading is a state, not a failure.
+    /// Stated sensitivity: returning the status to the nil-glyph group, a wrong
+    /// character, or an error tint goes RED.
+    @Test
+    func preparingSpeechModelShowsZhiveteGlyph() {
+        #expect(MenuBarGlyph.forStatus(.preparingSpeechModel) == "\u{2C06}")
+        #expect(MenuBarGlyph.tint(forStatus: .preparingSpeechModel) == .normal)
+    }
+
     /// Stated sensitivity: append oldest-first or forget to evict past capacity →
     /// the exact newest-first/capped sequence changes and this goes RED.
     @Test

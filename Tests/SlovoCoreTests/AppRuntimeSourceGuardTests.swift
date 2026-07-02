@@ -121,6 +121,9 @@ struct AppRuntimeSourceGuardTests {
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
+        let config = try Self.code("Sources/SlovoCore/Config/Config.swift")
+        let configStore = try Self.code("Sources/SlovoCore/Config/ConfigStore.swift")
+        let pipelineFactory = try Self.code("Sources/SlovoCore/Composition/PipelineFactory.swift")
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
         let modelMenuBody = try Self.functionBody(named: "modelMenu", in: cleanupMenu)
         let selectCleanupModelBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
@@ -136,6 +139,13 @@ struct AppRuntimeSourceGuardTests {
         #expect(!delegate.contains("promptForModel"))
         #expect(!delegate.contains("Set Anthropic Model"))
         #expect(!delegate.contains("Set OpenAI Model"))
+        for forbidden in ["cleanupEnabled", "cleanupToggleItem", "toggleCleanupEnabled", "Cleanup: Disabled"] {
+            for source in [delegate, cleanupMenu, config, pipelineFactory] {
+                #expect(!source.contains(forbidden), "runtime source must not expose \(forbidden)")
+            }
+        }
+        #expect(!Self.withoutStringLiterals(configStore).contains("cleanupEnabled"))
+        #expect(!Self.withoutStringLiterals(configStore).contains("enabled: false"))
         #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
@@ -158,6 +168,39 @@ struct AppRuntimeSourceGuardTests {
         #expect(!delegate.contains("cleanupModelReady"))
     }
 
+    /// Production dictation is the restored WhisperKit transcriber, and the on-device
+    /// model cache must never live under the user's `Documents`. The WhisperKit SDK's
+    /// DEFAULT download location is `~/Documents/huggingface` — and it lives in the SDK,
+    /// so a grep-for-"Documents" over our source is FALSE-GREEN. `WhisperKitEngine` must
+    /// POSITIVELY override it with an explicit `WhisperKitConfig.downloadBase` under
+    /// Application Support. Stated sensitivity: revert to the SDK default (drop
+    /// downloadBase / applicationSupportDirectory) → RED; ASR not built as
+    /// WhisperKitTranscriber → composition RED; a Documents marker anywhere → RED.
+    @Test
+    func productionAsrEngineSetsNonDocumentsModelDownloadBase() throws {
+        let sources = try Self.productionAsrRuntimeSources()
+        let sourceByPath = Dictionary(uniqueKeysWithValues: sources.map { ($0.relativePath, $0.contents) })
+        let composition = try #require(sourceByPath["Sources/slovo/AppComposition.swift"])
+        let engine = try #require(sourceByPath["Sources/SlovoCore/ASR/WhisperKitEngine.swift"])
+
+        #expect(composition.contains("WhisperKitTranscriber("))
+        #expect(engine.contains("downloadBase"),
+                "WhisperKitEngine must set WhisperKitConfig.downloadBase to override the SDK's ~/Documents default")
+        #expect(engine.contains("applicationSupportDirectory"),
+                "the model download base must resolve under Application Support, not Documents")
+        for forbidden in [
+            ".documentDirectory", ".documentsDirectory", "URL.documentsDirectory",
+            "FileManager.default.url(for: .documentDirectory",
+            "FileManager.default.urls(for: .documentDirectory",
+            "FileManager.SearchPathDirectory.documentDirectory", "documentDirectory", "Documents",
+        ] {
+            for source in sources {
+                #expect(!source.contents.contains(forbidden),
+                        "\(source.relativePath) must not cache the ASR model under the user's Documents (\(forbidden))")
+            }
+        }
+    }
+
     @Test
     func transientProgressAndSadToFailStatusDoNotBecomeSticky() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -167,10 +210,10 @@ struct AppRuntimeSourceGuardTests {
         #expect(!StatusMessage.preparingSpeechModel.isPersistentNotice)
         #expect(StatusMessage.cleanupUnavailableInsertedAsSpoken.isSadToFailNotice)
         #expect(!StatusMessage.cleanupUnavailableInsertedAsSpoken.isPersistentNotice)
-        #expect(Self.containsStatement(
+        #expect(Self.statementCount(
             #"guard status\.isPersistentNotice \|\| status\.isSadToFailNotice \|\| isPipelineActive else \{"#,
             in: showStatusBody
-        ))
+        ) > 0)
         #expect(Self.containsInOrder([
             "if status.isPersistentNotice",
             "didShowPipelineStatus = true",
@@ -202,8 +245,23 @@ struct AppRuntimeSourceGuardTests {
         try strippingComments(from: String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8))
     }
 
-    private static func containsStatement(_ pattern: String, in source: String) -> Bool {
-        statementCount(pattern, in: source) > 0
+    private static func productionAsrRuntimeSources() throws -> [SourceFile] {
+        let sourcePaths = try [
+            "Sources/SlovoCore/ASR",
+            "Sources/SlovoCore/Composition",
+            "Sources/slovo",
+        ].flatMap { try swiftSourceFiles(under: $0) } + ["Package.swift"]
+
+        return try sourcePaths
+            .sorted()
+            .map { (relativePath: $0, contents: try code($0)) }
+    }
+
+    private static func swiftSourceFiles(under relativeDirectory: String) throws -> [String] {
+        let root = packageRoot.appending(path: relativeDirectory, directoryHint: .isDirectory).path
+        return try FileManager.default.subpathsOfDirectory(atPath: root)
+            .filter { $0.hasSuffix(".swift") }
+            .map { "\(relativeDirectory)/\($0)" }
     }
 
     private static func statementCount(_ pattern: String, in source: String) -> Int {
@@ -265,12 +323,10 @@ struct AppRuntimeSourceGuardTests {
 
     private static func withoutStringLiterals(_ source: String) -> String {
         var output = ""
-        var index = source.startIndex
         var inString = false
         var escaped = false
 
-        while index < source.endIndex {
-            let character = source[index]
+        for character in source {
             if inString {
                 if character == "\n" {
                     output.append(character)
@@ -288,7 +344,6 @@ struct AppRuntimeSourceGuardTests {
                     inString = true
                 }
             }
-            index = source.index(after: index)
         }
         return output
     }
@@ -296,9 +351,7 @@ struct AppRuntimeSourceGuardTests {
     private static func strippingComments(from source: String) -> String {
         var output = ""
         var index = source.startIndex
-        var inLineComment = false
-        var inBlockComment = false
-        var inString = false
+        var inLineComment = false, inBlockComment = false, inString = false
 
         while index < source.endIndex {
             let character = source[index]
@@ -337,11 +390,9 @@ struct AppRuntimeSourceGuardTests {
         return output
     }
 
+    private typealias SourceFile = (relativePath: String, contents: String)
     private static var packageRoot: URL {
         let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 }

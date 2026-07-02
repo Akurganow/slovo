@@ -19,8 +19,9 @@ public enum MenuBarGlyph {
         switch status {
         case .cleanupUnavailableInsertedAsSpoken:
             return "\u{2C11}"
-        case .preparingSpeechModel,
-             .cleanupDeclinedInsertedAsSpoken,
+        case .preparingSpeechModel:
+            return "\u{2C06}"
+        case .cleanupDeclinedInsertedAsSpoken,
              .accessibilityDenied,
              .missingKey,
              .transcriptionFailed,

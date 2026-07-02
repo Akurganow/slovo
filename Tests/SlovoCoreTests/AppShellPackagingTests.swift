@@ -32,8 +32,8 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("NSStatusItem"))
         #expect(delegate.contains("setStatusGlyph(.idle"))
         #expect(glyph.contains("NotoSansGlagolitic-Regular"))
-        #expect(delegate.contains("button.image"))
-        #expect(!delegate.contains("button?.title = String(MenuBarGlyph"))
+        #expect(glyph.contains("button.image"))
+        #expect(!glyph.contains("button?.title = String(MenuBarGlyph"))
     }
 
     @Test
@@ -42,7 +42,11 @@ struct AppShellPackagingTests {
         let delegate = try Self.strippingComments(from: Self.source("Sources/slovo/AppDelegate.swift"))
 
         #expect(composition.contains("ConfigStore.load(from: defaults)"))
-        #expect(composition.contains("WhisperKitTranscriber(configuration:"))
+        // Stated sensitivity: leave production ASR on the abandoned Apple-Speech
+        // migration (`SystemSpeechTranscriber(configuration:`) instead of building
+        // the restored `WhisperKitTranscriber` → both assertions go RED.
+        #expect(!composition.contains("SystemSpeechTranscriber(configuration:"))
+        #expect(composition.contains("WhisperKitTranscriber("))
         #expect(composition.contains("OpenRouterCleaner("))
         #expect(composition.contains("ClipboardPasteInjector("))
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
@@ -51,6 +55,8 @@ struct AppShellPackagingTests {
         #expect(composition.contains("PipelineFactory.makeOrchestrator"))
         #expect(composition.contains("vocabularyLimit: vocabularyLimit"))
         #expect(composition.contains("keepWarmSeconds: config.keepWarmSeconds"))
+        #expect(composition.contains("warmUp()"),
+                "startup composition must preload the resident ASR engine via warmUp()")
         #expect(composition.contains("statusReporter: statusReporter"))
         #expect(composition.contains("CGEventTapHotkeyMonitor()"))
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
@@ -73,6 +79,9 @@ struct AppShellPackagingTests {
         #expect(!menuBody.contains(#"actionItem("Update Anthropic Key", #selector(enterAnthropicKey))"#))
         #expect(!menuBody.contains(#"actionItem("Update OpenAI Key", #selector(enterOpenAIKey))"#))
         #expect(menuBody.contains(#"actionItem("Update OpenRouter Key", #selector(enterOpenRouterKey))"#))
+        #expect(!menuBody.contains("cleanupToggleItem"))
+        #expect(!menuBody.contains("toggleCleanupEnabled"))
+        #expect(!menuBody.contains("cleanupEnabled"))
         #expect(menuBody.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName"#))
         #expect(menuBody.contains("selectedModel: config.openRouterModel"))
         #expect(!menuBody.contains(#"modelMenu(title: "Local Model""#))

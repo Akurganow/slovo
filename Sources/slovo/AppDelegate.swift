@@ -9,14 +9,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private let logger: Logger
     let defaults: UserDefaults
-    private var statusItem: NSStatusItem?
-    private var statusTextItem: NSMenuItem?
+    var statusItem: NSStatusItem?
+    var statusTextItem: NSMenuItem?
     private var composition: AppComposition.Live?
     private var didShowPipelineStatus = false
-    private var isPipelineActive = false
-    private var isShowingSadToFailStatus = false
+    var isPipelineActive = false
+    var isShowingSadToFailStatus = false
+    var isModelReady = false
     private var onboardingSteps: [OnboardingStep] = []
     private var sadToFailResetTask: Task<Void, Never>?
+    private var hotkeyEdgeSequencer: HotkeyEdgeSequencer?
+    private var isRebuildingPipeline = false
 
     init(logger: Logger, defaults: UserDefaults = .standard) {
         self.logger = logger
@@ -73,37 +76,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return
             }
             defaults.removeObject(forKey: Self.setupAlertStepsKey)
-            live.hotkeyMonitor.onTrigger = { [weak self, orchestrator = live.orchestrator] phase in
-                Task {
-                    switch phase {
-                    case .down:
-                        await MainActor.run {
-                            self?.isPipelineActive = true
-                            self?.didShowPipelineStatus = false
-                            self?.setStatusGlyph(.recording, on: self?.statusItem?.button)
-                            self?.statusTextItem?.title = "Status: Recording"
+            prepareModelGate(for: live)
+            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
+                switch phase {
+                case .down: guard await MainActor.run(body: { self?.isModelReady == true })
+                    else { return await MainActor.run { self?.showModelLoadingState() } }
+                    await MainActor.run {
+                        self?.isPipelineActive = true
+                        self?.didShowPipelineStatus = false
+                        self?.setStatusGlyph(.recording, on: self?.statusItem?.button)
+                        self?.statusTextItem?.title = "Status: Recording"
+                    }
+                    await orchestrator.handle(.startRequested)
+                case .up: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                    await MainActor.run {
+                        self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
+                        if self?.didShowPipelineStatus == false {
+                            self?.statusTextItem?.title = "Status: Processing"
                         }
-                        await orchestrator.handle(.startRequested)
-                    case .up:
-                        await MainActor.run {
-                            self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
-                            if self?.didShowPipelineStatus == false {
-                                self?.statusTextItem?.title = "Status: Processing"
-                            }
+                    }
+                    await orchestrator.handle(.stopRequested)
+                    await orchestrator.awaitPipelineDrain()
+                    await MainActor.run {
+                        self?.isPipelineActive = false
+                        if self?.isShowingSadToFailStatus == false {
+                            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
                         }
-                        await orchestrator.handle(.stopRequested)
-                        await orchestrator.awaitPipelineDrain()
-                        await MainActor.run {
-                            self?.isPipelineActive = false
-                            if self?.isShowingSadToFailStatus == false {
-                                self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
-                            }
-                            if self?.didShowPipelineStatus == false {
-                                self?.statusTextItem?.title = "Status: Idle"
-                            }
+                        if self?.didShowPipelineStatus == false {
+                            self?.statusTextItem?.title = "Status: Idle"
                         }
                     }
                 }
+            }
+            hotkeyEdgeSequencer = sequencer
+            live.hotkeyMonitor.onTrigger = { phase in
+                sequencer.send(phase)
             }
             do {
                 try live.hotkeyMonitor.start()
@@ -116,22 +123,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             logger.error("production composition failed")
         }
-    }
-
-    private func setStatusGlyph(_ state: DictationState, on button: NSStatusBarButton?) {
-        guard let button else { return }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = Self.menuBarGlyphImage(MenuBarGlyph.forState(state))
-            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
-    }
-
-    private func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
-        guard let button, let glyph = MenuBarGlyph.forStatus(status) else { return }
-        button.title = ""
-        button.contentTintColor = MenuBarGlyph.tint(forStatus: status) == .error ? .systemRed : nil
-        button.image = Self.menuBarGlyphImage(glyph)
-            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
     }
 
     private func presentOnboarding(_ steps: [OnboardingStep]) {
@@ -281,9 +272,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc
     private func retrySetup() {
+        // A rebuild is asynchronous (it joins the previous edge consumer first); a
+        // second retry arriving before it finishes must not spawn a parallel
+        // teardown+rebuild that could leave a mismatched sequencer and composition.
+        guard !isRebuildingPipeline else { return }
+        isRebuildingPipeline = true
         composition?.hotkeyMonitor.stop()
         statusItem?.menu = makeMenu()
-        startPipeline()
+        // Join the previous edge consumer before a new one is built, so a rebuilt
+        // monitor cannot leave two consumers double-handling the same fn edges.
+        let previousSequencer = hotkeyEdgeSequencer
+        Task { @MainActor in
+            await previousSequencer?.stop()
+            startPipeline()
+            isRebuildingPipeline = false
+        }
     }
 
     private func openSettingsPane(_ pane: String) {

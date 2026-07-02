@@ -11,6 +11,7 @@ enum AppComposition {
         let config: Config
         let openRouterKeyProvider: KeychainOpenRouterKeyProvider
         let permissionRequester: any PermissionRequester
+        let modelWarmUp: Task<Void, Never>
     }
 
     static func makeLive(
@@ -26,12 +27,22 @@ enum AppComposition {
             at: personalizationDatabasePath(fileManager: fileManager).path
         )
         let source = GRDBPersonalizationSource(database: database, log: log)
-        let transcriber = TranscriberFactory.makeTranscriber(for: config.asrBackend) { _ in
-            WhisperKitTranscriber(configuration: WhisperKitTranscriber.Configuration(
-                model: config.asrModel,
-                language: config.language,
-                keepWarmSeconds: config.keepWarmSeconds
-            ))
+        let whisperKitTranscriber = WhisperKitTranscriber(
+            configuration: WhisperKitTranscriber.Configuration(keepWarmSeconds: config.keepWarmSeconds),
+            engine: WhisperKitEngine(model: config.asrModel, language: config.language),
+            converter: WhisperSampleConverter(),
+            clock: MonotonicClock()
+        )
+        // Preload the model at startup so the FIRST dictation skips the cold load.
+        // Exposed as a task so the app can gate dictation until the model is
+        // resident; a failed preload still completes the gate — `begin` then
+        // retries and surfaces the honest error.
+        let modelWarmUp = Task { _ = try? await whisperKitTranscriber.warmUp() }
+        let transcriber = TranscriberFactory.makeTranscriber(for: config.asrBackend) { backend in
+            switch backend {
+            case .whisperKit:
+                whisperKitTranscriber
+            }
         }
         let cleaner = OpenRouterCleaner(
             session: .shared,
@@ -67,7 +78,8 @@ enum AppComposition {
             ),
             config: config,
             openRouterKeyProvider: openRouterKeyProvider,
-            permissionRequester: permissionPreflighter
+            permissionRequester: permissionPreflighter,
+            modelWarmUp: modelWarmUp
         )
     }
 
