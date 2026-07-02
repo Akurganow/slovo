@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 /// A `MicrophoneAuthorizer` fake reporting exactly the authorization bit it was

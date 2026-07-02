@@ -1,5 +1,3 @@
-import Foundation
-
 /// The system-audio state captured at mute time, used to restore at key-up
 /// (spec §17, P28). Pinning the device means an output change mid-dictation
 /// (e.g. AirPods connecting) cannot misdirect the restore.

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// A derived, forward-locking AX-context value. v1 ships NO live AX context
 /// (cursor/app-aware tone is v1.x); this type exists so the redaction invariant is
@@ -62,11 +63,20 @@ public struct Dependencies: Sendable {
 /// Actor isolation serializes events, so a second Start while `processing` hits
 /// the FSM's single-flight rule (logged, no re-entry — no second mute/capture).
 public actor Orchestrator {
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
+
     private var state: DictationState = .idle
     private var stashedPriorAudio: PriorAudioState?
     private var sessionVocabulary: [Term] = []
-    /// The in-flight transcribe→clean→inject follow-on (see `.endCaptureAndTranscribe`).
+    /// Pipes live capture chunks into the open transcription session during the
+    /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
+    /// drained (via the stream finishing) at key-up.
+    private var pumpTask: Task<FeedHealth, Never>?
+    /// The in-flight finish→clean→inject follow-on (see `.endCaptureAndTranscribe`).
     private var pipelineTask: Task<Void, Never>?
+    /// The committed feed outcome of the current session, used at finish to tell a
+    /// total conversion failure apart from legitimate silence.
+    private var feedHealth = FeedHealth()
 
     private let deps: Dependencies
     private let cleanupConfig: CleanupConfig
@@ -103,28 +113,47 @@ public actor Orchestrator {
         }
     }
 
-    /// The transcribe→clean→inject follow-on after key-up. Resolves the bias
-    /// vocabulary, transcribes, and feeds `.transcriptReady` back through the FSM
+    /// The finish→clean→inject follow-on after key-up. Finalizes the streaming
+    /// session opened at key-down and feeds `.transcriptReady` back through the FSM
     /// (which drives clean → inject → injected → returnToIdle).
-    private func transcribeAndContinue(_ buffer: AudioBuffer) async {
-        // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
-        // resolve the personalization vocabulary and pass it as the I4 bias.
-        let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
-        sessionVocabulary = biasTerms
+    private func finishAndContinue() async {
         do {
-            deps.reportStatus(.preparingSpeechModel)
-            let text = try await deps.transcriber.transcribe(buffer, biasTerms: biasTerms)
-            await handle(.transcriptReady(text))
+            let text = try await deps.transcriber.finish()
+            // An empty finish with zero successful feeds and a recorded feed error is
+            // total conversion failure, not silence: surface it honestly instead of
+            // letting a disguised-empty transcript flow on to clean/inject. Any
+            // successful feed, or an empty tap with no error, stays the empty path.
+            if text.isEmpty, feedHealth.successCount == 0, let feedError = feedHealth.lastError {
+                deps.log.event("transcription.totalFeedFailure.\(feedErrorKindName(feedError))")
+                Self.diagnosticLog.error("transcription.failure stage=feed")
+                await handle(.failed(.transcription(feedError)))
+            } else {
+                Self.diagnosticLog.info(
+                    """
+                    transcription.success chars=\(text.count, privacy: .public)
+                    """
+                )
+                await handle(.transcriptReady(text))
+            }
         } catch let error as TranscriptionError {
+            Self.diagnosticLog.error("transcription.failure stage=finish")
             await handle(.failed(.transcription(error)))
         } catch {
+            Self.diagnosticLog.error("transcription.failure stage=finish")
             await handle(.failed(.transcription(.engineFailure(underlying: error))))
         }
     }
 
+    /// Per-session feed outcome, accumulated locally in the pump and committed once
+    /// when the capture stream ends, so total conversion failure (zero successful
+    /// feeds with an error) is distinguishable from legitimate silence.
+    private struct FeedHealth {
+        var successCount = 0
+        var lastError: TranscriptionError?
+    }
+
     private enum DeferredEffect: Sendable {
-        case transcribe(AudioBuffer)
-        case fail(StageFailure)
+        case finish
     }
 
     private func execute(_ effect: DictationEffect) async -> DeferredEffect? {
@@ -135,26 +164,52 @@ public actor Orchestrator {
             return nil
 
         case .beginCapture:
+            // Key-down: open mic capture AND the streaming ASR session, then pipe
+            // each captured chunk into the session for the duration of the hold.
+            let stream: AsyncStream<AudioChunk>
             do {
-                try await deps.recorder.start()
+                stream = try await deps.recorder.start()
             } catch let error as AudioCaptureError {
                 await handle(.failed(.capture(error)))
+                return nil
             } catch {
                 await handle(.failed(.capture(.engineStartFailed)))
+                return nil
             }
+
+            // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
+            // resolve the personalization vocabulary once and reuse it as the ASR
+            // bias and the cleaner context.
+            let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
+            sessionVocabulary = biasTerms
+            deps.reportStatus(.preparingSpeechModel)
+            do {
+                try await deps.transcriber.begin(biasTerms: biasTerms)
+            } catch let error as TranscriptionError {
+                // Release the mic first, then contain the failure.
+                await deps.recorder.stop()
+                await handle(.failed(.transcription(error)))
+                return nil
+            } catch {
+                await deps.recorder.stop()
+                await handle(.failed(.transcription(.engineFailure(underlying: error))))
+                return nil
+            }
+
+            feedHealth = FeedHealth()
+            pumpTask = makePumpTask(draining: stream)
             return nil
 
         case .endCaptureAndTranscribe:
-            // End capture (key-up) and stash the buffer. The transcribe→clean→inject
-            // pipeline is deferred until after the remaining effect list runs, so
-            // `.restoreSystemOutput` is not coupled to actor executor timing.
-            do {
-                return .transcribe(try await deps.recorder.stop())
-            } catch let error as AudioCaptureError {
-                return .fail(.capture(error))
-            } catch {
-                return .fail(.capture(.conversionFailed))
+            // Key-up: end capture and drain every remaining fed chunk (the recorder
+            // finishing the stream terminates the pump). Finalization is deferred
+            // until after the remaining effect list runs, so `.restoreSystemOutput`
+            // is not coupled to actor executor timing.
+            await deps.recorder.stop()
+            if let health = await pumpTask?.value {
+                feedHealth = health
             }
+            return .finish
 
         case .restoreSystemOutput:
             if let prior = stashedPriorAudio {
@@ -194,20 +249,57 @@ public actor Orchestrator {
         case .returnToIdle:
             stashedPriorAudio = nil
             sessionVocabulary = []
+            feedHealth = FeedHealth()
+            pumpTask?.cancel()
+            pumpTask = nil
             pipelineTask = nil
             return nil
         }
     }
 
+    /// Spawns the capture pump: it feeds each live chunk into the open session and
+    /// tallies the feed outcome it returns when the stream ends. Captures `deps`
+    /// only (never `self`), so the audio-thread pump touches no actor state; the
+    /// tally is committed on the actor at key-up.
+    private func makePumpTask(draining stream: AsyncStream<AudioChunk>) -> Task<FeedHealth, Never> {
+        Task { [deps] in
+            var health = FeedHealth()
+            for await chunk in stream {
+                do {
+                    try await deps.transcriber.feed(chunk)
+                    health.successCount += 1
+                } catch let error as TranscriptionError {
+                    health.lastError = error
+                } catch {
+                    health.lastError = .engineFailure(underlying: error)
+                }
+            }
+            return health
+        }
+    }
+
     private func executeDeferred(_ effect: DeferredEffect) async {
         switch effect {
-        case .transcribe(let buffer):
+        case .finish:
             pipelineTask = Task { [weak self] in
                 guard let self else { return }
-                await self.transcribeAndContinue(buffer)
+                await self.finishAndContinue()
             }
-        case .fail(let failure):
-            await handle(.failed(failure))
+        }
+    }
+
+    /// The static case name of a feed error, for the payload-free health log —
+    /// never the wrapped cause or any associated value.
+    private func feedErrorKindName(_ error: TranscriptionError) -> String {
+        switch error {
+        case .backendUnavailable:
+            return "backendUnavailable"
+        case .assetMissing:
+            return "assetMissing"
+        case .audioFormatUnsupported:
+            return "audioFormatUnsupported"
+        case .engineFailure:
+            return "engineFailure"
         }
     }
 

@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 /// A `PermissionPreflighter` fake that reports exactly the three grant bits it

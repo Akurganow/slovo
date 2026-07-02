@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 /// A `PersonalizationSource` fake that returns its configured terms unchanged,

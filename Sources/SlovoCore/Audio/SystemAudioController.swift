@@ -1,5 +1,3 @@
-import Foundation
-
 /// Mutes and restores system audio output, behind a seam so the mute/restore
 /// behavior is unit-testable without touching CoreAudio (spec §17, F1).
 public protocol SystemAudioController: Sendable {

@@ -1,6 +1,5 @@
 import AudioToolbox
 import CoreAudio
-import Foundation
 
 /// Real CoreAudio implementation of `SystemAudioController` (spec §17, F1).
 ///
