@@ -1,4 +1,3 @@
-import Foundation
 import GRDB
 
 /// Imports vocabulary rows into the store (spec §8.6, §18.4, D18).

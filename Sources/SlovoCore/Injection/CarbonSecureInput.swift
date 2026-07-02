@@ -1,5 +1,4 @@
 import Carbon.HIToolbox
-import Foundation
 
 /// Real `SecureInput` backed by the process-global `IsSecureEventInputEnabled()`
 /// (Carbon HIToolbox; TN2150). Returns whether ANY process currently has secure

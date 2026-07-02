@@ -1,5 +1,3 @@
-import Foundation
-
 /// Injects text by driving the system pasteboard and a synthesized ⌘V (spec §3,
 /// §11, §18.3; D19–D21). SECURITY-CRITICAL — the §2 sequence is exact and its
 /// ordering is the whole point:
@@ -9,12 +7,15 @@ import Foundation
 ///    P3 — a "restored to original" check alone would miss this leak window).
 /// 2. Snapshot the user's clipboard, then 3. always restore it via `defer` on
 ///    EVERY exit path (success, throw, or abort) so the original is never lost (P4).
-/// 4. Clear + 5. write the transcript with conceal markers so clipboard managers
+/// 4. Clear the pasteboard.
+/// 5. Re-check secure input immediately before writing the transcript — focus may
+///    have moved after the first guard.
+/// 6. Write the transcript with conceal markers so clipboard managers
 ///    don't persist it (D21).
-/// 6. Re-check secure input immediately before pasting — focus may have moved to a
+/// 7. Re-check secure input immediately before pasting — focus may have moved to a
 ///    password field after step 1 (D20).
-/// 7. Paste, surfacing accessibility/paste failures rather than swallowing them.
-/// 8. Wait `restoreDelay` so the app consumes the paste before the deferred
+/// 8. Paste, surfacing accessibility/paste failures rather than swallowing them.
+/// 9. Wait `restoreDelay` so the app consumes the paste before the deferred
 ///    restore lands.
 public struct ClipboardPasteInjector: Injector {
     private let pasteboard: Pasteboard
@@ -53,19 +54,27 @@ public struct ClipboardPasteInjector: Injector {
         // 3. Restore it on EVERY exit path (success, throw, or secure-recheck abort).
         defer { pasteboard.restore(saved) }
 
-        // 4–5. Clear, then write the transcript with the conceal markers.
+        // 4. Clear before the second guard so any aborted write path restores a
+        //    known snapshot instead of leaving a stale transcript behind.
         pasteboard.clearContents()
-        pasteboard.write(PasteboardWriteItem(string: text, markerTypes: Self.markerTypes))
 
-        // 6. Re-check: focus may have moved to a password field since step 1.
+        // 5. Re-check immediately before writing the transcript.
         guard !secureInput.isSecureInputActive() else {
             throw InjectionError.secureInputActive
         }
 
-        // 7. Paste, surfacing the failure (never swallowed).
+        // 6. Write the transcript with the conceal markers.
+        pasteboard.write(PasteboardWriteItem(string: text, markerTypes: Self.markerTypes))
+
+        // 7. Re-check: focus may have moved to a password field since step 1.
+        guard !secureInput.isSecureInputActive() else {
+            throw InjectionError.secureInputActive
+        }
+
+        // 8. Paste, surfacing the failure (never swallowed).
         try keystroke.paste()
 
-        // 8. Let the app consume the paste before the deferred restore lands.
+        // 9. Let the app consume the paste before the deferred restore lands.
         try? await Task.sleep(for: restoreDelay)
     }
 }

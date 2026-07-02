@@ -1,4 +1,3 @@
-import Foundation
 import GRDB
 
 /// Opens (creating if absent) the personalization database (spec §18.4, D17).

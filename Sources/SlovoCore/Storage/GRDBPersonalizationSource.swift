@@ -1,4 +1,3 @@
-import Foundation
 import GRDB
 
 /// The GRDB-backed `PersonalizationSource` (spec §18.2, §18.4). The only place

@@ -1,7 +1,6 @@
 import ApplicationServices
 import Carbon.HIToolbox
 import CoreGraphics
-import Foundation
 
 /// Real `PasteKeystroke` that synthesizes ⌘V via `CGEvent` (ref
 /// `text-injection.md`).

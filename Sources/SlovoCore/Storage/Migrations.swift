@@ -1,4 +1,3 @@
-import Foundation
 import GRDB
 
 /// The v1 schema migration for the personalization store (spec §18.4; mirrors

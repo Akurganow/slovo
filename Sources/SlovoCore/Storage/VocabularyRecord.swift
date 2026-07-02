@@ -1,4 +1,3 @@
-import Foundation
 import GRDB
 
 /// A `vocabulary` row (spec §18.4). Inserts use `INSERT OR IGNORE` so re-applying
