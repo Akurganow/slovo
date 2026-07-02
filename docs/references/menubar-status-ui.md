@@ -242,9 +242,10 @@ is a small local list of recent dictations; each entry:
 "Logging redaction" and §13):**
 
 - **Local only. Never egress.** The history holds the user's actual words. It must
-  **never** be sent to telemetry or any unrelated third party. The selected cleanup
-  provider is the only optional text egress path; the history store is a separate
-  surface and must not become a second egress path.
+  **never** be sent to telemetry or any unrelated third party. Cleanup text egress
+  is the OpenRouter cleanup attempt; insertion falls back to the direct transcript
+  only when cleanup is unavailable, refused, or misconfigured. The history store is
+  a separate surface and must not become a second egress path.
 - **Never logged.** Spec §11 forbids any transcript/cleaned text reaching an
   `os.Logger` sink; the history entry's `text` is exactly that text. The §12 RED
   redaction test (a fake log sink fails if transcript text appears in a log line)

@@ -1,8 +1,9 @@
-# WhisperKit (fallback ASR)
+# WhisperKit (on-device ASR runtime)
 
-> Reference for **slovo** (native Swift, macOS, Apple Silicon). WhisperKit is the
-> **fallback** on-device ASR backend: Whisper running locally via CoreML on the
-> Apple Neural Engine (ANE) / GPU / CPU. No network, no cloud, fully private.
+> Reference for **slovo** (native Swift, macOS, Apple Silicon). WhisperKit runs
+> Whisper locally via CoreML on the Apple Neural Engine (ANE) / GPU / CPU. It **is**
+> Slovo's shipped on-device ASR runtime (Whisper large-v3 turbo, restored in
+> cycle 1).
 
 ## Status (verified 2026-06-27)
 
@@ -12,16 +13,16 @@
   Open-Source SDK**. The Git repo is now `argmaxinc/argmax-oss-swift`; the old
   `argmaxinc/WhisperKit` URL redirects to it. The SDK bundles three products:
   `WhisperKit` (STT), `SpeakerKit` (diarization), `TTSKit` (TTS), plus an
-  umbrella `ArgmaxOSS` product. **slovo only needs the `WhisperKit` product.**
+  umbrella `ArgmaxOSS` product. Slovo links only the `WhisperKit` product; the
+  other products remain reference material.
 - License: MIT.
 
 ## Purpose
 
-slovo captures microphone audio, and on key release transcribes the captured
-buffer in one batch. WhisperKit is the offline fallback when the primary
-(cloud) ASR is unavailable or privacy-restricted. Its `transcribe(audioArray:)`
-takes `[Float]` PCM samples (16 kHz, mono) — the same shape as slovo's captured
-buffer — so no file round-trip is required.
+This document records Slovo's WhisperKit integration path. Slovo's production
+runtime links WhisperKit: production dictation runs Whisper large-v3 turbo
+on-device via the `WhisperKit` product, decoding `[Float]` PCM samples (16 kHz,
+mono) through `transcribe(audioArray:)`.
 
 ## Install (Swift Package Manager)
 
@@ -274,6 +275,12 @@ the right call.
   `transcribe(audioArray:)`, or the output degrades. WhisperKit's
   `AudioProcessor` helpers can load/convert files, but for the in-memory buffer
   you own the resampling.
+- **Resampler delay-line residue (accepted):** slovo's streaming
+  `WhisperSampleConverter` reuses one `AVAudioConverter`, so its final
+  ~235-frame (~15 ms) delay-line residue is never flushed at `finish()`, and that
+  ~15 ms of the previous session's tail carries into the next session's first
+  chunk. Same-user, in-memory, sub-phoneme trailing silence — acoustically
+  immaterial for push-to-talk; documented, not fixed.
 - **First-run latency:** the default flow downloads the model (hundreds of MB)
   and ANE-compiles it. Construct `WhisperKit` once at app start (with `prewarm`)
   and reuse it; never per-dictation. For a hard-offline build, bundle the

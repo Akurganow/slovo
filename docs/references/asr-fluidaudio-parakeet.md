@@ -1,4 +1,4 @@
-# FluidAudio + Parakeet TDT v3 (candidate ASR)
+# FluidAudio + Parakeet TDT v3 (archived ASR comparison)
 
 > Reference for slovo (native Swift macOS, Apple Silicon). Verified against the
 > official FluidAudio repository (source code at the `v0.15.4` tag) and the
@@ -11,6 +11,9 @@
 > source. The signatures below were confirmed against the actual Swift source at
 > the `v0.15.4` tag (`Sources/FluidAudio/ASR/Parakeet/SlidingWindow/TDT/`), which
 > is authoritative. Where the docs and source disagree, the source wins.
+>
+> Slovo's shipped runtime does not link FluidAudio; runtime ASR is Apple system
+> Speech only. This document is historical comparison material.
 
 ## Purpose
 
@@ -20,7 +23,7 @@ activity detection, speaker diarization). Inference is offloaded to the Apple
 Neural Engine (ANE) via CoreML, which lowers memory use and is generally faster
 than CPU/GPU paths.
 
-For slovo, the relevant capability is batch ASR using NVIDIA **Parakeet TDT
+For historical comparison, the relevant capability is batch ASR using NVIDIA **Parakeet TDT
 0.6B v3**, converted to CoreML and distributed as
 `FluidInference/parakeet-tdt-0.6b-v3-coreml`. This is the fastest local engine
 in FluidAudio's own benchmarks (~110x real-time on M4 Pro for batch ASR) and

@@ -39,3 +39,6 @@ secrets/
 credentials*.json
 id_rsa*
 /.idea/
+
+# Local scratch (user voice samples for on-device ASR checks) — never commit.
+/tmp/

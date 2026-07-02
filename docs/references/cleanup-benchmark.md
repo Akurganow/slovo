@@ -110,7 +110,7 @@ even if its latency is excellent.
 Wispr's public privacy/data-control pages describe a cloud processing model with
 Privacy Mode and Cloud Sync controls. Slovo should not copy that architecture:
 Slovo's audio path remains local, and only already-transcribed text may leave the
-Mac when cloud cleanup is enabled.
+Mac for OpenRouter cleanup attempts.
 
 ## Providers
 

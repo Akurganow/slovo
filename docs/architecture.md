@@ -12,8 +12,9 @@ fn down -> mute output -> capture microphone
 fn up   -> stop capture -> restore output -> transcribe -> clean -> inject
 ```
 
-Raw audio stays on the Mac. Optional cleanup sends transcript text only to
-OpenRouter for the selected routed model id.
+Raw audio stays on the Mac and is transcribed through Apple's system Speech
+framework. Cleanup is always attempted through OpenRouter and sends only
+transcript text for the selected routed model id.
 
 ## Core Components
 
@@ -21,8 +22,10 @@ OpenRouter for the selected routed model id.
 - `SystemAudioController` mutes and restores system output during recording.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
-- `Transcriber` turns audio into text.
-- `Cleaner` optionally rewrites the transcript into final prose.
+- `SystemSpeechTranscriber` turns audio into text through
+  `DictationTranscriber` and `SpeechAnalyzer`.
+- `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
+  succeeds.
 - `Injector` inserts the final text into the focused field.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `Orchestrator` serializes the pipeline and owns the runtime state transitions.
@@ -38,12 +41,13 @@ Cleanup has one runtime provider:
 - OpenRouter Chat Completions API.
 
 The app stores one OpenRouter key in Keychain and exposes model selection as
-curated OpenRouter model ids plus a custom id entry. The key is preloaded once at
-startup and cached in memory for normal cleanup calls.
+curated OpenRouter model ids and a custom id entry. Selecting a model changes
+only the model id. The key is read lazily when cleanup runs.
 
-Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, rate-limited, or
-returns an unusable response, Slovo inserts the direct transcript and briefly
-shows the `Ⱁ` error glyph instead of cancelling the dictation.
+Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, misconfigured,
+refuses the request, rate-limits, or returns an unusable response, Slovo inserts
+the direct transcript and briefly shows the `Ⱁ` error glyph instead of
+cancelling the dictation.
 
 ## Storage
 

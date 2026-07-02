@@ -21,22 +21,23 @@ depends on. The personalization seed data lives under `../../data/` and is
 |---|---|---|---|
 | [macos-fn-hotkey.md](macos-fn-hotkey.md) | `fn`/Globe as a global hotkey via an active `CGEventTap`; suppressing the OS default; Accessibility vs Input Monitoring | Apple CoreGraphics (`CGEvent.tapCreate`, `CGEventFlags`, `maskSecondaryFn`) | D1 trigger (§8) |
 | [audio-capture.md](audio-capture.md) | Mic capture via `AVAudioEngine.installTap` → 16 kHz mono `Float` via `AVAudioConverter`; mic permission | Apple AVFAudio + TN3136 | `AudioRecorder` (§4/§5) |
-| [asr-apple-speech.md](asr-apple-speech.md) | `SpeechAnalyzer` / `SpeechTranscriber` / `AssetInventory` on-device STT (macOS 26+); `ru_RU` | Apple Speech framework + WWDC25 277 | ASR — provisional default (§18.1); I3 gate |
-| [asr-whisperkit.md](asr-whisperkit.md) | WhisperKit (`argmax-oss-swift`, product `WhisperKit`) on-device Whisper CoreML/ANE | github.com/argmaxinc/argmax-oss-swift + HF whisperkit-coreml | ASR backend (bake-off) |
-| [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | ASR candidate (I3 code-switching favorite) |
+| [asr-apple-speech.md](asr-apple-speech.md) | `DictationTranscriber` / `SpeechAnalyzer` / `AssetInventory` on-device STT (macOS 26+); `ru_RU` | Apple Speech framework + WWDC25 277 | Only runtime ASR path; Apple-managed model retention |
+| [asr-whisperkit.md](asr-whisperkit.md) | WhisperKit (`argmax-oss-swift`, product `WhisperKit`) on-device Whisper CoreML/ANE | github.com/argmaxinc/argmax-oss-swift + HF whisperkit-coreml | Archived historical ASR comparison; not linked by runtime |
+| [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | Archived historical ASR comparison; not linked by runtime |
 | [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, Wispr Flow reference bar, OpenRouter-routed candidates | Wispr Flow pages + OpenRouter sources | Cleanup comparison harness |
 | [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE` | github.com/groue/GRDB.swift (DocC) | Personalization store (§8.6) |
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `Injector` (§3/§11) |
 | [menubar-packaging.md](menubar-packaging.md) | `NSStatusItem`, `LSUIElement`/`.accessory`, codesign/notarization, sandbox↔Accessibility conflict | Apple AppKit + Developer ID / App Sandbox docs | App shell + packaging (§9) |
 | [menubar-status-ui.md](menubar-status-ui.md) | Glagolitic status icon (bundled Noto Sans Glagolitic vs LastResort tofu), `NSPopover`/`MenuBarExtra` history popover, history privacy invariant | Apple AppKit (`NSPopover`) + SwiftUI (`MenuBarExtra`) + Apple Support bundled-font lists | Status-icon + history popover (Epic 09 / §9) |
 
-## Pending / candidate references (not yet gathered)
+## Pending references (not yet gathered)
 
 - CoreAudio output mute/restore for F1 — the recommendation is captured in spec
   §17 (agent `feat1-mute`); a standalone `coreaudio-mute.md` can be added if needed.
 - Apple Foundation Models `LanguageModel` protocol — only when the cleanup seam
   targets it (spec §18.6 marks the protocol shape TO-VERIFY).
-- GigaAM (Russian-specific ASR) — only if added as a power-mode backend.
+- GigaAM (Russian-specific ASR) — historical note only; legacy ASR backends are
+  not product candidates while runtime ASR is Apple system Speech only.
 
 ## Verification status
 
@@ -49,7 +50,7 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 | Doc | Verdict | Notable correction by the verifier |
 |---|---|---|
 | cleanup-benchmark.md | PASS | OpenRouter-only benchmark path updated; `passthrough` kept as local baseline |
-| asr-whisperkit.md | PASS | Package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
+| asr-whisperkit.md | PASS | Archived historical reference; package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |
 | menubar-status-ui.md | PASS | Glagolitic status glyphs render through bundled Noto Sans Glagolitic when pinned explicitly |
@@ -61,6 +62,6 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 
 **Cross-cutting finding folded into the spec (§9, §18.8):** the permission/packaging
 story (non-sandboxed + Hardened Runtime + `audio-input` entitlement + stable Team
-ID + preflight Accessibility & Input Monitoring), and — load-bearing — **no ASR
-candidate documents intra-utterance RU+EN code-switching**, making it the #1 v1
-risk and the bake-off's primary acceptance test.
+ID + preflight Accessibility & Input Monitoring), and — load-bearing — Apple
+system Speech is the only runtime ASR path. The third-party ASR notes remain
+historical comparison material, not active candidate selection.

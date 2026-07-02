@@ -4,9 +4,9 @@
 
 `SpeechAnalyzer` + `SpeechTranscriber` are the new on-device speech-to-text APIs Apple
 introduced at WWDC25 (macOS 26 "Tahoe" generation, all platforms are `26.0+`). This is
-slovo's **default ASR backend**: a native Swift, fully on-device transcription engine for
-Apple Silicon, the same technology that powers system Notes / Voice Memos / Journal /
-Call Summarization.
+slovo's **only runtime ASR backend**: a native Swift, fully on-device transcription
+engine for Apple Silicon, the same technology that powers system Notes / Voice Memos /
+Journal / Call Summarization.
 
 The design splits three responsibilities:
 
@@ -280,10 +280,12 @@ func transcribeRussian() async throws -> String {
   `AssetInventory.assetInstallationRequest(supporting:)` → `downloadAndInstall()` and show
   the request's `progress` to the user. First run for a new language downloads hundreds of
   MB; budget for it.
-- **Reserve the locale.** Apps may keep only `maximumReservedLocales` language models
-  resident. Call `AssetInventory.reserve(locale:)` for slovo's active language so the OS
-  doesn't evict it; `release(reservedLocale:)` when switching. Plan for at most ~2
-  (Russian + English) and handle the reservation limit.
+- **Use Apple-managed retention.** `SpeechAnalyzer.Options.ModelRetention` controls
+  whether analyzer resources linger across sessions. Slovo maps positive
+  `keepWarmSeconds` values to `.lingering` and zero to `.whileInUse`; it does not
+  own a manual ASR model lifecycle or unload timer. `AssetInventory.reserve(locale:)`
+  remains available for locale reservation when the runtime needs the OS to keep a
+  language model resident, subject to `maximumReservedLocales`.
 - **OS version gate.** Every type here is `macOS 26.0+` (confirmed on each type's
   developer.apple.com page; `DictationTranscriber` omits tvOS, all others list iOS / iPadOS
   / Mac Catalyst / macOS / tvOS / visionOS 26.0+). Guard all usage with

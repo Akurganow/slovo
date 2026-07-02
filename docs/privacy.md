@@ -1,14 +1,15 @@
 # Privacy And Security
 
 Slovo is designed around a narrow data boundary: raw audio stays local, and only
-transcript text may leave the machine when cloud cleanup is enabled.
+transcript text may leave the machine when OpenRouter cleanup is attempted.
 
 ## Data Paths
 
 | Data | Location | Network |
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
-| Transcript text | Local process memory | Sent only to OpenRouter when cleanup is enabled |
+| System Speech assets | Apple-managed system storage | Managed by macOS Speech |
+| Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts |
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
@@ -20,15 +21,17 @@ The OpenRouter key is stored as a macOS Keychain generic-password item:
 
 - `slovo` / `openrouter-api-key`
 
-The key is read once during startup setup and cached in process memory. Updating
-the key through the app writes the new value to Keychain and replaces the
-in-memory copy.
+The key is read lazily when cleanup runs. Updating the key through the app writes
+the new value to Keychain.
 
 Stable code signing matters. macOS Keychain and privacy permissions use the app's
 identity when deciding whether the current binary is trusted. Ad-hoc builds or
 frequently changing bundle identities can cause repeated prompts.
 
 ## Local Files
+
+Slovo does not use a third-party ASR model cache and must not request access to
+Documents for speech model downloads.
 
 These files are intentionally not tracked:
 
@@ -39,6 +42,15 @@ These files are intentionally not tracked:
 - credential JSON or token files
 
 The checked-in schema is safe; user data and seed content are not.
+
+## Permissions
+
+First-run setup tracks only the blockers proven by the current runtime:
+Microphone and Accessibility. Input Monitoring is requested only as a targeted
+hotkey recovery path if the global event tap cannot start. `Info.plist` declares
+a Speech Recognition usage string as conservative compatibility for Apple
+Speech APIs; it is not treated as a separate first-run blocker unless the live
+runtime proves it is required.
 
 ## Logging
 
@@ -63,8 +75,8 @@ fields.
 
 ## Cloud Cleanup
 
-Cleanup is optional and text-only. Turning cleanup off uses local pass-through
-behavior, preserving the recognized words without contacting OpenRouter.
+Cleanup is always attempted through OpenRouter and is text-only. The app has no
+cleanup-off user path.
 
 If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
 unusable response, Slovo falls back to the direct transcript and shows a
