@@ -1,5 +1,4 @@
 import CoreGraphics
-import Foundation
 
 /// Real `CGEventTap` implementation of `HotkeyMonitor` for the `fn` (Globe) key
 /// (ref: verified CGEventTap constants, P20/P21).

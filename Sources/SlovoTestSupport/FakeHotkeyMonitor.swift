@@ -1,4 +1,3 @@
-import Foundation
 import SlovoCore
 
 /// A `HotkeyMonitor` fake that lets a test drive hotkey edges synthetically and

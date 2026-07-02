@@ -1,5 +1,3 @@
-import Foundation
-
 /// Which edge of the push-to-talk hotkey fired: `.down` starts a session,
 /// `.up` stops it.
 public enum HotkeyPhase: Equatable, Sendable {
