@@ -7,11 +7,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let setupAlertStepsKey = "setup.alert.steps"
     private static let hotkeyAlertShownKey = "hotkey.alert.shown"
 
-    private let logger: Logger
+    let logger: Logger
     let defaults: UserDefaults
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
-    private var composition: AppComposition.Live?
+    var composition: AppComposition.Live?
     private var didShowPipelineStatus = false
     var isPipelineActive = false
     var isShowingSadToFailStatus = false
@@ -53,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ))
         menu.addItem(.separator())
         menu.addItem(actionItem("Update OpenRouter Key", #selector(enterOpenRouterKey)))
+        menu.addItem(actionItem("Add Vocabulary...", #selector(promptForVocabularyTerms)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit Slovo",

@@ -12,6 +12,7 @@ enum AppComposition {
         let openRouterKeyProvider: KeychainOpenRouterKeyProvider
         let permissionRequester: any PermissionRequester
         let modelWarmUp: Task<Void, Never>
+        let personalization: GRDBPersonalizationSource
     }
 
     static func makeLive(
@@ -79,7 +80,8 @@ enum AppComposition {
             config: config,
             openRouterKeyProvider: openRouterKeyProvider,
             permissionRequester: permissionPreflighter,
-            modelWarmUp: modelWarmUp
+            modelWarmUp: modelWarmUp,
+            personalization: source
         )
     }
 

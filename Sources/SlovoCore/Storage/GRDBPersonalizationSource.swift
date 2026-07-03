@@ -1,7 +1,7 @@
 import GRDB
 
 /// The GRDB-backed `PersonalizationSource` (spec §18.2, §18.4). The only place
-/// that reads the vocabulary table.
+/// that reads the vocabulary table; also the menu quick-add's write path.
 ///
 /// SECURITY (AC-7): a DB-row value (a term, expansion, …) must NEVER reach the
 /// log. Only coarse counts cross into `RedactionSafeLog` — never a row payload.
@@ -15,6 +15,19 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
     ) {
         self.database = database
         self.log = log
+    }
+
+    /// Inserts user-added rows with `INSERT OR IGNORE` (the record's conflict
+    /// policy) — a duplicate `(term, category)` is skipped silently.
+    public func addVocabulary(_ records: [VocabularyRecord]) throws {
+        try database.write { db in
+            for var record in records {
+                try record.insert(db)
+            }
+        }
+        // Coarse only (AC-7): the count is not a payload; no term is ever logged.
+        log.event("vocabulary added")
+        log.logLength(of: records)
     }
 
     public func vocabulary(limit: Int) -> [Term] {

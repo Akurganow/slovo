@@ -27,6 +27,29 @@ extension AppDelegate {
     }
 
     @objc
+    func promptForVocabularyTerms() {
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.placeholderString = "GitHub, OAuth, PostgreSQL"
+        let alert = NSAlert()
+        alert.messageText = "Add vocabulary terms"
+        alert.informativeText = "Comma-separated terms that cleanup must preserve verbatim."
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let records = VocabularyQuickAdd.records(from: field.stringValue)
+        guard !records.isEmpty else { return }
+        do {
+            // No pipeline rebuild: vocabulary is re-read from the store at the
+            // start of every dictation, so new terms apply on the next one.
+            try composition?.personalization.addVocabulary(records)
+        } catch {
+            logger.error("vocabulary add failed")
+        }
+    }
+
+    @objc
     func promptForCustomCleanupModel() {
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
         field.placeholderString = Config.defaultOpenRouterModel
