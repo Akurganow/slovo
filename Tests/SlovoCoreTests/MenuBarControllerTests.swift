@@ -13,8 +13,8 @@ struct MenuBarControllerTests {
     @Test
     func glyphMappingUsesDistinctGlyphsForLiveStates() {
         #expect(MenuBarGlyph.forState(.recording) == "\u{2C18}")
-        #expect(MenuBarGlyph.forState(.idle) == "\u{2C44}")
-        #expect(MenuBarGlyph.forState(.processing) == "\u{2C34}")
+        #expect(MenuBarGlyph.forState(.idle) == "\u{2C14}")
+        #expect(MenuBarGlyph.forState(.processing) == "\u{2C04}")
     }
 
     /// Stated sensitivity: reuse the processing glyph for cleanup degradation or

@@ -9,9 +9,9 @@ public enum MenuBarGlyph {
         case .recording:
             return "\u{2C18}"
         case .idle:
-            return "\u{2C44}"
+            return "\u{2C14}"
         case .processing:
-            return "\u{2C34}"
+            return "\u{2C04}"
         }
     }
 
