@@ -84,26 +84,19 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        let update: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-        ]
-        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess {
-            return
+        // Recreate instead of SecItemUpdate: updating keeps the existing item's
+        // access list, so a key first saved by a differently-signed build (e.g. a
+        // dev build) stays readable only by that build and every read from this
+        // one triggers the keychain password prompt. Deleting is silent for any
+        // owner; the fresh item is owned by the current signature.
+        SecItemDelete(query as CFDictionary)
+        var add = query
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let status = SecItemAdd(add as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw StoreError.keychain(status)
         }
-        if status == errSecItemNotFound {
-            var add = query
-            for (key, value) in update {
-                add[key] = value
-            }
-            let addStatus = SecItemAdd(add as CFDictionary, nil)
-            guard addStatus == errSecSuccess else {
-                throw StoreError.keychain(addStatus)
-            }
-            return
-        }
-        throw StoreError.keychain(status)
     }
 
     private static func keychainKey(service: String, account: String) -> String? {
