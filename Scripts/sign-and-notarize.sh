@@ -64,6 +64,16 @@ run install -d "$CONTENTS_PATH/MacOS" "$CONTENTS_PATH/Resources"
 run install "$BINARY_PATH" "$CONTENTS_PATH/MacOS/slovo"
 run install -m 0644 "$ROOT/Resources/Info.plist" "$CONTENTS_PATH/Info.plist"
 
+# Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
+ICON_BUILD="$DIST_DIR/icon"
+run install -d "$ICON_BUILD"
+run xcrun actool "$ROOT/Resources/$APP_NAME.icon" --app-icon "$APP_NAME" --compile "$ICON_BUILD" \
+    --output-partial-info-plist "$ICON_BUILD/partial.plist" \
+    --minimum-deployment-target 26.0 --platform macosx --target-device mac \
+    --output-format human-readable-text
+run install -m 0644 "$ICON_BUILD/Assets.car" "$CONTENTS_PATH/Resources/Assets.car"
+run install -m 0644 "$ICON_BUILD/$APP_NAME.icns" "$CONTENTS_PATH/Resources/$APP_NAME.icns"
+
 CODESIGN_ARGS=(
     --force
     --options runtime
@@ -76,11 +86,29 @@ fi
 
 run codesign "${CODESIGN_ARGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_PATH"
 
-if [[ -n "${NOTARY_PROFILE:-}" ]]; then
-    ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
-    run ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
-    run xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
-    run xcrun stapler staple "$APP_PATH"
+# Package into a distributable DMG (app plus a drag-to-Applications shortcut).
+DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
+DMG_STAGING="$DIST_DIR/$APP_NAME-dmg-staging"
+if [[ -e "$DMG_STAGING" || -e "$DMG_PATH" ]]; then
+    echo "$DMG_STAGING or $DMG_PATH already exists; move it aside before packaging to avoid stale artifacts" >&2
+    exit 65
+fi
+run install -d "$DMG_STAGING"
+run cp -R "$APP_PATH" "$DMG_STAGING/$APP_NAME.app"
+run ln -s /Applications "$DMG_STAGING/Applications"
+run hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGING" -format UDZO "$DMG_PATH"
+
+if [[ "$SIGNING_IDENTITY" != "-" ]]; then
+    run codesign --force --timestamp --sign "$SIGNING_IDENTITY" "$DMG_PATH"
 fi
 
-echo "$APP_PATH"
+if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    run xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+    # Stapling reaches Apple CloudKit, whose cert pinning a TLS-inspecting proxy
+    # (e.g. company Zscaler) breaks. Notarization already succeeded, so stapling is
+    # best-effort: a notarized-but-un-stapled build still passes Gatekeeper online.
+    run xcrun stapler staple "$DMG_PATH" \
+        || echo "WARNING: stapling failed (likely a TLS-inspecting proxy); the DMG is notarized and passes Gatekeeper with network." >&2
+fi
+
+echo "$DMG_PATH"

@@ -38,10 +38,21 @@ stage_bundle() {
     --show-bin-path)/$PROCESS_NAME"
 
   rm -rf "$APP_BUNDLE"
-  mkdir -p "$APP_MACOS"
+  mkdir -p "$APP_MACOS" "$APP_CONTENTS/Resources"
   cp "$build_binary" "$APP_BINARY"
   chmod +x "$APP_BINARY"
   cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+
+  # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
+  local icon_build="$RUN_DIR/icon"
+  rm -rf "$icon_build"
+  mkdir -p "$icon_build"
+  xcrun actool "$ROOT_DIR/Resources/Slovo.icon" --app-icon "$APP_NAME" --compile "$icon_build" \
+    --output-partial-info-plist "$icon_build/partial.plist" \
+    --minimum-deployment-target 26.0 --platform macosx --target-device mac \
+    --output-format human-readable-text >/dev/null
+  cp "$icon_build/Assets.car" "$APP_CONTENTS/Resources/Assets.car"
+  cp "$icon_build/$APP_NAME.icns" "$APP_CONTENTS/Resources/$APP_NAME.icns"
 }
 
 available_signing_identities() {

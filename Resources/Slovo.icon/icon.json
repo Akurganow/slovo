@@ -1,0 +1,13 @@
+{
+  "groups" : [
+    {
+      "layers" : [ { "glass" : false, "hidden" : false, "image-name" : "light.png", "name" : "light" } ],
+      "specializations" : [ { "appearance" : "dark", "value" : { "hidden" : true } } ]
+    },
+    {
+      "layers" : [ { "glass" : false, "hidden" : true, "image-name" : "dark.png", "name" : "dark" } ],
+      "specializations" : [ { "appearance" : "dark", "value" : { "hidden" : false } } ]
+    }
+  ],
+  "supported-platforms" : { "squares" : "shared" }
+}

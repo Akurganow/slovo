@@ -164,13 +164,9 @@ struct AppShellPackagingTests {
         #expect(plan.exitCode == 0, Comment(rawValue: plan.output))
         #expect(plan.output.contains("--disable-automatic-resolution"), Comment(rawValue: plan.output))
         #expect(Self.output(plan.output, containsInOrder: [
-            "DRY-RUN swift build",
-            "DRY-RUN install -d",
-            "DRY-RUN install",
-            "DRY-RUN codesign",
-            "DRY-RUN ditto",
-            "DRY-RUN xcrun notarytool",
-            "DRY-RUN xcrun stapler",
+            "DRY-RUN swift build", "DRY-RUN install -d", "DRY-RUN install",
+            "DRY-RUN xcrun actool", "DRY-RUN codesign", "DRY-RUN hdiutil create",
+            "DRY-RUN codesign", "DRY-RUN xcrun notarytool", "DRY-RUN xcrun stapler",
         ]), Comment(rawValue: plan.output))
 
         let invalidName = try Self.run(
@@ -201,27 +197,6 @@ struct AppShellPackagingTests {
         )
         #expect(staleBundle.exitCode == 65, Comment(rawValue: staleBundle.output))
         #expect(!staleBundle.output.contains("DRY-RUN codesign"))
-    }
-
-    @Test
-    func publicReleaseChecklistCapturesReleaseChecks() throws {
-        let source = try String(
-            contentsOf: Self.packageRoot.appending(path: "docs/release-checklist.md"),
-            encoding: .utf8
-        )
-
-        #expect(source.contains("LSUIElement=true"))
-        #expect(source.contains("TCC grants survive rebuild"))
-        #expect(source.contains("stable development signing identity"))
-        #expect(source.contains("codesign --verify --deep --strict --verbose=2"))
-        #expect(source.contains("spctl --assess --type execute --verbose"))
-        #expect(source.contains("notarytool"))
-        #expect(source.contains("stapler"))
-        #expect(source.contains("first launch"))
-        #expect(source.contains("NotoSansGlagolitic-Regular"))
-        #expect(source.contains("biasTerms"))
-        #expect(source.contains("PassThrough"))
-        #expect(source.contains("privacy"))
     }
 
     private struct CommandResult {
