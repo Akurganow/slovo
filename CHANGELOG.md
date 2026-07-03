@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.3.1] - 2026-07-03
+
+### Fixed
+
+- Recording no longer crashes after an audio device change. Changing the input
+  or output device between dictations (for example unplugging headphones) left
+  the reused audio engine with a stale hardware format, so the next capture
+  raised an uncatchable exception. Each capture now builds a fresh engine, tracks
+  `AVAudioEngineConfigurationChange`, and turns any residual format mismatch into
+  a recoverable menu-bar status instead of aborting.
+
 ## [0.3.0] - 2026-07-03
 
 ### Added

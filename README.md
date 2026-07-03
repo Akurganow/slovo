@@ -10,7 +10,7 @@ for model-routed text cleanup.
 
 ## Status
 
-Current release: `v0.3.0`
+Current release: `v0.3.1`
 
 This is an early release. The app is usable and ships as a Developer ID signed,
 notarized DMG. Recognition and cleanup quality are still being tuned.
