@@ -10,11 +10,25 @@ for model-routed text cleanup.
 
 ## Status
 
-Current release: `v0.2.0`
+Current release: `v0.3.0`
 
-This is an early developer release. The app is usable, but performance tuning,
-Developer ID signing, notarization, and broader installer packaging are still in
-progress.
+This is an early release. The app is usable and ships as a Developer ID signed,
+notarized DMG. Recognition and cleanup quality are still being tuned.
+
+## Install
+
+1. Download `Slovo.dmg` from the
+   [latest release](https://github.com/Akurganow/slovo/releases/latest).
+2. Open the DMG and drag **Slovo** into **Applications**.
+3. Launch Slovo from Applications. It lives in the menu bar — there is no Dock
+   icon.
+4. Grant **Microphone** and **Accessibility** when prompted. Accessibility is
+   required for the global `fn` / Globe hotkey.
+5. Open the menu-bar item, choose **Update OpenRouter Key** to enable cleanup,
+   and optionally **Add Vocabulary…** to protect your own terms.
+
+On first use, WhisperKit downloads the speech model once over the network; after
+that, transcription runs fully on-device.
 
 ## Features
 
@@ -25,8 +39,10 @@ progress.
   OpenRouter model ids.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup runs.
 - Clipboard-based text insertion with secure-input checks and clipboard restore.
-- Local SQLite personalization store for vocabulary hints.
-- Menu-bar status glyphs for idle, recording, and processing states.
+- Local SQLite personalization store for vocabulary hints, with an
+  **Add Vocabulary…** menu action to protect your own terms during cleanup.
+- Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
+  processing states, plus a monochrome app icon that follows the system theme.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Privacy Model
@@ -140,12 +156,25 @@ it with a stable local code-signing identity and the app entitlements, opens it,
 and verifies that the `slovo` process is running. Stable signing is required for
 macOS TCC permission persistence.
 
-Package and sign the app with a stable identity:
+Package and sign the app, then build a DMG, with a stable identity:
 
 ```sh
 SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
-open .build/dist/Slovo.app
+open .build/dist/Slovo.dmg
 ```
+
+To produce a notarized DMG for distribution, sign with a Developer ID identity
+and pass a `notarytool` keychain profile:
+
+```sh
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh
+```
+
+Stapling contacts Apple's CloudKit endpoint; behind a TLS-inspecting proxy it can
+fail while notarization still succeeds. The script keeps stapling best-effort — a
+notarized but un-stapled build still passes Gatekeeper as long as the machine has
+network access.
 
 The signing script intentionally rejects ad-hoc signing by default because macOS
 privacy grants and Keychain trust are tied to a stable app identity. For local

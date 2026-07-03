@@ -31,15 +31,23 @@ The app bundle must use `LSUIElement=true` and a stable bundle identifier. Avoid
 ad-hoc signing for release validation because it cannot prove that TCC grants
 survive rebuild.
 
-Verify the signed bundle:
+The script signs the app, then packages a drag-to-Applications `Slovo.dmg`.
+Verify the signed bundle and the DMG:
 
 ```sh
 codesign --verify --deep --strict --verbose=2 .build/dist/Slovo.app
+codesign --verify --verbose=2 .build/dist/Slovo.dmg
 spctl --assess --type execute --verbose .build/dist/Slovo.app
 ```
 
-When a notarization profile is available, set `NOTARY_PROFILE` and confirm the
-script runs `notarytool` and `stapler`.
+The `spctl` Gatekeeper assessment needs network for a notarized-but-un-stapled
+build so it can fetch the ticket; run it on a network without TLS inspection.
+
+When a notarization profile is available, set `NOTARY_PROFILE`; the script runs
+`notarytool` on the DMG and attempts `stapler`. Confirm the submission status is
+`Accepted`. Stapling contacts Apple CloudKit and can fail behind a TLS-inspecting
+proxy while notarization still succeeds — the script keeps stapling best-effort,
+and a notarized but un-stapled DMG still passes Gatekeeper online.
 
 ## Manual L4 Checks
 
