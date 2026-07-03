@@ -29,11 +29,19 @@ let package = Package(
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.0"),
     ],
     targets: [
+        // Objective-C interop shims that Swift cannot express live here — a
+        // deliberate C-only bucket, intentionally exempt from the Swift
+        // settings/lint gates (they do not apply to `.m` sources). Currently one
+        // function: it wraps AVFoundation calls that report failure by raising an
+        // `NSException` (which Swift's do/catch cannot catch, so an uncaught one
+        // aborts the process) and hands the error back to Swift instead.
+        .target(name: "SlovoObjC"),
         // Testable core. Owns the only `import GRDB` (the persistence adapter);
         // role-tagged source modules must NOT import GRDB (dependency-direction gate).
         .target(
             name: "SlovoCore",
             dependencies: [
+                "SlovoObjC",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
@@ -75,7 +83,7 @@ let package = Package(
         // Unit/behavioral tests for the core library.
         .testTarget(
             name: "SlovoCoreTests",
-            dependencies: ["SlovoCore", "SlovoTestSupport"],
+            dependencies: ["SlovoCore", "SlovoTestSupport", "SlovoObjC"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

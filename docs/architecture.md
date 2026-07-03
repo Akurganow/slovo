@@ -68,6 +68,8 @@ vocabulary quick-add, first-run setup actions, and quit.
 
 ## Build Boundaries
 
-SwiftPM is the source of truth. All targets build with warnings as errors, strict
-concurrency checking, and actor data-race checks. SwiftLint is pinned through a
+SwiftPM is the source of truth. All Swift targets build with warnings as errors,
+strict concurrency checking, and actor data-race checks; the one Objective-C
+target (`SlovoObjC`, an exception-catcher shim Swift cannot express) is exempt,
+since those settings do not apply to `.m` sources. SwiftLint is pinned through a
 SwiftPM plugin and is part of the release gate.

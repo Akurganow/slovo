@@ -293,9 +293,12 @@ short push-to-talk windows this batch-on-release approach keeps memory trivial
   `stop()`, optionally run one final `convert` with `inputStatus = .endOfStream`
   to drain the converter's remaining output (TN3136). For dictation the loss is
   usually inaudible, but flush if the ASR is sensitive to clipped word endings.
-- **Engine restart.** Reuse a single `AVAudioEngine` across sessions; just
-  install/remove the tap and start/stop. Recreating the engine per press adds
-  startup latency.
+- **Engine restart.** Build a fresh `AVAudioEngine` per capture and observe
+  `AVAudioEngineConfigurationChange`. Reusing one engine across sessions caches
+  the input hardware format, so after an audio device change (e.g. unplugging
+  headphones) `installTap` asserts `format.sampleRate == hwFormat.sampleRate`,
+  raises an `NSException`, and the process aborts. A fresh engine re-queries the
+  current device; the small startup cost is acceptable for push-to-talk.
 
 ## Full sources
 

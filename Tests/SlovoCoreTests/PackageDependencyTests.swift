@@ -34,11 +34,11 @@ struct PackageDependencyTests {
             #expect(code.contains(flag), "missing strict Swift flag \(flag)")
         }
 
-        let targetBlocks = Self.swiftPmTargetBlocks(in: code)
+        let targetBlocks = Self.swiftTargetBlocks(in: code)
         #expect(!targetBlocks.isEmpty)
         for targetBlock in targetBlocks {
             #expect(targetBlock.contains("swiftSettings: strictSwiftSettings"),
-                    "every SwiftPM target must use strictSwiftSettings")
+                    "every Swift SwiftPM target must use strictSwiftSettings")
         }
     }
 
@@ -58,11 +58,11 @@ struct PackageDependencyTests {
 
         #expect(compactPackageCode.contains(#".package(url:"https://github.com/SimplyDanny/SwiftLintPlugins",exact:"0.65.0")"#))
         #expect(compactPackageCode.contains(#".plugin(name:"SwiftLintBuildToolPlugin",package:"SwiftLintPlugins")"#))
-        let targetBlocks = Self.swiftPmTargetBlocks(in: packageCode)
+        let targetBlocks = Self.swiftTargetBlocks(in: packageCode)
         #expect(!targetBlocks.isEmpty)
         for targetBlock in targetBlocks {
             #expect(targetBlock.contains("plugins: swiftLintPlugins"),
-                    "every SwiftPM target must use the SwiftLint build tool plugin")
+                    "every Swift SwiftPM target must use the SwiftLint build tool plugin")
         }
 
         let lintCode = Self.strippingShellComments(from: lintSource)
@@ -139,6 +139,17 @@ struct PackageDependencyTests {
         let needle = ".target(\n            name: \"\(name)\""
         guard let range = source.range(of: needle) else { return nil }
         return parenthesizedBlock(startingAt: range.lowerBound, in: source)
+    }
+
+    /// C-family (Objective-C) targets are exempt from the Swift-only guards:
+    /// strict Swift settings and SwiftLint do not apply to `.m` sources.
+    private static let nonSwiftTargetNames = ["SlovoObjC"]
+
+    /// SwiftPM target blocks that are Swift targets; C-family targets are excluded.
+    private static func swiftTargetBlocks(in source: String) -> [String] {
+        swiftPmTargetBlocks(in: source).filter { block in
+            !nonSwiftTargetNames.contains { block.contains("name: \"\($0)\"") }
+        }
     }
 
     private static func swiftPmTargetBlocks(in source: String) -> [String] {
