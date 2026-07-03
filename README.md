@@ -25,7 +25,7 @@ notarized DMG. Recognition and cleanup quality are still being tuned.
 4. Grant **Microphone** and **Accessibility** when prompted. Accessibility is
    required for the global `fn` / Globe hotkey.
 5. Open the menu-bar item, choose **Update OpenRouter Key** to enable cleanup,
-   and optionally **Add Vocabulary…** to protect your own terms.
+   and optionally **Add Vocabulary...** to protect your own terms.
 
 On first use, WhisperKit downloads the speech model once over the network; after
 that, transcription runs fully on-device.
@@ -40,7 +40,7 @@ that, transcription runs fully on-device.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup runs.
 - Clipboard-based text insertion with secure-input checks and clipboard restore.
 - Local SQLite personalization store for vocabulary hints, with an
-  **Add Vocabulary…** menu action to protect your own terms during cleanup.
+  **Add Vocabulary...** menu action to protect your own terms during cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states, plus a monochrome app icon that follows the system theme.
 - Strict Swift build, test, concurrency, lint, and static guard checks.

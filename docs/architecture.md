@@ -63,7 +63,8 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
-an `NSStatusItem` for status, setup actions, cleanup model selection, and quit.
+an `NSStatusItem` for status, cleanup model selection, OpenRouter key entry,
+vocabulary quick-add, first-run setup actions, and quit.
 
 ## Build Boundaries
 

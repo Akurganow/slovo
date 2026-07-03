@@ -15,7 +15,7 @@ once public releases begin.
   limitation.
 - Application icon: the Glagolitic capital letter Slovo (Ⱄ) as a strictly
   monochrome pair that follows the system light and dark appearance.
-- "Add Vocabulary…" menu item to add comma-separated terms that cleanup
+- "Add Vocabulary..." menu item to add comma-separated terms that cleanup
   preserves verbatim; new terms apply on the next dictation without a restart.
 
 ### Changed
