@@ -171,10 +171,10 @@ SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
   NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh
 ```
 
-Stapling contacts Apple's CloudKit endpoint; behind a TLS-inspecting proxy it can
-fail while notarization still succeeds. The script keeps stapling best-effort — a
-notarized but un-stapled build still passes Gatekeeper as long as the machine has
-network access.
+The distribution flow notarizes and staples the app bundle before it is copied
+into the DMG, then notarizes and staples the DMG. Stapling contacts Apple's
+CloudKit endpoint; run distribution packaging on a network that does not break
+Apple certificate pinning.
 
 The signing script intentionally rejects ad-hoc signing by default because macOS
 privacy grants and Keychain trust are tied to a stable app identity. For local

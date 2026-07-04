@@ -46,9 +46,15 @@ run() {
 APP_PATH="$DIST_DIR/$APP_NAME.app"
 CONTENTS_PATH="$APP_PATH/Contents"
 BINARY_PATH="$ROOT/.build/$CONFIGURATION/slovo"
+APP_ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
 
 if [[ -e "$APP_PATH" ]]; then
     echo "$APP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
+    exit 65
+fi
+
+if [[ -e "$APP_ZIP_PATH" ]]; then
+    echo "$APP_ZIP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
     exit 65
 fi
 
@@ -85,6 +91,12 @@ if [[ "$SIGNING_IDENTITY" != "-" ]]; then
 fi
 
 run codesign "${CODESIGN_ARGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_PATH"
+
+if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    run ditto -c -k --keepParent "$APP_PATH" "$APP_ZIP_PATH"
+    run xcrun notarytool submit "$APP_ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+    run xcrun stapler staple "$APP_PATH"
+fi
 
 # Package into a distributable DMG (app plus a drag-to-Applications shortcut).
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"

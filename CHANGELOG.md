@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [Unreleased]
+
+### Fixed
+
+- Distribution packaging now staples the notarization ticket to `Slovo.app`
+  before copying it into the DMG, then notarizes and staples the DMG. This avoids
+  publishing a drag-installed app bundle that passes online Gatekeeper checks but
+  is missing its own stapled ticket.
+
 ## [0.3.1] - 2026-07-03
 
 ### Fixed

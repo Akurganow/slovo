@@ -165,7 +165,8 @@ struct AppShellPackagingTests {
         #expect(plan.output.contains("--disable-automatic-resolution"), Comment(rawValue: plan.output))
         #expect(Self.output(plan.output, containsInOrder: [
             "DRY-RUN swift build", "DRY-RUN install -d", "DRY-RUN install",
-            "DRY-RUN xcrun actool", "DRY-RUN codesign", "DRY-RUN hdiutil create",
+            "DRY-RUN xcrun actool", "DRY-RUN codesign", "DRY-RUN ditto -c -k --keepParent",
+            "DRY-RUN xcrun notarytool", "DRY-RUN xcrun stapler", "DRY-RUN hdiutil create",
             "DRY-RUN codesign", "DRY-RUN xcrun notarytool", "DRY-RUN xcrun stapler",
         ]), Comment(rawValue: plan.output))
 
