@@ -1,8 +1,8 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: Swift
 
+# Runs the Swift test suite for the trunk and every change proposed into it.
+# Building and packaging the distributable app (signing, notarization, stapling)
+# stays a local task and is intentionally not part of CI.
 on:
   push:
     branches: [ "main" ]
@@ -10,13 +10,15 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
-    runs-on: macos-latest
-
+  test:
+    # The package floor is macOS 26 (Apple on-device SpeechTranscriber /
+    # SpeechAnalyzer) built with the Swift 6.3 toolchain.
+    runs-on: macos-26
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+      - name: Run Swift tests
+        # --disable-automatic-resolution pins to the committed Package.resolved,
+        # matching the local gate in Scripts/diagnose.sh.
+        run: swift test --disable-automatic-resolution
