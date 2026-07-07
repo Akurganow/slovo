@@ -50,14 +50,18 @@ Scripts/diagnose.sh
 
 ## Packaging
 
-Local packaging requires a stable signing identity:
+Local packaging requires a stable signing identity and runs in two phases —
+`app`, then `dmg`:
 
 ```sh
-SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh app
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, because
-ad-hoc builds cannot prove stable macOS privacy or Keychain trust behavior.
+ad-hoc builds cannot prove stable macOS privacy or Keychain trust behavior. See
+[docs/release-checklist.md](docs/release-checklist.md) for the full
+build → staple → DMG → staple → publish flow; stapling the notarization ticket is
+the only manual step.
 
 ## Pull Request Checklist
 

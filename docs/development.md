@@ -97,13 +97,15 @@ format and benchmark reporting notes.
 
 ## Packaging
 
-Package with a stable signing identity:
+Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
 
 ```sh
-SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
+SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh app
 ```
 
-The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set.
+The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See
+[release-checklist.md](release-checklist.md) for the full flow; stapling the
+notarization ticket is the only manual step.
 
 ## Repository Hygiene
 

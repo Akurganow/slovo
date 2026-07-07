@@ -21,19 +21,46 @@ The self-test command is expected to exit non-zero.
 
 ## App Packaging
 
-Package with a stable development signing identity or a Developer ID identity:
+Packaging runs in two automated phases. The only manual step is stapling the
+notarization ticket, which must run on a Mac that can reach Apple's notarization
+service. Use a stable development signing identity or a Developer ID identity;
+avoid ad-hoc signing for release validation because it cannot prove that TCC
+grants survive rebuild. The app bundle must use `LSUIElement=true` and a stable
+bundle identifier.
 
-```sh
-SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
-```
+Set `NOTARY_PROFILE` (a `notarytool` keychain profile) to notarize; without it a
+phase stops after signing.
 
-The app bundle must use `LSUIElement=true` and a stable bundle identifier. Avoid
-ad-hoc signing for release validation because it cannot prove that TCC grants
-survive rebuild.
+1. Build, sign, and notarize the app bundle:
 
-The script signs the app, notarizes and staples the app when `NOTARY_PROFILE` is
-set, then packages a drag-to-Applications `Slovo.dmg`. Verify the signed bundle
-and the DMG:
+   ```sh
+   SIGNING_IDENTITY="Slovo Local Development" NOTARY_PROFILE="…" \
+     Scripts/sign-and-notarize.sh app
+   ```
+
+2. Staple the ticket to the app — manual, on a networked Mac:
+
+   ```sh
+   xcrun stapler staple .build/dist/Slovo.app
+   ```
+
+3. Package the stapled app into a signed, notarized `Slovo.dmg`:
+
+   ```sh
+   SIGNING_IDENTITY="Slovo Local Development" NOTARY_PROFILE="…" \
+     Scripts/sign-and-notarize.sh dmg
+   ```
+
+4. Staple the ticket to the DMG — manual, on a networked Mac:
+
+   ```sh
+   xcrun stapler staple .build/dist/Slovo.dmg
+   ```
+
+Confirm both `notarytool` submissions report `Accepted`. Stapling is kept a
+separate manual step because it contacts Apple CloudKit and can fail behind a
+TLS-inspecting proxy even when notarization succeeds; run it on a network that
+does not break Apple certificate pinning. Verify the signed, stapled artifacts:
 
 ```sh
 codesign --verify --deep --strict --verbose=2 .build/dist/Slovo.app
@@ -43,12 +70,13 @@ xcrun stapler validate .build/dist/Slovo.app
 xcrun stapler validate .build/dist/Slovo.dmg
 ```
 
-When a notarization profile is available, set `NOTARY_PROFILE`; the script runs
-`notarytool` on the app archive and the DMG, then runs `stapler` on both
-artifacts. Confirm both submission statuses are `Accepted`. Stapling contacts
-Apple CloudKit and can fail behind a TLS-inspecting proxy even when notarization
-succeeds; run release packaging on a network that does not break Apple
-certificate pinning.
+## Publish
+
+Upload the stapled DMG to a GitHub release for the tag:
+
+```sh
+gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <notes> .build/dist/Slovo.dmg
+```
 
 ## Manual L4 Checks
 

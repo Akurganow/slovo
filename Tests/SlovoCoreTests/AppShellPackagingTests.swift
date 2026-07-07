@@ -137,37 +137,39 @@ struct AppShellPackagingTests {
         #expect(source.contains("--disable-automatic-resolution"))
         #expect(!source.contains("rm -rf"))
 
-        let syntax = try Self.run("/bin/bash", arguments: ["-n", Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh").path])
+        let syntax = try Self.run("/bin/bash", arguments: ["-n", Self.scriptPath])
         #expect(syntax.exitCode == 0, Comment(rawValue: syntax.output))
 
-        let plan = try Self.run(
-            "/bin/bash",
-            arguments: [Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh").path],
-            environment: [
-                "DRY_RUN": "1",
-                "SIGNING_IDENTITY": "Developer ID Application: Example (TEAMID)",
-                "NOTARY_PROFILE": "slovo-notary",
-                "APP_NAME": "DryRunTestBundle-\(UUID().uuidString)",
-            ]
-        )
-        #expect(plan.exitCode == 0, Comment(rawValue: plan.output))
-        #expect(plan.output.contains("--disable-automatic-resolution"), Comment(rawValue: plan.output))
-        #expect(Self.output(plan.output, containsInOrder: [
+        // `app` phase: build + sign + notarize the bundle. Stapling is the sole
+        // manual step, so the phase never runs `stapler`; DMG packaging is separate.
+        let appPlan = try Self.scriptPlan(["app"], appName: "DryRunTestBundle-\(UUID().uuidString)", notary: true)
+        #expect(appPlan.exitCode == 0, Comment(rawValue: appPlan.output))
+        #expect(appPlan.output.contains("--disable-automatic-resolution"), Comment(rawValue: appPlan.output))
+        #expect(Self.output(appPlan.output, containsInOrder: [
             "DRY-RUN swift build", "DRY-RUN install -d", "DRY-RUN install",
             "DRY-RUN xcrun actool", "DRY-RUN codesign", "DRY-RUN ditto -c -k --keepParent",
-            "DRY-RUN xcrun notarytool", "DRY-RUN xcrun stapler", "DRY-RUN hdiutil create",
-            "DRY-RUN codesign", "DRY-RUN xcrun notarytool", "DRY-RUN xcrun stapler",
-        ]), Comment(rawValue: plan.output))
+            "DRY-RUN xcrun notarytool",
+        ]), Comment(rawValue: appPlan.output))
+        #expect(!appPlan.output.contains("DRY-RUN hdiutil"), Comment(rawValue: appPlan.output))
+        #expect(!appPlan.output.contains("DRY-RUN xcrun stapler"), Comment(rawValue: appPlan.output))
 
-        let invalidName = try Self.run(
-            "/bin/bash",
-            arguments: [Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh").path],
-            environment: [
-                "DRY_RUN": "1",
-                "SIGNING_IDENTITY": "Developer ID Application: Example (TEAMID)",
-                "APP_NAME": "../../bad",
-            ]
-        )
+        // `dmg` phase: package the already-stapled app into a signed, notarized DMG.
+        let dmgName = "DryRunDmgBundle-\(UUID().uuidString)"
+        let dmgAppPath = Self.packageRoot.appending(path: ".build/dist/\(dmgName).app")
+        try FileManager.default.createDirectory(at: dmgAppPath, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dmgAppPath) }
+        let dmgPlan = try Self.scriptPlan(["dmg"], appName: dmgName, notary: true)
+        #expect(dmgPlan.exitCode == 0, Comment(rawValue: dmgPlan.output))
+        #expect(Self.output(dmgPlan.output, containsInOrder: [
+            "DRY-RUN ditto", "DRY-RUN hdiutil create", "DRY-RUN codesign", "DRY-RUN xcrun notarytool",
+        ]), Comment(rawValue: dmgPlan.output))
+        #expect(!dmgPlan.output.contains("DRY-RUN xcrun stapler"), Comment(rawValue: dmgPlan.output))
+
+        // A missing phase is a usage error.
+        let noPhase = try Self.scriptPlan([])
+        #expect(noPhase.exitCode == 64, Comment(rawValue: noPhase.output))
+
+        let invalidName = try Self.scriptPlan(["app"], appName: "../../bad")
         #expect(invalidName.exitCode == 64, Comment(rawValue: invalidName.output))
         #expect(!invalidName.output.contains("DRY-RUN codesign"))
 
@@ -175,16 +177,7 @@ struct AppShellPackagingTests {
         let existingPath = Self.packageRoot.appending(path: ".build/dist/\(existingName).app")
         try FileManager.default.createDirectory(at: existingPath, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: existingPath) }
-
-        let staleBundle = try Self.run(
-            "/bin/bash",
-            arguments: [Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh").path],
-            environment: [
-                "DRY_RUN": "1",
-                "SIGNING_IDENTITY": "Developer ID Application: Example (TEAMID)",
-                "APP_NAME": existingName,
-            ]
-        )
+        let staleBundle = try Self.scriptPlan(["app"], appName: existingName)
         #expect(staleBundle.exitCode == 65, Comment(rawValue: staleBundle.output))
         #expect(!staleBundle.output.contains("DRY-RUN codesign"))
     }
@@ -217,6 +210,21 @@ struct AppShellPackagingTests {
             exitCode: process.terminationStatus,
             output: String(decoding: data, as: UTF8.self)
         )
+    }
+
+    private static let scriptPath = packageRoot.appending(path: "Scripts/sign-and-notarize.sh").path
+
+    /// DRY_RUN plan for a `sign-and-notarize.sh` phase; `appName`/`notary` add the
+    /// optional `APP_NAME`/`NOTARY_PROFILE` environment overrides.
+    private static func scriptPlan(
+        _ arguments: [String],
+        appName: String? = nil,
+        notary: Bool = false
+    ) throws -> CommandResult {
+        var environment = ["DRY_RUN": "1", "SIGNING_IDENTITY": "Developer ID Application: Example (TEAMID)"]
+        if let appName { environment["APP_NAME"] = appName }
+        if notary { environment["NOTARY_PROFILE"] = "slovo-notary" }
+        return try run("/bin/bash", arguments: [scriptPath] + arguments, environment: environment)
     }
 
     private static func output(_ output: String, containsInOrder needles: [String]) -> Bool {

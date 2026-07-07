@@ -156,32 +156,36 @@ it with a stable local code-signing identity and the app entitlements, opens it,
 and verifies that the `slovo` process is running. Stable signing is required for
 macOS TCC permission persistence.
 
-Package and sign the app, then build a DMG, with a stable identity:
+Packaging runs in two automated phases: build/sign/notarize the app, then
+package the stapled app into a DMG. Stapling the notarization ticket is the only
+manual step and must run on a Mac that can reach Apple's notarization service:
 
 ```sh
-SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh
-open .build/dist/Slovo.dmg
-```
-
-To produce a notarized DMG for distribution, sign with a Developer ID identity
-and pass a `notarytool` keychain profile:
-
-```sh
+# 1. build, sign, and notarize the app
 SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh
+  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh app
+# 2. staple the app (manual, on a networked Mac)
+xcrun stapler staple .build/dist/Slovo.app
+# 3. package the stapled app into a signed, notarized DMG
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh dmg
+# 4. staple the DMG (manual, on a networked Mac)
+xcrun stapler staple .build/dist/Slovo.dmg
 ```
 
-The distribution flow notarizes and staples the app bundle before it is copied
-into the DMG, then notarizes and staples the DMG. Stapling contacts Apple's
-CloudKit endpoint; run distribution packaging on a network that does not break
-Apple certificate pinning.
+`NOTARY_PROFILE` (a `notarytool` keychain profile) enables notarization; omit it
+to stop after signing. Stapling is a separate manual step because it contacts
+Apple's CloudKit endpoint and can fail behind a TLS-inspecting proxy even when
+notarization succeeds; run it on a network that does not break Apple certificate
+pinning. See [docs/release-checklist.md](docs/release-checklist.md) for
+verification and publishing.
 
 The signing script intentionally rejects ad-hoc signing by default because macOS
 privacy grants and Keychain trust are tied to a stable app identity. For local
 experiments only, ad-hoc signing can be forced:
 
 ```sh
-ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh
+ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh app
 ```
 
 After first launch, grant the requested setup permissions in System Settings,
