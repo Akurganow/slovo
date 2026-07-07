@@ -8,17 +8,19 @@ OpenRouter when cleanup is enabled.
 
 | Version | Supported |
 |---|---|
-| 0.3.x | Yes |
+| 0.4.x | Yes |
+| < 0.4 | No |
 
 ## Reporting A Vulnerability
 
 Please do not include secrets, transcripts, local vocabulary, personal data,
 private work terminology, or local database contents in a public issue.
 
-Use GitHub private vulnerability reporting if it is enabled for this repository.
-If it is not available, open a minimal public issue that describes the class of
-problem without sensitive details, and the maintainer will arrange a private
-channel.
+Report privately through GitHub's [private vulnerability reporting](https://github.com/Akurganow/slovo/security/advisories/new),
+which is enabled for this repository (Security → Advisories → Report a
+vulnerability). If you cannot use it, open a minimal public issue that describes
+the class of problem without sensitive details, and the maintainer will arrange a
+private channel.
 
 ## Sensitive Data
 
