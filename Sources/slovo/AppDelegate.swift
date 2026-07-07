@@ -357,14 +357,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    func updateConfig(_ mutate: (inout Config) -> Void) {
+    /// Persists a cleanup-model change and applies it to the NEXT dictation live.
+    /// Unlike `retrySetup`, this does NOT rebuild the pipeline: the resident ASR
+    /// model is never re-warmed and the "Preparing Speech Model" loading pulse
+    /// never appears for a change that only swaps the cleanup LLM id (#2). The menu
+    /// is refreshed so the selected-model checkmark tracks the new choice.
+    func applyCleanupModel(_ modelId: String) {
         var config = ConfigStore.load(from: defaults)
-        mutate(&config)
+        config.openRouterModel = modelId
         do {
             try ConfigStore.save(config, to: defaults)
-            retrySetup()
         } catch {
             logger.error("config save failed")
+            return
+        }
+        statusItem?.menu = makeMenu()
+        let cleanupConfig = config.cleanupConfig
+        Task { @MainActor in
+            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
     }
 

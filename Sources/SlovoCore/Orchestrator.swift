@@ -79,7 +79,7 @@ public actor Orchestrator {
     private var feedHealth = FeedHealth()
 
     private let deps: Dependencies
-    private let cleanupConfig: CleanupConfig
+    private var cleanupConfig: CleanupConfig
     private let vocabularyLimit: Int
 
     public init(dependencies: Dependencies, cleanupConfig: CleanupConfig, vocabularyLimit: Int = 50) {
@@ -90,6 +90,16 @@ public actor Orchestrator {
 
     /// The current session state (for tests/introspection).
     public func currentState() -> DictationState { state }
+
+    /// Applies a new cleanup configuration (e.g. a switched model) to the NEXT
+    /// dictation, live: the app pushes it here instead of rebuilding the pipeline,
+    /// so switching the cleanup model never tears down and re-warms the resident ASR
+    /// model (#2). Like the per-dictation vocabulary read it needs no rebuild, but
+    /// the mechanism differs — a push, since only the app knows a change happened
+    /// (the sole runtime mutation today is the cleanup model id).
+    public func updateCleanupConfig(_ config: CleanupConfig) {
+        cleanupConfig = config
+    }
 
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
     public func awaitPipelineDrain() async {

@@ -21,9 +21,7 @@ extension AppDelegate {
     @objc
     func selectCleanupModel(_ sender: NSMenuItem) {
         guard let option = sender.representedObject as? CleanupModelOption else { return }
-        updateConfig { config in
-            config.openRouterModel = option.id
-        }
+        applyCleanupModel(option.id)
     }
 
     @objc
@@ -62,8 +60,6 @@ extension AppDelegate {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         let model = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        updateConfig { config in
-            config.openRouterModel = model
-        }
+        applyCleanupModel(model)
     }
 }

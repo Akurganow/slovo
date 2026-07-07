@@ -116,6 +116,37 @@ struct OrchestratorTests {
                 "cleaner context must use the same configured vocabulary limit")
     }
 
+    /// #2: switching the cleanup model applies to the NEXT dictation live — the
+    /// SAME running orchestrator (no rebuild) cleans with the new model on the
+    /// following session. This is why the app never needs a pipeline rebuild (and
+    /// its ASR re-warm + loading pulse) to change the cleanup model.
+    /// Stated sensitivity: make `updateCleanupConfig` a no-op (don't store the new
+    /// config) → the second dictation still cleans with the old model → RED.
+    @Test
+    func updatedCleanupModelReachesNextDictationLive() async {
+        let cleaner = FakeCleaner(outcome: .success("HI"))
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            config: Config(openRouterModel: "openai/model-a"),
+            dependencies: Self.deps(
+                transcriber: FakeTranscriber(outcome: .success("hi")),
+                cleaner: cleaner,
+                injector: FakeInjector(outcome: .success)
+            )
+        )
+
+        await Self.runSession(orchestrator)
+        #expect(cleaner.calls.last?.config.model == "openai/model-a",
+                "the first dictation cleans with the initially configured model")
+
+        await orchestrator.updateCleanupConfig(
+            CleanupConfig(model: "anthropic/model-b", writingStyle: .casual, language: .auto)
+        )
+        await Self.runSession(orchestrator)
+
+        #expect(cleaner.calls.last?.config.model == "anthropic/model-b",
+                "the switched cleanup model must reach the next dictation on the SAME orchestrator, without a rebuild")
+    }
+
     /// AC-2 (degradation): a failing cleaner ⇒ the RAW transcript is injected via
     /// PassThrough (never lose the words).
     /// Stated sensitivity: break the degradation (don't advance to PassThrough on
