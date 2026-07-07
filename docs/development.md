@@ -16,7 +16,7 @@ swift build --disable-automatic-resolution
 ## Run
 
 ```sh
-script/build_and_run.sh --verify
+Scripts/build_and_run.sh --verify
 ```
 
 The development run script rebuilds the `slovo` product, stages

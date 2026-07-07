@@ -155,7 +155,7 @@ For a fast signed development launch, build and open a staged menu-bar
 bundle:
 
 ```sh
-script/build_and_run.sh --verify
+Scripts/build_and_run.sh --verify
 ```
 
 The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`,
