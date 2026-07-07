@@ -1,0 +1,41 @@
+name: CodeQL
+
+# Security code scanning for Swift. Swift is a compiled language, so CodeQL
+# builds the code to analyze it (manual build = our pinned `swift build`). This
+# compiles for ANALYSIS only — it does not package, sign, or notarize the app, so
+# distribution stays a local task as intended.
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    # CodeQL for Swift runs on macOS; macos-26 carries the required toolchain.
+    runs-on: macos-26
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Cache SwiftPM build
+        uses: actions/cache@v6
+        with:
+          path: .build
+          key: ${{ runner.os }}-codeql-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-codeql-spm-${{ env.ImageVersion }}-
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: swift
+          build-mode: manual
+      - name: Build for analysis
+        run: swift build --disable-automatic-resolution
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:swift"

@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Keep workflow action versions current (replaces hand-bumping checkout etc.).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # Swift package dependencies. Dependabot only opens PRs; the ASR engine
+  # (argmax-oss-swift / WhisperKit) must not be merged without reviewing
+  # recognition quality — see the non-negotiable principles in CLAUDE.md.
+  - package-ecosystem: "swift"
+    directory: "/"
+    schedule:
+      interval: "weekly"

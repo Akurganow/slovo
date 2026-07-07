@@ -9,6 +9,16 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Least privilege: the test job only reads the checkout.
+permissions:
+  contents: read
+
+# Supersede an in-progress run when the same ref gets a newer push (saves the
+# scarce macOS runner minutes).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     # The package floor is macOS 26 (Apple on-device SpeechTranscriber /
@@ -16,9 +26,29 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
+      - name: Cache SwiftPM build
+        uses: actions/cache@v6
+        with:
+          path: .build
+          # ImageVersion busts the cache when the runner image (hence toolchain)
+          # changes; Package.resolved busts it when dependencies change.
+          key: ${{ runner.os }}-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ env.ImageVersion }}-
       - name: Toolchain
         run: swift --version && xcodebuild -version
       - name: Run Swift tests
         # --disable-automatic-resolution pins to the committed Package.resolved,
         # matching the local gate in Scripts/diagnose.sh.
         run: swift test --disable-automatic-resolution
+      - name: Prove the test gate can fail
+        # The gate-integrity probe records a failure only when armed; assert the
+        # armed run exits non-zero so a no-op gate would be caught here, not shipped.
+        env:
+          SLOVO_GATE_SELFTEST: red
+        run: |
+          if swift test --disable-automatic-resolution --filter gateGoesRedWhenSelfTestArmed; then
+            echo "::error::armed gate-integrity self-test passed — the test gate may be a no-op"
+            exit 1
+          fi
+          echo "armed gate-integrity self-test failed as expected — the gate can go red"
