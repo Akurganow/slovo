@@ -15,7 +15,7 @@ jobs:
     # SpeechAnalyzer) built with the Swift 6.3 toolchain.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Toolchain
         run: swift --version && xcodebuild -version
       - name: Run Swift tests
