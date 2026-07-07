@@ -3,10 +3,10 @@ import Testing
 
 import SlovoCore
 
-// Epic 02 — AC-2 (pure, deterministic transition) and AC-3 (single-flight).
+// The pure, deterministic dictation transition, including single-flight.
 //
 // Contract under test (implementer builds the pure transition in
-// `Sources/SlovoCore/FSM/` per plan §2; the symbols are CURRENTLY supplied by
+// `Sources/SlovoCore/FSM/`; the symbols are CURRENTLY supplied by
 // the WRONG-ON-PURPOSE `_RedScaffold_FSM.swift` stub — `transition` returns
 // `(.idle, [])` for every input — so these tests go RED on the VALUE while the
 // call sites type-check).
@@ -14,19 +14,19 @@ import SlovoCore
 //     DictationFsm.transition(_ state: DictationState, on event: DictationEvent)
 //         -> (DictationState, [DictationEffect])   // non-async, non-throwing
 //
-// The §2 pinned table this enforces:
+// The pinned table this enforces:
 //   idle       + startRequested  -> recording  + [beginCapture]
-//   processing + startRequested  -> processing + [log(.singleFlightIgnored)]   (AC-3)
-@Suite("Epic 02 AC-2/AC-3 FSM")
+//   processing + startRequested  -> processing + [log(.singleFlightIgnored)]
+@Suite("FSM transition")
 struct FsmTests {
 
-    /// AC-2: the pinned happy-path transition returns the EXACT result.
+    /// The pinned happy-path transition returns the EXACT result.
     /// Stated sensitivity: a transition that does not move idle→recording or
     /// emits the wrong effect → RED.
     ///
-    /// UPDATED for Epic 03 (GAP-7 key-up restore): Start now mutes BEFORE
-    /// capturing, so the expected sequence is `[.muteSystemOutput, .beginCapture]`.
-    /// The mute/restore placement itself is pinned in `DictationFsmMuteTests`.
+    /// Start now mutes BEFORE capturing, so the expected sequence is
+    /// `[.muteSystemOutput, .beginCapture]`. The mute/restore placement itself is
+    /// pinned in `DictationFsmMuteTests`.
     @Test
     func idleStartRequestedBeginsCapture() {
         let (state, effects) = DictationFsm.transition(.idle, on: .startRequested)
@@ -35,14 +35,14 @@ struct FsmTests {
                 "must emit exactly [muteSystemOutput, beginCapture], got \(effects)")
     }
 
-    /// AC-2: determinism — the SAME (state, event) yields an identical result on
+    /// Determinism — the SAME (state, event) yields an identical result on
     /// repeated calls (no clock, no I/O, no hidden state).
     /// Stated sensitivity: make the transition read `Date()` / mutate shared
     /// state so two calls diverge → RED. (The value is independently pinned by
     /// `idleStartRequestedBeginsCapture`, so a deterministic-but-wrong stub is
     /// still caught there.)
     ///
-    /// UPDATED for Epic 03: the pinned value is now `[.muteSystemOutput, .beginCapture]`.
+    /// The pinned value is now `[.muteSystemOutput, .beginCapture]`.
     @Test
     func transitionIsDeterministic() {
         let first = DictationFsm.transition(.idle, on: .startRequested)
@@ -55,7 +55,7 @@ struct FsmTests {
                 "deterministic result must be (.recording, [.muteSystemOutput, .beginCapture]); got \(first)")
     }
 
-    /// AC-3: single-flight — a new startRequested while processing is IGNORED
+    /// Single-flight — a new startRequested while processing is IGNORED
     /// (state unchanged) AND a single-flight log effect is emitted.
     /// Stated sensitivity: let startRequested restart processing
     /// (`.recording`/`[.beginCapture]`) → state changes → RED; OR drop the log
@@ -69,7 +69,7 @@ struct FsmTests {
                 "single-flight must emit exactly [log(.singleFlightIgnored)], got \(effects)")
     }
 
-    /// GAP-2 (LEAD ruling: ACCEPT) — an unpinned (state, event) pair is a lossless
+    /// An unpinned (state, event) pair is a lossless
     /// no-op: unchanged state + `[log(.unexpectedEvent)]`, never a crash, never a
     /// silent drop. Pinned here for an unpinned pair (`idle + stopRequested`).
     /// Stated sensitivity: make the unhandled pair crash, change state, or emit []
@@ -83,10 +83,10 @@ struct FsmTests {
                 "an unhandled event must emit exactly [log(.unexpectedEvent)], got \(effects)")
     }
 
-    /// GAP-3 (LEAD ruling: ACCEPT) — the failure transition's effects are emitted
+    /// The failure transition's effects are emitted
     /// in the deterministic order `notify → log → returnToIdle`, and the state
-    /// returns to idle (§11 containment). Effects carrying an `Error` compare by
-    /// CASE (LEAD Equatable ruling), so this asserts the exact effect SEQUENCE.
+    /// returns to idle. Effects carrying an `Error` compare by
+    /// CASE (an `Error` is not `Equatable`), so this asserts the exact effect SEQUENCE.
     /// Stated sensitivity: reorder the effects, drop one, or fail to return to
     /// idle → RED. The scaffold returns `(.idle, [])` → RED on the effect order.
     @Test
@@ -100,7 +100,7 @@ struct FsmTests {
         )
     }
 
-    // MARK: - FIX #3 (TheRani coverage gap): the three pipeline rows, payload-sensitive
+    // MARK: - The three pipeline rows, payload-sensitive
 
     /// `processing + transcriptReady(t)` must emit `clean(transcript: t)` carrying
     /// the EXACT transcript payload (not a dropped/altered string).
@@ -137,7 +137,7 @@ struct FsmTests {
                 "must emit exactly [returnToIdle], got \(effects)")
     }
 
-    // MARK: - FIX #2 (Cyberman m1 + Racnoss MINOR): StageFailure equality by value
+    // MARK: - StageFailure equality by value
 
     /// `StageFailure` equality must distinguish DIFFERENT wrapped errors, not
     /// collapse every `.injection(_)` to equal. Distinct injection failures are
@@ -158,7 +158,7 @@ struct FsmTests {
     }
 }
 
-// MARK: - FIX #1 (Racnoss MAJOR + Cyberman M1 + Dalek): honest StatusMessage map
+// MARK: - Honest StatusMessage map
 //
 // The failure transition must surface a TRUTHFUL status per failure stage, not
 // collapse everything to `.accessibilityDenied`. The honest cases + mapping
@@ -173,9 +173,9 @@ struct FsmTests {
 //   (a) COMPILE: `.transcriptionFailed` / `.secureFieldActive` / `.injectionFailed`
 //       do not exist on `StatusMessage` yet → the references below won't compile.
 //   (b) VALUE: current `statusMessage(for:)` maps all three to `.accessibilityDenied`.
-// Documented RED = the compile failure (the brief's stated RED for fix #1); once
+// Documented RED = the compile failure; once
 // the cases exist and the map is honest, these go GREEN.
-@Suite("Epic 02 FIX-1 honest StatusMessage mapping")
+@Suite("Honest StatusMessage mapping")
 struct HonestStatusMappingTests {
     /// Helper: the single `notify` status the failure transition emits.
     private func notifiedStatus(for failure: StageFailure) -> StatusMessage? {

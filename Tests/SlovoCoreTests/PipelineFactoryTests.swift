@@ -4,11 +4,11 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 09a — AC-1 (composition root): the factory builds EXACTLY ONE Transcriber,
+// Composition root: the factory builds EXACTLY ONE Transcriber,
 // a `FallbackCleaner` whose chain is `[OpenRouterCleaner, PassThrough]`, ONE
 // injector, ONE personalization source.
 //
-@Suite("Epic 09a AC-1 PipelineFactory composition")
+@Suite("PipelineFactory composition")
 struct PipelineFactoryTests {
     private static func deps() -> Dependencies {
         Dependencies(

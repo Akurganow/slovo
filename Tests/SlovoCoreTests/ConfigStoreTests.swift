@@ -4,10 +4,10 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 09b — AC-3: config decode is fail-closed. Malformed JSON, unknown enum
+// Config decode is fail-closed. Malformed JSON, unknown enum
 // values, and invalid numeric/string fields must fall back to defaults without
 // crashing or leaking partially decoded garbage into the app.
-@Suite("Epic 09b AC-3 ConfigStore")
+@Suite("ConfigStore")
 struct ConfigStoreTests {
     @Test
     func missingConfigReturnsDefaults() {

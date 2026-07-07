@@ -13,7 +13,7 @@ import SlovoCore
 // `ClipExpectation`, `ClipScore`, and `PassBar` do not exist in the working tree.
 //
 // FIXTURE ANCHOR RULE: the Latin anchors are neutral public tech terms.
-@Suite("Epic 05 AC-1 code-switching gate")
+@Suite("Code-switching gate")
 struct CodeSwitchingGateTests {
     private static let expectation = ClipExpectation(
         clipId: "clip-1", requiredLatinTerms: ["PR", "GitHub"]

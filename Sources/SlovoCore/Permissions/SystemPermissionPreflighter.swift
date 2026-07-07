@@ -4,7 +4,7 @@ import CoreGraphics
 
 /// Real TCC implementation of `PermissionPreflighter`.
 ///
-/// L4: the grant prompts are exercised on a clean machine via the runbook.
+/// The grant prompts are exercised on a clean machine via the runbook.
 public struct SystemPermissionPreflighter: PermissionPreflighter {
     private static let accessibilityPromptOption = "AXTrustedCheckOptionPrompt"
 
@@ -35,7 +35,7 @@ public struct SystemPermissionPreflighter: PermissionPreflighter {
 
 /// The production `MicrophoneAuthorizer` conformer, so the live
 /// `AVAudioEngineRecorder` can be constructed with a real authorizer (the narrow
-/// seam previously had only a test fake). L4: not exercised in CI.
+/// seam previously had only a test fake). Not exercised in CI.
 extension SystemPermissionPreflighter: MicrophoneAuthorizer {
     public func isMicrophoneAuthorized() async -> Bool {
         AVCaptureDevice.authorizationStatus(for: .audio) == .authorized

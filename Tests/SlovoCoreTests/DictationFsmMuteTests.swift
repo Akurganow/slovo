@@ -3,10 +3,10 @@ import Testing
 
 import SlovoCore
 
-// Epic 03 — AC-1 / AC-3 / AC-5: the FSM emits the system-audio mute/restore
+// The FSM emits the system-audio mute/restore
 // effects in the right place and order.
 //
-// LEAD RULING (GAP-7, overrides plan §2): RESTORE AT KEY-UP. System audio is
+// RULING: RESTORE AT KEY-UP. System audio is
 // restored the moment `fn` is released (leaving `recording`), never in the
 // processing phase. Invariant locked here: restore runs EXACTLY ONCE per muted
 // session, on LEAVING `recording` (via stopRequested OR via failed), and NEVER
@@ -16,7 +16,7 @@ import SlovoCore
 // keep `DictationEffect` Equatable): `.muteSystemOutput`, `.restoreSystemOutput`.
 //
 // RED today: those two cases do not exist on `DictationEffect`, so the
-// references below DO NOT COMPILE (the documented RED for AC-1/AC-3/AC-5). Once
+// references below DO NOT COMPILE (the documented RED). Once
 // the cases exist and the override table is implemented, these go GREEN.
 //
 // Override transition table (authoritative for this epic):
@@ -29,10 +29,10 @@ import SlovoCore
 //   processing + startRequested        -> processing + [log(.singleFlightIgnored)]   (NO second mute)
 //   processing + failed(f)             -> idle       + [notify(s), log(.stageFailed), returnToIdle]  (NO restore)
 //   default                            -> unchanged  + [log(.unexpectedEvent)]
-@Suite("Epic 03 AC-1/AC-3/AC-5 FSM mute/restore")
+@Suite("FSM mute/restore")
 struct DictationFsmMuteTests {
 
-    // MARK: - AC-1: mute BEFORE capture on Start
+    // MARK: - Mute BEFORE capture on Start
 
     /// On Start, the FSM silences playback BEFORE opening the mic.
     /// Stated sensitivity: drop the mute (revert to `[.beginCapture]`) → RED; put
@@ -45,7 +45,7 @@ struct DictationFsmMuteTests {
                 "must emit exactly [muteSystemOutput, beginCapture] in that order, got \(effects)")
     }
 
-    // MARK: - AC-3a: restore at key-up (leaving recording via stopRequested)
+    // MARK: - Restore at key-up (leaving recording via stopRequested)
 
     /// On `fn` release (stopRequested while recording), the FSM restores system
     /// audio right after closing the mic — restore happens at key-up.
@@ -59,7 +59,7 @@ struct DictationFsmMuteTests {
                 "must emit exactly [endCaptureAndTranscribe, restoreSystemOutput], got \(effects)")
     }
 
-    // MARK: - AC-3b: error DURING recording still restores (never leave audio muted)
+    // MARK: - Error DURING recording still restores (never leave audio muted)
 
     /// A failure while still recording must restore system audio (safety: an
     /// error mid-recording can never leave output stuck muted), then surface the
@@ -78,7 +78,7 @@ struct DictationFsmMuteTests {
         )
     }
 
-    // MARK: - AC-3c: NO double-restore in the processing phase (already restored at key-up)
+    // MARK: - NO double-restore in the processing phase (already restored at key-up)
 
     /// On success completion (`injected`), the FSM returns to idle WITHOUT a
     /// second restore — audio was already restored at key-up.
@@ -108,7 +108,7 @@ struct DictationFsmMuteTests {
                 "a processing-phase failure must NOT restore again (already restored at key-up), got \(effects)")
     }
 
-    // MARK: - AC-5: single-flight in processing issues NO second mute
+    // MARK: - Single-flight in processing issues NO second mute
 
     /// A second Start while processing is ignored-but-logged and issues NO second
     /// mute (a double-mute would corrupt the stashed PriorAudioState).

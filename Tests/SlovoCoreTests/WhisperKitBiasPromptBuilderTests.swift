@@ -2,13 +2,13 @@ import Testing
 
 import SlovoCore
 
-// Task #23 (hotfix) — the Whisper bias prompt must be budgeted to the model's
+// The Whisper bias prompt must be budgeted to the model's
 // prefix-token limit. After the 201-term vocabulary import the top-N terms are
 // tokenized and passed UNCAPPED into DecodingOptions.promptTokens; Whisper's
 // decoder context is 448 tokens (usable prompt/prefix share ~224) and we send
 // ~500+, degrading live dictation. The fix budgets greedily by input order (terms
 // arrive weight-sorted desc) inside WhisperKitBiasPromptBuilder.promptTokens.
-@Suite("Task #23 Whisper bias prompt token budget")
+@Suite("Whisper bias prompt token budget")
 struct WhisperKitBiasPromptBuilderTests {
     // Alias to the production budget so the assertions track the grounded value
     // (WhisperKitBiasPromptBuilder.promptTokenBudget, cited in the builder from the

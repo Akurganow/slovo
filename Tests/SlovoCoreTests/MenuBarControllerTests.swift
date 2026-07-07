@@ -3,10 +3,10 @@ import Testing
 
 import SlovoCore
 
-// Epic 09b — menu-bar logic only. Real NSStatusItem/NSImage rendering and font
-// fallback are L4; this CI slice locks state mapping plus the local-only history
+// Menu-bar logic only. Real NSStatusItem/NSImage rendering and font fallback are
+// out of scope here; this slice locks state mapping plus the local-only history
 // model that the popover will read in-process.
-@Suite("Epic 09b MenuBarController logic")
+@Suite("MenuBarController logic")
 struct MenuBarControllerTests {
     private static let sentinel = "S3NT1NEL-HISTORY-51c07e9b-DO-NOT-LOG"
 

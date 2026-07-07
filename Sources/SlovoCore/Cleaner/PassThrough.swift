@@ -1,6 +1,5 @@
 /// The terminal fallback cleaner: returns the transcript byte-identical, so the
-/// user's words are never lost when every upstream cleaner has degraded (spec
-/// §18.1).
+/// user's words are never lost when every upstream cleaner has degraded.
 public struct PassThrough: Cleaner {
     public init() {}
 

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-// AC-6 — no-secrets / no-seed-in-VCS gate.
+// No-secrets / no-seed-in-VCS gate.
 //
 // Two complementary RED tests:
 //
@@ -9,7 +9,7 @@ import Testing
 //     `Scripts/check-no-seed-in-vcs.sh`. The helper must exit 0 only when EVERY
 //     required glob (`data/seed*.sql`, `data/slovo.db*`, key material) is ignored
 //     in a repo carrying slovo's `.gitignore`. RED today because the script is
-//     absent (the implementer creates it in T7).
+//     absent (the implementer creates it).
 //
 //  2. `realGitignoreIgnoresGlobMatch`: a direct `git check-ignore` probe in an
 //     ISOLATED temp repo seeded with the REAL `.gitignore`. It uses glob-matching
@@ -18,11 +18,11 @@ import Testing
 //     false-green against the regression. RED today because the un-hardened
 //     `.gitignore` lists exact filenames, so the glob match is NOT ignored.
 //
-// Stated sensitivity (the §1 mutation): revert `.gitignore` to the exact-filename
+// Stated sensitivity: revert `.gitignore` to the exact-filename
 // form → `data/seed.dev.sql` becomes committable → both tests go RED. That is the
 // mutation proving the glob (not the literal list) is what protects confidential
 // seed/DB variants.
-@Suite("AC-6 no-secrets / no-seed in VCS")
+@Suite("No-secrets / no-seed in VCS")
 struct NoSecretsNoSeedTests {
     /// Names that match the required GLOBS but are NOT in the literal list — the
     /// exact gap the hardening closes. Deliberately not `seed.sql`/`slovo.db`.
@@ -39,7 +39,7 @@ struct NoSecretsNoSeedTests {
         // The helper must exist and pass against the hardened ignore set.
         try #require(
             FileManager.default.fileExists(atPath: scriptPath),
-            "Scripts/check-no-seed-in-vcs.sh is missing — AC-6 mechanism not built yet"
+            "Scripts/check-no-seed-in-vcs.sh is missing"
         )
         let result = try Self.run("/bin/sh", [scriptPath])
         #expect(result.exitCode == 0, "no-seed helper failed:\n\(result.combinedOutput)")

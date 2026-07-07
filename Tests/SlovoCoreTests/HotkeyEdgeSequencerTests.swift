@@ -3,7 +3,7 @@ import Testing
 
 import SlovoCore
 
-// Task #14 — the fn key must deliver its edges through ONE ordered, single-consumer
+// The fn key must deliver its edges through ONE ordered, single-consumer
 // channel so a slow key-down handler cannot be overtaken by the following key-up
 // (the stuck-mute race). These tests pin the channel's externally visible
 // contract; the AppDelegate wiring onto it is a GREEN-phase concern.
@@ -17,7 +17,7 @@ import SlovoCore
 // Async coordination follows the repo's continuation-parking style
 // (SlovoTestSupport.BlockingTranscriber): no sleeps, no timing luck — ordering is
 // forced by parking a handler and releasing it under test control.
-@Suite("Task #14 hotkey edge sequencer")
+@Suite("Hotkey edge sequencer")
 struct HotkeyEdgeSequencerTests {
 
     /// A key-down handler that is still running MUST hold back the following key-up:

@@ -3,8 +3,8 @@ import Testing
 
 @testable import SlovoCore
 
-// T4 (supports AC-5; spec §11) — behavioral test of the redaction-safe logging
-// wrapper. Runtime complement to the static AC-5 lint.
+// Behavioral test of the redaction-safe logging
+// wrapper. Runtime complement to the static redaction lint.
 //
 // Contract under test (implementer builds in `SlovoCore`):
 //
@@ -27,7 +27,7 @@ import Testing
 //         public static func hashed(_ value: String) -> String
 //         public static func length(of value: some Collection) -> Int
 //     }
-@Suite("T4 redaction-safe logging wrapper")
+@Suite("Redaction-safe logging wrapper")
 struct RedactionLogTests {
     /// A high-entropy sentinel that must NEVER appear in any emitted line.
     private static let sentinel = "S3NT1NEL-9f2a4c8e-transcript-body-DO-NOT-LOG"

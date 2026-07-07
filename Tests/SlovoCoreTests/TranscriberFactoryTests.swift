@@ -6,7 +6,7 @@ import SlovoCore
 @Suite("ASR backend wire format")
 struct AsrBackendWireFormatTests {
     /// `AsrBackend` is a single-case enum: the shipped WhisperKit runtime persists
-    /// as the §10 wire id "whisperkit". Apple Speech left the runtime entirely and
+    /// as the wire id "whisperkit". Apple Speech left the runtime entirely and
     /// FluidAudio was refuted (no adapter), so neither has a case; raw-value
     /// additivity keeps any future case wire-safe.
     /// Stated sensitivity: change the raw value away from "whisperkit" → persisted

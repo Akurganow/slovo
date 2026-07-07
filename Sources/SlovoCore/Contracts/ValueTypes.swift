@@ -1,6 +1,6 @@
 import AVFoundation
 
-// Authoritative value types for the dictation pipeline (spec §18.3). These are
+// Authoritative value types for the dictation pipeline. These are
 // plain data carriers shared across the seam protocols; behavior lives in the
 // conforming implementations, not here.
 
@@ -91,7 +91,7 @@ public struct CleanupConfig: Equatable, Sendable {
 }
 
 /// The personalization a cleanup pass may draw on. v1 carries only the
-/// vocabulary; recent corrections and profile facts arrive in Epic 07.
+/// vocabulary; recent corrections and profile facts arrive in a later version.
 public struct PersonalizationContext: Sendable {
     public var vocabulary: [Term]
 

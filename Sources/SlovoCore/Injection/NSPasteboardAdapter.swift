@@ -1,11 +1,11 @@
 import AppKit
 import Foundation
 
-/// Real `NSPasteboard.general` implementation of `Pasteboard` (spec §3, D21; ref
+/// Real `NSPasteboard.general` implementation of `Pasteboard` (ref
 /// `text-injection.md`).
 ///
-/// Build-only / L4: it compiles in CI but carries no behavior coverage — the
-/// real clipboard round-trip is validated by the Epic-07 manual runbook, exactly
+/// Build-only: it compiles in CI but carries no behavior coverage — the
+/// real clipboard round-trip is validated by the manual runbook, exactly
 /// like the other real adapters (`CoreAudioOutputMute`, etc.). The `Sendable`
 /// conformance is safe: the adapter is stateless and `NSPasteboard.general` is the
 /// process-wide clipboard.

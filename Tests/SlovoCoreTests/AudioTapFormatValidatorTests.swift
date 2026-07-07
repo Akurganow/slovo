@@ -3,14 +3,14 @@ import Testing
 
 import SlovoCore
 
-// Task #12 — unit coverage for the pure format gate that must run before the
+// Unit coverage for the pure format gate that must run before the
 // recorder installs its tap. The live crash (slovo-2026-07-02-105347.ips) was an
 // NSException raised from AVAudioEngine's InstallTapOnNode on a degenerate input
 // format; Swift cannot catch it, so it became SIGABRT on key-down. The validator
 // turns that un-catchable crash into a recoverable
 // `AudioCaptureError.formatUnavailable`, which the FSM already surfaces as the
 // `.microphoneUnavailable` menu-bar status.
-@Suite("Task #12 audio tap format gate")
+@Suite("Audio tap format gate")
 struct AudioTapFormatValidatorTests {
 
     /// The exact gap that crashed on device: a valid sample rate paired with zero

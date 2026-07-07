@@ -3,13 +3,13 @@ import Testing
 
 @testable import SlovoCore
 
-// AC-1 / AC-2 — the build gate.
+// The build gate.
 //
-// AC-1: a clean build produces BOTH the library and the executable artifact —
+// A clean build produces BOTH the library and the executable artifact —
 //       and the executable is PRODUCED BY the build, not a stale leftover.
-// AC-2: the pinned gate runs the Swift Testing runner — asserted by a real
+// The pinned gate runs the Swift Testing runner — asserted by a real
 //       runtime signal (`Test.current`), not a tautology.
-@Suite("AC-1/AC-2 build gate")
+@Suite("Build gate")
 struct BuildGateTests {
     /// Resolve the active build bin path via `swift build --show-bin-path`, run
     /// from the package root so the test is independent of the launch cwd.
@@ -71,7 +71,7 @@ struct BuildGateTests {
         ] + arguments
     }
 
-    /// AC-1 — the executable is genuinely PRODUCED by the build, not satisfied by
+    /// The executable is genuinely PRODUCED by the build, not satisfied by
     /// a stale artifact. The old `fileExists`-on-the-bin-path check was false-green:
     /// a `slovo` binary left over from a previous build survives on disk even when
     /// the executable target is removed (a no-op rebuild does not relink it, so its

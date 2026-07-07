@@ -1,6 +1,6 @@
 import Foundation
 
-/// Builds spec §10 persisted-config JSON blobs for `ConfigStore` decode tests.
+/// Builds persisted-config JSON blobs for `ConfigStore` decode tests.
 /// A field passed as `nil` (where optional) is OMITTED from the wire blob, so
 /// callers can exercise absent-field decode paths.
 enum ConfigFixtures {

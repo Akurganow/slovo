@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-// Epic 09c — source-level package guards because SwiftPM dependency graph APIs
+// Source-level package guards because SwiftPM dependency graph APIs
 // are not available inside tests without shelling out.
-@Suite("Epic 09c package dependencies")
+@Suite("Package dependencies")
 struct PackageDependencyTests {
     /// The restored WhisperKit turbo path requires the argmax-oss-swift package
     /// as a dependency and the `WhisperKit` product linked into `SlovoCore`.

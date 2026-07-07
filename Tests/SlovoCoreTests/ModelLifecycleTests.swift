@@ -4,7 +4,7 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Idle-release after keepWarm (AC-3) and immediate release at keepWarm == 0 (AC-4),
+// Idle-release after keepWarm and immediate release at keepWarm == 0,
 // plus supersede-pending-release and release idempotency.
 //
 // Contract under test: the implementer restores the production `ModelLifecycle`
@@ -13,10 +13,10 @@ import SlovoTestSupport
 // Apple-Speech migration). RED mode now is a COMPILE failure — `ModelLifecycle`
 // (and the `ModelLoading`/`SpeechDecoding` seams the `FakeSpeechEngine` conforms
 // to) do not exist in the working tree yet.
-@Suite("Epic 05 AC-3/AC-4 model lifecycle")
+@Suite("Model lifecycle")
 struct ModelLifecycleTests {
 
-    /// AC-3: after `didFinishUse()`, advancing the clock PAST keepWarmSeconds and
+    /// After `didFinishUse()`, advancing the clock PAST keepWarmSeconds and
     /// calling `tick()` releases the model; within the window it stays loaded.
     /// Stated sensitivity: never release → the model stays loaded past the window
     /// → RED.
@@ -43,7 +43,7 @@ struct ModelLifecycleTests {
         #expect(engine.releaseCount >= 1, "release() must have been called")
     }
 
-    /// AC-4: with keepWarmSeconds == 0, `didFinishUse()` releases immediately (no
+    /// With keepWarmSeconds == 0, `didFinishUse()` releases immediately (no
     /// tick needed).
     /// Stated sensitivity: keep warm despite keepWarm == 0 → still loaded → RED.
     @Test

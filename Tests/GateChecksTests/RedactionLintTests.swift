@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-// AC-5 — redaction lint (static).
+// Redaction lint (static).
 //
 // Contract under test (`GateChecks` lives in this test target):
 //
@@ -13,7 +13,7 @@ import Testing
 //         static func redactionViolations(inFileAt path: String) -> [GateViolation]
 //         static func redactionViolations(inSourceTreeAt root: String) -> [GateViolation]
 //     }
-@Suite("AC-5 redaction lint")
+@Suite("Redaction lint")
 struct RedactionLintTests {
     // Rule id via the symbol, so a rename is a compile error, not a silent miss.
     private static let ruleId = GateChecks.Rule.redactionLint.rawValue
@@ -28,7 +28,7 @@ struct RedactionLintTests {
         #expect(violations.contains { $0.rule == Self.ruleId && $0.detail.contains("transcript") })
     }
 
-    /// Per-payload-type sensitivity (spec §19.3): a DIFFERENT payload type leaked
+    /// Per-payload-type sensitivity: a DIFFERENT payload type leaked
     /// via `String(describing:)` must ALSO be flagged, so the lint cannot pass by
     /// only inspecting `transcript`. Stated sensitivity: a single-variable scan
     /// (only `transcript`) misses the `term` line → this assertion fails.

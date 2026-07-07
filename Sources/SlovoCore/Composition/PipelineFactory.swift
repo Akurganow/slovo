@@ -1,5 +1,5 @@
-/// A description of what the composition root wired, so AC-1 can assert the shape
-/// without reaching into private fields.
+/// A description of what the composition root wired, so tests can assert the
+/// shape without reaching into private fields.
 public struct CompositionSummary: Sendable, Equatable {
     public let transcriberCount: Int
     public let cleanerIsFallback: Bool
@@ -23,7 +23,7 @@ public struct CompositionSummary: Sendable, Equatable {
     }
 }
 
-/// The composition root (spec §18.2): assembles the single configured pipeline.
+/// The composition root: assembles the single configured pipeline.
 ///
 /// EXACTLY ONE injected `Transcriber` (the system Speech runtime — no runtime
 /// multi-backend switch), a fallback cleaner chain, one injector, one

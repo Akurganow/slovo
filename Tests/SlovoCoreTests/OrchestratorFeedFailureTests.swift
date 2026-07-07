@@ -4,7 +4,7 @@ import Synchronization
 import SlovoCore
 import SlovoTestSupport
 
-// Task #13 — total audio-conversion/feed failure must surface the menu-bar
+// Total audio-conversion/feed failure must surface the menu-bar
 // `.transcriptionFailed` status (NO alerts), while per-chunk tolerance and
 // legitimate silence stay untouched. Driven through the REAL
 // `PipelineFactory.makeOrchestrator` + `Orchestrator` over the seam FAKES.
@@ -12,7 +12,7 @@ import SlovoTestSupport
 // Split out of OrchestratorTests to keep both files under the strict
 // SwiftLint file_length gate; the harness helpers below mirror that suite's
 // (each source-level test suite carries its own private harness here).
-@Suite("Task #13 total feed-failure surfacing")
+@Suite("Total feed-failure surfacing")
 struct OrchestratorFeedFailureTests {
     private static var vocab: [Term] {
         [

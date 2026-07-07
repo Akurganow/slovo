@@ -1,13 +1,13 @@
 import Foundation
 import GRDB
 
-// Per-test on-disk DB helper (plan §4, P15): NEVER `:memory:` — an on-disk file
+// Per-test on-disk DB helper: NEVER `:memory:` — an on-disk file
 // exercises the migrator's create-from-empty (create-or-get) path that in-memory
-// masks. UUID-named per test for Swift-Testing parallel isolation (P30); the
+// masks. UUID-named per test for Swift-Testing parallel isolation; the
 // teardown closes the pool and deletes the file plus its `-wal`/`-shm` sidecars.
 enum TempDatabase {
     /// A fresh, empty on-disk temp DB path (the file does NOT exist yet — the
-    /// caller's `open`/migrator creates it, so AC-1's create-or-get is real).
+    /// caller's `open`/migrator creates it, so create-or-get is real).
     static func freshPath() -> String {
         NSTemporaryDirectory() + "slovo-test-" + UUID().uuidString + ".sqlite"
     }

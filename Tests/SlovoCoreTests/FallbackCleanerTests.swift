@@ -4,9 +4,9 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 06 — fallback cleanup must preserve insertion when upstream cleanup fails
+// Fallback cleanup must preserve insertion when upstream cleanup fails
 // while still propagating non-cleanup failures.
-@Suite("Epic 06 AC-1/AC-2/AC-9 FallbackCleaner")
+@Suite("FallbackCleaner")
 struct FallbackCleanerTests {
     private static let raw = "Um, so like, запушь the PR"
     private static var config: CleanupConfig { CleanupConfig(writingStyle: .formal, language: .auto) }
@@ -18,7 +18,7 @@ struct FallbackCleanerTests {
         FallbackCleaner(chain: chain, statusReporter: report)
     }
 
-    /// AC-1: every `CleanupError` case ⇒ the chain advances to `PassThrough`,
+    /// Every `CleanupError` case ⇒ the chain advances to `PassThrough`,
     /// returning the raw input unchanged.
     /// Stated sensitivity: make a case "terminal" (re-throw instead of advancing)
     /// → that case throws instead of returning raw → RED.
@@ -34,7 +34,7 @@ struct FallbackCleanerTests {
         }
     }
 
-    /// AC-2: a NON-`CleanupError` (here `CancellationError`) must PROPAGATE —
+    /// A NON-`CleanupError` (here `CancellationError`) must PROPAGATE —
     /// not be swallowed and degraded.
     /// Stated sensitivity: `catch let e as CleanupError` → bare `catch` → the
     /// CancellationError is swallowed + degraded → does NOT throw → RED.
@@ -52,7 +52,7 @@ struct FallbackCleanerTests {
         #expect(threw, "a non-CleanupError must propagate, not be swallowed and degraded to PassThrough")
     }
 
-    /// AC-9: every expected cleanup failure advances to `PassThrough` WITH the
+    /// Every expected cleanup failure advances to `PassThrough` WITH the
     /// user-visible sad-to-fail status. Cleanup is always attempted upstream;
     /// insertion falls back to the direct transcript only when cleanup fails with
     /// `CleanupError` because the provider is unavailable, refused, or misconfigured.

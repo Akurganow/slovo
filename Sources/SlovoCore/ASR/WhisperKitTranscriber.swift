@@ -14,7 +14,7 @@ import Foundation
 /// No WhisperKit SDK type crosses this seam: the engine is injected as a
 /// `ModelLoading & SpeechDecoding` value, the resampler as `AudioConverting`, and
 /// the idle-timing source as `Clock`, so the whole session is driven by fakes in
-/// tests. Bias EFFICACY is verified on-device (L4), not here — see
+/// tests. Bias EFFICACY is verified on-device, not here — see
 /// `biasFieldVerification`.
 public actor WhisperKitTranscriber: Transcriber {
     public struct Configuration: Equatable, Sendable {
@@ -31,7 +31,7 @@ public actor WhisperKitTranscriber: Transcriber {
     }
 
     /// Whether the bias-prompt field has been verified to steer recognition. Token
-    /// plumbing is unit-tested; efficacy stays an on-device (L4) check.
+    /// plumbing is unit-tested; efficacy stays an on-device check.
     public enum BiasFieldVerification: Equatable, Sendable {
         case requiresL4Verification
     }

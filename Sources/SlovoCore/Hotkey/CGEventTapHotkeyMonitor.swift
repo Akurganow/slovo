@@ -1,14 +1,13 @@
 import CoreGraphics
 
-/// Real `CGEventTap` implementation of `HotkeyMonitor` for the `fn` (Globe) key
-/// (ref: verified CGEventTap constants, P20/P21).
+/// Real `CGEventTap` implementation of `HotkeyMonitor` for the `fn` (Globe) key.
 ///
 /// Watches `flagsChanged` events for the secondary-fn modifier, reporting `.down`
 /// when it engages and `.up` when it releases, and suppresses the fn event so the
 /// OS does not also act on it. If the tap is disabled by timeout or user input it
 /// is re-enabled. A `tapIsEnabled` poll lets a supervisor recreate a dead tap.
 ///
-/// L4: exercised on real hardware via the Epic-03 runbook, not in CI.
+/// Exercised on real hardware via the manual runbook, not in CI.
 public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
     public struct HotkeyTapError: Error {
         public let reason: String

@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-// Epic 09c — static CI checks for the app-shell/package artifacts. Real launch,
-// glyph rendering, signing, notarization, and TCC persistence are L4.
-@Suite("Epic 09c app shell and packaging artifacts")
+// Static CI checks for the app-shell/package artifacts. Real launch,
+// glyph rendering, signing, notarization, and TCC persistence are verified live.
+@Suite("App shell and packaging artifacts")
 struct AppShellPackagingTests {
     @Test
     func appShellUsesAccessoryMenuBarShape() throws {

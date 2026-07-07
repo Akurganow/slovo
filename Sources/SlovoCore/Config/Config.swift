@@ -1,4 +1,4 @@
-/// User-editable app configuration persisted as the spec §10 JSON shape.
+/// User-editable app configuration persisted as JSON.
 public struct Config: Equatable, Sendable {
     public static let defaultTrigger = "fn"
     public static let defaultMode = "hold"

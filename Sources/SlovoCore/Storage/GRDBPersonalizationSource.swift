@@ -1,9 +1,9 @@
 import GRDB
 
-/// The GRDB-backed `PersonalizationSource` (spec §18.2, §18.4). The only place
+/// The GRDB-backed `PersonalizationSource`. The only place
 /// that reads the vocabulary table; also the menu quick-add's write path.
 ///
-/// SECURITY (AC-7): a DB-row value (a term, expansion, …) must NEVER reach the
+/// SECURITY: a DB-row value (a term, expansion, …) must NEVER reach the
 /// log. Only coarse counts cross into `RedactionSafeLog` — never a row payload.
 public struct GRDBPersonalizationSource: PersonalizationSource {
     private let database: DatabasePool
@@ -25,7 +25,7 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
                 try record.insert(db)
             }
         }
-        // Coarse only (AC-7): the count is not a payload; no term is ever logged.
+        // Coarse only: the count is not a payload; no term is ever logged.
         log.event("vocabulary added")
         log.logLength(of: records)
     }

@@ -4,15 +4,15 @@ import GRDB
 
 import SlovoCore
 
-// Epic 08 — AC-2 (dedup on (term, category)), AC-3 (top-N by weight), AC-4
-// (seed idempotency; corrections inert).
+// Dedup on (term, category), top-N by weight, and seed idempotency (corrections
+// inert).
 //
-// Contract under test (implementer builds `Sources/SlovoCore/Storage/` per plan
-// §7; CURRENTLY the `_RedScaffold_Storage.swift` stub — UNIQUE(term), unordered
+// Contract under test (implementer builds `Sources/SlovoCore/Storage/`;
+// CURRENTLY the `_RedScaffold_Storage.swift` stub — UNIQUE(term), unordered
 // source, no-INSERT-OR-IGNORE seed — so these go RED).
 //
-// ON-DISK temp DB (P15). Every term is a synthetic neutral public anchor.
-@Suite("Epic 08 AC-2/AC-3/AC-4 vocabulary store")
+// ON-DISK temp DB. Every term is a synthetic neutral public anchor.
+@Suite("Vocabulary store")
 struct VocabularyStoreTests {
 
     private static func openStore() throws -> (pool: DatabasePool, teardown: () -> Void) {
@@ -21,10 +21,10 @@ struct VocabularyStoreTests {
         return (pool, { TempDatabase.remove(at: path) })
     }
 
-    /// AC-2: the same `term` under two DIFFERENT categories both survive; the same
+    /// The same `term` under two DIFFERENT categories both survive; the same
     /// `term` + same `category` dedups to one.
     /// Stated sensitivity: declare `UNIQUE(term)` (drop `category`) → the
-    /// two-category case collapses to 1 → RED (P17). (The scaffold uses
+    /// two-category case collapses to 1 → RED. (The scaffold uses
     /// `UNIQUE(term)` → RED now.)
     @Test
     func dedupIsPerTermAndCategory() throws {
@@ -46,7 +46,7 @@ struct VocabularyStoreTests {
         #expect(afterDuplicate == 1, "the same (term, category) must dedup to a single row; got \(afterDuplicate)")
     }
 
-    /// AC-3: `vocabulary(limit:)` returns the highest-weight N terms in descending
+    /// `vocabulary(limit:)` returns the highest-weight N terms in descending
     /// order. Expected `[w9, w7, w5]` from the FIXTURE weights, not the source.
     /// Stated sensitivity: drop/reverse the `.order(weight.desc)` → wrong set/order
     /// → RED. (The scaffold is unordered → RED now.)
@@ -69,13 +69,13 @@ struct VocabularyStoreTests {
                 "vocabulary(limit: 3) must return the top-3 by weight in descending order [w9, w7, w5]; got \(top)")
     }
 
-    /// AC-4: applying a SYNTHETIC seed twice leaves `vocabulary` un-duplicated and
+    /// Applying a SYNTHETIC seed twice leaves `vocabulary` un-duplicated and
     /// `corrections` empty throughout (the real seed file is NEVER read in CI).
     /// Stated sensitivity: import without `INSERT OR IGNORE` → the re-apply either
     /// duplicates (no unique key) or throws SQLite-19 (unique key) → RED; write to
-    /// `corrections` during import → count > 0 → RED (P19). GREEN on the
+    /// `corrections` during import → count > 0 → RED. GREEN on the
     /// correct-IGNORE scaffold; the no-`.ignore` RED is proven OUT-OF-BAND (it
-    /// can't coexist in-tree with AC-2's clean UNIQUE(term) count-mismatch — a
+    /// can't coexist in-tree with the clean UNIQUE(term) count-mismatch — a
     /// plain INSERT throws on conflict rather than yielding a clean count).
     @Test
     func seedReapplyIsIdempotentAndLeavesCorrectionsUntouched() throws {

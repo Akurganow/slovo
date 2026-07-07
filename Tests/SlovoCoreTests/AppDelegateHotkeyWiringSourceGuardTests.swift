@@ -3,7 +3,7 @@ import Testing
 
 import SlovoCore
 
-// Task #14 wiring guards. The behavior tests in HotkeyEdgeSequencerTests prove the
+// Wiring guards. The behavior tests in HotkeyEdgeSequencerTests prove the
 // sequencer serializes edges, but nothing forced AppDelegate to actually ROUTE the
 // fn hotkey through it — reverting onTrigger to per-edge `Task { ... }` dispatch
 // (the original stuck-mute bug) reddened no test. These source guards close that

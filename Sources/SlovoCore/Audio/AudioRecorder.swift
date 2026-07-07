@@ -1,4 +1,4 @@
-/// Captures microphone audio and streams it as live §18.3 `AudioChunk`s.
+/// Captures microphone audio and streams it as live `AudioChunk`s.
 ///
 /// `start()` must consult the `MicrophoneAuthorizer` FIRST and throw
 /// `AudioCaptureError.microphoneDenied` without touching the engine when the mic

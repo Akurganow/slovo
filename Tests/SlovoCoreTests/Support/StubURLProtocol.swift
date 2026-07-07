@@ -1,7 +1,7 @@
 import Foundation
 
 // TEMPORARY RED-SCAFFOLD SUPPORT — the implementer KEEPS this (test-only, never
-// shipped). Records every outbound request (for AC-6 shape + AC-7 count) and
+// shipped). Records every outbound request and
 // returns a programmable canned response or a transport `URLError`.
 //
 // Per-test ISOLATION (so Swift Testing's parallel runner cannot interleave two

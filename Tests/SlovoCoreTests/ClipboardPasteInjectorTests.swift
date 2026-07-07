@@ -4,9 +4,9 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 07 text injection. The load-bearing contract is the ordered pasteboard
+// Text injection. The load-bearing contract is the ordered pasteboard
 // sequence and fail-closed secure-input checks around every transcript write.
-@Suite("Epic 07 injection — ClipboardPasteInjector")
+@Suite("Injection — ClipboardPasteInjector")
 struct ClipboardPasteInjectorTests {
     private static let transcript = "запушь PR в GitHub репозиторий"
     private static let originalClip = [

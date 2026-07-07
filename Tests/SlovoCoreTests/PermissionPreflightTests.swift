@@ -4,19 +4,18 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 03 — AC-6 (CI-half): preflight checks ALL THREE permissions
-// independently and degrades if ANY is missing (P22: preflight all three, not
-// just Accessibility).
+// Preflight checks ALL THREE permissions independently and degrades if ANY is
+// missing — not just Accessibility.
 //
 // Contract under test (implementer builds the seam in
-// `Sources/SlovoCore/Permissions/` and the fake in `Sources/SlovoTestSupport/`
-// per plan §4; CURRENTLY supplied by the WRONG-ON-PURPOSE
+// `Sources/SlovoCore/Permissions/` and the fake in `Sources/SlovoTestSupport/`;
+// CURRENTLY supplied by the WRONG-ON-PURPOSE
 // `_RedScaffold_AudioPermSeams.swift` stub — preflight checks only
 // Accessibility and forces IM + mic true — so this test goes RED on behavior).
 //
 //     struct PermissionStatus { accessibility; inputMonitoring; microphone; allGranted }
 //     protocol PermissionPreflighter { func preflight() -> PermissionStatus }
-@Suite("Epic 03 AC-6 permission preflight")
+@Suite("Permission preflight")
 struct PermissionPreflightTests {
 
     /// With Input Monitoring DENIED (others granted), preflight must report

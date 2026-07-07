@@ -3,8 +3,7 @@ import os
 
 /// A derived, forward-locking AX-context value. v1 ships NO live AX context
 /// (cursor/app-aware tone is v1.x); this type exists so the redaction invariant is
-/// locked BEFORE any AX feature lands — its raw field must NEVER be logged (AC-6,
-/// the 7th redaction channel).
+/// locked BEFORE any AX feature lands — its raw field must NEVER be logged.
 public struct AxContext: Sendable {
     public let rawNeighborText: String
 
@@ -56,7 +55,7 @@ public struct Dependencies: Sendable {
     }
 }
 
-/// The effect-executing actor (spec §18.7, D22/D25). The pure `DictationFsm`
+/// The effect-executing actor. The pure `DictationFsm`
 /// decides the next state + effects; this actor executes them in order, holding
 /// the session state and the stashed `PriorAudioState` for the key-up restore.
 ///
@@ -169,7 +168,7 @@ public actor Orchestrator {
     private func execute(_ effect: DictationEffect) async -> DeferredEffect? {
         switch effect {
         case .muteSystemOutput:
-            // Stash the prior state for the key-up restore (D46).
+            // Stash the prior state for the key-up restore.
             stashedPriorAudio = try? deps.audio.muteSystemOutput()
             return nil
 

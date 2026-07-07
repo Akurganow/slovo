@@ -15,7 +15,7 @@ import SlovoTestSupport
 // `AudioConverting`, and `WhisperKitBiasPromptBuilder` do not exist in the working
 // tree yet.
 //
-// PINNED PRODUCTION SHAPE (lead-approved): the transcriber injects one engine
+// PINNED PRODUCTION SHAPE: the transcriber injects one engine
 // playing BOTH ModelLoading + SpeechDecoding, a converter, and a clock, and builds
 // its `ModelLifecycle` internally —
 //   init(configuration: Configuration = .defaults,
@@ -25,8 +25,8 @@ import SlovoTestSupport
 // with `Configuration(keepWarmSeconds:)`. Keep-warm 0 makes didFinishUse release
 // the model immediately, so release IS the observable proof of the lifecycle call.
 //
-// These tests pin TOKEN PLUMBING only, never bias EFFICACY (that stays L4 /
-// on-device: `WhisperKitTranscriber.biasFieldVerification == .requiresL4Verification`).
+// These tests pin TOKEN PLUMBING only, never bias EFFICACY (that stays on-device:
+// `WhisperKitTranscriber.biasFieldVerification == .requiresL4Verification`).
 @Suite("WhisperKit streaming transcriber session")
 struct WhisperKitTranscriberSessionTests {
 

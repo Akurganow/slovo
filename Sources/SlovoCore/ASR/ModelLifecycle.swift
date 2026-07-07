@@ -17,8 +17,8 @@ public protocol Clock: Sendable {
     func sleep(for seconds: TimeInterval) async throws
 }
 
-/// Owns ONE model's load/keep-warm/release lifecycle (spec §18.2: lifecycle
-/// only — no backend selection, no degradation).
+/// Owns ONE model's load/keep-warm/release lifecycle — no backend selection,
+/// no degradation.
 ///
 /// `keepWarmSeconds` selects the retention policy: `nil` keeps the model RESIDENT
 /// (never released here), `0` releases immediately on `didFinishUse()`, and a

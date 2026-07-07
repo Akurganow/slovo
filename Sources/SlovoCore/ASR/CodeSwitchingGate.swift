@@ -33,7 +33,7 @@ public struct ClipScore: Sendable, Equatable {
     }
 }
 
-/// The I3 code-switching acceptance gate (spec §18.8 I3, §19.3).
+/// The code-switching acceptance gate.
 ///
 /// The load-bearing rule: a transcript passes ONLY when it contains BOTH a
 /// Cyrillic run AND every required Latin anchor. This is deliberately two-sided —

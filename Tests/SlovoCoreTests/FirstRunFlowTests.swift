@@ -3,10 +3,9 @@ import Testing
 
 import SlovoCore
 
-// Epic 09b — AC-8 CI half: determine the first-run steps from required setup
-// permissions. Input Monitoring is diagnostic for hotkey recovery, not a generic
-// first-run blocker. Real TCC prompts and Settings deep-links are L4.
-@Suite("Epic 09b FirstRunFlow")
+// Determine the first-run steps from required setup permissions. Input Monitoring
+// is diagnostic for hotkey recovery, not a generic first-run blocker.
+@Suite("FirstRunFlow")
 struct FirstRunFlowTests {
     @Test
     func readyWhenAllPermissionsAndKeyExist() {

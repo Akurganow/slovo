@@ -2,8 +2,8 @@ import AVFoundation
 import Foundation
 import SlovoObjC
 
-/// Real `AVAudioEngine`-backed microphone recorder (L4: built and verified on
-/// device via the Epic-04 runbook, not exercised in CI).
+/// Real `AVAudioEngine`-backed microphone recorder, built and verified on
+/// device, not exercised in CI.
 ///
 /// Each `start()` builds a FRESH engine so an audio device/route change since the
 /// previous dictation (e.g. unplugging headphones) cannot leave a stale input

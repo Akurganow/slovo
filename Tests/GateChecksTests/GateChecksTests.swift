@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 
-// AC-9 — `.gitignore` ignores build artifacts, the seed/db globs, and key
-// material. Same engine as AC-6: `git check-ignore` against an ISOLATED temp
+// `.gitignore` ignores build artifacts, the seed/db globs, and key
+// material. Same engine: `git check-ignore` against an ISOLATED temp
 // repo seeded with the REAL `.gitignore` (touches nothing real).
 //
 // RED today: the un-hardened `.gitignore` lists exact filenames, so the glob
@@ -14,7 +14,7 @@ import Testing
 // Stated sensitivity: drop ANY required pattern from `.gitignore` → that probe is
 // no longer ignored → RED. Reverting the glob to the literal list re-breaks the
 // `data/seed.dev.sql` / `data/slovo.db.x` probes specifically.
-@Suite("AC-9 .gitignore hardening")
+@Suite(".gitignore hardening")
 struct GitignoreHardeningTests {
     /// Each probe must be IGNORED by the hardened `.gitignore`. Build artifacts
     /// are already covered; the seed/db globs and key material are what hardening
@@ -55,7 +55,7 @@ struct GitignoreHardeningTests {
         }
     }
 
-    // MARK: - Isolated temp repo helpers (mirror AC-6; touch nothing real)
+    // MARK: - Isolated temp repo helpers (touch nothing real)
 
     private static func makeTempRepoWithRealGitignore() throws -> String {
         let repo = NSTemporaryDirectory() + "slovo-gitignore-" + UUID().uuidString

@@ -4,14 +4,13 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 09a — AC-6 (SECURITY-CRITICAL, the 7th & FINAL redaction channel):
-// AX-context must reach NO log line. v1 ships NO live AX context (cursor/app-aware
-// is v1.x) — this is a NEGATIVE, forward-locking guard so a future AX feature
-// that forgets redaction goes RED. Closes the 7 channels: cloud=Epic06 (5),
-// DB-row=Epic08 (1), AX-context=here (1).
+// SECURITY-CRITICAL, the 7th & FINAL redaction channel: AX-context must reach NO
+// log line. v1 ships NO live AX context (cursor/app-aware is v1.x) — this is a
+// NEGATIVE, forward-locking guard so a future AX feature that forgets redaction
+// goes RED. Closes the 7 channels: cloud (5), DB-row (1), AX-context here (1).
 //
-// SEED-LEAK RULE (P1): the sentinel is a SYNTHETIC high-entropy string.
-@Suite("Epic 09a AC-6 AX-context redaction sentinel")
+// SEED-LEAK RULE: the sentinel is a SYNTHETIC high-entropy string.
+@Suite("AX-context redaction sentinel")
 struct AxContextRedactionTests {
     private static let sentinel = "S3NT1NEL-AXCTX-8d2f4a9c-DO-NOT-LOG"
 
@@ -19,7 +18,7 @@ struct AxContextRedactionTests {
     /// and assert NO captured log line contains it.
     /// Stated sensitivity: log the AX context `logger.log("\(axContext, privacy:
     /// .public)")` / `String(describing:)` → the sentinel reaches the sink → RED;
-    /// the L1 redaction lint ALSO REDs the `.public` of an AX-context type.
+    /// the redaction lint ALSO REDs the `.public` of an AX-context type.
     @Test
     func axContextSentinelNeverReachesLogSink() async {
         var captured: [String] = []

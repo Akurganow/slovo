@@ -1,6 +1,6 @@
 import GRDB
 
-/// The v1 schema migration for the personalization store (spec §18.4; mirrors
+/// The v1 schema migration for the personalization store (mirrors
 /// `data/schema.sql`). Idempotent by construction: GRDB's `DatabaseMigrator`
 /// tracks applied migration identifiers, so re-running `migrate` is a no-op — no
 /// unconditional `CREATE TABLE`.
@@ -23,7 +23,7 @@ public enum PersonalizationMigrations {
                 t.column("weight", .integer).notNull().defaults(to: 1)
                 t.column("created_at", .text).notNull().defaults(sql: "(datetime('now'))")
                 // Dedup is per (term, category): the same term in two categories is
-                // two legitimately distinct rows (P17).
+                // two legitimately distinct rows.
                 t.uniqueKey(["term", "category"])
             }
             try db.create(indexOn: "vocabulary", columns: ["weight", "term"])

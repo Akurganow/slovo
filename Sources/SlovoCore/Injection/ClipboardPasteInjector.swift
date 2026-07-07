@@ -1,19 +1,19 @@
-/// Injects text by driving the system pasteboard and a synthesized ⌘V (spec §3,
-/// §11, §18.3; D19–D21). SECURITY-CRITICAL — the §2 sequence is exact and its
-/// ordering is the whole point:
+/// Injects text by driving the system pasteboard and a synthesized ⌘V.
+/// SECURITY-CRITICAL — the sequence below is exact and its ordering is the whole
+/// point:
 ///
 /// 1. Refuse if secure input is active BEFORE touching the pasteboard, so the
-///    transcript never transits the clipboard in a password field (fail-closed,
-///    P3 — a "restored to original" check alone would miss this leak window).
+///    transcript never transits the clipboard in a password field (fail-closed —
+///    a "restored to original" check alone would miss this leak window).
 /// 2. Snapshot the user's clipboard, then 3. always restore it via `defer` on
-///    EVERY exit path (success, throw, or abort) so the original is never lost (P4).
+///    EVERY exit path (success, throw, or abort) so the original is never lost.
 /// 4. Clear the pasteboard.
 /// 5. Re-check secure input immediately before writing the transcript — focus may
 ///    have moved after the first guard.
 /// 6. Write the transcript with conceal markers so clipboard managers
-///    don't persist it (D21).
+///    don't persist it.
 /// 7. Re-check secure input immediately before pasting — focus may have moved to a
-///    password field after step 1 (D20).
+///    password field after step 1.
 /// 8. Paste, surfacing accessibility/paste failures rather than swallowing them.
 /// 9. Wait `restoreDelay` so the app consumes the paste before the deferred
 ///    restore lands.
@@ -23,7 +23,7 @@ public struct ClipboardPasteInjector: Injector {
     private let keystroke: PasteKeystroke
     private let restoreDelay: Duration
 
-    /// The conceal markers (D21): clipboard managers skip items carrying these.
+    /// The conceal markers: clipboard managers skip items carrying these.
     private static let markerTypes = [
         "org.nspasteboard.ConcealedType",
         "org.nspasteboard.TransientType",

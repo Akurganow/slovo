@@ -1,6 +1,6 @@
 import Foundation
 
-// Seam protocols and their typed error domains (spec §18.3). Each stage of the
+// Seam protocols and their typed error domains. Each stage of the
 // pipeline — transcribe, clean, inject — is an async seam with a closed error
 // enum so callers can switch exhaustively over every failure mode (no `default`).
 
@@ -89,8 +89,8 @@ public enum InjectionError: Error, Equatable, Sendable {
 /// Read-port over the user's personalization store.
 ///
 /// v1 exposes only the bias vocabulary. The v1.x members (`recentCorrections`
-/// and `profileFacts`, plus a `Correction` value type) land in Epic 07, where
-/// the real GRDB adapter defines their exact shapes (GAP-1: deferred).
+/// and `profileFacts`, plus a `Correction` value type) are deferred; the real
+/// GRDB adapter will define their exact shapes.
 public protocol PersonalizationSource: Sendable {
     func vocabulary(limit: Int) -> [Term]
 }

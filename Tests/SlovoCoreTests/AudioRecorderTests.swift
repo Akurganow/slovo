@@ -5,16 +5,15 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 04 — AC-3 (recorder half: mic denied ⇒ throw `microphoneDenied` and the
-// engine is NEVER started) and AC-4 (recorder streams live audio; stop terminates
-// the stream).
+// Recorder: mic denied ⇒ throw `microphoneDenied` and the engine is NEVER
+// started; recorder streams live audio; stop terminates the stream.
 //
 //     protocol MicrophoneAuthorizer { func isMicrophoneAuthorized() async -> Bool }
 //     protocol AudioRecorder { func start() async throws -> AsyncStream<AudioChunk>; func stop() async }
-@Suite("Epic 04 AC-3/AC-4 audio recorder")
+@Suite("Audio recorder")
 struct AudioRecorderTests {
 
-    /// AC-3 (recorder half): with the mic DENIED, `start()` throws
+    /// With the mic DENIED, `start()` throws
     /// `AudioCaptureError.microphoneDenied` AND the engine is NEVER started.
     /// Stated sensitivity: move the permission check AFTER engine start → the
     /// engine is started despite denial → the zero-start assertion fails → RED.
@@ -36,19 +35,17 @@ struct AudioRecorderTests {
                 "the engine must NEVER be started when the mic is denied, got \(recorder.engineStartCount) starts")
     }
 
-    /// AC-4 (streaming seam): `start()` yields live `AudioChunk`s and `stop()`
+    /// Streaming seam: `start()` yields live `AudioChunk`s and `stop()`
     /// terminates the stream so a consumer's `for await` ends.
     /// Stated sensitivity: change the seam so `start()` no longer returns a stream,
     /// or `stop()` never finishes the continuation → this body stops compiling or
     /// the terminating `for await` hangs → RED.
     ///
-    /// Follow-up (test-author): the recorder no longer converts to a fixed 16 kHz
-    /// mono format — it yields NATIVE mic buffers, and conversion to the analyzer
-    /// format moved into the transcriber's single `BufferConverter`. The original
-    /// 16 kHz-mono format assertion no longer describes the recorder contract;
-    /// re-derive coverage for the native-buffer stream + the converter split.
-    /// (The literal task-tag token is omitted because the SwiftLint `todo` gate
-    /// fails the build on it; flagged to the lead in the hand-back report.)
+    /// Note: the recorder no longer converts to a fixed 16 kHz mono format — it
+    /// yields NATIVE mic buffers, and conversion to the analyzer format moved into
+    /// the transcriber's single `BufferConverter`. The original 16 kHz-mono format
+    /// assertion no longer describes the recorder contract; coverage for the
+    /// native-buffer stream + the converter split should be re-derived.
     @Test
     func startYieldsChunksAndStopTerminatesStream() async throws {
         let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
@@ -68,7 +65,7 @@ struct AudioRecorderTests {
         #expect(remaining == 0, "stop() must finish the stream; got \(remaining) trailing chunks")
     }
 
-    /// Task #12 source guard (recorder half): `AVAudioEngineRecorder.start()` must
+    /// Source guard (recorder half): `AVAudioEngineRecorder.start()` must
     /// consult `AudioTapFormatValidator` for a rejection reason BEFORE it installs
     /// the tap. The live crash raised an `NSException` synchronously inside
     /// `installTap` on a degenerate (zero-channel) input format; Swift cannot catch

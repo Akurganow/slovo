@@ -3,7 +3,7 @@ import Foundation
 
 /// Pure conversion of captured audio to the canonical ASR format: 16 kHz mono
 /// Float32. The SOURCE format is always read from the passed buffer, never
-/// hardcoded (P25), and sample-rate conversion uses the callback form of
+/// hardcoded, and sample-rate conversion uses the callback form of
 /// `AVAudioConverter` (`convert(to:error:withInputFrom:)`) — the in-place
 /// `convert(to:from:)` cannot resample.
 public enum AudioFormatConversion {

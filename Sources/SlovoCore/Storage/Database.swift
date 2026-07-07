@@ -1,6 +1,6 @@
 import GRDB
 
-/// Opens (creating if absent) the personalization database (spec §18.4, D17).
+/// Opens (creating if absent) the personalization database.
 ///
 /// Create-or-get with NO file-exists branch: the migrator runs unconditionally
 /// and brings a brand-new empty file up to the v1 schema, so "missing DB" and

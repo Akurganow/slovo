@@ -1,5 +1,5 @@
 /// A composite `Cleaner` that walks a chain, advancing to the next cleaner on any
-/// `CleanupError` and terminating at `PassThrough` (spec §11, §18.3). A
+/// `CleanupError` and terminating at `PassThrough`. A
 /// non-`CleanupError` (e.g. `CancellationError`) PROPAGATES — it is never
 /// swallowed and silently degraded.
 ///

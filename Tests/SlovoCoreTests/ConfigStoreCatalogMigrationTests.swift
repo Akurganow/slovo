@@ -4,10 +4,10 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Task #21 — a cleanup model RETIRED from the catalog must be migrated on load, not
+// A cleanup model RETIRED from the catalog must be migrated on load, not
 // kept flowing to OpenRouter as a stale id. Split from ConfigStoreTests to keep both
 // files under the strict SwiftLint file_length gate.
-@Suite("Task #21 ConfigStore cleanup-model migration")
+@Suite("ConfigStore cleanup-model migration")
 struct ConfigStoreCatalogMigrationTests {
 
     /// A persisted cleanup model that has been RETIRED from the catalog (here the

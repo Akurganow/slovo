@@ -1,5 +1,5 @@
-/// The system-audio state captured at mute time, used to restore at key-up
-/// (spec §17, P28). Pinning the device means an output change mid-dictation
+/// The system-audio state captured at mute time, used to restore at key-up.
+/// Pinning the device means an output change mid-dictation
 /// (e.g. AirPods connecting) cannot misdirect the restore.
 public struct PriorAudioState: Equatable, Sendable {
     /// Which lever was used to silence output, so restore uses the same one.

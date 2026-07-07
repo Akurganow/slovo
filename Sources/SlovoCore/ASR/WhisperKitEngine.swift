@@ -8,7 +8,7 @@ import WhisperKit
 /// Support location via an explicit `downloadBase`: the WhisperKit SDK otherwise
 /// downloads under the user's home Hugging Face cache, which on this un-sandboxed
 /// app is a real, possibly iCloud-synced user folder. Bias efficacy is verified
-/// on-device (L4), not by unit tests. `@unchecked Sendable` is backed by a lock
+/// on-device, not by unit tests. `@unchecked Sendable` is backed by a lock
 /// around the loaded-model pointer, so the transcriber actor can hold it as a
 /// `Sendable` engine.
 public final class WhisperKitEngine: ModelLoading, SpeechDecoding, @unchecked Sendable {

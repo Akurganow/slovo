@@ -33,7 +33,7 @@ public final class FakeSystemAudioController: SystemAudioController {
     }
 
     /// How many times mute was invoked — lets a single-flight test assert NO
-    /// second mute occurs on a re-entrant Start (Epic 09 AC-4).
+    /// second mute occurs on a re-entrant Start.
     public var muteCount: Int {
         recorded.withLock { $0.muteCount }
     }

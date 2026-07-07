@@ -4,24 +4,24 @@ import Testing
 
 import SlovoCore
 
-// Epic 02 — AC-1 (contracts exist with exact §18.3 shapes) and AC-5 (each error
-// enum is exhaustively switchable with NO `default`).
+// Contracts exist with their exact shapes, and each error enum is exhaustively
+// switchable with NO `default`.
 //
-// Contract under test (implementer builds VERBATIM per plan §1 / spec §18.3 in
+// Contract under test (implementer builds VERBATIM in
 // `Sources/SlovoCore/Contracts/`; the symbols are CURRENTLY supplied by the
 // `_RedScaffold_Contracts.swift` stub so this target compiles — the implementer
 // deletes the scaffold and these tests bind to the real `import SlovoCore`).
 //
-// AC-1 / AC-5 are COMPILE-TIME guarantees: the assertions below pin the exact
+// These are COMPILE-TIME guarantees: the assertions below pin the exact
 // public surface. They are GREEN against the correct scaffold; their RED is the
-// MUTATION "rename/drop a member or change a label" (AC-1) or "add/remove an
-// enum case" (AC-5) → the file no longer compiles. That mutation RED is
+// MUTATION "rename/drop a member or change a label" or "add/remove an
+// enum case" → the file no longer compiles. That mutation RED is
 // demonstrated out-of-band (see the RED-evidence report) because a wrong shape
 // breaks the whole target's compilation rather than a single test.
-@Suite("Epic 02 AC-1/AC-5 contracts")
+@Suite("Contracts")
 struct ContractsTests {
 
-    // MARK: - AC-1: exact value-type memberwise inits + property access
+    // MARK: - Exact value-type memberwise inits + property access
 
     /// Stated sensitivity: drop/rename a stored property or change an init label
     /// (e.g. `Term(term:expansion:lang:weight:)` → `Term(word:…)`) → this body
@@ -51,7 +51,7 @@ struct ContractsTests {
         #expect(context.vocabulary.count == 1)
     }
 
-    /// AC-1: every Language / WritingStyle case named in §18.3 exists.
+    /// Every Language / WritingStyle case exists.
     @Test
     func enumCasesMatchSpec() {
         let langs: [Language] = [.auto, .ru, .en]
@@ -60,8 +60,8 @@ struct ContractsTests {
         #expect(styles.count == 3)
     }
 
-    /// AC-1: each error case (incl. associated values + labels) is constructible
-    /// with the exact §18.3 labels.
+    /// Each error case (incl. associated values + labels) is constructible
+    /// with the exact labels.
     /// Stated sensitivity: change a label (`assetMissing(locale:)` →
     /// `assetMissing(loc:)`) or drop a case → won't compile → RED.
     @Test
@@ -86,11 +86,11 @@ struct ContractsTests {
         #expect(i.count == 3)
     }
 
-    // MARK: - AC-5: exhaustive switch with NO `default` (compile-time)
+    // MARK: - Exhaustive switch with NO `default` (compile-time)
 
     // These helpers switch over EVERY case with NO `default`. If a case is added
     // to (or removed from) the enum, the switch becomes non-exhaustive and the
-    // BUILD FAILS ("switch must be exhaustive") — that is the AC-5 RED. The test
+    // BUILD FAILS ("switch must be exhaustive") — that is the RED. The test
     // author writes NO `default`; the reviewer confirms its absence.
 
     private func describe(_ e: TranscriptionError) -> String {

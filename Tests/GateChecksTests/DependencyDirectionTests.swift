@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-// AC-4 — dependency-direction gate.
+// Dependency-direction gate.
 //
 // Contract under test (the implementer must build this in `SlovoCore`):
 //
@@ -22,7 +22,7 @@ import Testing
 // The tests below are RED today because `GateChecks` does not exist. They are
 // behavior-specific, not "package doesn't compile": each asserts the SHAPE of the
 // result the production scanner must return.
-@Suite("AC-4 dependency direction")
+@Suite("Dependency direction")
 struct DependencyDirectionTests {
     // Rule id via the symbol, so a rename is a compile error, not a silent miss.
     private static let ruleId = GateChecks.Rule.dependencyDirection.rawValue
@@ -100,7 +100,7 @@ struct DependencyDirectionTests {
         #expect(violations.isEmpty, "Sources/ has dependency-direction violations: \(violations)")
     }
 
-    /// Epic 08 (positive): a Storage-layer source MAY import GRDB — Storage is the
+    /// A Storage-layer source MAY import GRDB — Storage is the
     /// ONE place persistence is allowed; it is not a role module. The gate must
     /// return ZERO violations for it.
     /// Stated sensitivity: broaden `isRoleTagged` to also tag `Storage/` (or a

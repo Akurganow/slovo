@@ -1,5 +1,5 @@
 /// Mutes and restores system audio output, behind a seam so the mute/restore
-/// behavior is unit-testable without touching CoreAudio (spec §17, F1).
+/// behavior is unit-testable without touching CoreAudio.
 public protocol SystemAudioController: Sendable {
     /// Captures and pins the current output device, mutes it, and returns the
     /// prior state to hand back to `restoreSystemOutput`.

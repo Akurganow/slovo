@@ -5,17 +5,17 @@ import Synchronization
 import SlovoCore
 import SlovoTestSupport
 
-// Epic 09a — AC-2 (running pipeline + degradation + the FOLDED vocab→biasTerms),
-// AC-4 (single-flight: no second mute/capture), AC-5 (I1 latency budget).
+// Running pipeline + degradation + the FOLDED vocab→biasTerms, single-flight (no
+// second mute/capture), and the latency budget.
 //
 // Drives the REAL `PipelineFactory.makeOrchestrator` + `Orchestrator` over the
-// existing seam FAKES (running-composition, §19.2 L3 — NEVER a hand-wired copy).
-// This ABSORBS the retired `BiasTermsWiring` coverage: AC-2 asserts the
+// existing seam FAKES (running-composition — NEVER a hand-wired copy).
+// This ABSORBS the retired `BiasTermsWiring` coverage: the suite asserts the
 // transcriber received the resolved vocab as `biasTerms` (the fold into the
 // actor's `.endCaptureAndTranscribe`).
 //
 // SEED-LEAK RULE: synthetic neutral public anchors only.
-@Suite("Epic 09a AC-2/AC-4/AC-5 Orchestrator")
+@Suite("Orchestrator pipeline")
 struct OrchestratorTests {
     // Computed (not a stored non-Sendable global) for Swift-6.
     private static var vocab: [Term] {
@@ -57,7 +57,7 @@ struct OrchestratorTests {
         await orchestrator.awaitPipelineDrain()
     }
 
-    /// AC-2 (happy path + folded biasTerms): the cleaned text is injected AND the
+    /// Happy path + folded biasTerms: the cleaned text is injected AND the
     /// transcriber and cleaner received the resolved vocabulary.
     /// Stated sensitivity: drop the vocab→biasTerms resolve (pass `[]`) → recorded
     /// biasTerms/context empty → RED.
@@ -147,7 +147,7 @@ struct OrchestratorTests {
                 "the switched cleanup model must reach the next dictation on the SAME orchestrator, without a rebuild")
     }
 
-    /// AC-2 (degradation): a failing cleaner ⇒ the RAW transcript is injected via
+    /// Degradation: a failing cleaner ⇒ the RAW transcript is injected via
     /// PassThrough (never lose the words).
     /// Stated sensitivity: break the degradation (don't advance to PassThrough on
     /// `.offline`) → the raw transcript is NOT injected → RED.
@@ -274,12 +274,10 @@ struct OrchestratorTests {
     /// Stated sensitivity: remove the pre-begin status report → the session opens
     /// with no `.preparingSpeechModel` status recorded → RED.
     ///
-    /// Follow-up (test-author): streaming moved the ASR session begin (and its
-    /// `.preparingSpeechModel` notice) from key-up to key-down. This test now
-    /// asserts the new timing (status at key-down, reported exactly once);
-    /// re-derive its RED sensitivity for the streaming seam.
-    /// (The literal task-tag token is omitted because the SwiftLint `todo` gate
-    /// fails the build on it; flagged to the lead in the hand-back report.)
+    /// Note: streaming moved the ASR session begin (and its `.preparingSpeechModel`
+    /// notice) from key-up to key-down. This asserts the new timing (status at
+    /// key-down, reported exactly once); its RED sensitivity should be re-derived
+    /// for the streaming seam.
     @Test
     func reportsSpeechModelPreparationWhenSessionBegins() async {
         let reported = Mutex<[StatusMessage]>([])
@@ -310,7 +308,7 @@ struct OrchestratorTests {
         await orchestrator.awaitPipelineDrain()
     }
 
-    /// AC-4 (single-flight): a second Start while processing is IGNORED — no
+    /// Single-flight: a second Start while processing is IGNORED — no
     /// second mute, no second capture.
     /// Stated sensitivity: allow re-entry → a second mute/capture appears → RED.
     /// A re-entering actor would make muteCount/engineStartCount ≥ 2.
@@ -360,7 +358,7 @@ struct OrchestratorTests {
         await orchestrator.awaitPipelineDrain()
     }
 
-    /// AC-5 (I1 latency budget): the all-instant fake pipeline must finish near
+    /// Latency budget: the all-instant fake pipeline must finish near
     /// instantly, so this catches a synchronous stall in slovo's OWN code — a
     /// blocking `sleep`/call in the orchestrator pushes `elapsed` past the budget.
     /// Stated sensitivity: such a synchronous stall → RED.

@@ -1,4 +1,4 @@
-// The dictation finite-state machine (spec §6 flow, §11 containment, §18.7).
+// The dictation finite-state machine.
 //
 // `DictationFsm.transition(_:on:)` is a PURE function: it reads no clock,
 // performs no I/O, and holds no hidden state. It returns the next state plus a
@@ -13,8 +13,8 @@ public enum DictationState: Equatable, Sendable {
     case processing
 }
 
-/// Inputs the FSM reacts to (spec §6 flow + §11 error containment). `Sendable`
-/// so it can be handed to the `actor Orchestrator`'s `handle(_:)` across isolation.
+/// Inputs the FSM reacts to. `Sendable` so it can be handed to the
+/// `actor Orchestrator`'s `handle(_:)` across isolation.
 public enum DictationEvent: Sendable {
     case startRequested
     case stopRequested
@@ -84,7 +84,7 @@ public enum StageFailure: Equatable, Sendable {
     case cleanup
 }
 
-/// Outputs the actor executes (spec §6 + §11). The FSM only emits these.
+/// Outputs the actor executes. The FSM only emits these.
 ///
 /// The `Equatable` conformance is load-bearing: the FSM tests assert exact
 /// effect SEQUENCES (`effects == [...]`). A future contributor adding a payload
@@ -98,18 +98,17 @@ public enum DictationEffect: Equatable, Sendable {
     case log(FsmLogEvent)
     case notify(StatusMessage)
     case returnToIdle
-    /// Silence system playback before the mic opens (GAP-7: mute on key-down).
+    /// Silence system playback before the mic opens.
     case muteSystemOutput
-    /// Restore system playback when recording ends (GAP-7: restore at key-up).
+    /// Restore system playback when recording ends.
     /// Runs exactly once per muted session, on leaving `recording`, never later.
     case restoreSystemOutput
 }
 
-/// Namespace for the pure dictation transition (§18.7: FSM separated from the
+/// Namespace for the pure dictation transition (FSM separated from the
 /// effect-executing actor).
 public enum DictationFsm {
-    /// The pinned (State, Event) → (State, [Effect]) transition (spec §6 table,
-    /// GAP-7 mute/restore override).
+    /// The pinned (State, Event) → (State, [Effect]) transition.
     ///
     /// Mute/restore invariant: system audio is muted once on key-down
     /// (`idle + startRequested`) and restored exactly once on leaving `recording`
@@ -118,7 +117,7 @@ public enum DictationFsm {
     ///
     /// An event with no pinned transition for the current state is a lossless
     /// no-op: the state is unchanged and a single `log(.unexpectedEvent)` effect
-    /// is emitted, never a crash or a silent drop (GAP-2).
+    /// is emitted, never a crash or a silent drop.
     public static func transition(
         _ state: DictationState,
         on event: DictationEvent
@@ -145,13 +144,13 @@ public enum DictationFsm {
             return (.idle, [.returnToIdle])
 
         // Single-flight: a new start while processing is ignored but logged, with
-        // NO second mute (a re-mute would corrupt the stashed PriorAudioState) (AC-5).
+        // NO second mute (a re-mute would corrupt the stashed PriorAudioState).
         case (.processing, .startRequested):
             return (.processing, [.log(.singleFlightIgnored)])
 
         // Contained failure in processing: audio was already restored at key-up,
         // so NO restore here — surface a status, log the stage, return to idle, in
-        // that deterministic order (GAP-3, §11).
+        // that deterministic order.
         case (.processing, .failed(let failure)):
             return (.idle, [.notify(statusMessage(for: failure)), .log(.stageFailed), .returnToIdle])
 
@@ -160,7 +159,7 @@ public enum DictationFsm {
         }
     }
 
-    /// Maps a contained failure to the user-facing status notice (spec §11). Each
+    /// Maps a contained failure to the user-facing status notice. Each
     /// branch names the true failing stage so the notice never misattributes the
     /// cause.
     private static func statusMessage(for failure: StageFailure) -> StatusMessage {

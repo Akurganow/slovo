@@ -4,17 +4,17 @@ import GRDB
 
 import SlovoCore
 
-// Epic 08 — AC-7 (SECURITY-CRITICAL, the 6th of 7 redaction channels): a DB-row
+// SECURITY-CRITICAL, the 6th of 7 redaction channels: a DB-row
 // value (vocabulary/profile) must NEVER reach the `RedactionSafeLog` sink.
 //
 // Contract under test (the Storage files must keep every DB-row payload OUT of
 // the log; CURRENTLY the `_RedScaffold_Storage.swift` source logs only a coarse
 // line, so this is GREEN — its RED is proven by MUTATION (log a fetched row
-// `.public`), which ALSO REDs the L1 redaction lint).
+// `.public`), which ALSO REDs the redaction lint).
 //
-// SEED-LEAK RULE (P1): the sentinel is a SYNTHETIC high-entropy string — no real
+// SEED-LEAK RULE: the sentinel is a SYNTHETIC high-entropy string — no real
 // key, no seed term, no private name.
-@Suite("Epic 08 AC-7 DB-row redaction sentinel")
+@Suite("DB-row redaction sentinel")
 struct DbRowRedactionTests {
     private static let sentinel = "S3NT1NEL-DBROW-3f9a1c7e-DO-NOT-LOG"
 
@@ -22,7 +22,7 @@ struct DbRowRedactionTests {
     /// with a capturing log sink, and assert NO captured line contains it.
     /// Stated sensitivity: add `log.event("\(record.term, privacy: .public)")` (or
     /// `String(describing: row)`) on a fetched row → the sentinel reaches the sink
-    /// → RED; the L1 redaction lint ALSO REDs the `.public` of a payload. (GREEN on
+    /// → RED; the redaction lint ALSO REDs the `.public` of a payload. (GREEN on
     /// the scaffold which logs only a coarse line; RED proven out-of-band.)
     @Test
     func dbRowSentinelNeverReachesLogSink() throws {

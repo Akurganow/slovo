@@ -3,9 +3,9 @@ import Testing
 
 import SlovoCore
 
-// Epic 06 — AC-3: `PassThrough` returns its input byte-identical so fallback
+// `PassThrough` returns its input byte-identical so fallback
 // cleanup never loses the user's words.
-@Suite("Epic 06 AC-3 PassThrough")
+@Suite("PassThrough")
 struct PassThroughTests {
     /// Input chosen to be filler-laden text a real cleaner WOULD change (so the
     /// test is non-tautological: a no-op cleaner and a real cleaner differ here).

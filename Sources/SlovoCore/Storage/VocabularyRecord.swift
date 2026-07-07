@@ -1,6 +1,6 @@
 import GRDB
 
-/// A `vocabulary` row (spec §18.4). Inserts use `INSERT OR IGNORE` so re-applying
+/// A `vocabulary` row. Inserts use `INSERT OR IGNORE` so re-applying
 /// a seed never duplicates and never throws on a `(term, category)` conflict — a
 /// conflicting row is silently skipped.
 public struct VocabularyRecord: Codable, FetchableRecord, MutablePersistableRecord {
@@ -15,7 +15,7 @@ public struct VocabularyRecord: Codable, FetchableRecord, MutablePersistableReco
     public static let databaseTableName = "vocabulary"
 
     /// `INSERT OR IGNORE`: a row conflicting on the `(term, category)` unique key
-    /// is skipped rather than replaced or rejected (AC-4).
+    /// is skipped rather than replaced or rejected.
     public static let persistenceConflictPolicy = PersistenceConflictPolicy(insert: .ignore)
 
     enum CodingKeys: String, CodingKey {
@@ -41,7 +41,7 @@ public struct VocabularyRecord: Codable, FetchableRecord, MutablePersistableReco
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         // Under `INSERT OR IGNORE` a skipped insert reports rowID 0; don't adopt a
-        // bogus id for a row that wasn't actually inserted (P18).
+        // bogus id for a row that wasn't actually inserted.
         guard inserted.rowID != 0 else { return }
         id = inserted.rowID
     }

@@ -4,20 +4,19 @@ import GRDB
 
 import SlovoCore
 
-// Epic 08 — AC-1 (create-or-get: missing DB ⇒ migrator creates it empty) and
-// AC-6 (idempotent re-run).
+// Create-or-get (missing DB ⇒ migrator creates it empty) and idempotent re-run.
 //
 // Contract under test (implementer builds `Sources/SlovoCore/Storage/Database.swift`
-// + `Migrations.swift` per plan §7; CURRENTLY the `_RedScaffold_Storage.swift`
-// stub. AC-1/AC-6 are GREEN on the correct create-or-get scaffold; their RED
+// + `Migrations.swift`; CURRENTLY the `_RedScaffold_Storage.swift`
+// stub. Both are GREEN on the correct create-or-get scaffold; their RED
 // (file-exists-branch / unconditional-create) is proven OUT-OF-BAND).
 //
-// ON-DISK temp DB only (P15 — in-memory masks create-or-get). SEED-LEAK RULE:
+// ON-DISK temp DB only (in-memory masks create-or-get). SEED-LEAK RULE:
 // synthetic public anchors only.
-@Suite("Epic 08 AC-1/AC-6 migrations")
+@Suite("Migrations")
 struct MigrationsTests {
 
-    /// AC-1: opening at a NON-EXISTENT path creates the DB and an empty
+    /// Opening at a NON-EXISTENT path creates the DB and an empty
     /// `vocabulary`; `vocabulary(limit:)` returns `[]` without crashing.
     /// Stated sensitivity: branch on file-exists and skip the migrator when the
     /// file is missing → the table doesn't exist → the query crashes/errors → RED.
@@ -38,7 +37,7 @@ struct MigrationsTests {
         #expect(count == 0, "a freshly created vocabulary is empty — a valid state")
     }
 
-    /// AC-6: migrating an already-up-to-date DB is a no-op (idempotent).
+    /// Migrating an already-up-to-date DB is a no-op (idempotent).
     /// Stated sensitivity: re-run a migration body unconditionally (e.g. a raw
     /// `CREATE TABLE` without `IF NOT EXISTS`/migrator tracking) → the second
     /// migrate throws "table exists" → RED. (GREEN on the migrator scaffold;

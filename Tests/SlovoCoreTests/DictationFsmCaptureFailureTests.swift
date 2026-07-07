@@ -3,12 +3,12 @@ import Testing
 
 import SlovoCore
 
-// Epic 04 — AC-3 (FSM half): a capture failure flows through the EXISTING
+// FSM half: a capture failure flows through the EXISTING
 // `(.recording, .failed)` recording-failure row, restoring system audio first
 // (it was muted at key-down), then surfacing the honest microphone status.
 //
-// Contract under test (implementer extends `Sources/SlovoCore/FSM/DictationFsm.swift`
-// per plan §1 + LEAD GAP-A): add `StageFailure.capture(AudioCaptureError)`, a new
+// Contract under test (implementer extends `Sources/SlovoCore/FSM/DictationFsm.swift`):
+// add `StageFailure.capture(AudioCaptureError)`, a new
 // `StatusMessage.microphoneUnavailable`, and ONE `statusMessage(for:)` branch
 // mapping all capture cases → `.microphoneUnavailable`. NO transition-row changes.
 //
@@ -17,13 +17,12 @@ import SlovoCore
 // documented initial RED for the FSM half. Once the cases exist and the branch
 // maps capture → `.microphoneUnavailable`, this goes GREEN; mapping `.capture`
 // to a WRONG status then fails the sequence assertion (value RED).
-@Suite("Epic 04 AC-3 FSM capture failure")
+@Suite("FSM capture failure")
 struct DictationFsmCaptureFailureTests {
 
-    /// A mic-denied capture failure during recording: restore audio FIRST (D46:
-    /// muted at key-down must be undone on leaving recording), then notify the
-    /// honest `.microphoneUnavailable`, log, and return to idle — in that exact
-    /// GAP-3 order.
+    /// A mic-denied capture failure during recording: restore audio FIRST (muted
+    /// at key-down must be undone on leaving recording), then notify the honest
+    /// `.microphoneUnavailable`, log, and return to idle — in that exact order.
     /// Stated sensitivity: map `.capture` to a wrong status (e.g. `.injectionFailed`)
     /// → the notify mismatches → sequence RED. Drop `.restoreSystemOutput` from
     /// the recording-failure row → sequence RED (regression guard).
@@ -44,8 +43,8 @@ struct DictationFsmCaptureFailureTests {
         )
     }
 
-    /// The other capture cases also surface the single honest mic status (LEAD
-    /// GAP-A: all capture cases → `.microphoneUnavailable`).
+    /// The other capture cases also surface the single honest mic status (all
+    /// capture cases → `.microphoneUnavailable`).
     /// Stated sensitivity: map any capture case to a different status → RED.
     @Test
     func engineStartFailureAlsoNotifiesMicUnavailable() {

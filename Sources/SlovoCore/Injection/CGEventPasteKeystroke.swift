@@ -7,12 +7,12 @@ import CoreGraphics
 ///
 /// Posting synthetic events requires the Accessibility grant, so this preflights
 /// `AXIsProcessTrusted()` and surfaces `.accessibilityDenied` rather than letting
-/// the OS silently drop the events (GAP-B). Event-creation failure maps to
+/// the OS silently drop the events. Event-creation failure maps to
 /// `.pasteFailed`. It POSTS events (no `CGEventTap` callback), so the
 /// closure-isolation crash that affects taps does not apply here.
 ///
-/// Build-only / L4: compiles in CI, behavior validated by the Epic-07 manual
-/// runbook. Stateless, so `Sendable` is safe.
+/// Build-only: compiles in CI, behavior validated by the manual runbook.
+/// Stateless, so `Sendable` is safe.
 public struct CGEventPasteKeystroke: PasteKeystroke, Sendable {
     public init() {}
 

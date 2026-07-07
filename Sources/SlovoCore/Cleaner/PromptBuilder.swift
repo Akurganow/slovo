@@ -27,7 +27,7 @@ public struct PromptBuilder: Sendable {
         context: PersonalizationContext
     ) -> CleanupPrompt {
         // Top-N vocabulary by weight, descending; padding is deliberately NOT
-        // done (caching is a bonus, not a driver — P13).
+        // done (caching is a bonus, not a driver).
         let keptTerms = context.vocabulary
             .sorted { $0.weight > $1.weight }
             .prefix(maxVocabularyTerms)

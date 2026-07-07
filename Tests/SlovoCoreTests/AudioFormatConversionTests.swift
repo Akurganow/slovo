@@ -4,18 +4,18 @@ import Testing
 
 import SlovoCore
 
-// Epic 04 — AC-1 (pure downmix + sample-rate conversion to 16 kHz mono Float)
-// and AC-2 (the SOURCE format is READ, not hardcoded).
+// Pure downmix + sample-rate conversion to 16 kHz mono Float, and the SOURCE
+// format is READ, not hardcoded.
 //
 // Contract under test (implementer builds the pure conversion in
-// `Sources/SlovoCore/Audio/AudioFormatConversion.swift` per plan §2; CURRENTLY
+// `Sources/SlovoCore/Audio/AudioFormatConversion.swift`; CURRENTLY
 // supplied by the WRONG-ON-PURPOSE `_RedScaffold_AudioCapture.swift` stub that
 // returns the input unchanged — so these tests go RED on rate/channels/frames).
 //
 //     enum AudioFormatConversion {
 //         static func toSixteenKilohertzMono(_ source: AVAudioPCMBuffer) -> AVAudioPCMBuffer
 //     }
-@Suite("Epic 04 AC-1/AC-2 audio format conversion")
+@Suite("Audio format conversion")
 struct AudioFormatConversionTests {
     private static let targetRate = 16_000.0
     /// Frame-count tolerance: SRC frame counts are approximate (resampler tail /
@@ -40,7 +40,7 @@ struct AudioFormatConversionTests {
         return buffer
     }
 
-    /// AC-1: a 48 kHz STEREO buffer (L=+1, R=−1) → 16 kHz MONO Float, frame count
+    /// A 48 kHz STEREO buffer (L=+1, R=−1) → 16 kHz MONO Float, frame count
     /// scaled by 16/48, and the mono samples are the DOWNMIX (≈0 for L/R-cancel),
     /// not channel-0-only (+1).
     ///
@@ -74,7 +74,7 @@ struct AudioFormatConversionTests {
                 "mono must be the L/R downmix (≈0), not channel-0-only (+1); got \(monoSample)")
     }
 
-    /// AC-2: the SAME conversion run with a DIFFERENT source format (24 kHz mono)
+    /// The SAME conversion run with a DIFFERENT source format (24 kHz mono)
     /// must still produce 16 kHz mono with the rate-appropriate frame count.
     ///
     /// Stated sensitivity: hardcode the source to 48 kHz inside the conversion →
