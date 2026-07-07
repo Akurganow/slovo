@@ -49,8 +49,10 @@ struct DependencyDirectionTests {
     /// A role-tagged source importing only Foundation must produce zero violations
     /// (guards against an over-eager scanner that flags everything).
     @Test
-    func cleanFixtureHasNoViolations() {
+    func cleanFixtureHasNoViolations() throws {
         let fixture = GateTestPaths.fixture("DependencyDirection/CleanerClean.swifttext")
+        // Guard vacuity: the scanner returns [] on an unreadable file.
+        try #require(FileManager.default.fileExists(atPath: fixture), "fixture missing: \(fixture)")
         #expect(GateChecks.dependencyViolations(inFileAt: fixture).isEmpty)
     }
 
@@ -80,8 +82,9 @@ struct DependencyDirectionTests {
     /// violation) → this assertion fails. It greens only once detection uses
     /// location plus a word-boundary fallback that excludes `*Tests`/`Mock*`.
     @Test
-    func testShapedNameIsNotFalsePositive() {
+    func testShapedNameIsNotFalsePositive() throws {
         let fixture = GateTestPaths.fixture("DependencyDirection/CleanerTests.swifttext")
+        try #require(FileManager.default.fileExists(atPath: fixture), "fixture missing: \(fixture)")
         let violations = GateChecks.dependencyViolations(inFileAt: fixture)
         #expect(!violations.contains { $0.rule == Self.ruleId },
                 "a CleanerTests file is a test, not a role module — it must not be flagged")
@@ -89,7 +92,10 @@ struct DependencyDirectionTests {
 
     /// The real `Sources/` tree must already obey the rule.
     @Test
-    func realSourceTreeIsClean() {
+    func realSourceTreeIsClean() throws {
+        // Guard vacuity: a wrong root would walk nothing.
+        try #require(FileManager.default.fileExists(atPath: GateTestPaths.sourcesRoot),
+                     "sources root missing: \(GateTestPaths.sourcesRoot)")
         let violations = GateChecks.dependencyViolations(inSourceTreeAt: GateTestPaths.sourcesRoot)
         #expect(violations.isEmpty, "Sources/ has dependency-direction violations: \(violations)")
     }
@@ -102,8 +108,9 @@ struct DependencyDirectionTests {
     /// → the "empty" assertion fails → RED. (GREEN today; locks the invariant
     /// against an over-eager future gate change.)
     @Test
-    func storageMayImportGRDB() {
+    func storageMayImportGRDB() throws {
         let fixture = GateTestPaths.fixture("DependencyDirection/Storage/GRDBPersonalizationSource.swifttext")
+        try #require(FileManager.default.fileExists(atPath: fixture), "fixture missing: \(fixture)")
         let violations = GateChecks.dependencyViolations(inFileAt: fixture)
         #expect(violations.isEmpty,
                 "a Storage source may import GRDB — it must NOT be flagged; got \(violations)")

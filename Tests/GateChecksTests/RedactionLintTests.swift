@@ -51,8 +51,10 @@ struct RedactionLintTests {
     /// `.private` / hash / length / coarse-enum logging passes with zero
     /// violations (guards against a scanner that flags safe redaction too).
     @Test
-    func safeFixtureHasNoViolations() {
+    func safeFixtureHasNoViolations() throws {
         let fixture = GateTestPaths.fixture("Redaction/SafeLogging.swifttext")
+        // Guard vacuity: the scanner returns [] on an unreadable file.
+        try #require(FileManager.default.fileExists(atPath: fixture), "fixture missing: \(fixture)")
         #expect(GateChecks.redactionViolations(inFileAt: fixture).isEmpty)
     }
 
@@ -64,8 +66,9 @@ struct RedactionLintTests {
     /// .public)")` and reports a violation → this assertion fails. It greens only
     /// once the scanner strips line comments before matching.
     @Test
-    func commentedLogCallIsNotFlagged() {
+    func commentedLogCallIsNotFlagged() throws {
         let fixture = GateTestPaths.fixture("Redaction/CommentedExample.swifttext")
+        try #require(FileManager.default.fileExists(atPath: fixture), "fixture missing: \(fixture)")
         let violations = GateChecks.redactionViolations(inFileAt: fixture)
         #expect(violations.isEmpty,
                 "a leak inside a // comment is not code and must not be flagged: \(violations)")
@@ -119,7 +122,10 @@ struct RedactionLintTests {
 
     /// The real `Sources/` tree must contain no redaction violations.
     @Test
-    func realSourceTreeIsClean() {
+    func realSourceTreeIsClean() throws {
+        // Guard vacuity: a wrong root would walk nothing.
+        try #require(FileManager.default.fileExists(atPath: GateTestPaths.sourcesRoot),
+                     "sources root missing: \(GateTestPaths.sourcesRoot)")
         let violations = GateChecks.redactionViolations(inSourceTreeAt: GateTestPaths.sourcesRoot)
         #expect(violations.isEmpty, "Sources/ has redaction violations: \(violations)")
     }

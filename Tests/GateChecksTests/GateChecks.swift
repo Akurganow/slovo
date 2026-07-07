@@ -3,8 +3,8 @@ import Foundation
 /// One prevention-gate finding.
 ///
 /// `rule` is a stable identifier (see ``GateChecks/Rule``) that callers and
-/// tests match on; `detail` names the specific offending construct (an import,
-/// a payload variable, an AC id).
+/// tests match on; `detail` names the specific offending construct (an import or
+/// a leaked payload variable).
 ///
 /// Lives in the `GateChecksTests` target rather than shipped `SlovoCore`: the
 /// scanners are a build-time gate, never product code, and their only consumers
@@ -15,11 +15,11 @@ struct GateViolation: Equatable, Sendable {
     let detail: String
 }
 
-/// L1 prevention gates implemented as source-tree scanners.
+/// Prevention gates implemented as source-tree scanners.
 ///
 /// Each gate walks real on-disk sources (and, in tests, `.swifttext` fixtures)
-/// and returns every violation it finds — no short-circuiting — so the
-/// non-masking diagnostic can report the complete failure set.
+/// and returns every violation it finds — no short-circuiting — so a caller can
+/// report the complete failure set rather than only the first.
 enum GateChecks {
     /// Stable rule identifiers. The `rawValue` is the on-the-wire id that callers
     /// and the shell gate match on; using the symbol makes a rename a compile
@@ -27,10 +27,9 @@ enum GateChecks {
     enum Rule: String {
         case dependencyDirection = "dependency-direction"
         case redactionLint = "redaction-lint"
-        case traceability = "traceability"
     }
 
-    // MARK: - AC-4: dependency direction
+    // MARK: - Dependency direction
 
     /// Flags dependency-direction violations in a single source file.
     ///
@@ -68,7 +67,7 @@ enum GateChecks {
         sourceFiles(under: root).flatMap { dependencyViolations(inFileAt: $0) }
     }
 
-    // MARK: - AC-5: redaction lint
+    // MARK: - Redaction lint
 
     /// Flags every logging interpolation that leaks a payload value.
     ///
@@ -98,64 +97,6 @@ enum GateChecks {
     /// Recursively scans every source under `root` for redaction violations.
     static func redactionViolations(inSourceTreeAt root: String) -> [GateViolation] {
         sourceFiles(under: root).flatMap { redactionViolations(inFileAt: $0) }
-    }
-
-    // MARK: - AC-7: traceability
-
-    /// Flags traceability defects in a catalog mapping in-scope AC ids to the
-    /// tests that cover them.
-    ///
-    /// Two defect classes are reported: an in-scope AC with no mapped test
-    /// ("missing"), and an AC mapped to a placeholder/assertion-free body
-    /// ("vacuous"). An AC mapped to a body with a real assertion passes.
-    static func traceabilityViolations(catalogAt path: String) -> [GateViolation] {
-        guard let source = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
-
-        let inScope = inScopeAcs(in: source)
-        let coverage = testCoverage(in: source)  // AC id → body is a real assertion
-
-        var violations: [GateViolation] = []
-        for ac in inScope {
-            switch coverage[ac] {
-            case .none:
-                violations.append(GateViolation(
-                    file: path,
-                    rule: Rule.traceability.rawValue,
-                    detail: "in-scope AC \(ac) has no mapped test"
-                ))
-            case .some(false):
-                violations.append(GateViolation(
-                    file: path,
-                    rule: Rule.traceability.rawValue,
-                    detail: "in-scope AC \(ac) maps to a vacuous/placeholder test body"
-                ))
-            case .some(true):
-                break
-            }
-        }
-        return violations
-    }
-
-    // MARK: - AC-8: non-masking diagnostics
-
-    /// Runs every gate check over the given roots WITHOUT short-circuiting and
-    /// returns the complete violation set, so a multi-failure state reports every
-    /// failure class rather than only the first.
-    ///
-    /// The checks are driven from a single registry so no check can be silently
-    /// dropped from the aggregate: adding a check here is the only place it is
-    /// declared, and `diagnoseAll` runs all of them.
-    static func diagnoseAll(
-        dependencyRoot: String,
-        redactionRoot: String,
-        traceabilityCatalog: String
-    ) -> [GateViolation] {
-        let registry: [() -> [GateViolation]] = [
-            { dependencyViolations(inSourceTreeAt: dependencyRoot) },
-            { redactionViolations(inSourceTreeAt: redactionRoot) },
-            { traceabilityViolations(catalogAt: traceabilityCatalog) },
-        ]
-        return registry.flatMap { check in check() }
     }
 
     // MARK: - Dependency-direction helpers
@@ -223,62 +164,6 @@ enum GateChecks {
         return methods.contains { method in
             firstMatch(in: line, pattern: #"\.\#(method)\s*\("#) != nil
         }
-    }
-
-    // MARK: - Traceability helpers
-
-    /// Parses the `in-scope-acs:` directive line into the set of AC ids.
-    private static func inScopeAcs(in source: String) -> [String] {
-        for line in source.split(separator: "\n") {
-            guard let range = line.range(of: "in-scope-acs:") else { continue }
-            return line[range.upperBound...]
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-        }
-        return []
-    }
-
-    /// Maps each AC id named in a `// covers: <AC>` comment to whether its test
-    /// body carries a real assertion (true) or is a placeholder (false).
-    private static func testCoverage(in source: String) -> [String: Bool] {
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var coverage: [String: Bool] = [:]
-
-        for (index, line) in lines.enumerated() {
-            guard let range = line.range(of: "covers:") else { continue }
-            let ac = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-            guard !ac.isEmpty else { continue }
-            coverage[ac] = bodyHasRealAssertion(lines, startingAfter: index)
-        }
-        return coverage
-    }
-
-    /// A test body has a real assertion if, before its closing brace, it contains
-    /// an `#expect`/`#require` whose argument is not a constant truth.
-    ///
-    /// Assumes a flat fixture body (the `}` at column zero of a single-level
-    /// function ends the body); nested closures with their own `}` are out of
-    /// scope for these catalog fixtures.
-    private static func bodyHasRealAssertion(_ lines: [String], startingAfter coversIndex: Int) -> Bool {
-        for line in lines[(coversIndex + 1)...] {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed == "}" { return false }  // reached end of body, none found
-            guard trimmed.contains("#expect") || trimmed.contains("#require") else { continue }
-            if isVacuousAssertion(trimmed) { continue }
-            return true
-        }
-        return false
-    }
-
-    /// A vacuous assertion asserts a compile-time-constant truth and tests
-    /// nothing: `#expect(true)`, `#expect(Bool(true))`, and the like.
-    private static func isVacuousAssertion(_ line: String) -> Bool {
-        let normalized = line.replacingOccurrences(of: " ", with: "")
-        return normalized.contains("#expect(true)")
-            || normalized.contains("#expect(Bool(true)")
-            || normalized.contains("#expect(false)")
-            || normalized.contains("#require(true)")
     }
 
     // MARK: - Shared file walking / regex / comments

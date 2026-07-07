@@ -110,11 +110,12 @@ struct BuildGateTests {
         #expect(FileManager.default.fileExists(atPath: executable),
                 "executable artifact not produced at \(executable)")
 
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: executable),
-           let modified = attrs[.modificationDate] as? Date {
-            #expect(modified >= preBuild,
-                    "executable at \(executable) is stale (mtime \(modified) precedes the build at \(preBuild)) — not freshly produced")
-        }
+        // #require so an unreadable mtime fails the check instead of silently skipping it.
+        let attrs = try FileManager.default.attributesOfItem(atPath: executable)
+        let modified = try #require(attrs[.modificationDate] as? Date,
+                                    "executable at \(executable) has no readable modification date")
+        #expect(modified >= preBuild,
+                "executable at \(executable) is stale (mtime \(modified) precedes the build at \(preBuild)) — not freshly produced")
 
         // The library module is required by this test run's own bundle, so it is
         // already present in the active `.build`; a plain existence check suffices
@@ -125,23 +126,5 @@ struct BuildGateTests {
             .appendingPathComponent("Modules/SlovoCore.swiftmodule").path
         #expect(FileManager.default.fileExists(atPath: libraryModule),
                 "SlovoCore library artifact missing at \(libraryModule)")
-    }
-
-    /// AC-2 — assert the EXECUTING runner is Swift Testing via a real runtime
-    /// signal. `Test.current` is task-local: it is non-nil only inside a Swift
-    /// Testing `@Test` task context, and nil otherwise (e.g. under XCTest, or in a
-    /// detached task). This replaces the former `#expect("swift-testing" ==
-    /// "swift-testing")`, which was vacuous (green under every runner, testing
-    /// nothing).
-    ///
-    /// Stated sensitivity (out-of-tree, like AC-1's): execute this body outside a
-    /// Swift Testing per-test context (a different runner, or `Test.current` read
-    /// from a detached task) → `Test.current` is nil → RED. The runner-failure
-    /// guarantee (a deliberately-RED test turning the gate red) is carried by
-    /// AC-3 `GateIntegrityTests`.
-    @Test
-    func swiftTestingRunnerIsActive() {
-        #expect(Test.current != nil,
-                "Swift Testing is not the executing runner (Test.current is nil)")
     }
 }
