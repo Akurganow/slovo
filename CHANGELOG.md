@@ -7,12 +7,30 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-07
+
 ### Fixed
 
+- Cleanup no longer adds words you did not dictate. Several cleanup models
+  appended closing pleasantries such as "thank you" or "спасибо" that were never
+  spoken; the cleanup instructions now explicitly forbid inventing content.
+- Dictated text is reliably inserted instead of your previous clipboard contents.
+  In slower apps (for example Codex and other Electron-based apps) the clipboard
+  was restored before the paste landed, so the old clipboard was pasted; the
+  restore now waits long enough (300 ms) for the paste to complete.
 - Distribution packaging now staples the notarization ticket to `Slovo.app`
   before copying it into the DMG, then notarizes and staples the DMG. This avoids
   publishing a drag-installed app bundle that passes online Gatekeeper checks but
   is missing its own stapled ticket.
+
+### Changed
+
+- Switching the cleanup model takes effect immediately and no longer shows the
+  "Preparing Speech Model" loading indicator or reloads the on-device speech
+  model — only the cleanup step changes.
+- First-run setup is guided from the menu-bar status and menu; the modal
+  "Continue Setup" dialog was removed (it reappeared once for every missing
+  permission and merely preceded the system prompt).
 
 ## [0.3.1] - 2026-07-03
 
