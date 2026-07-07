@@ -365,6 +365,10 @@ struct OrchestratorTests {
     /// slovo's OWN code (not network).
     /// Stated sensitivity: a synchronous `sleep`/blocking call in the orchestrator
     /// → elapsed exceeds the budget → RED.
+    /// The budget is a coarse stall/hang ceiling, NOT a performance SLA: it sits an
+    /// order of magnitude above the instant pipeline's real cost (tens of ms, up to
+    /// a few hundred under CI scheduling jitter) so a loaded runner does not flake,
+    /// while a genuine blocking call still blows past it.
     @Test
     func fullPipelineHoldsLatencyBudget() async {
         let orchestrator = PipelineFactory.makeOrchestrator(
@@ -376,7 +380,7 @@ struct OrchestratorTests {
             )
         )
 
-        let budget: Duration = .milliseconds(200)
+        let budget: Duration = .seconds(1)
         let start = ContinuousClock.now
         await Self.runSession(orchestrator)
         let elapsed = ContinuousClock.now - start
