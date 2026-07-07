@@ -10,23 +10,18 @@
 /// 4. Clear the pasteboard.
 /// 5. Re-check secure input immediately before writing the transcript — focus may
 ///    have moved after the first guard.
-/// 6. Write the transcript as a lazily-provided item with conceal markers so
-///    clipboard managers don't persist it (D21). The lazy item hands us a read
-///    signal: a consumer reading the string — normally the paste — pulls the data.
+/// 6. Write the transcript with conceal markers so clipboard managers
+///    don't persist it (D21).
 /// 7. Re-check secure input immediately before pasting — focus may have moved to a
 ///    password field after step 1 (D20).
 /// 8. Paste, surfacing accessibility/paste failures rather than swallowing them.
-/// 9. Wait for the transcript to be READ (normally by the paste) before the
-///    deferred restore lands — an event, never a fixed delay, so the restore can
-///    never race ahead of a slow target app (the Codex/Electron #4 defect). The
-///    `readSafetyNet` timeout covers only a dropped ⌘V: the pathological path,
-///    where restoring the user's clipboard is still correct. The read is not
-///    provably the paste (see `text-injection.md` on the clipboard-manager caveat).
+/// 9. Wait `restoreDelay` so the app consumes the paste before the deferred
+///    restore lands.
 public struct ClipboardPasteInjector: Injector {
     private let pasteboard: Pasteboard
     private let secureInput: SecureInput
     private let keystroke: PasteKeystroke
-    private let readSafetyNet: Duration
+    private let restoreDelay: Duration
 
     /// The conceal markers (D21): clipboard managers skip items carrying these.
     private static let markerTypes = [
@@ -39,12 +34,14 @@ public struct ClipboardPasteInjector: Injector {
         pasteboard: Pasteboard,
         secureInput: SecureInput,
         keystroke: PasteKeystroke,
-        readSafetyNet: Duration = .seconds(3)
+        // Long enough that the slowest supported app consumes the paste before the
+        // restore runs; see `text-injection.md` for how the value is tuned.
+        restoreDelay: Duration = .milliseconds(300)
     ) {
         self.pasteboard = pasteboard
         self.secureInput = secureInput
         self.keystroke = keystroke
-        self.readSafetyNet = readSafetyNet
+        self.restoreDelay = restoreDelay
     }
 
     public func insert(_ text: String) async throws {
@@ -68,10 +65,8 @@ public struct ClipboardPasteInjector: Injector {
             throw InjectionError.secureInputActive
         }
 
-        // 6. Write the transcript (lazily provided) with the conceal markers.
-        let readSignal = pasteboard.writeAwaitingRead(
-            PasteboardWriteItem(string: text, markerTypes: Self.markerTypes)
-        )
+        // 6. Write the transcript with the conceal markers.
+        pasteboard.write(PasteboardWriteItem(string: text, markerTypes: Self.markerTypes))
 
         // 7. Re-check: focus may have moved to a password field since step 1.
         guard !secureInput.isSecureInputActive() else {
@@ -81,9 +76,7 @@ public struct ClipboardPasteInjector: Injector {
         // 8. Paste, surfacing the failure (never swallowed).
         try keystroke.paste()
 
-        // 9. Restore only once a consumer has READ the transcript (event-driven,
-        //    normally the paste), never on a clock. The safety net bounds only a
-        //    dropped ⌘V.
-        await readSignal.waitUntilRead(safetyNet: readSafetyNet)
+        // 9. Let the app consume the paste before the deferred restore lands.
+        try? await Task.sleep(for: restoreDelay)
     }
 }

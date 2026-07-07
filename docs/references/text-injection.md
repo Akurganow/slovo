@@ -199,25 +199,15 @@ func injectText(_ text: String) throws {
 }
 ```
 
-> Timing note: the example restores synchronously in `defer` after a fixed delay, for
-> clarity. **slovo does NOT use a fixed delay.** A fixed sleep is a race by construction and
-> loses on any target slower than the constant — the #4 defect, where Codex/Electron pasted
-> the *restored* clipboard instead of the transcript. Instead slovo writes the transcript as
-> a *lazily provided* `NSPasteboardItem` (`setDataProvider(_:forTypes:)`) and restores only
-> once a consumer READS the string (the provider is pulled) — an event, not a clock. A
-> `readSafetyNet` timeout (~3 s) is a fallback for a dropped `Cmd-V` only, never the happy
-> path; restoring the user's clipboard is still correct there.
->
-> **Residual to verify on-device (Epic-07 runbook):** the provider is pulled by *any*
-> consumer that reads the string, which is not provably the paste target. The
-> conceal/transient markers keep well-behaved clipboard managers from reading it first, but a
-> misbehaving, marker-ignoring manager that reads before a slow target's paste could trigger
-> the restore early and re-introduce the #4 symptom. Verify on the slowest supported target
-> (Codex) **with and without a clipboard manager** installed. Also confirm fail-closed:
-> aborting on secure input before the read calls `clearContents()` on the unread promised
-> item — verify this does NOT materialize the transcript (the on-demand provider model
-> implies it does not, but confirm on real `NSPasteboard`; if it does, disarm the provider on
-> abort).
+> Timing note: the example restores synchronously in `defer` for clarity. In production,
+> the paste is asynchronous — the keystroke is posted, the target app processes it on its
+> own run loop, and only then has it read the clipboard. Restoring too early clobbers the
+> clipboard before the paste reads it. macOS exposes no signal that the paste has consumed
+> the clipboard, so the robust option is a delay tuned for the slowest supported targets.
+> slovo uses **300 ms** (`ClipboardPasteInjector.restoreDelay`), matching mature paste
+> tools (Espanso's `restore_clipboard_delay` default). Electron apps such as Codex process
+> the synthesized ⌘V late, so shorter windows lose the race and paste the restored
+> clipboard instead of the transcript. Verify on the slowest target apps slovo supports.
 
 ## Secure input + clipboard-manager hygiene
 
@@ -271,11 +261,9 @@ restoring the original clipboard is still required.
   promised content can still be lost. Document this limitation.
 - **Re-check `IsSecureEventInputEnabled()` right before pasting**, not only when dictation
   starts — focus can move to a password field in between.
-- **Restore is gated on the read event, not a timer.** Posting `Cmd-V` then restoring on a
-  fixed delay races the paste and loses on slow targets (the #4 defect, Codex/Electron).
-  Write the transcript as a lazily-provided item and restore only when the provider is
-  pulled (a consumer read the string), with a safety-net timeout only for a dropped `Cmd-V`.
-  See the Timing note for the clipboard-manager residual to verify on-device.
+- **Timing/race between set and paste, and between paste and restore.** Posting `Cmd-V`
+  then immediately restoring can restore before the target app reads the clipboard. Delay
+  the restore; tune for the slowest targets (remote desktops, Electron apps).
 - **Accessibility permission is required even for paste.** Synthetic `CGEvent` posting
   needs the app to be trusted for Accessibility (and/or appear in
   Privacy > Accessibility). Without it, `post(tap:)` is silently dropped. See below.

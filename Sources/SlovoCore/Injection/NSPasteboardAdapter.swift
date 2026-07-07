@@ -32,30 +32,18 @@ public struct NSPasteboardAdapter: Pasteboard, Sendable {
         NSPasteboard.general.clearContents()
     }
 
-    public func writeAwaitingRead(_ item: PasteboardWriteItem) -> any PasteboardReadSignal {
+    public func write(_ item: PasteboardWriteItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
-        // The transcript is provided LAZILY: a consumer reading the string pulls it
-        // via the data provider, and that read gates the restore — no timer, so a
-        // slow app (Codex/Electron) cannot lose the restore-vs-paste race (#4). The
-        // read is normally the paste; the conceal markers keep well-behaved clipboard
-        // managers from reading it first (residual documented in `text-injection.md`).
-        let signal = OneShotPasteboardReadSignal()
-        let provider = LazyTranscriptProvider(string: item.string, signal: signal)
         let pasteboardItem = NSPasteboardItem()
-        pasteboardItem.setDataProvider(provider, forTypes: [.string])
+        pasteboardItem.setString(item.string, forType: .string)
         // Conceal markers carry an EMPTY payload — the presence of the type is the
         // signal to clipboard managers (nspasteboard.org convention).
         for marker in item.markerTypes {
             pasteboardItem.setData(Data(), forType: .init(marker))
         }
         pasteboard.writeObjects([pasteboardItem])
-        // Defensively keep the provider alive until the read; NSPasteboardItem's
-        // retention of a data provider is not a documented guarantee. The provider
-        // holds this signal WEAKLY, so anchoring it here forms no retain cycle.
-        signal.anchor(provider)
-        return signal
     }
 
     public func restore(_ items: [PasteboardSnapshotItem]) {
@@ -71,29 +59,5 @@ public struct NSPasteboardAdapter: Pasteboard, Sendable {
             return pasteboardItem
         }
         pasteboard.writeObjects(restored)
-    }
-}
-
-/// Lazily supplies the transcript when a consumer reads it (normally the paste).
-/// That read forwards to the shared read signal. Holds the signal WEAKLY: the
-/// signal anchors this provider for its lifetime, so a strong back-reference would
-/// form a retain cycle that leaks the signal, provider, and the transcript string
-/// on every dictation.
-private final class LazyTranscriptProvider: NSObject, NSPasteboardItemDataProvider {
-    private let string: String
-    private weak var signal: OneShotPasteboardReadSignal?
-
-    init(string: String, signal: OneShotPasteboardReadSignal) {
-        self.string = string
-        self.signal = signal
-    }
-
-    func pasteboard(
-        _ pasteboard: NSPasteboard?,
-        item: NSPasteboardItem,
-        provideDataForType type: NSPasteboard.PasteboardType
-    ) {
-        item.setString(string, forType: type)
-        signal?.markRead()
     }
 }
