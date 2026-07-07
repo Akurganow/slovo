@@ -8,10 +8,10 @@ struct CleanupBenchmarkDatasetTests {
     /// Stated sensitivity: if the default benchmark silently falls back to the
     /// old tiny inline sample set, this count and taxonomy check goes RED.
     @Test
-    func defaultDatasetLoadsPinnedThirtySampleSuite() throws {
+    func defaultDatasetLoadsPinnedSampleSuite() throws {
         let samples = try CleanupBenchmarkDefaults.samples()
 
-        #expect(samples.count == 30)
+        #expect(samples.count == 31)
         #expect(Self.countsByCategory(samples) == [
             .shortSmoke: 4,
             .russianFiller: 5,
@@ -19,10 +19,37 @@ struct CleanupBenchmarkDatasetTests {
             .punctuationStructure: 5,
             .commandsEditor: 3,
             .inverseTextNormalization: 4,
-            .safetyNegative: 3,
+            .safetyNegative: 4,
         ])
         #expect(samples.allSatisfy { !$0.raw.isEmpty })
         #expect(samples.allSatisfy { !($0.reference ?? "").isEmpty })
+    }
+
+    /// Stated sensitivity: proves the #1 monitor sample can actually go RED. If
+    /// its `forbiddenSubstrings` were dropped, an output that appends a closing
+    /// "Спасибо!" the speaker never said would pass — this test then fails. It
+    /// validates the monitor, not the (non-deterministic) model behaviour.
+    @Test
+    func noInventedThanksSampleCatchesAppendedPleasantry() throws {
+        let samples = try CleanupBenchmarkDefaults.samples()
+        let sample = try #require(samples.first { $0.id == "safety-negative-no-invented-thanks-04" })
+
+        let faithful = CleanupQualityGate.evaluate(
+            output: "Окей, на этом пока всё. Вернусь позже.", sample: sample
+        )
+        #expect(faithful.passed, "a faithful cleanup must pass: \(faithful.failures)")
+
+        let inventedThanks = CleanupQualityGate.evaluate(
+            output: "Окей, на этом пока всё. Вернусь позже. Спасибо!", sample: sample
+        )
+        #expect(!inventedThanks.passed)
+        #expect(inventedThanks.failures.contains("forbidden-substring:спасибо"))
+
+        let inventedEnglishThanks = CleanupQualityGate.evaluate(
+            output: "Окей, на этом пока всё. Вернусь позже. Thank you.", sample: sample
+        )
+        #expect(!inventedEnglishThanks.passed)
+        #expect(inventedEnglishThanks.failures.contains("forbidden-substring:thank you"))
     }
 
     /// Stated sensitivity: matching forbidden Russian fillers by plain substring
