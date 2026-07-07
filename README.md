@@ -1,82 +1,123 @@
 # Slovo
 
-Slovo is an experimental macOS menu-bar dictation app for Apple Silicon. Hold the
-`fn` / Globe key, speak, release, and Slovo inserts the dictated text into the
-focused field.
+Slovo is a private, on-device push-to-talk dictation app for macOS. Hold the
+`fn` / Globe key, speak, release, and Slovo inserts the cleaned-up text into
+the focused field.
 
-The privacy boundary is deliberately narrow: raw audio stays on the Mac. Cleanup
-is always attempted through OpenRouter; only the already-transcribed text is sent
-for model-routed text cleanup.
+The privacy boundary is deliberately narrow: raw audio stays on the Mac.
+Cleanup is always attempted through OpenRouter; only the already-transcribed
+text is sent for model-routed text cleanup.
 
-## Status
+[![Swift CI](https://github.com/Akurganow/slovo/actions/workflows/swift.yml/badge.svg)](https://github.com/Akurganow/slovo/actions/workflows/swift.yml)
+[![Release](https://img.shields.io/github/v/release/Akurganow/slovo)](https://github.com/Akurganow/slovo/releases/latest)
+[![License: GPL v3](https://img.shields.io/github/license/Akurganow/slovo)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-blue)
+![Swift](https://img.shields.io/badge/swift-6.3-orange)
 
-Current release: `v0.3.1`
+This is an early release: the app is usable and ships as a Developer ID
+signed, notarized DMG, but recognition and cleanup quality are still being
+tuned.
 
-This is an early release. The app is usable and ships as a Developer ID signed,
-notarized DMG. Recognition and cleanup quality are still being tuned.
+## Features
+
+- Push-to-talk dictation from the global `fn` / Globe key.
+- Local speech capture and on-device transcription through WhisperKit
+  (Whisper large-v3 turbo), including mixed Russian + English in one
+  utterance.
+- Text cleanup through OpenRouter, with curated routed models and custom
+  OpenRouter model ids.
+- OpenRouter API key stored in macOS Keychain and read only when cleanup
+  runs.
+- Clipboard-based text insertion with secure-input checks and clipboard
+  restore.
+- Local SQLite personalization store for vocabulary hints, with an
+  **Add Vocabulary...** menu action to protect your own terms during
+  cleanup.
+- Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
+  processing states, plus a monochrome app icon that follows the system
+  theme.
+- Strict Swift build, test, concurrency, lint, and static guard checks.
+
+## Requirements
+
+- Apple Silicon Mac.
+- macOS 26 or newer.
+- Microphone and Accessibility permissions. Input Monitoring may be
+  requested only as a targeted hotkey recovery step if the event tap
+  cannot start.
+- An OpenRouter API key for cleanup.
+
+On first use, WhisperKit downloads the speech model once over the network;
+after that, transcription runs fully on-device.
 
 ## Install
 
 1. Download `Slovo.dmg` from the
    [latest release](https://github.com/Akurganow/slovo/releases/latest).
 2. Open the DMG and drag **Slovo** into **Applications**.
-3. Launch Slovo from Applications. It lives in the menu bar — there is no Dock
-   icon.
-4. Grant **Microphone** and **Accessibility** when prompted. Accessibility is
-   required for the global `fn` / Globe hotkey.
-5. Open the menu-bar item, choose **Update OpenRouter Key** to enable cleanup,
-   and optionally **Add Vocabulary...** to protect your own terms.
+3. Launch Slovo from Applications. It lives in the menu bar — there is no
+   Dock icon.
+4. Grant **Microphone** and **Accessibility** when prompted. Accessibility
+   is required for the global `fn` / Globe hotkey.
+5. Open the menu-bar item, choose **Update OpenRouter Key** to enable
+   cleanup, and optionally **Add Vocabulary...** to protect your own terms.
 
-On first use, WhisperKit downloads the speech model once over the network; after
-that, transcription runs fully on-device.
+## Usage
 
-## Features
+1. Hold `fn` / Globe. Microphone capture and on-device transcription both
+   start immediately.
+2. Speak. While the key is held, transcription keeps up with your speech,
+   so the transcript is already ready (or nearly ready) the moment you
+   release.
+3. Release `fn` / Globe. Cleanup runs immediately through OpenRouter, then
+   the cleaned text is inserted into the focused field.
+4. If you held the key but only silence was captured, the menu-bar icon
+   briefly shows the Glagolitic letter `Ⱀ` and nothing is inserted — this is
+   not an error and needs no action.
+5. If cleanup itself fails (unavailable, refused, misconfigured, or a
+   provider/network error — never because a setting disabled cleanup), the
+   raw transcript is inserted instead and the menu-bar icon briefly shows
+   the error glyph `Ⱁ`.
 
-- Push-to-talk dictation from the global `fn` / Globe key.
-- Local speech capture and on-device transcription through WhisperKit
-  (Whisper large-v3 turbo), including mixed Russian + English in one utterance.
-- Text cleanup through OpenRouter, with curated routed models and custom
-  OpenRouter model ids.
-- OpenRouter API key stored in macOS Keychain and read only when cleanup runs.
-- Clipboard-based text insertion with secure-input checks and clipboard restore.
-- Local SQLite personalization store for vocabulary hints, with an
-  **Add Vocabulary...** menu action to protect your own terms during cleanup.
-- Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
-  processing states, plus a monochrome app icon that follows the system theme.
-- Strict Swift build, test, concurrency, lint, and static guard checks.
+Errors surface only through the menu-bar icon — never an alert, dialog, or
+focus-stealing notification, since Slovo types into whichever app you're
+already using.
 
 ## Privacy Model
 
 Slovo has two different data paths:
 
 - Audio path: microphone audio is captured and transcribed locally through
-  WhisperKit. Raw audio never leaves the machine. The Whisper model itself is a
-  third-party asset: WhisperKit downloads it once (from Hugging Face) on first
-  use and caches it under Application Support; transcription then runs fully
-  on-device with no per-dictation network calls.
-- Cleanup path: transcript text is sent to OpenRouter when cleanup is available.
-  OpenRouter routes the request to the selected model id.
+  WhisperKit. Raw audio never leaves the machine. The Whisper model itself
+  is a third-party asset: WhisperKit downloads it once (from Hugging Face)
+  on first use and caches it under Application Support; transcription then
+  runs fully on-device with no per-dictation network calls.
+- Cleanup path: transcript text is sent to OpenRouter when cleanup is
+  available. OpenRouter routes the request to the selected model id.
 
-Secrets are not stored in the repository. The OpenRouter API key is stored as a
-macOS Keychain item. Local personalization databases, seed files, dotenv files,
-signing keys, and credential bundles are ignored by Git.
+Secrets are not stored in the repository. The OpenRouter API key is stored
+as a macOS Keychain item. Local personalization databases, seed files,
+dotenv files, signing keys, and credential bundles are ignored by Git. See
+[docs/privacy.md](docs/privacy.md) for the full data-path table.
 
-## Requirements
+## Configuration
 
-- Apple Silicon Mac.
-- macOS 26 or newer.
-- Xcode with Swift 6.3 toolchain.
-- A stable code-signing identity for local app packaging.
-- Microphone and Accessibility permissions. Input Monitoring may be requested
-  only as a targeted hotkey recovery step if the event tap cannot start.
-- On first use, WhisperKit downloads the Whisper model over the network; after
-  that, transcription is fully on-device.
-- First-run setup tracks only the proven blockers: Microphone and Accessibility.
-- OpenRouter API key for cleanup.
+Runtime settings are stored in `UserDefaults`. The OpenRouter API key is
+stored in Keychain:
+
+- OpenRouter service/account: `slovo` / `openrouter-api-key`
+- ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
+
+The app also accepts an environment variable as a development-only
+override:
+
+- `OPENROUTER_API_KEY`
 
 ## Build And Test
 
-Install dependencies through Swift Package Manager using the checked-in
+Building from source requires Xcode with the Swift 6.3 toolchain — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor setup. Install
+dependencies through Swift Package Manager using the checked-in
 `Package.resolved` file:
 
 ```sh
@@ -90,8 +131,8 @@ Run the full local gate before shipping changes:
 Scripts/diagnose.sh
 ```
 
-`Scripts/diagnose.sh` runs build, tests, and strict lint as independent stages so
-one failure does not hide another.
+`Scripts/diagnose.sh` runs build, tests, and strict lint as independent
+stages so one failure does not hide another.
 
 Compare cleanup latency and quality with the non-product benchmark:
 
@@ -104,61 +145,28 @@ swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --category-breakdown
 ```
 
-Latest live OpenRouter benchmark snapshot, measured on 2026-07-02 with 10
-repetitions over the 30-sample `slovo-cleanup-v1` suite, using the exact
-request the app sends (reasoning disabled via `reasoning: {effort: "none"}`).
-
-| Candidate | Runs | Passed | Errors | p50 | p95 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `openrouter:anthropic/claude-haiku-4.5` | 300 | 230 | 0 | 1270.8 ms | 3408.4 ms |
-| `openrouter:deepseek/deepseek-v4-flash` | 300 | 217 | 1 | 1617.0 ms | 5302.0 ms |
-| `openrouter:qwen/qwen3.6-flash` | 300 | 216 | 1 | 797.3 ms | 2859.7 ms |
-| `openrouter:mistralai/mistral-small-2603` | 300 | 214 | 0 | 524.8 ms | 3556.3 ms |
-| `openrouter:openai/gpt-5.4-nano` | 300 | 209 | 0 | 824.0 ms | 2550.8 ms |
-| `openrouter:google/gemini-3.1-flash-lite` | 300 | 207 | 0 | 786.3 ms | 3132.0 ms |
-| `passthrough:none` | 300 | 0 | 0 | 0.0 ms | 0.0 ms |
-
-### Cleanup model reference numbers
-
-Public reference numbers for the curated catalog models. Retrieved 2026-07-02.
-Sources: OpenRouter catalog API (pricing), Artificial Analysis Intelligence
-Index v4.1 leaderboard (intelligence, output speed, first-answer-token
-latency), AA-Omniscience hallucination rates via the BenchLM aggregator
-(medium extraction confidence). Cleanup does not use reasoning mode, so the
-table shows non-reasoning figures; `n/a` marks values published only for
-reasoning mode or models absent from the leaderboard.
-
-| Model | Price in/out, $/1M | Intelligence Index | Hallucination rate | Output speed | First-token latency |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `openai/gpt-5.4-nano` (default) | 0.20 / 1.25 | 24 | 73.6% | 140.6 t/s | n/a |
-| `anthropic/claude-haiku-4.5` | 1.00 / 5.00 | 24 | n/a | 92.4 t/s | 0.93 s |
-| `google/gemini-3.1-flash-lite` | 0.25 / 1.50 | 25 | 81.6% | 294 t/s | 5.2 s |
-| `qwen/qwen3.6-flash` | 0.19 / 1.13 | n/a | n/a | n/a | n/a |
-| `deepseek/deepseek-v4-flash` | 0.09 / 0.18 | n/a | 89.7% | 105 t/s | n/a |
-| `mistralai/mistral-small-2603` | 0.15 / 0.60 | 20 | 66.8% | 173 t/s | 0.81 s |
-
-`n/a` means the model is absent from that public leaderboard as of the
-retrieval date. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU)
-do not cover Russian, so Russian-specific quality is not represented by any
-number above; the `slovo-cleanup-v1` suite is the project's own measurement
-on dictation-style samples.
+See [docs/references/cleanup-benchmark.md](docs/references/cleanup-benchmark.md)
+for the latest latency/quality snapshot and the curated model reference
+table.
 
 ## Run Locally
 
-For a fast signed development launch, build and open a staged menu-bar bundle:
+For a fast signed development launch, build and open a staged menu-bar
+bundle:
 
 ```sh
 script/build_and_run.sh --verify
 ```
 
-The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`, signs
-it with a stable local code-signing identity and the app entitlements, opens it,
-and verifies that the `slovo` process is running. Stable signing is required for
-macOS TCC permission persistence.
+The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`,
+signs it with a stable local code-signing identity and the app
+entitlements, opens it, and verifies that the `slovo` process is running.
+Stable signing is required for macOS TCC permission persistence.
 
 Packaging runs in two automated phases: build/sign/notarize the app, then
-package the stapled app into a DMG. Stapling the notarization ticket is the only
-manual step and must run on a Mac that can reach Apple's notarization service:
+package the stapled app into a DMG. Stapling the notarization ticket is the
+only manual step and must run on a Mac that can reach Apple's notarization
+service:
 
 ```sh
 # 1. build, sign, and notarize the app
@@ -173,39 +181,25 @@ SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 xcrun stapler staple .build/dist/Slovo.dmg
 ```
 
-`NOTARY_PROFILE` (a `notarytool` keychain profile) enables notarization; omit it
-to stop after signing. Stapling is a separate manual step because it contacts
-Apple's CloudKit endpoint and can fail behind a TLS-inspecting proxy even when
-notarization succeeds; run it on a network that does not break Apple certificate
-pinning. See [docs/release-checklist.md](docs/release-checklist.md) for
-verification and publishing.
+`NOTARY_PROFILE` (a `notarytool` keychain profile) enables notarization;
+omit it to stop after signing. Stapling is a separate manual step because
+it contacts Apple's CloudKit endpoint and can fail behind a TLS-inspecting
+proxy even when notarization succeeds; run it on a network that does not
+break Apple certificate pinning. See
+[docs/release-checklist.md](docs/release-checklist.md) for verification
+and publishing.
 
-The signing script intentionally rejects ad-hoc signing by default because macOS
-privacy grants and Keychain trust are tied to a stable app identity. For local
-experiments only, ad-hoc signing can be forced:
+The signing script intentionally rejects ad-hoc signing by default because
+macOS privacy grants and Keychain trust are tied to a stable app identity.
+For local experiments only, ad-hoc signing can be forced:
 
 ```sh
 ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh app
 ```
 
-After first launch, grant the requested setup permissions in System Settings,
-then use the Slovo menu to retry setup and enter the OpenRouter key.
-
-## Configuration
-
-Runtime settings are stored in `UserDefaults`. The OpenRouter API key is stored
-in Keychain:
-
-- OpenRouter service/account: `slovo` / `openrouter-api-key`
-- ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
-
-The app also accepts an environment variable as a development-only override:
-
-- `OPENROUTER_API_KEY`
-
-If cleanup is unavailable, misconfigured, or refused, Slovo inserts the direct
-transcript instead of dropping the dictation. The menu-bar glyph briefly switches
-to the Glagolitic letter `Ⱁ` in the error tint, then returns to idle.
+After first launch, grant the requested setup permissions in System
+Settings, then use the Slovo menu to retry setup and enter the OpenRouter
+key.
 
 ## Documentation
 
@@ -218,20 +212,21 @@ to the Glagolitic letter `Ⱁ` in the error tint, then returns to idle.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes small,
-run `Scripts/diagnose.sh`, do not commit secrets or local personalization data,
-and document behavior changes in English.
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes
+small, run `Scripts/diagnose.sh`, do not commit secrets or local
+personalization data, and document behavior changes in English.
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Please do not include API keys, transcripts,
-personal vocabulary, local databases, or private work terminology in public
-issues.
+See [SECURITY.md](SECURITY.md). Please do not include API keys,
+transcripts, personal vocabulary, local databases, or private work
+terminology in public issues.
 
 ## License
 
 GNU General Public License v3.0. See [LICENSE](LICENSE).
 
-Slovo is copyleft: any distributed work based on this source must itself be
-released under the GPLv3. The bundled dependencies (GRDB.swift, argmax-oss-swift
-/ WhisperKit) are MIT-licensed and compatible with this license.
+Slovo is copyleft: any distributed work based on this source must itself
+be released under the GPLv3. The bundled dependencies (GRDB.swift,
+argmax-oss-swift / WhisperKit) are MIT-licensed and compatible with this
+license.
