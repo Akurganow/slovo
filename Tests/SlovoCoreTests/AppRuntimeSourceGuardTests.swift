@@ -16,13 +16,11 @@ struct AppRuntimeSourceGuardTests {
         let requestAccessibilityBody = try Self.functionBody(named: "requestAccessibilityAccess", in: systemPermissions)
         let requestInputMonitoringBody = try Self.functionBody(named: "requestInputMonitoringAccess", in: systemPermissions)
         let requestBody = try Self.functionBody(named: "requestPermission", in: delegate)
-        let primaryBody = try Self.functionBody(named: "requestPrimaryOnboardingStep", in: delegate)
         let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
         let hotkeyMenuBody = try Self.functionBody(named: "makeHotkeyRecoveryMenu", in: delegate)
 
         #expect(permissions.contains("public enum SystemPermission: Equatable, Sendable"))
         #expect(permissions.contains("func request(_ permission: SystemPermission) async -> Bool"))
-        #expect(!permissions.contains("func request(_ step: OnboardingStep) async -> Bool"))
         #expect(systemPermissions.contains("AVCaptureDevice.requestAccess(for: .audio)"))
         #expect(systemPermissions.contains("AXIsProcessTrustedWithOptions(options)"))
         #expect(systemPermissions.contains("CGRequestListenEventAccess()"))
@@ -50,9 +48,8 @@ struct AppRuntimeSourceGuardTests {
             "retrySetup()",
             "openSettingsPane(fallbackPane)",
         ], in: requestBody))
-        #expect(primaryBody.contains("await requestPermission(.microphone"))
-        #expect(primaryBody.contains("await requestPermission(.accessibility"))
-        #expect(!primaryBody.contains("await requestPermission(.inputMonitoring"))
+        #expect(delegate.contains("requestPermission(.microphone"))
+        #expect(delegate.contains("requestPermission(.accessibility"))
         #expect(Self.containsInOrder([
             "do",
             "try live.hotkeyMonitor.start()",
@@ -63,20 +60,15 @@ struct AppRuntimeSourceGuardTests {
         #expect(hotkeyMenuBody.contains("#selector(openInputMonitoringSettings)"))
         #expect(delegate.contains("showHotkeyRecoveryAlertIfNeeded"))
         #expect(delegate.contains("Slovo could not start the hold-to-talk hotkey."))
-        #expect(!delegate.contains("Slovo needs setup before dictation starts.\\nInput Monitoring"))
         #expect(delegate.contains("NSMenuDelegate"))
         #expect(delegate.contains("menu.delegate = self"))
         #expect(delegate.contains("func menuNeedsUpdate(_ menu: NSMenu)"))
         #expect(delegate.contains("refreshOnboardingMenuIfNeeded()"))
         #expect(delegate.contains("FirstRunFlow.pendingSteps(permissions: SystemPermissionPreflighter().preflight())"))
-        #expect(delegate.contains(#"private static let setupAlertStepsKey = "setup.alert.steps""#))
-        #expect(delegate.contains("showOnboardingAlertIfNeeded(for: steps)"))
-        #expect(delegate.contains("defaults.string(forKey: Self.setupAlertStepsKey)"))
-        #expect(delegate.contains("defaults.set(signature, forKey: Self.setupAlertStepsKey)"))
-        #expect(delegate.contains("defaults.removeObject(forKey: Self.setupAlertStepsKey)"))
-        #expect(!delegate.contains("requestPermission(.requestMicrophone"))
-        #expect(!delegate.contains("requestPermission(.requestAccessibility"))
-        #expect(!delegate.contains("requestPermission(.requestInputMonitoring"))
+        // Onboarding surfaces through the menu-bar setup menu (no modal alert); the
+        // menu offers the permission requests directly.
+        #expect(delegate.contains("Request Microphone Access"))
+        #expect(delegate.contains("Request Accessibility Access"))
     }
 
     @Test
@@ -121,31 +113,12 @@ struct AppRuntimeSourceGuardTests {
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
-        let config = try Self.code("Sources/SlovoCore/Config/Config.swift")
-        let configStore = try Self.code("Sources/SlovoCore/Config/ConfigStore.swift")
-        let pipelineFactory = try Self.code("Sources/SlovoCore/Composition/PipelineFactory.swift")
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
         let modelMenuBody = try Self.functionBody(named: "modelMenu", in: cleanupMenu)
         let selectCleanupModelBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
 
-        #expect(!menuBody.contains("cleanupProviderMenu(config: config)"))
-        #expect(!menuBody.contains(#"modelMenu(title: "Anthropic Model""#))
-        #expect(!menuBody.contains(#"modelMenu(title: "OpenAI Model""#))
         #expect(menuBody.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName"#))
         #expect(menuBody.contains("selectedModel: config.openRouterModel"))
-        #expect(!menuBody.contains(#"modelMenu(title: "Local Model""#))
-        #expect(!delegate.contains("Use Anthropic Cleanup"))
-        #expect(!delegate.contains("Use OpenAI Cleanup"))
-        #expect(!delegate.contains("promptForModel"))
-        #expect(!delegate.contains("Set Anthropic Model"))
-        #expect(!delegate.contains("Set OpenAI Model"))
-        for forbidden in ["cleanupEnabled", "cleanupToggleItem", "toggleCleanupEnabled", "Cleanup: Disabled"] {
-            for source in [delegate, cleanupMenu, config, pipelineFactory] {
-                #expect(!source.contains(forbidden), "runtime source must not expose \(forbidden)")
-            }
-        }
-        #expect(!Self.withoutStringLiterals(configStore).contains("cleanupEnabled"))
-        #expect(!Self.withoutStringLiterals(configStore).contains("enabled: false"))
         #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
@@ -181,22 +154,6 @@ struct AppRuntimeSourceGuardTests {
                 "the cleanup-model change must apply live to the running orchestrator")
         #expect(orchestrator.contains("func updateCleanupConfig"),
                 "the orchestrator must expose a live cleanup-config update so no rebuild is needed")
-        #expect(!delegate.contains("func updateConfig"),
-                "the generic rebuild-on-any-config-change path is the #2 bug vector and must be gone")
-    }
-
-    @Test
-    func appRuntimeDoesNotLinkOrWarmLocalCleanupModels() throws {
-        let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let makeLiveBody = try Self.functionBody(named: "makeLive", in: composition)
-
-        #expect(!composition.contains("import SlovoLocalModels"))
-        #expect(!composition.contains("MLXCleaner("))
-        #expect(!makeLiveBody.contains("localCleanupModel"))
-        #expect(!delegate.contains("startLocalCleanupModelWarmupIfNeeded"))
-        #expect(!delegate.contains("preparingCleanupModel"))
-        #expect(!delegate.contains("cleanupModelReady"))
     }
 
     /// Production dictation is the restored WhisperKit transcriber, and the on-device

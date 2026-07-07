@@ -4,7 +4,6 @@ import os
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private static let setupAlertStepsKey = "setup.alert.steps"
     private static let hotkeyAlertShownKey = "hotkey.alert.shown"
 
     let logger: Logger
@@ -76,7 +75,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 logger.info("onboarding pending")
                 return
             }
-            defaults.removeObject(forKey: Self.setupAlertStepsKey)
             prepareModelGate(for: live)
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
                 switch phase {
@@ -127,10 +125,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func presentOnboarding(_ steps: [OnboardingStep]) {
+        // Setup surfaces through the menu-bar status and the onboarding menu only —
+        // no modal alert. Permissions are requested from that menu, which triggers
+        // the system prompts (menu-bar-only UX). The old per-permission "Continue
+        // Setup" dialog re-appeared once for each permission because its dedup keyed
+        // on the shrinking set of still-pending steps.
         onboardingSteps = steps
         statusTextItem?.title = "Status: Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
-        showOnboardingAlertIfNeeded(for: steps)
     }
 
     private func makeOnboardingMenu(for steps: [OnboardingStep]) -> NSMenu {
@@ -188,37 +190,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         return item
-    }
-
-    private func showOnboardingAlert(for steps: [OnboardingStep]) {
-        let alert = NSAlert()
-        alert.messageText = "Slovo needs setup before dictation starts."
-        alert.informativeText = steps.map(Self.title(for:)).joined(separator: "\n")
-        alert.addButton(withTitle: primaryActionTitle(for: steps))
-        alert.addButton(withTitle: "Later")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        Task { @MainActor in
-            await requestPrimaryOnboardingStep(steps)
-        }
-    }
-
-    private func showOnboardingAlertIfNeeded(for steps: [OnboardingStep]) {
-        let signature = steps.map(Self.title(for:)).joined(separator: "|")
-        guard defaults.string(forKey: Self.setupAlertStepsKey) != signature else { return }
-        defaults.set(signature, forKey: Self.setupAlertStepsKey)
-        showOnboardingAlert(for: steps)
-    }
-
-    private func requestPrimaryOnboardingStep(_ steps: [OnboardingStep]) async {
-        if steps.contains(.requestMicrophone) {
-            await requestPermission(.microphone, fallbackPane: "Privacy_Microphone")
-        } else if steps.contains(.requestAccessibility) {
-            await requestPermission(.accessibility, fallbackPane: "Privacy_Accessibility")
-        }
-    }
-
-    private func primaryActionTitle(for steps: [OnboardingStep]) -> String {
-        "Continue Setup"
     }
 
     private func showStatus(_ status: StatusMessage) {
