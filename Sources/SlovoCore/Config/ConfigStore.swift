@@ -51,10 +51,18 @@ public enum ConfigStore {
         let cleanup: StoredCleanup
 
         func validated() -> Config? {
-            guard trigger == nil || trigger == Config.defaultTrigger,
-                  mode == nil || mode == Config.defaultMode
-            else {
+            guard mode == nil || mode == Config.defaultMode else {
                 return nil
+            }
+            // Trigger wire compat: absent → fn (backward compatible, no migration);
+            // one of the five curated raw values → that trigger; anything else
+            // rejects the whole config (fail closed), matching the mode/provider guards.
+            let decodedTrigger: HotkeyTrigger
+            if let trigger {
+                guard let parsed = HotkeyTrigger(rawValue: trigger) else { return nil }
+                decodedTrigger = parsed
+            } else {
+                decodedTrigger = .fn
             }
 
             let hasForbiddenProvider = cleanup.provider != nil && cleanup.provider != "openrouter"
@@ -79,6 +87,7 @@ public enum ConfigStore {
             return ConfigStore.validated(Config(
                 language: language,
                 keepWarmSeconds: migratedKeepWarmSeconds,
+                trigger: decodedTrigger,
                 asrBackend: asr.backend,
                 asrModel: asr.model,
                 openRouterModel: openRouterModel,
@@ -89,7 +98,7 @@ public enum ConfigStore {
         init(config: Config) {
             language = config.language
             keepWarmSeconds = config.keepWarmSeconds
-            trigger = Config.defaultTrigger
+            trigger = config.trigger.rawValue
             mode = Config.defaultMode
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(

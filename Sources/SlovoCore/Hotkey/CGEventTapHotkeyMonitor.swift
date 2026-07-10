@@ -1,13 +1,15 @@
 import CoreGraphics
 
-/// Real `CGEventTap` implementation of `HotkeyMonitor` for the `fn` (Globe) key.
+/// Real `CGEventTap` implementation of `HotkeyMonitor`. Observes `flagsChanged`
+/// (trigger edges) and `keyDown` (combo interrupts), reduces each event to a
+/// `HotkeyInputEvent`, and lets the tap-free `HotkeyDecisionCore` decide the
+/// action — emitting `.down`/`.up`/`.cancel` and suppressing or passing the event
+/// through. If the tap is disabled by timeout or user input it is re-enabled, and
+/// a held trigger is released via a synthesized `.up`. A `tapIsEnabled` poll lets
+/// a supervisor recreate a dead tap.
 ///
-/// Watches `flagsChanged` events for the secondary-fn modifier, reporting `.down`
-/// when it engages and `.up` when it releases, and suppresses the fn event so the
-/// OS does not also act on it. If the tap is disabled by timeout or user input it
-/// is re-enabled. A `tapIsEnabled` poll lets a supervisor recreate a dead tap.
-///
-/// Exercised on real hardware via the manual runbook, not in CI.
+/// Exercised on real hardware via the manual runbook, not in CI; its decision
+/// logic is unit-tested through `HotkeyDecisionCore`.
 public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
     public struct HotkeyTapError: Error {
         public let reason: String
@@ -17,10 +19,11 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    /// Tracks whether fn was last seen engaged, so we emit an edge only on change.
-    private var isFnEngaged = false
+    private var decisionCore: HotkeyDecisionCore
 
-    public init() {}
+    public init(trigger: HotkeyTrigger) {
+        self.decisionCore = HotkeyDecisionCore(trigger: trigger)
+    }
 
     /// The tap holds `self` UNRETAINED via `refcon`; tear it down before the
     /// monitor dies so the callback can never dereference a dangling pointer.
@@ -34,8 +37,19 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
         return CGEvent.tapIsEnabled(tap: eventTap)
     }
 
+    /// Applies a live trigger change in place. The event mask is
+    /// trigger-independent, so only the decision core is swapped (held state
+    /// reset) — no tap teardown, no failure window, no pipeline rebuild.
+    public func reconfigure(trigger: HotkeyTrigger) {
+        decisionCore.reconfigure(to: trigger)
+    }
+
     public func start() throws {
-        let eventMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+        // keyDown joins flagsChanged so the tap can observe an interrupting key
+        // press and cancel a right-modifier hold.
+        let eventMask = CGEventMask(
+            (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
+        )
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
 
         guard let tap = CGEvent.tapCreate(
@@ -72,28 +86,57 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
 
     /// Dispatched to from the top-level C callback via the `refcon` pointer.
     fileprivate func process(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        // The system disables a tap that is too slow or interrupted; re-enable it.
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        let inputEvent: HotkeyInputEvent
+        switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            inputEvent = .tapDisabled
+        case .flagsChanged:
+            inputEvent = .flagsChanged(
+                keyCode: event.getIntegerValueField(.keyboardEventKeycode),
+                flags: Self.modifierFlags(from: event.flags)
+            )
+        case .keyDown:
+            // Privacy invariant: a non-trigger key press contributes ONLY the fact
+            // that a key went down. Its key code and typed character are never read
+            // here, so keystroke content cannot be logged or retained.
+            inputEvent = .keyDown
+        default:
+            return Unmanaged.passUnretained(event)
+        }
+
+        switch decisionCore.handle(inputEvent) {
+        case .start(let suppress):
+            onTrigger?(.down)
+            return suppress ? nil : Unmanaged.passUnretained(event)
+        case .stop(let suppress):
+            onTrigger?(.up)
+            return suppress ? nil : Unmanaged.passUnretained(event)
+        case .interruptCancel:
+            onTrigger?(.cancel)
+            // The real combo (e.g. Right ⌘ + C) must proceed untouched.
+            return Unmanaged.passUnretained(event)
+        case .resync(let synthesizeUp):
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
+            if synthesizeUp {
+                onTrigger?(.up)
+            }
+            return Unmanaged.passUnretained(event)
+        case .passThrough:
             return Unmanaged.passUnretained(event)
         }
+    }
 
-        guard type == .flagsChanged else {
-            return Unmanaged.passUnretained(event)
-        }
-
-        let fnNowEngaged = event.flags.contains(.maskSecondaryFn)
-        guard fnNowEngaged != isFnEngaged else {
-            // Not an fn edge (some other modifier changed) — pass it through.
-            return Unmanaged.passUnretained(event)
-        }
-        isFnEngaged = fnNowEngaged
-        onTrigger?(fnNowEngaged ? .down : .up)
-
-        // Suppress the fn event so the OS does not also act on it.
-        return nil
+    /// Reduces the live `CGEventFlags` to just the five bits the decision reads.
+    private static func modifierFlags(from flags: CGEventFlags) -> HotkeyModifierFlags {
+        var result: HotkeyModifierFlags = []
+        if flags.contains(.maskSecondaryFn) { result.insert(.secondaryFn) }
+        if flags.contains(.maskCommand) { result.insert(.command) }
+        if flags.contains(.maskAlternate) { result.insert(.option) }
+        if flags.contains(.maskControl) { result.insert(.control) }
+        if flags.contains(.maskShift) { result.insert(.shift) }
+        return result
     }
 }
 

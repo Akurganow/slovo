@@ -45,6 +45,22 @@ extension AppRuntimeSourceGuardTests {
         return true
     }
 
+    /// The text from `start` (inclusive) to `end` (exclusive), or to the source's
+    /// end when `end` is nil — scopes an assertion to a single switch arm, so a
+    /// whole-body ordered search cannot go green off a match in a sibling arm.
+    static func slice(of source: String, from start: String, to end: String? = nil) throws -> String {
+        guard let startRange = source.range(of: start) else {
+            throw NSError(domain: "AppRuntimeSourceGuardTests", code: 4)
+        }
+        guard let end else {
+            return String(source[startRange.lowerBound...])
+        }
+        guard let endRange = source.range(of: end, range: startRange.upperBound..<source.endIndex) else {
+            throw NSError(domain: "AppRuntimeSourceGuardTests", code: 5)
+        }
+        return String(source[startRange.lowerBound..<endRange.lowerBound])
+    }
+
     static func functionBody(named name: String, in source: String) throws -> String {
         guard let signature = source.range(of: "func \(name)") else {
             throw NSError(domain: "AppRuntimeSourceGuardTests", code: 1)

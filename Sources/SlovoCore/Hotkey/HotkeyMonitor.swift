@@ -1,8 +1,10 @@
-/// Which edge of the push-to-talk hotkey fired: `.down` starts a session,
-/// `.up` stops it.
+/// Which edge of the push-to-talk hotkey fired: `.down` starts a session, `.up`
+/// stops it, `.cancel` silently discards an in-flight session (a right-modifier
+/// combo interrupted the hold).
 public enum HotkeyPhase: Equatable, Sendable {
     case down
     case up
+    case cancel
 }
 
 /// The Start/Stop source. The real `CGEventTap` implementation is hardware-only;

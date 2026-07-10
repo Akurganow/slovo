@@ -231,17 +231,6 @@ struct ConfigStoreTests {
         #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
-    /// Stated sensitivity: ignoring fixed v1 trigger accepts a value the app
-    /// cannot execute.
-    @Test
-    func invalidFixedTriggerRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(trigger: "capslock"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
     /// Stated sensitivity: ignoring fixed v1 mode accepts a value the app cannot
     /// execute.
     @Test

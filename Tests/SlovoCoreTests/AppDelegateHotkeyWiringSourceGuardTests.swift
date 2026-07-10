@@ -114,6 +114,88 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "warm-up completion must open the gate and stop the loading pulse")
     }
 
+    /// The interrupt-cancel edge must route through the sequencer sink into the
+    /// orchestrator's cancelRequested — the silent-cancel contract. Killing
+    /// mutation: drop the `.cancel` arm or route it to stopRequested → RED.
+    @Test
+    func cancelEdgeRoutesToCancelRequested() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "case .cancel:",
+            "orchestrator.handle(.cancelRequested)",
+        ], in: startPipeline),
+        "the sequencer sink must handle a .cancel edge by cancelling the in-flight dictation")
+    }
+
+    /// The tap must be built with the configured trigger, not a hard-coded fn.
+    /// Killing mutation: construct `CGEventTapHotkeyMonitor(trigger: .fn)` (ignore
+    /// config) → RED.
+    @Test
+    func monitorIsBuiltWithConfiguredTrigger() throws {
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger: config.trigger)"),
+                "the monitor must be constructed with the persisted trigger")
+    }
+
+    /// The tap must observe keyDown so a combo can interrupt a right-modifier hold.
+    /// Killing mutation: drop keyDown from the event mask → the interrupt is never
+    /// seen → RED.
+    @Test
+    func hotkeyTapObservesKeyDownForInterrupt() throws {
+        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        #expect(monitor.contains("CGEventType.keyDown.rawValue"),
+                "the event mask must include keyDown so the interrupt is observable")
+    }
+
+    /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
+    /// key went down — never its typed character or key code. Killing mutations:
+    /// read the typed character (add `keyboardGetUnicodeString`), or read the key
+    /// code in the keyDown arm (a second `getIntegerValueField`) to retain key
+    /// identity → RED.
+    @Test
+    func keyDownCarriesNoKeyContent() throws {
+        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        #expect(Self.containsInOrder(["case .keyDown:", "= .keyDown"], in: monitor),
+                "the keyDown arm must map to the payload-free input, not read the event")
+        #expect(!monitor.contains("keyboardGetUnicodeString"),
+                "the tap must never read a keystroke's typed character")
+        // Exactly one key-code read is allowed — the flagsChanged side detection. A
+        // second read means the keyDown arm reads key identity (privacy leak).
+        let keyCodeReads = monitor.components(separatedBy: "getIntegerValueField").count - 1
+        #expect(keyCodeReads == 1,
+                "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
+    }
+
+    /// The dropdown must offer the push-to-talk key picker and the dynamic hint
+    /// line. Killing mutation: remove the picker submenu or the hint → RED.
+    @Test
+    func menuOffersPushToTalkKeyPickerAndHint() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
+        #expect(makeMenu.contains("triggerMenu("),
+                "the dropdown must include the push-to-talk key picker submenu")
+        #expect(Self.containsInOrder(["Hold ", "to talk"], in: makeMenu),
+                "the dropdown must show the dynamic Hold <key> to talk hint")
+    }
+
+    /// A key change applies live via reconfigure, NOT a pipeline rebuild — no ASR
+    /// re-warm, no loading pulse (the applyCleanupModel principle). Killing
+    /// mutation: route applyTrigger through retrySetup/startPipeline (a rebuild) →
+    /// RED.
+    @Test
+    func applyTriggerReconfiguresInPlaceWithoutRebuild() throws {
+        let hotkeyMenu = try Self.code("Sources/slovo/AppDelegate+HotkeyMenu.swift")
+        let applyTrigger = try Self.functionBody(named: "applyTrigger", in: hotkeyMenu)
+        #expect(applyTrigger.contains("hotkeyMonitor.reconfigure(trigger:"),
+                "applyTrigger must reconfigure the live tap in place")
+        #expect(!applyTrigger.contains("startPipeline"),
+                "applyTrigger must not rebuild the pipeline")
+        #expect(!applyTrigger.contains("retrySetup"),
+                "applyTrigger must not rebuild the pipeline via retrySetup")
+    }
+
     private static func code(_ relativePath: String) throws -> String {
         try strippingComments(from: String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8))
     }

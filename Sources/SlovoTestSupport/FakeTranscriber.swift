@@ -29,6 +29,8 @@ public final class FakeTranscriber: Transcriber {
     private struct Recorded {
         var beginCalls: [Call] = []
         var feedCount = 0
+        var finishCount = 0
+        var cancelCount = 0
     }
 
     private let recorded = Mutex(Recorded())
@@ -50,6 +52,16 @@ public final class FakeTranscriber: Transcriber {
         recorded.withLock { $0.feedCount }
     }
 
+    /// How many times `finish` (the transcribe-and-return path) was invoked.
+    public var finishCount: Int {
+        recorded.withLock { $0.finishCount }
+    }
+
+    /// How many times `cancel` (tear-down-without-a-result) was invoked.
+    public var cancelCount: Int {
+        recorded.withLock { $0.cancelCount }
+    }
+
     public func begin(biasTerms: [Term]) async throws {
         recorded.withLock { $0.beginCalls.append(Call(biasTerms: biasTerms)) }
     }
@@ -65,6 +77,7 @@ public final class FakeTranscriber: Transcriber {
     }
 
     public func finish() async throws -> String {
+        recorded.withLock { $0.finishCount += 1 }
         switch outcome {
         case .success(let transcript):
             return transcript
@@ -73,5 +86,7 @@ public final class FakeTranscriber: Transcriber {
         }
     }
 
-    public func cancel() async {}
+    public func cancel() async {
+        recorded.withLock { $0.cancelCount += 1 }
+    }
 }

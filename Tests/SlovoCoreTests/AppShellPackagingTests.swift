@@ -58,7 +58,7 @@ struct AppShellPackagingTests {
         #expect(composition.contains("warmUp()"),
                 "startup composition must preload the resident ASR engine via warmUp()")
         #expect(composition.contains("statusReporter: statusReporter"))
-        #expect(composition.contains("CGEventTapHotkeyMonitor()"))
+        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger:"))
         let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
         let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
         #expect(Self.containsStatement(#"startPipeline\(\)"#, in: launchBody),
@@ -82,8 +82,15 @@ struct AppShellPackagingTests {
         #expect(Self.statementCount(#"self\?\.didShowPipelineStatus\s*=\s*false"#, in: startPipelineBody) == 1,
                 "pipeline status may reset at operation start, but key-up must preserve any start-failure status")
         #expect(Self.containsStatement(#"if\s+self\?\.didShowPipelineStatus\s*==\s*false\s*\{"#, in: startPipelineBody))
-        #expect(Self.statementCount(#"if\s+self\?\.didShowPipelineStatus\s*==\s*false\s*\{"#, in: startPipelineBody) == 2,
-                "key-up must guard both Processing and Idle labels so failures are not overwritten")
+        #expect(Self.statementCount(#"if\s+self\?\.didShowPipelineStatus\s*==\s*false\s*\{"#, in: startPipelineBody) == 1,
+                "key-up must guard the Processing label so a start-failure status is not overwritten")
+        // The Idle label guard moved into settleToIdle (shared by key-up and the
+        // silent cancel); it must still guard so a start-failure status survives.
+        // The negation spelling is free — only "an if conditioned on the flag" is
+        // pinned. Sensitivity: set the Idle title unconditionally → RED.
+        let settleToIdleBody = try Self.functionBody(named: "settleToIdle", in: delegate)
+        #expect(Self.containsStatement(#"if\s+[^{]*didShowPipelineStatus[^{]*\{"#, in: settleToIdleBody),
+                "settling to Idle must guard the Idle label so a start-failure status is not overwritten")
         #expect(Self.containsStatement(#"didShowPipelineStatus\s*=\s*true"#, in: showStatusBody))
         #expect(delegate.contains("live.hotkeyMonitor.start()"))
         #expect(delegate.contains("setStatusGlyph(.recording"))

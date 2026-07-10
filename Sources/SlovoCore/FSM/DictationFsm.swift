@@ -18,6 +18,7 @@ public enum DictationState: Equatable, Sendable {
 public enum DictationEvent: Sendable {
     case startRequested
     case stopRequested
+    case cancelRequested
     case transcriptReady(String)
     case cleaned(String)
     case injected
@@ -93,6 +94,10 @@ public enum StageFailure: Equatable, Sendable {
 public enum DictationEffect: Equatable, Sendable {
     case beginCapture
     case endCaptureAndTranscribe
+    /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
+    /// result. Distinct from `endCaptureAndTranscribe`, which finalizes the
+    /// transcript and drives clean → inject.
+    case discardCapture
     case clean(transcript: String)
     case inject(text: String)
     case log(FsmLogEvent)
@@ -112,8 +117,9 @@ public enum DictationFsm {
     ///
     /// Mute/restore invariant: system audio is muted once on key-down
     /// (`idle + startRequested`) and restored exactly once on leaving `recording`
-    /// — whether recording ends normally (`stopRequested`) or via a failure
-    /// (`failed`). Restore never runs in `processing` (already restored at key-up).
+    /// — whether recording ends normally (`stopRequested`), via a silent cancel
+    /// (`cancelRequested`), or via a failure (`failed`). Restore never runs in
+    /// `processing` (already restored at key-up).
     ///
     /// An event with no pinned transition for the current state is a lossless
     /// no-op: the state is unchanged and a single `log(.unexpectedEvent)` effect
@@ -128,6 +134,13 @@ public enum DictationFsm {
 
         case (.recording, .stopRequested):
             return (.processing, [.endCaptureAndTranscribe, .restoreSystemOutput])
+
+        // Silent interrupt-cancel (right-modifier triggers): drop the recording
+        // with nothing inserted and no error. discardCapture releases the mic and
+        // tears down the ASR session, restoreSystemOutput is the leaving-recording
+        // restore (exactly once), returnToIdle clears session state. No notify.
+        case (.recording, .cancelRequested):
+            return (.idle, [.discardCapture, .restoreSystemOutput, .returnToIdle])
 
         // Failure while still recording: restore FIRST so an error before key-up
         // can never leave system output stuck muted, then contain as usual.

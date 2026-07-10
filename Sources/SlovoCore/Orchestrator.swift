@@ -220,6 +220,10 @@ public actor Orchestrator {
             }
             return .finish
 
+        case .discardCapture:
+            await discardCapture()
+            return nil
+
         case .restoreSystemOutput:
             if let prior = stashedPriorAudio {
                 try? deps.audio.restoreSystemOutput(prior)
@@ -264,6 +268,14 @@ public actor Orchestrator {
             pipelineTask = nil
             return nil
         }
+    }
+
+    /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
+    /// result (no transcript, clean, or inject). The subsequent `returnToIdle`
+    /// cancels the pump and clears session state.
+    private func discardCapture() async {
+        await deps.recorder.stop()
+        await deps.transcriber.cancel()
     }
 
     /// Spawns the capture pump: it feeds each live chunk into the open session and

@@ -194,6 +194,9 @@ struct AppRuntimeSourceGuardTests {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
         let showStatusBody = try Self.functionBody(named: "showStatus", in: delegate)
+        // The settle-to-idle sequence is shared by key-up and the silent cancel, so
+        // it lives in settleToIdle rather than inline in the sequencer closure.
+        let settleToIdleBody = try Self.functionBody(named: "settleToIdle", in: delegate)
 
         #expect(!StatusMessage.preparingSpeechModel.isPersistentNotice)
         #expect(StatusMessage.cleanupUnavailableInsertedAsSpoken.isSadToFailNotice)
@@ -215,17 +218,36 @@ struct AppRuntimeSourceGuardTests {
             "setStatusGlyph(.idle",
         ], in: showStatusBody))
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)
-        #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*false"#, in: startPipelineBody) == 1)
+        #expect(Self.statementCount(#"isPipelineActive\s*=\s*false"#, in: settleToIdleBody) == 1)
         #expect(Self.containsInOrder([
             "self?.isPipelineActive = true",
             "self?.didShowPipelineStatus = false",
         ], in: startPipelineBody))
+        // Sliced per switch arm: a whole-body ordered search stays green when the
+        // .cancel arm loses its settle call or the .up arm settles before draining,
+        // because the sibling arm still supplies a drain→settle pair.
+        let upArm = try Self.slice(of: startPipelineBody, from: "case .up:", to: "case .cancel:")
+        let cancelArm = try Self.slice(of: startPipelineBody, from: "case .cancel:")
+        // Sensitivity: reorder settle before drain in the .up arm → RED.
         #expect(Self.containsInOrder([
-            "await orchestrator.awaitPipelineDrain()",
-            "self?.isPipelineActive = false",
-            "if self?.isShowingSadToFailStatus == false",
-            "self?.setStatusGlyph(.idle",
-            "if self?.didShowPipelineStatus == false",
-        ], in: startPipelineBody))
+            "orchestrator.handle(.stopRequested)",
+            "awaitPipelineDrain()",
+            "self?.settleToIdle()",
+        ], in: upArm),
+        "key-up must stop, drain the pipeline, then settle to idle — in that order")
+        // Sensitivity: delete settleToIdle() from the .cancel arm → RED.
+        #expect(Self.containsInOrder([
+            "orchestrator.handle(.cancelRequested)",
+            "awaitPipelineDrain()",
+            "self?.settleToIdle()",
+        ], in: cancelArm),
+        "a silent cancel must cancel, drain the pipeline, then settle to idle — in that order")
+        // Presence-only for the two independent if-guards (their relative order and
+        // negation spelling are free). Sensitivity: set the idle glyph or the Idle
+        // title unconditionally (drop either guard) → its flag vanishes → RED.
+        #expect(Self.containsInOrder(["if", "isShowingSadToFailStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
+                "the idle glyph must stay guarded by the sad-to-fail flag")
+        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "Status: Idle"], in: settleToIdleBody),
+                "the Idle title must stay guarded by the shown-pipeline-status flag")
     }
 }

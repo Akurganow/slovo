@@ -73,7 +73,7 @@ enum AppComposition {
                 dependencies: dependencies,
                 vocabularyLimit: vocabularyLimit
             ),
-            hotkeyMonitor: CGEventTapHotkeyMonitor(),
+            hotkeyMonitor: CGEventTapHotkeyMonitor(trigger: config.trigger),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight()
             ),

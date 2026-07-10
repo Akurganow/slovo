@@ -35,7 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         logger.info("menu bar app ready")
     }
 
-    private func makeMenu() -> NSMenu {
+    // Internal (not private) so the AppDelegate+HotkeyMenu extension can rebuild
+    // the menu after a live trigger change, mirroring applyCleanupModel.
+    func makeMenu() -> NSMenu {
+        let config = ConfigStore.load(from: defaults)
         let menu = NSMenu()
         let title = NSMenuItem(title: "Slovo", action: nil, keyEquivalent: "")
         title.isEnabled = false
@@ -44,11 +47,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         status.isEnabled = false
         menu.addItem(status)
         statusTextItem = status
+        let hint = NSMenuItem(title: "Hold \(config.trigger.displayName) to talk", action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        menu.addItem(hint)
         menu.addItem(.separator())
-        let config = ConfigStore.load(from: defaults)
         menu.addItem(modelMenu(
             title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: config.openRouterModel))",
             selectedModel: config.openRouterModel
+        ))
+        menu.addItem(triggerMenu(
+            title: "Push-to-Talk Key: \(config.trigger.displayName)",
+            selectedTrigger: config.trigger
         ))
         menu.addItem(.separator())
         menu.addItem(actionItem("Update OpenRouter Key", #selector(enterOpenRouterKey)))
@@ -96,15 +105,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     }
                     await orchestrator.handle(.stopRequested)
                     await orchestrator.awaitPipelineDrain()
-                    await MainActor.run {
-                        self?.isPipelineActive = false
-                        if self?.isShowingSadToFailStatus == false {
-                            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
-                        }
-                        if self?.didShowPipelineStatus == false {
-                            self?.statusTextItem?.title = "Status: Idle"
-                        }
-                    }
+                    await MainActor.run { self?.settleToIdle() }
+                case .cancel:
+                    guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                    await orchestrator.handle(.cancelRequested)
+                    await orchestrator.awaitPipelineDrain()
+                    await MainActor.run { self?.settleToIdle() }
                 }
             }
             hotkeyEdgeSequencer = sequencer
@@ -121,6 +127,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         } catch {
             logger.error("production composition failed")
+        }
+    }
+
+    /// Return the menu-bar glyph and status text to Idle when a session settles
+    /// (normal stop or a silent cancel), leaving a sad-to-fail notice or an
+    /// already-shown pipeline status untouched.
+    private func settleToIdle() {
+        isPipelineActive = false
+        if !isShowingSadToFailStatus {
+            setStatusGlyph(.idle, on: statusItem?.button)
+        }
+        if !didShowPipelineStatus {
+            statusTextItem?.title = "Status: Idle"
         }
     }
 
