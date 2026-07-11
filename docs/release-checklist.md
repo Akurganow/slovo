@@ -90,8 +90,9 @@ gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <notes> .build/dist/Slovo
 - TCC grants survive rebuild when the signing identity is stable.
 - The menu-bar icon renders through `NotoSansGlagolitic-Regular`; recording,
   processing, and idle states are visually distinct.
-- Holding `fn` starts capture, releasing `fn` stops capture, restores audio, and
-  inserts text into a normal text field.
+- Holding the configured push-to-talk key (`fn` by default) starts capture,
+  releasing it stops capture, restores audio, and inserts text into a normal
+  text field.
 - Secure-input fields fail closed without writing transcript text to the
   clipboard.
 - Offline, refused, unavailable, or misconfigured cleanup falls back to

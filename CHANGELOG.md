@@ -7,6 +7,32 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-11
+
+### Added
+
+- The push-to-talk key is now configurable. Keep the default `fn` / Globe key
+  or choose a right-hand modifier (⌘, ⌥, ⌃, ⇧) in **Settings → General**;
+  a right-hand modifier still works normally on its own, and pressing another
+  key mid-hold silently cancels the dictation so the real shortcut fires.
+- A native **Settings** window with General, Cleanup, and Vocabulary tabs
+  replaces the old modal dialogs — enter your OpenRouter key, pick the
+  push-to-talk key and recognition language, choose the cleanup model and
+  style, and add or remove vocabulary terms in one place.
+- On-device cleanup hints: your active keyboard language and the system spell
+  checker are passed to the cleanup model as advisory context to improve short
+  or ambiguous phrases. Nothing but transcript text leaves the Mac, and the
+  spell-check hints have a toggle in **Settings → Cleanup**.
+- The recognition-language picker now offers every language WhisperKit
+  supports, sourced directly from the library — a WhisperKit update that adds
+  languages surfaces them automatically, with no hardcoded list to maintain.
+  **Automatic** stays the default and handles mixed Russian + English best.
+
+### Changed
+
+- Configuration and key entry moved out of modal alerts into the Settings
+  window; errors still surface only through the menu-bar icon.
+
 ## [0.4.0] - 2026-07-07
 
 ### Fixed

@@ -123,11 +123,11 @@ tap, verify on a real keyboard:
 
 - **fn (default):** hold fn, speak, release — text is inserted; the fn press is
   suppressed (the Globe/Emoji picker never appears).
-- **Each right modifier (⌘, ⌥, ⌃, ⇧):** select it in the menu, then hold it
+- **Each right modifier (⌘, ⌥, ⌃, ⇧):** select it in Settings → General, then hold it
   alone to dictate; the modifier still works normally system-wide (it is not
   suppressed).
 - **Interrupt:** hold the selected right modifier and press another key mid-hold
   (e.g. Right ⌘ then C) — dictation is cancelled silently (nothing inserted, no
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
-- **Live change:** switch the key from the menu while idle — the new key works
+- **Live change:** switch the key in Settings → General while idle — the new key works
   on the next dictation with no "Preparing Speech Model" pulse.

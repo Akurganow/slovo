@@ -8,8 +8,8 @@ core seams.
 The dictation flow is:
 
 ```text
-fn down -> mute output -> capture microphone
-fn up   -> stop capture -> restore output -> transcribe -> clean -> inject
+key down -> mute output -> capture microphone
+key up   -> stop capture -> restore output -> transcribe -> clean -> inject
 ```
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
@@ -18,7 +18,10 @@ sends only transcript text for the selected routed model id.
 
 ## Core Components
 
-- `HotkeyMonitor` observes the global `fn` / Globe key.
+- `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
+  default, or a right-hand modifier); `HotkeyDecisionCore` is the pure,
+  unit-tested policy that turns key events into start / stop / silent-cancel
+  decisions.
 - `SystemAudioController` mutes and restores system output during recording.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
@@ -28,6 +31,9 @@ sends only transcript text for the selected routed model id.
   succeeds.
 - `Injector` inserts the final text into the focused field.
 - `PersonalizationSource` supplies local vocabulary hints.
+- `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
+  cleanup hints — the active keyboard language and system spell-check
+  suggestions — as advisory context for the cleanup prompt.
 - `Orchestrator` serializes the pipeline and owns the runtime state transitions.
 
 The app target owns OS-specific adapters and production composition. `SlovoCore`
@@ -42,7 +48,10 @@ Cleanup has one runtime provider:
 
 The app stores one OpenRouter key in Keychain and exposes model selection as
 curated OpenRouter model ids and a custom id entry. Selecting a model changes
-only the model id. The key is read lazily when cleanup runs.
+only the model id. The key is read lazily when cleanup runs. Before each
+cleanup, Slovo adds advisory on-device hints to the prompt — the active keyboard
+language and, when enabled, system spell-check suggestions — which the model may
+use but never must; nothing but transcript text leaves the Mac.
 
 Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, misconfigured,
 refuses the request, rate-limits, or returns an unusable response, Slovo inserts
@@ -63,8 +72,10 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
-an `NSStatusItem` for status, cleanup model selection, OpenRouter key entry,
-vocabulary quick-add, first-run setup actions, and quit.
+an `NSStatusItem` for status, cleanup model selection, vocabulary quick-add,
+first-run setup actions, a **Settings…** window (push-to-talk key, recognition
+language, cleanup model and style, OpenRouter key, and vocabulary), and quit.
+All configuration is native windows — there are no modal alerts.
 
 ## Build Boundaries
 

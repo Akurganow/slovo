@@ -27,6 +27,14 @@ struct CleanupSettingsPane: View {
 
     private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
 
+    private var trimmedCustomModelId: String {
+        customModelId.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedApiKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         Form {
             modelSection
@@ -47,14 +55,6 @@ struct CleanupSettingsPane: View {
         }
     }
 
-    private var spellCheckHintsSection: some View {
-        // The input-language hint has no toggle; only the spell pass is user-gated.
-        Section("Language hints") {
-            Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
-                .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
-        }
-    }
-
     private var modelSection: some View {
         Section("Cleanup model") {
             Picker("Model", selection: $selectedModelId) {
@@ -67,15 +67,16 @@ struct CleanupSettingsPane: View {
             }
             .onChange(of: selectedModelId) { _, newValue in actions.setCleanupModel(newValue) }
 
-            HStack {
-                TextField("Custom OpenRouter model id", text: $customModelId)
-                Button("Use") {
-                    let trimmed = customModelId.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    selectedModelId = trimmed
-                    actions.setCleanupModel(trimmed)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    TextField("openrouter/model-id", text: $customModelId)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Use", action: useCustomModel)
+                        .disabled(trimmedCustomModelId.isEmpty)
                 }
-                .disabled(customModelId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Text("Route cleanup through any model id from openrouter.ai/models.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -93,18 +94,45 @@ struct CleanupSettingsPane: View {
 
     private var apiKeySection: some View {
         Section("OpenRouter API key") {
-            SecureField(hasSavedKey ? "A key is saved" : "Enter key", text: $apiKey)
-            Button("Save key") {
-                let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                actions.saveOpenRouterKey(trimmed)
-                apiKey = ""
-                hasSavedKey = true
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    SecureField("Enter a new key", text: $apiKey)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Save", action: saveKey)
+                        .disabled(trimmedApiKey.isEmpty)
+                }
+                if hasSavedKey {
+                    Label("A key is saved in your Keychain.", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Stored in your Keychain. Create one at openrouter.ai/keys.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Text("The key is stored in Keychain.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
+    }
+
+    private var spellCheckHintsSection: some View {
+        // The input-language hint has no toggle; only the spell pass is user-gated.
+        Section("Language hints") {
+            Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
+                .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
+        }
+    }
+
+    private func useCustomModel() {
+        guard !trimmedCustomModelId.isEmpty else { return }
+        selectedModelId = trimmedCustomModelId
+        actions.setCleanupModel(trimmedCustomModelId)
+        customModelId = ""
+    }
+
+    private func saveKey() {
+        guard !trimmedApiKey.isEmpty else { return }
+        actions.saveOpenRouterKey(trimmedApiKey)
+        apiKey = ""
+        hasSavedKey = true
     }
 }

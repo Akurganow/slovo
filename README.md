@@ -1,8 +1,8 @@
 # Slovo
 
-Slovo is a private, on-device push-to-talk dictation app for macOS. Hold the
-`fn` / Globe key, speak, release, and Slovo inserts the cleaned-up text into
-the focused field.
+Slovo is a private, on-device push-to-talk dictation app for macOS. Hold your
+push-to-talk key — the `fn` / Globe key by default — speak, release, and Slovo
+inserts the cleaned-up text into the focused field.
 
 The privacy boundary is deliberately narrow: raw audio stays on the Mac.
 Cleanup is always attempted through OpenRouter; only the already-transcribed
@@ -21,22 +21,28 @@ tuned.
 
 ## Features
 
-- Push-to-talk dictation from the global `fn` / Globe key.
+- Push-to-talk dictation from a configurable key — the `fn` / Globe key by
+  default, or a right-hand modifier (⌘, ⌥, ⌃, ⇧), chosen in Settings.
 - Local speech capture and on-device transcription through WhisperKit
   (Whisper large-v3 turbo), including mixed Russian + English in one
   utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
+- On-device cleanup hints: your active keyboard language and the system spell
+  checker nudge the model toward the right words, without ever leaving the Mac.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
   runs.
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
-- Local SQLite personalization store for vocabulary hints, with an
-  **Add Vocabulary...** menu action to protect your own terms during
-  cleanup.
+- Local SQLite personalization store for vocabulary hints — add and remove
+  terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary...**
+  quick action — to protect your own terms during cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states, plus a monochrome app icon that follows the system
   theme.
+- A native **Settings** window (General, Cleanup, Vocabulary) for the
+  push-to-talk key, recognition language, cleanup model and style, API key,
+  and vocabulary.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements
