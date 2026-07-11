@@ -64,7 +64,9 @@ enum AppComposition {
             audio: CoreAudioOutputMute(),
             recorder: AVAudioEngineRecorder(authorizer: permissionPreflighter),
             log: log,
-            statusReporter: statusReporter
+            statusReporter: statusReporter,
+            inputSourceLanguage: SystemInputSourceLanguageReader(),
+            spellCheckHints: SystemSpellCheckHintProvider()
         )
 
         return Live(

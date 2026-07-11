@@ -29,6 +29,15 @@ public struct OpenRouterCleaner: Cleaner {
         config: CleanupConfig,
         context: PersonalizationContext
     ) async throws -> String {
+        try await clean(raw, config: config, context: context, hints: CleanupHints())
+    }
+
+    public func clean(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> String {
         let key: String
         do {
             key = try keyProvider.apiKey()
@@ -36,7 +45,7 @@ public struct OpenRouterCleaner: Cleaner {
             throw CleanupError.missingKey
         }
 
-        let prompt = promptBuilder.buildPrompt(raw: raw, config: config, context: context)
+        let prompt = promptBuilder.buildPrompt(raw: raw, config: config, context: context, hints: hints)
         let body = OpenRouterRequest(
             model: prompt.model,
             messages: [

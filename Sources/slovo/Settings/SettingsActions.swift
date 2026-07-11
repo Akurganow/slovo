@@ -15,6 +15,7 @@ protocol SettingsActions: AnyObject {
     func setRecognitionLanguage(_ language: Language)
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
+    func setSpellCheckHints(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)
 
     func listVocabulary() -> [VocabularyRecord]

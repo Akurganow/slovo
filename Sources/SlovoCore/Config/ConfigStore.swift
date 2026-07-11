@@ -91,7 +91,8 @@ public enum ConfigStore {
                 asrBackend: asr.backend,
                 asrModel: asr.model,
                 openRouterModel: openRouterModel,
-                writingStyle: cleanup.writingStyle
+                writingStyle: cleanup.writingStyle,
+                useSpellCheckHints: cleanup.useSpellCheckHints
             ))
         }
 
@@ -104,7 +105,8 @@ public enum ConfigStore {
             cleanup = StoredCleanup(
                 provider: nil,
                 openRouterModel: config.openRouterModel,
-                writingStyle: config.writingStyle
+                writingStyle: config.writingStyle,
+                useSpellCheckHints: config.useSpellCheckHints
             )
         }
     }
@@ -175,18 +177,23 @@ public enum ConfigStore {
         let provider: String?
         let openRouterModel: String?
         let writingStyle: WritingStyle
+        // An absent wire field defaults to `true` at decode, so existing installs
+        // keep spell-check hints on (backward compatible, no migration).
+        let useSpellCheckHints: Bool
 
         private enum CodingKeys: String, CodingKey {
             case enabled
             case provider
             case openRouterModel
             case writingStyle
+            case useSpellCheckHints
         }
 
-        init(provider: String?, openRouterModel: String?, writingStyle: WritingStyle) {
+        init(provider: String?, openRouterModel: String?, writingStyle: WritingStyle, useSpellCheckHints: Bool) {
             self.provider = provider
             self.openRouterModel = openRouterModel
             self.writingStyle = writingStyle
+            self.useSpellCheckHints = useSpellCheckHints
         }
 
         init(from decoder: Decoder) throws {
@@ -195,6 +202,7 @@ public enum ConfigStore {
             provider = try container.decodeIfPresent(String.self, forKey: .provider)
             openRouterModel = try container.decodeIfPresent(String.self, forKey: .openRouterModel)
             writingStyle = try container.decode(WritingStyle.self, forKey: .writingStyle)
+            useSpellCheckHints = try container.decodeIfPresent(Bool.self, forKey: .useSpellCheckHints) ?? true
         }
 
         func encode(to encoder: Encoder) throws {
@@ -203,6 +211,7 @@ public enum ConfigStore {
             try container.encodeIfPresent(provider, forKey: .provider)
             try container.encodeIfPresent(openRouterModel, forKey: .openRouterModel)
             try container.encode(writingStyle, forKey: .writingStyle)
+            try container.encode(useSpellCheckHints, forKey: .useSpellCheckHints)
         }
     }
 

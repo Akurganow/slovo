@@ -14,6 +14,7 @@ struct CleanupSettingsPane: View {
     @State private var writingStyle: WritingStyle
     @State private var apiKey: String = ""
     @State private var hasSavedKey: Bool
+    @State private var useSpellCheckHints: Bool
 
     init(actions: any SettingsActions) {
         self.actions = actions
@@ -21,6 +22,7 @@ struct CleanupSettingsPane: View {
         _selectedModelId = State(initialValue: config.openRouterModel)
         _writingStyle = State(initialValue: config.writingStyle)
         _hasSavedKey = State(initialValue: actions.hasOpenRouterKey())
+        _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
     }
 
     private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
@@ -30,11 +32,7 @@ struct CleanupSettingsPane: View {
             modelSection
             writingStyleSection
             apiKeySection
-
-            // PHASE 3 EXTENSION POINT (Workstream 3): the single
-            // "Use system spell-check hints" checkbox is added here, persisted
-            // through ConfigStore. Do NOT implement it in Phase 2 — no toggle, no
-            // config field, no wording yet.
+            spellCheckHintsSection
         }
         .formStyle(.grouped)
         .frame(width: 420)
@@ -45,6 +43,15 @@ struct CleanupSettingsPane: View {
             selectedModelId = config.openRouterModel
             writingStyle = config.writingStyle
             hasSavedKey = actions.hasOpenRouterKey()
+            useSpellCheckHints = config.useSpellCheckHints
+        }
+    }
+
+    private var spellCheckHintsSection: some View {
+        // The input-language hint has no toggle; only the spell pass is user-gated.
+        Section("Language hints") {
+            Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
+                .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
         }
     }
 

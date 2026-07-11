@@ -49,6 +49,7 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(cleanup.contains("selectedModelId = config.openRouterModel"))
         #expect(cleanup.contains("writingStyle = config.writingStyle"))
         #expect(cleanup.contains("hasSavedKey = actions.hasOpenRouterKey()"))
+        #expect(cleanup.contains("useSpellCheckHints = config.useSpellCheckHints"))
 
         let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
         #expect(vocabulary.contains(".onAppear"))
@@ -73,16 +74,16 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
     }
 
-    /// The Phase-3 spell-check checkbox must not exist in Phase 2 — only its marked
-    /// extension point. Stated sensitivity: implement the toggle early (add a
-    /// "spell-check hints" Toggle) → RED, catching scope creep across the phase
-    /// boundary.
+    /// Phase 3 landed: the Cleanup pane now hosts the spell-check hints toggle at the
+    /// former extension point (inverts the retired
+    /// `cleanupPaneLeavesPhase3ExtensionPointUnimplemented`).
+    /// Stated sensitivity: removing the `Toggle("Use system spell-check hints", …)`
+    /// from the pane turns this red.
     @Test
-    func cleanupPaneLeavesPhase3ExtensionPointUnimplemented() throws {
-        let cleanup = try Self.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
-        #expect(cleanup.contains("PHASE 3 EXTENSION POINT"))
-        #expect(!Self.strippingComments(from: cleanup).localizedCaseInsensitiveContains("spell"),
-                "the spell-check hints checkbox belongs to Phase 3; Phase 2 must not add it")
+    func cleanupPaneHostsSpellCheckHintsToggle() throws {
+        let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
+
+        #expect(cleanup.contains("Use system spell-check hints"))
     }
 
     /// The window presenter activates the app before showing (the `.accessory`

@@ -310,6 +310,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Persists the spell-check hints toggle and applies it to the NEXT dictation
+    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the change
+    /// only affects hint gathering, so the resident ASR model is never re-warmed and
+    /// no loading pulse appears. The toggle is not menu-visible, so the status menu
+    /// is not rebuilt.
+    func applySpellCheckHints(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.useSpellCheckHints = enabled
+        do {
+            try ConfigStore.save(config, to: defaults)
+        } catch {
+            logger.error("config save failed")
+            return
+        }
+        let cleanupConfig = config.cleanupConfig
+        Task { @MainActor in
+            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
+        }
+    }
+
     private static func title(for step: OnboardingStep) -> String {
         switch step {
         case .requestMicrophone:

@@ -87,4 +87,77 @@ struct PromptBuilderTests {
         #expect(systemText.contains("<output>Запушь PR в GitHub, пожалуйста.</output>"))
         #expect(systemText.contains("<output>Сейчас попробую поговорить подольше. Проверю, как работает cleanup.</output>"))
     }
+
+    /// Stated sensitivity: dropping the advisory append (so hints never reach the
+    /// prompt) makes the present-case assertions go red.
+    @Test
+    func advisoryBlockCarriesLocaleAndSpellFindings() {
+        let hints = CleanupHints(
+            inputLocale: "ru",
+            spellFindings: [
+                SpellFinding(token: "recieve", guesses: ["receive", "relieve"]),
+                SpellFinding(token: "teh", guesses: ["the"]),
+            ]
+        )
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: hints
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(systemText.contains("Advisory context (may be wrong"))
+        #expect(systemText.contains("Keyboard input language at dictation time: ru."))
+        #expect(systemText.contains("recieve → receive, relieve"))
+        #expect(systemText.contains("teh → the"))
+        #expect(systemText.contains("keep it unchanged"))
+        // The advisory is supplementary context: it is the LAST system block.
+        #expect(prompt.systemBlocks.last?.hasPrefix("Advisory context (may be wrong") == true)
+    }
+
+    /// Stated sensitivity: appending the advisory block unconditionally makes this
+    /// no-hints (toggle off AND no locale) case go red.
+    @Test
+    func noAdvisoryBlockWhenHintsEmpty() {
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: CleanupHints()
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(!systemText.contains("Advisory context"))
+    }
+
+    /// Stated sensitivity: appending the spell sentences unconditionally makes this
+    /// locale-only (spell toggle off, findings empty) case go red — the locale line
+    /// must survive while the spell sentences must not appear.
+    @Test
+    func localeLineRemainsButSpellSentencesAbsentWhenNoFindings() {
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: CleanupHints(inputLocale: "en", spellFindings: [])
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(systemText.contains("Keyboard input language at dictation time: en."))
+        #expect(!systemText.contains("flagged these tokens"))
+    }
+
+    /// Stated sensitivity: the existing 3-arg overload must keep producing NO
+    /// advisory block, so old callers are unchanged; adding a block there turns red.
+    @Test
+    func threeArgOverloadEmitsNoAdvisoryBlock() {
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: [])
+        )
+
+        #expect(!prompt.systemBlocks.joined(separator: "\n\n").contains("Advisory context"))
+    }
 }

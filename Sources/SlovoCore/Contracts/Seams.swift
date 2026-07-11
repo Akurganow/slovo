@@ -62,6 +62,28 @@ public enum TranscriptionError: Error, Equatable, Sendable {
 /// `Sendable` so the `actor Orchestrator` can hold it (see `Transcriber`).
 public protocol Cleaner: Sendable {
     func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String
+    /// Cleans with advisory on-device hints. The default implementation below DROPS
+    /// the hints and forwards to the 3-arg `clean`; a cleaner that must act on hints
+    /// (e.g. the OpenRouter cleaner feeding `PromptBuilder`) MUST override this
+    /// requirement — inheriting the default silently ignores them.
+    func clean(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> String
+}
+
+public extension Cleaner {
+    /// Default: drop the hints and clean as before. Override to consume them.
+    func clean(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> String {
+        try await clean(raw, config: config, context: context)
+    }
 }
 
 /// Failure modes of a cleanup attempt.

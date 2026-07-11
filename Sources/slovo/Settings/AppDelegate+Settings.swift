@@ -42,6 +42,12 @@ extension AppDelegate: SettingsActions {
         }
     }
 
+    func setSpellCheckHints(_ enabled: Bool) {
+        // Live: persist + push to the running orchestrator, no rebuild — hint
+        // gathering only, so the resident ASR model is never re-warmed.
+        applySpellCheckHints(enabled)
+    }
+
     func saveOpenRouterKey(_ key: String) {
         // The cleaner reads the key lazily at cleanup time, so a save needs no
         // rebuild and never re-warms ASR.

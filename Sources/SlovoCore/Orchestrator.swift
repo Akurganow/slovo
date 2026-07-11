@@ -25,6 +25,10 @@ public struct Dependencies: Sendable {
     public var statusReporter: @Sendable (StatusMessage) -> Void
     /// Optional AX context the actor would surface on its status path (v1: unused).
     public var axContext: AxContext?
+    /// Optional on-device hint seams (Workstream 3). Nil in composition/tests that
+    /// do not gather hints, in which case the cleaner receives empty `CleanupHints`.
+    public var inputSourceLanguage: (any InputSourceLanguageReading)?
+    public var spellCheckHints: (any SpellCheckHintProviding)?
 
     @preconcurrency
     public init(
@@ -36,7 +40,9 @@ public struct Dependencies: Sendable {
         recorder: any AudioRecorder,
         log: RedactionSafeLog,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
-        axContext: AxContext? = nil
+        axContext: AxContext? = nil,
+        inputSourceLanguage: (any InputSourceLanguageReading)? = nil,
+        spellCheckHints: (any SpellCheckHintProviding)? = nil
     ) {
         self.transcriber = transcriber
         self.cleaner = cleaner
@@ -47,6 +53,8 @@ public struct Dependencies: Sendable {
         self.log = log
         self.statusReporter = statusReporter
         self.axContext = axContext
+        self.inputSourceLanguage = inputSourceLanguage
+        self.spellCheckHints = spellCheckHints
     }
 
     public func reportStatus(_ status: StatusMessage) {
@@ -153,6 +161,55 @@ public actor Orchestrator {
         }
     }
 
+    /// The clean → inject follow-on for a ready transcript: gathers the on-device
+    /// hints, runs the cleaner, and feeds the cleaned result (or a cleanup failure)
+    /// back through the FSM. Its own method so the effect switch stays cohesive.
+    private func cleanAndContinue(transcript: String) async {
+        let context = PersonalizationContext(vocabulary: sessionVocabulary)
+        let hints = await gatherCleanupHints(for: transcript)
+        do {
+            let cleaned = try await deps.cleaner.clean(
+                transcript,
+                config: cleanupConfig,
+                context: context,
+                hints: hints
+            )
+            await handle(.cleaned(cleaned))
+        } catch {
+            await handle(.failed(.cleanup))
+        }
+    }
+
+    /// Gathers the on-device cleanup hints for a transcript at the clean step: the
+    /// locale first (a cheap main-actor hop), then the spell findings. Sequential and
+    /// each independently non-fatal — a missing seam or a failed read yields an empty
+    /// component and cleanup proceeds on the raw transcript.
+    private func gatherCleanupHints(for transcript: String) async -> CleanupHints {
+        let inputLocale = await readInputSourceLanguage()
+        let spellFindings = await gatherSpellFindings(for: transcript)
+        return CleanupHints(inputLocale: inputLocale, spellFindings: spellFindings)
+    }
+
+    /// The active keyboard input language, read on the main actor (spec). The
+    /// input-source hint has no toggle; nil when no reader is wired or none found.
+    private func readInputSourceLanguage() async -> String? {
+        guard let reader = deps.inputSourceLanguage else { return nil }
+        return await MainActor.run { reader.currentPrimaryLanguage() }
+    }
+
+    /// The spell findings, gated by the toggle and the provider's presence, ignoring
+    /// the session vocabulary. Empty when there is nothing to run. `NSSpellChecker.shared`
+    /// is not main-actor-isolated (proven by the strict-concurrency build), so the
+    /// pass runs synchronously on this actor — acceptable because the input is
+    /// push-to-talk-bounded and the pass is dwarfed by the network cleanup call.
+    /// `async` so a threading change touches only this body, never its callers.
+    private func gatherSpellFindings(for transcript: String) async -> [SpellFinding] {
+        guard cleanupConfig.useSpellCheckHints, let provider = deps.spellCheckHints else {
+            return []
+        }
+        return provider.findings(in: transcript, ignoring: sessionVocabulary.map(\.term))
+    }
+
     /// Per-session feed outcome, accumulated locally in the pump and committed once
     /// when the capture stream ends, so total conversion failure (zero successful
     /// feeds with an error) is distinguishable from legitimate silence.
@@ -231,13 +288,7 @@ public actor Orchestrator {
             return nil
 
         case .clean(let transcript):
-            let context = PersonalizationContext(vocabulary: sessionVocabulary)
-            do {
-                let cleaned = try await deps.cleaner.clean(transcript, config: cleanupConfig, context: context)
-                await handle(.cleaned(cleaned))
-            } catch {
-                await handle(.failed(.cleanup))
-            }
+            await cleanAndContinue(transcript: transcript)
             return nil
 
         case .inject(let text):

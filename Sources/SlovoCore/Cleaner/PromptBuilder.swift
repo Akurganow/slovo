@@ -21,10 +21,24 @@ public struct PromptBuilder: Sendable {
         self.maxVocabularyTerms = maxVocabularyTerms
     }
 
+    /// Builds the cleanup prompt with no advisory hints (backward-compatible entry
+    /// point for callers that do not gather on-device hints).
     public func buildPrompt(
         raw: String,
         config: CleanupConfig,
         context: PersonalizationContext
+    ) -> CleanupPrompt {
+        buildPrompt(raw: raw, config: config, context: context, hints: CleanupHints())
+    }
+
+    /// Builds the cleanup prompt, appending one soft-worded advisory block when the
+    /// hints carry a locale and/or spell findings. The block is supplementary
+    /// context — it is appended after the instruction and vocabulary blocks.
+    public func buildPrompt(
+        raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
     ) -> CleanupPrompt {
         // Top-N vocabulary by weight, descending; padding is deliberately NOT
         // done (caching is a bonus, not a driver).
@@ -37,12 +51,36 @@ public struct PromptBuilder: Sendable {
         if !keptTerms.isEmpty {
             systemBlocks.append("Preserve these terms verbatim: \(keptTerms.joined(separator: ", "))")
         }
+        if let advisory = advisoryBlock(for: hints) {
+            systemBlocks.append(advisory)
+        }
 
         return CleanupPrompt(
             model: config.model,
             systemBlocks: systemBlocks,
             input: raw
         )
+    }
+
+    /// The advisory hint block, or nil when there is nothing to advise. The model is
+    /// told these signals may be wrong and must never force a correct proper noun,
+    /// technical term, or intentional code-switched word to change.
+    private func advisoryBlock(for hints: CleanupHints) -> String? {
+        guard hints.inputLocale != nil || !hints.spellFindings.isEmpty else {
+            return nil
+        }
+        var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
+        if let locale = hints.inputLocale {
+            lines.append("Keyboard input language at dictation time: \(locale).")
+        }
+        if !hints.spellFindings.isEmpty {
+            let rendered = hints.spellFindings
+                .map { "\($0.token) → \($0.guesses.joined(separator: ", "))" }
+                .joined(separator: "; ")
+            lines.append("The on-device spell checker flagged these tokens as possibly misspelled, with suggestions: \(rendered).")
+            lines.append("Treat as hints only. If a token is a correct proper noun, technical term, or intentional code-switched word, keep it unchanged.")
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func cleanupInstructions(for config: CleanupConfig) -> String {

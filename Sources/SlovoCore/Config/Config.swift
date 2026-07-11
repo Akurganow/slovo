@@ -39,9 +39,17 @@ public struct Config: Equatable, Sendable {
     public var asrModel: String
     public var openRouterModel: String
     public var writingStyle: WritingStyle
+    /// Advisory spell-check hints for cleanup, default on (spec Workstream 3). The
+    /// input-language hint has no toggle; only the spell pass does.
+    public var useSpellCheckHints: Bool
 
     public var cleanupConfig: CleanupConfig {
-        CleanupConfig(model: cleanupModel, writingStyle: writingStyle, language: language)
+        CleanupConfig(
+            model: cleanupModel,
+            writingStyle: writingStyle,
+            language: language,
+            useSpellCheckHints: useSpellCheckHints
+        )
     }
 
     public var cleanupModel: String {
@@ -55,7 +63,8 @@ public struct Config: Equatable, Sendable {
         asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
         openRouterModel: String = Config.defaultOpenRouterModel,
-        writingStyle: WritingStyle = .casual
+        writingStyle: WritingStyle = .casual,
+        useSpellCheckHints: Bool = true
     ) {
         self.language = language
         self.keepWarmSeconds = keepWarmSeconds
@@ -64,5 +73,6 @@ public struct Config: Equatable, Sendable {
         self.asrModel = asrModel
         self.openRouterModel = openRouterModel
         self.writingStyle = writingStyle
+        self.useSpellCheckHints = useSpellCheckHints
     }
 }

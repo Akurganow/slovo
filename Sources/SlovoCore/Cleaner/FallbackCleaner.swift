@@ -26,10 +26,19 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
         config: CleanupConfig,
         context: PersonalizationContext
     ) async throws -> String {
+        try await clean(raw, config: config, context: context, hints: CleanupHints())
+    }
+
+    public func clean(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> String {
         var lastError: CleanupError?
         for cleaner in chain {
             do {
-                return try await cleaner.clean(raw, config: config, context: context)
+                return try await cleaner.clean(raw, config: config, context: context, hints: hints)
             } catch let error as CleanupError {
                 // Only CleanupError degrades; report the visible cases, then advance.
                 report(error)

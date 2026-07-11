@@ -15,6 +15,7 @@ public final class FakeCleaner: Cleaner {
         public let raw: String
         public let config: CleanupConfig
         public let context: PersonalizationContext
+        public let hints: CleanupHints
     }
 
     private let recordedCalls = Mutex<[Call]>([])
@@ -34,7 +35,16 @@ public final class FakeCleaner: Cleaner {
         config: CleanupConfig,
         context: PersonalizationContext
     ) async throws -> String {
-        recordedCalls.withLock { $0.append(Call(raw: raw, config: config, context: context)) }
+        try await clean(raw, config: config, context: context, hints: CleanupHints())
+    }
+
+    public func clean(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> String {
+        recordedCalls.withLock { $0.append(Call(raw: raw, config: config, context: context, hints: hints)) }
         switch outcome {
         case .success(let cleaned):
             return cleaned
