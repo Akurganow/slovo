@@ -9,6 +9,10 @@ struct VocabularySettingsPane: View {
     // `unowned let target: AppDelegate`.
     unowned let actions: any SettingsActions
     @State private var records: [VocabularyRecord]
+    // Row ids mirror `VocabularyRecord.id` (`Int64?`), so the selection is optional-
+    // typed to match the `List`/`ForEach` identity; nil ids never occur for stored
+    // rows and are dropped on removal.
+    @State private var selection = Set<Int64?>()
     @State private var newTerms: String = ""
 
     init(actions: any SettingsActions) {
@@ -18,11 +22,21 @@ struct VocabularySettingsPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            List {
+            List(selection: $selection) {
                 ForEach(records, id: \.id) { record in
                     Text(record.term)
                 }
                 .onDelete(perform: delete)
+            }
+            HStack {
+                // Visible remove control — swipe / Delete (`.onDelete`) is not
+                // discoverable, so selection plus this button expose removal the
+                // native editable-list way.
+                Button(role: .destructive, action: removeSelected) {
+                    Label("Remove", systemImage: "trash")
+                }
+                .disabled(selection.isEmpty)
+                Spacer()
             }
             HStack {
                 TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
@@ -48,6 +62,14 @@ struct VocabularySettingsPane: View {
         for id in offsets.compactMap({ records[$0].id }) {
             actions.removeVocabulary(id: id)
         }
+        records = actions.listVocabulary()
+    }
+
+    private func removeSelected() {
+        for case let id? in selection {
+            actions.removeVocabulary(id: id)
+        }
+        selection.removeAll()
         records = actions.listVocabulary()
     }
 }

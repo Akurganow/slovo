@@ -17,6 +17,10 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(general.contains("option.displayName"))
         #expect(general.contains("actions.setTrigger("))
         #expect(general.contains("actions.setRecognitionLanguage("))
+        // Sensitivity: drop the launch-at-login Toggle's `onChange` wiring
+        // (`actions.setLaunchAtLogin(newValue)`) → this `#expect` goes RED,
+        // proving the "Open at login" control is no longer wired to the app.
+        #expect(general.contains("actions.setLaunchAtLogin("))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains("CleanupModelCatalog.options"))
@@ -43,6 +47,11 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(general.contains(".onAppear"))
         #expect(general.contains("trigger = config.trigger"))
         #expect(general.contains("language = config.language"))
+        // Sensitivity: delete the `.onAppear` re-seed assignment
+        // `launchAtLogin = actions.launchAtLoginEnabled()` → RED. That exact form
+        // appears nowhere else (`init` uses `_launchAtLogin = State(initialValue:)`),
+        // so the toggle would otherwise show a stale login-item state on reopen.
+        #expect(general.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains(".onAppear"))
@@ -58,6 +67,25 @@ struct SettingsSurfaceSourceGuardTests {
         // only reaches 3 once the `.onAppear` re-seed call is also present.
         let reseedCount = vocabulary.components(separatedBy: "records = actions.listVocabulary()").count - 1
         #expect(reseedCount >= 3)
+    }
+
+    /// Removal must be DISCOVERABLE: swipe / Delete (`.onDelete`) alone is not
+    /// findable, so the pane must also offer a visible remove control driven by a
+    /// row selection. This pins the native editable-list idiom — a selectable list
+    /// plus a remove button gated on the selection.
+    /// Stated sensitivity:
+    /// - drop `List(selection: $selection)` back to a plain `List {` → RED (rows
+    ///   are no longer selectable, so a selection-driven button cannot target them).
+    /// - remove the button's `action: removeSelected` wiring → RED (the visible
+    ///   control no longer deletes; only the hidden swipe path would remain).
+    /// - drop `.disabled(selection.isEmpty)` → RED (the button would no longer be
+    ///   gated on a non-empty selection, matching the Add button's disabled idiom).
+    @Test
+    func vocabularyPaneExposesVisibleRemoveControl() throws {
+        let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
+        #expect(vocabulary.contains("List(selection: $selection)"))
+        #expect(vocabulary.contains("action: removeSelected"))
+        #expect(vocabulary.contains(".disabled(selection.isEmpty)"))
     }
 
     /// The quick-add window's controller is cached, but the view it hosts must be

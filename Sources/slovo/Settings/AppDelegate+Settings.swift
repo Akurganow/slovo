@@ -1,4 +1,5 @@
 import AppKit
+import LaunchAtLogin
 import Settings
 import SlovoCore
 import SwiftUI
@@ -10,6 +11,12 @@ extension AppDelegate: SettingsActions {
 
     func hasOpenRouterKey() -> Bool {
         composition?.openRouterKeyProvider.hasConfiguredKey() ?? false
+    }
+
+    func launchAtLoginEnabled() -> Bool {
+        // A system-service (SMAppService) read, like hasOpenRouterKey()'s Keychain
+        // read: no pipeline rebuild, no ASR re-warm.
+        LaunchAtLogin.isEnabled
     }
 
     func setTrigger(_ trigger: HotkeyTrigger) {
@@ -46,6 +53,13 @@ extension AppDelegate: SettingsActions {
         // Live: persist + push to the running orchestrator, no rebuild — hint
         // gathering only, so the resident ASR model is never re-warmed.
         applySpellCheckHints(enabled)
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        // Registers/unregisters the login item via SMAppService; a pure system-
+        // service write like saveOpenRouterKey() — no pipeline rebuild, no ASR
+        // re-warm.
+        LaunchAtLogin.isEnabled = enabled
     }
 
     func saveOpenRouterKey(_ key: String) {

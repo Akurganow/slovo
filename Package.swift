@@ -28,6 +28,9 @@ let package = Package(
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.0"),
         .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
+        // Modern (SMAppService-based) launch-at-login, for macOS 13+. Consumed by
+        // the app target only — never SlovoCore, which must stay UI/login-free.
+        .package(url: "https://github.com/sindresorhus/LaunchAtLogin-Modern", from: "1.1.0"),
     ],
     targets: [
         // Objective-C interop shims that Swift cannot express live here — a
@@ -80,6 +83,7 @@ let package = Package(
             dependencies: [
                 "SlovoCore",
                 .product(name: "Settings", package: "Settings"),
+                .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
             ],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins

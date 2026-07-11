@@ -10,12 +10,16 @@ protocol SettingsActions: AnyObject {
     func currentConfig() -> Config
     /// Whether an OpenRouter key is present (attributes-only; never decrypts it).
     func hasOpenRouterKey() -> Bool
+    /// Whether Slovo is registered to open at login (reads the system login-item
+    /// service; like `hasOpenRouterKey()`, an attributes-only system read).
+    func launchAtLoginEnabled() -> Bool
 
     func setTrigger(_ trigger: HotkeyTrigger)
     func setRecognitionLanguage(_ language: Language)
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)
+    func setLaunchAtLogin(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)
 
     func listVocabulary() -> [VocabularyRecord]

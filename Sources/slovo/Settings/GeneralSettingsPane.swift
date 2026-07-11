@@ -10,12 +10,17 @@ struct GeneralSettingsPane: View {
     unowned let actions: any SettingsActions
     @State private var trigger: HotkeyTrigger
     @State private var language: Language
+    @State private var launchAtLogin: Bool
 
     init(actions: any SettingsActions) {
         self.actions = actions
         let config = actions.currentConfig()
         _trigger = State(initialValue: config.trigger)
         _language = State(initialValue: config.language)
+        // Seeded from the live login-item state, not persisted config: the system
+        // service is the source of truth, and the toggle defaults off until the
+        // user opts in.
+        _launchAtLogin = State(initialValue: actions.launchAtLoginEnabled())
     }
 
     var body: some View {
@@ -40,6 +45,10 @@ struct GeneralSettingsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Startup") {
+                Toggle("Open at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in actions.setLaunchAtLogin(newValue) }
+            }
         }
         .formStyle(.grouped)
         .frame(width: 420)
@@ -50,6 +59,9 @@ struct GeneralSettingsPane: View {
             let config = actions.currentConfig()
             trigger = config.trigger
             language = config.language
+            // The login item can be toggled off outside the app (System Settings),
+            // so re-read the live state rather than trust the cached value.
+            launchAtLogin = actions.launchAtLoginEnabled()
         }
     }
 }
