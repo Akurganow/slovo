@@ -69,17 +69,19 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(reseedCount >= 3)
     }
 
-    /// Removal must be DISCOVERABLE: swipe / Delete (`.onDelete`) alone is not
-    /// findable, so the pane must also offer a visible remove control driven by a
-    /// row selection. This pins the native editable-list idiom — a selectable list
-    /// plus a remove button gated on the selection.
-    /// Stated sensitivity:
+    /// Removal must be DISCOVERABLE through the native macOS editable-table idiom:
+    /// a selectable list with the bottom-left ＋ / － control, where － removes the
+    /// selected row(s). Swipe / Delete (`.onDelete`) alone is not findable, so this
+    /// pins the visible control — a selectable list plus a selection-gated minus
+    /// button wired to the removal action.
+    /// Stated sensitivity (each mutation reddens exactly its `#expect`, and the
+    /// three tokens appear nowhere else in the pane):
     /// - drop `List(selection: $selection)` back to a plain `List {` → RED (rows
-    ///   are no longer selectable, so a selection-driven button cannot target them).
-    /// - remove the button's `action: removeSelected` wiring → RED (the visible
-    ///   control no longer deletes; only the hidden swipe path would remain).
-    /// - drop `.disabled(selection.isEmpty)` → RED (the button would no longer be
-    ///   gated on a non-empty selection, matching the Add button's disabled idiom).
+    ///   are no longer selectable, so the ＋ / － control cannot target them).
+    /// - remove the minus button's `action: removeSelected` wiring → RED (the － is
+    ///   no longer wired to removal; only the hidden swipe path would remain).
+    /// - drop `.disabled(selection.isEmpty)` → RED (－ would no longer be gated on a
+    ///   non-empty selection, so it would offer to delete with nothing selected).
     @Test
     func vocabularyPaneExposesVisibleRemoveControl() throws {
         let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")

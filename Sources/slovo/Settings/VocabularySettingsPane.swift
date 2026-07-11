@@ -1,7 +1,8 @@
 import SwiftUI
 import SlovoCore
 
-/// Settings → Vocabulary: the table of stored terms with add and remove.
+/// Settings → Vocabulary: an editable table of stored terms with the native
+/// macOS ＋ / － control at the list's bottom-left (as in System Settings).
 @MainActor
 struct VocabularySettingsPane: View {
     // Unowned, not strong: AppDelegate (the only conformer) is an app-lifetime
@@ -14,41 +15,35 @@ struct VocabularySettingsPane: View {
     // rows and are dropped on removal.
     @State private var selection = Set<Int64?>()
     @State private var newTerms: String = ""
+    @State private var isAddingTerm = false
 
     init(actions: any SettingsActions) {
         self.actions = actions
         _records = State(initialValue: actions.listVocabulary())
     }
 
+    private var trimmedNewTerms: String {
+        newTerms.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 0) {
             List(selection: $selection) {
                 ForEach(records, id: \.id) { record in
                     Text(record.term)
                 }
                 .onDelete(perform: delete)
             }
-            HStack {
-                // Visible remove control — swipe / Delete (`.onDelete`) is not
-                // discoverable, so selection plus this button expose removal the
-                // native editable-list way.
-                Button(role: .destructive, action: removeSelected) {
-                    Label("Remove", systemImage: "trash")
-                }
-                .disabled(selection.isEmpty)
-                Spacer()
-            }
-            HStack {
-                TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
-                Button("Add") {
-                    let input = newTerms
-                    guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                    actions.addVocabulary(input)
-                    newTerms = ""
-                    records = actions.listVocabulary()
-                }
-                .disabled(newTerms.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            .listStyle(.plain)
+            Divider()
+            editBar
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            // A single faint frame around list + toolbar, so the two read as one
+            // editable table rather than a bare list with a detached button row.
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(.quaternary, lineWidth: 1)
         }
         .padding()
         .frame(width: 420, height: 360)
@@ -56,6 +51,59 @@ struct VocabularySettingsPane: View {
             // Same reason as the other panes: the window is cached, not recreated.
             records = actions.listVocabulary()
         }
+    }
+
+    // The bottom-left ＋ / － bar of a macOS editable table. Icon-only borderless
+    // buttons carry their meaning through accessibility labels, not visible text.
+    private var editBar: some View {
+        HStack(spacing: 2) {
+            Button(action: presentAddTerm) {
+                Image(systemName: "plus")
+                    .accessibilityLabel("Add term")
+            }
+            .popover(isPresented: $isAddingTerm, arrowEdge: .bottom) {
+                addTermPopover
+            }
+
+            Button(action: removeSelected) {
+                Image(systemName: "minus")
+                    .accessibilityLabel("Remove selected")
+            }
+            .disabled(selection.isEmpty)
+
+            Spacer()
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+    }
+
+    private var addTermPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Comma-separated bulk add is preserved: the seam splits the input.
+            TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
+                .frame(width: 240)
+            HStack {
+                Spacer()
+                Button("Add", action: addTerms)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(trimmedNewTerms.isEmpty)
+            }
+        }
+        .padding()
+    }
+
+    private func presentAddTerm() {
+        isAddingTerm = true
+    }
+
+    private func addTerms() {
+        guard !trimmedNewTerms.isEmpty else { return }
+        actions.addVocabulary(newTerms)
+        newTerms = ""
+        isAddingTerm = false
+        records = actions.listVocabulary()
     }
 
     private func delete(at offsets: IndexSet) {
