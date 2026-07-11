@@ -11,12 +11,49 @@ public enum AsrBackend: String, Codable, Equatable, Sendable {
     case whisperKit = "whisperkit"
 }
 
-/// The language a transcript or term is in. `auto` chooses the best supported
-/// system locale; it is not live per-utterance language detection.
-public enum Language: String, Codable, Equatable, Sendable {
-    case auto
-    case ru
-    case en
+/// The language a transcript or term is in, carried as a bare WhisperKit language
+/// code. `auto` chooses the best supported system locale and enables per-utterance
+/// detection; any other value pins one specific code (e.g. "ru", "ja").
+///
+/// String-backed rather than a fixed case list so the full WhisperKit catalog
+/// round-trips without this type enumerating languages — the supported set lives in
+/// `RecognitionLanguageCatalog`, sourced from WhisperKit itself.
+///
+/// - Important: `auto` is a SENTINEL, not a WhisperKit language code. Every
+///   language-consuming site (the engine's code mapping, config validation) must
+///   special-case it. Moving off the former enum traded compile-time exhaustiveness
+///   for an open code space, so that special-casing is now a convention this doc
+///   pins rather than a guarantee the compiler enforces.
+public struct Language: RawRepresentable, Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    /// The bare code, so interpolating a `Language` renders as its wire value
+    /// ("en", "auto") rather than a reflected struct description.
+    public var description: String { rawValue }
+
+    // Persisted as a single bare string ("auto", "ru", "ja"), matching the former
+    // String-enum wire so existing stored configs decode unchanged. Every string is
+    // accepted here; whether a value is an offered language is decided by
+    // `RecognitionLanguageCatalog`, not the wire decoder.
+    public init(from decoder: any Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+public extension Language {
+    /// Detect the language per utterance instead of pinning one code.
+    static let auto = Language(rawValue: "auto")
+    static let ru = Language(rawValue: "ru")
+    static let en = Language(rawValue: "en")
 }
 
 /// One personalization vocabulary row: a term the user dictates, an optional

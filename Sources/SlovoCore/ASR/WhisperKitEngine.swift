@@ -83,14 +83,12 @@ public final class WhisperKitEngine: ModelLoading, SpeechDecoding, @unchecked Se
     }
 }
 
-private extension Language {
-    /// The fixed language code passed to WhisperKit, or `nil` for `.auto` (which
-    /// pairs with `detectLanguage`).
+extension Language {
+    /// The language code passed to WhisperKit, or `nil` for the `.auto` sentinel
+    /// (which pairs with `detectLanguage` so mixed RU+EN keeps auto-detecting). Any
+    /// non-auto value is already a WhisperKit code. Internal, not private, so the
+    /// mapping is pinned by a `@testable` unit test without widening the public API.
     var whisperKitLanguageCode: String? {
-        switch self {
-        case .auto: nil
-        case .ru: "ru"
-        case .en: "en"
-        }
+        self == .auto ? nil : rawValue
     }
 }

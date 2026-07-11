@@ -69,6 +69,14 @@ public enum ConfigStore {
             guard !hasForbiddenProvider else {
                 return nil
             }
+
+            // Recognition language: "auto" or any code WhisperKit supports is valid;
+            // anything else rejects the whole config (fail closed), matching the
+            // mode/provider/trigger guards. The supported set is WhisperKit's own,
+            // read only through RecognitionLanguageCatalog.
+            guard language == .auto || RecognitionLanguageCatalog.isSupported(language.rawValue) else {
+                return nil
+            }
             // A cleanup model RETIRED from the catalog must fall back to the default,
             // not keep flowing to OpenRouter as a dead id: a stale route both surfaces
             // as a runtime apiError and (the incident behind this migration) let the

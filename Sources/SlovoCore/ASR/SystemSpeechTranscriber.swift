@@ -158,18 +158,15 @@ public actor SystemSpeechTranscriber: Transcriber {
 
     private static func locale(for language: Language) async throws -> Locale {
         let candidates: [Locale]
-        switch language {
-        case .auto:
+        if language == .auto {
             candidates = [
                 .autoupdatingCurrent,
                 .current,
                 Locale(identifier: "ru_RU"),
                 Locale(identifier: "en_US"),
             ]
-        case .ru:
-            candidates = [Locale(identifier: "ru_RU")]
-        case .en:
-            candidates = [Locale(identifier: "en_US")]
+        } else {
+            candidates = [Locale(identifier: language.rawValue)]
         }
 
         for candidate in candidates {

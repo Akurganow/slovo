@@ -30,11 +30,15 @@ struct GeneralSettingsPane: View {
             }
             Section("Recognition language") {
                 Picker("Language", selection: $language) {
-                    Text("Automatic").tag(Language.auto)
-                    Text("Russian").tag(Language.ru)
-                    Text("English").tag(Language.en)
+                    Text("Auto").tag(Language.auto)
+                    ForEach(RecognitionLanguageCatalog.options) { option in
+                        Text(option.displayName).tag(Language(rawValue: option.code))
+                    }
                 }
                 .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
+                Text("Auto detects the language and handles mixed Russian + English speech best.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
