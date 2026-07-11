@@ -13,6 +13,7 @@ text is sent for model-routed text cleanup.
 [![License: GPL v3](https://img.shields.io/github/license/Akurganow/slovo)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-blue)
 ![Swift](https://img.shields.io/badge/swift-6.3-orange)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/akurganow)
 
 This is an early release: the app is usable and ships as a Developer ID
 signed, notarized DMG, but recognition and cleanup quality are still being
@@ -215,6 +216,13 @@ key.
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes
 small, run `Scripts/diagnose.sh`, do not commit secrets or local
 personalization data, and document behavior changes in English.
+
+## Support
+
+Slovo is free, open source, and has no telemetry or paid tier. If it's useful
+to you, [support development on Ko-fi](https://ko-fi.com/akurganow) — it goes
+toward the Apple Developer Program membership and test hardware that keep
+releases signed and notarized.
 
 ## Security
 
