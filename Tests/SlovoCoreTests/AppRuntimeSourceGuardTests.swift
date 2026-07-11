@@ -58,8 +58,6 @@ struct AppRuntimeSourceGuardTests {
         ], in: startPipelineBody))
         #expect(hotkeyMenuBody.contains("Request Input Monitoring Access"))
         #expect(hotkeyMenuBody.contains("#selector(openInputMonitoringSettings)"))
-        #expect(delegate.contains("showHotkeyRecoveryAlertIfNeeded"))
-        #expect(delegate.contains("Slovo could not start the hold-to-talk hotkey."))
         #expect(delegate.contains("NSMenuDelegate"))
         #expect(delegate.contains("menu.delegate = self"))
         #expect(delegate.contains("func menuNeedsUpdate(_ menu: NSMenu)"))
@@ -111,18 +109,16 @@ struct AppRuntimeSourceGuardTests {
 
     @Test
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
-        let menuBody = try Self.functionBody(named: "makeMenu", in: delegate)
+        let menuBuilder = try Self.code("Sources/slovo/DictationMenuBuilder.swift")
         let modelMenuBody = try Self.functionBody(named: "modelMenu", in: cleanupMenu)
         let selectCleanupModelBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
 
-        #expect(menuBody.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName"#))
-        #expect(menuBody.contains("selectedModel: config.openRouterModel"))
+        #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
+        #expect(menuBuilder.contains("selectedModel: modelId"))
         #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
-        #expect(modelMenuBody.contains(#"actionItem("Custom Model...", #selector(promptForCustomCleanupModel))"#))
         #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))
         #expect(selectCleanupModelBody.contains("applyCleanupModel(option.id)"))
     }
@@ -140,11 +136,9 @@ struct AppRuntimeSourceGuardTests {
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
         let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
         let selectBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
-        let customBody = try Self.functionBody(named: "promptForCustomCleanupModel", in: cleanupMenu)
         let applyBody = try Self.functionBody(named: "applyCleanupModel", in: delegate)
 
         #expect(selectBody.contains("applyCleanupModel(option.id)"))
-        #expect(customBody.contains("applyCleanupModel("))
 
         for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
             #expect(!applyBody.contains(forbidden),

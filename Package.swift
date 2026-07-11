@@ -27,6 +27,7 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.0"),
+        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
     ],
     targets: [
         // Objective-C interop shims that Swift cannot express live here — a
@@ -76,7 +77,10 @@ let package = Package(
         // Application entrypoint and AppKit composition owner.
         .executableTarget(
             name: "slovo",
-            dependencies: ["SlovoCore"],
+            dependencies: [
+                "SlovoCore",
+                .product(name: "Settings", package: "Settings"),
+            ],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

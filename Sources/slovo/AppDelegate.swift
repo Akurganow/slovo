@@ -1,16 +1,17 @@
 import AppKit
+import Settings
 import SlovoCore
 import os
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private static let hotkeyAlertShownKey = "hotkey.alert.shown"
-
     let logger: Logger
     let defaults: UserDefaults
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
+    var settingsWindowController: SettingsWindowController?
+    private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
     private var didShowPipelineStatus = false
     var isPipelineActive = false
     var isShowingSadToFailStatus = false
@@ -35,40 +36,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         logger.info("menu bar app ready")
     }
 
-    // Internal (not private) so the AppDelegate+HotkeyMenu extension can rebuild
-    // the menu after a live trigger change, mirroring applyCleanupModel.
-    func makeMenu() -> NSMenu {
+    private func makeMenu() -> NSMenu {
         let config = ConfigStore.load(from: defaults)
-        let menu = NSMenu()
-        let title = NSMenuItem(title: "Slovo", action: nil, keyEquivalent: "")
-        title.isEnabled = false
-        menu.addItem(title)
-        let status = NSMenuItem(title: "Status: Idle", action: nil, keyEquivalent: "")
-        status.isEnabled = false
-        menu.addItem(status)
-        statusTextItem = status
-        let hint = NSMenuItem(title: "Hold \(config.trigger.displayName) to talk", action: nil, keyEquivalent: "")
-        hint.isEnabled = false
-        menu.addItem(hint)
-        menu.addItem(.separator())
-        menu.addItem(modelMenu(
-            title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: config.openRouterModel))",
-            selectedModel: config.openRouterModel
-        ))
-        menu.addItem(triggerMenu(
-            title: "Push-to-Talk Key: \(config.trigger.displayName)",
-            selectedTrigger: config.trigger
-        ))
-        menu.addItem(.separator())
-        menu.addItem(actionItem("Update OpenRouter Key", #selector(enterOpenRouterKey)))
-        menu.addItem(actionItem("Add Vocabulary...", #selector(promptForVocabularyTerms)))
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(
-            title: "Quit Slovo",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        ))
-        return menu
+        let built = DictationMenuBuilder(target: self).make(
+            trigger: config.trigger,
+            selectedModelId: config.openRouterModel
+        )
+        statusTextItem = built.statusItem
+        return built.menu
     }
 
     private func startPipeline() {
@@ -119,7 +94,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             do {
                 try live.hotkeyMonitor.start()
-                defaults.removeObject(forKey: Self.hotkeyAlertShownKey)
                 logger.info("production composition started")
             } catch {
                 presentHotkeyRecovery()
@@ -175,7 +149,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func presentHotkeyRecovery() {
         statusTextItem?.title = "Status: Hotkey Setup Required"
         statusItem?.menu = makeHotkeyRecoveryMenu()
-        showHotkeyRecoveryAlertIfNeeded()
     }
 
     private func makeHotkeyRecoveryMenu() -> NSMenu {
@@ -257,24 +230,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc
-    private func enterOpenRouterKey() {
-        promptForOpenRouterKey()
+    func showVocabularyQuickAdd() {
+        if vocabularyQuickAddWindow == nil {
+            vocabularyQuickAddWindow = VocabularyQuickAddWindow(onAdd: { [weak self] terms in
+                self?.addVocabulary(terms)
+            })
+        }
+        vocabularyQuickAddWindow?.show()
     }
 
+    // Internal (not private) so the AppDelegate+Settings extension can call it
+    // for the honest ASR rebuild on a recognition-language change.
     @objc
-    private func retrySetup() {
+    func retrySetup() {
         // A rebuild is asynchronous (it joins the previous edge consumer first); a
         // second retry arriving before it finishes must not spawn a parallel
         // teardown+rebuild that could leave a mismatched sequencer and composition.
         guard !isRebuildingPipeline else { return }
         isRebuildingPipeline = true
         composition?.hotkeyMonitor.stop()
-        statusItem?.menu = makeMenu()
+        installStatusMenu()
         // Join the previous edge consumer before a new one is built, so a rebuilt
         // monitor cannot leave two consumers double-handling the same fn edges.
         let previousSequencer = hotkeyEdgeSequencer
         Task { @MainActor in
             await previousSequencer?.stop()
+            // startPipeline() through isRebuildingPipeline = false must stay synchronous: an
+            // await here could let a rapid language change persist to Config after the read
+            // yet drop its own retry via the guard above, pinning a stale language.
             startPipeline()
             isRebuildingPipeline = false
         }
@@ -299,52 +282,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func showHotkeyRecoveryAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Slovo could not start the hold-to-talk hotkey."
-        alert.informativeText = "Input Monitoring may be required for the fn hotkey on this macOS version."
-        alert.addButton(withTitle: "Open Input Monitoring")
-        alert.addButton(withTitle: "Later")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        Task { @MainActor in
-            await requestPermission(.inputMonitoring, fallbackPane: "Privacy_ListenEvent")
-        }
-    }
-
-    private func showHotkeyRecoveryAlertIfNeeded() {
-        guard !defaults.bool(forKey: Self.hotkeyAlertShownKey) else { return }
-        defaults.set(true, forKey: Self.hotkeyAlertShownKey)
-        showHotkeyRecoveryAlert()
-    }
-
-    private func promptForOpenRouterKey() {
-        promptForAPIKey(
-            title: "Enter OpenRouter API key",
-            save: { [weak self] key in
-                guard let provider = self?.composition?.openRouterKeyProvider else { return }
-                try provider.store(key)
-            }
-        )
-    }
-
-    private func promptForAPIKey(
-        title: String,
-        save: (String) throws -> Void
-    ) {
-        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = "The key is stored in Keychain."
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        do {
-            try save(field.stringValue)
-            retrySetup()
-        } catch {
-            logger.error("openrouter key save failed")
-        }
+    /// Rebuilds and reinstalls the status-bar dropdown, re-capturing the live
+    /// status item. Called after a settings change that alters a menu-visible value
+    /// (the hotkey hint or the selected cleanup model).
+    func installStatusMenu() {
+        statusItem?.menu = makeMenu()
     }
 
     /// Persists a cleanup-model change and applies it to the NEXT dictation live.
@@ -361,7 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             logger.error("config save failed")
             return
         }
-        statusItem?.menu = makeMenu()
+        installStatusMenu()
         let cleanupConfig = config.cleanupConfig
         Task { @MainActor in
             await composition?.orchestrator.updateCleanupConfig(cleanupConfig)

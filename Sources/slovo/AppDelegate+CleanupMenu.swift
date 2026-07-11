@@ -12,8 +12,6 @@ extension AppDelegate {
             item.state = option.id == selectedModel ? .on : .off
             menu.addItem(item)
         }
-        menu.addItem(.separator())
-        menu.addItem(actionItem("Custom Model...", #selector(promptForCustomCleanupModel)))
         parent.submenu = menu
         return parent
     }
@@ -22,44 +20,5 @@ extension AppDelegate {
     func selectCleanupModel(_ sender: NSMenuItem) {
         guard let option = sender.representedObject as? CleanupModelOption else { return }
         applyCleanupModel(option.id)
-    }
-
-    @objc
-    func promptForVocabularyTerms() {
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
-        field.placeholderString = "GitHub, OAuth, PostgreSQL"
-        let alert = NSAlert()
-        alert.messageText = "Add vocabulary terms"
-        alert.informativeText = "Comma-separated terms that cleanup must preserve verbatim."
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-        let records = VocabularyQuickAdd.records(from: field.stringValue)
-        guard !records.isEmpty else { return }
-        do {
-            // No pipeline rebuild: vocabulary is re-read from the store at the
-            // start of every dictation, so new terms apply on the next one.
-            try composition?.personalization.addVocabulary(records)
-        } catch {
-            logger.error("vocabulary add failed")
-        }
-    }
-
-    @objc
-    func promptForCustomCleanupModel() {
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
-        field.placeholderString = Config.defaultOpenRouterModel
-        let alert = NSAlert()
-        alert.messageText = "Enter OpenRouter model id"
-        alert.informativeText = "The model id is saved in Slovo preferences."
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-        let model = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        applyCleanupModel(model)
     }
 }

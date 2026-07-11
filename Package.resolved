@@ -1,5 +1,5 @@
 {
-  "originHash" : "1d5c74b5d18cb6711a0e6953ed138d2506ac7aabba649b961815bf0fcdf38a3d",
+  "originHash" : "e85519ea61c78c673bd31948e1b2c0ffda66b121a8bee5fcb6188fd86f054734",
   "pins" : [
     {
       "identity" : "argmax-oss-swift",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "b83108d10f42680d78f23fe4d4d80fc88dab3212",
         "version" : "7.11.1"
+      }
+    },
+    {
+      "identity" : "settings",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/Settings",
+      "state" : {
+        "revision" : "f41475771f65379ca10852c95119a7f53f0de5a5",
+        "version" : "3.1.2"
       }
     },
     {

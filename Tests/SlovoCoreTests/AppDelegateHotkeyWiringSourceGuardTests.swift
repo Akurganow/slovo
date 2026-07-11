@@ -168,18 +168,6 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
     }
 
-    /// The dropdown must offer the push-to-talk key picker and the dynamic hint
-    /// line. Killing mutation: remove the picker submenu or the hint → RED.
-    @Test
-    func menuOffersPushToTalkKeyPickerAndHint() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
-        #expect(makeMenu.contains("triggerMenu("),
-                "the dropdown must include the push-to-talk key picker submenu")
-        #expect(Self.containsInOrder(["Hold ", "to talk"], in: makeMenu),
-                "the dropdown must show the dynamic Hold <key> to talk hint")
-    }
-
     /// A key change applies live via reconfigure, NOT a pipeline rebuild — no ASR
     /// re-warm, no loading pulse (the applyCleanupModel principle). Killing
     /// mutation: route applyTrigger through retrySetup/startPipeline (a rebuild) →
