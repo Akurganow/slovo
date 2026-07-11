@@ -41,8 +41,8 @@ tuned.
   processing states, plus a monochrome app icon that follows the system
   theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
-  push-to-talk key, recognition language, cleanup model and style, API key,
-  and vocabulary.
+  push-to-talk key, recognition language, launch at login, cleanup model and
+  style, API key, and vocabulary.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements

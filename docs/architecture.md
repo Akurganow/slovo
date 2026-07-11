@@ -74,7 +74,8 @@ are never committed.
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
 an `NSStatusItem` for status, cleanup model selection, vocabulary quick-add,
 first-run setup actions, a **Settings…** window (push-to-talk key, recognition
-language, cleanup model and style, OpenRouter key, and vocabulary), and quit.
+language, launch at login, cleanup model and style, OpenRouter key, and
+vocabulary), and quit.
 All configuration is native windows — there are no modal alerts.
 
 ## Build Boundaries

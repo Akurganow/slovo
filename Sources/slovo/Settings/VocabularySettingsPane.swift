@@ -56,9 +56,14 @@ struct VocabularySettingsPane: View {
     // The bottom-left ＋ / － bar of a macOS editable table. Icon-only borderless
     // buttons carry their meaning through accessibility labels, not visible text.
     private var editBar: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             Button(action: presentAddTerm) {
+                // A fixed frame + rectangular content shape make the whole cell
+                // clickable, not just the glyph's pixels — otherwise the hit target
+                // collapses to the icon and clicks feel like they keep missing.
                 Image(systemName: "plus")
+                    .frame(width: 26, height: 22)
+                    .contentShape(Rectangle())
                     .accessibilityLabel("Add term")
             }
             .popover(isPresented: $isAddingTerm, arrowEdge: .bottom) {
@@ -67,6 +72,8 @@ struct VocabularySettingsPane: View {
 
             Button(action: removeSelected) {
                 Image(systemName: "minus")
+                    .frame(width: 26, height: 22)
+                    .contentShape(Rectangle())
                     .accessibilityLabel("Remove selected")
             }
             .disabled(selection.isEmpty)
@@ -74,9 +81,8 @@ struct VocabularySettingsPane: View {
             Spacer()
         }
         .buttonStyle(.borderless)
-        .controlSize(.small)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 
     private var addTermPopover: some View {

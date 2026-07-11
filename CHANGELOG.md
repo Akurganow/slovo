@@ -7,6 +7,17 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-11
+
+### Added
+
+- **Open at login** — a toggle in Settings → General starts Slovo automatically
+  when you sign in (off by default), using the system login-item mechanism
+  (`SMAppService`).
+- Vocabulary editing in Settings → Vocabulary now has the native macOS ＋ / －
+  controls below the list: select a term and click － to remove it, or click ＋
+  to add terms. Swipe-to-delete and the Delete key still work.
+
 ## [0.5.0] - 2026-07-11
 
 ### Added
