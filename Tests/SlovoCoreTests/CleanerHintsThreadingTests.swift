@@ -7,7 +7,7 @@ import SlovoTestSupport
 @Suite("Cleaner hint threading")
 struct CleanerHintsThreadingTests {
     private static var config: CleanupConfig {
-        CleanupConfig(model: "openai/gpt-5.4-nano", writingStyle: .casual, language: .auto)
+        CleanupConfig(model: "openai/gpt-5.6-luna", writingStyle: .casual, language: .auto)
     }
 
     private static var context: PersonalizationContext {

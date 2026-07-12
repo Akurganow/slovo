@@ -189,7 +189,7 @@ struct OrchestratorTests {
               "cleanup": {
                 "enabled": false,
                 "provider": "openrouter",
-                "openRouterModel": "openai/gpt-5.4-nano",
+                "openRouterModel": "openai/gpt-5.6-luna",
                 "writingStyle": "formal"
               }
             }
@@ -205,7 +205,7 @@ struct OrchestratorTests {
                 "legacy disabled config must still compose upstream cleanup before PassThrough; got \(summary.fallbackChainKinds)")
         #expect(cleaner.calls.count == 1,
                 "cleanup must be attempted even when persisted legacy config says enabled=false; got \(cleaner.calls.count) calls")
-        #expect(cleaner.calls.last?.config.model == "openai/gpt-5.4-nano")
+        #expect(cleaner.calls.last?.config.model == "openai/gpt-5.6-luna")
         #expect(injector.calls.last == "HI",
                 "successful cleanup must inject cleaned text, not preserve a user-disabled raw path; got \(String(describing: injector.calls.last))")
     }

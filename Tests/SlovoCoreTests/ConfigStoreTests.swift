@@ -149,14 +149,14 @@ struct ConfigStoreTests {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
                 cleanupProvider: "openrouter",
-                openRouterModel: "openai/gpt-5.4-nano"
+                openRouterModel: "openai/gpt-5.6-luna"
             ),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.openRouterModel == "openai/gpt-5.4-nano")
-        #expect(config.cleanupConfig.model == "openai/gpt-5.4-nano")
+        #expect(config.openRouterModel == "openai/gpt-5.6-luna")
+        #expect(config.cleanupConfig.model == "openai/gpt-5.6-luna")
     }
 
     /// Stated sensitivity: require the provider field unconditionally -> a
@@ -166,14 +166,14 @@ struct ConfigStoreTests {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
                 legacyEnabledField: false,
-                openRouterModel: "openai/gpt-5.4-nano"
+                openRouterModel: "openai/gpt-5.6-luna"
             ),
         ])
 
         let config = ConfigStore.load(from: defaults)
 
-        #expect(config.openRouterModel == "openai/gpt-5.4-nano")
-        #expect(config.cleanupConfig.model == "openai/gpt-5.4-nano")
+        #expect(config.openRouterModel == "openai/gpt-5.6-luna")
+        #expect(config.cleanupConfig.model == "openai/gpt-5.6-luna")
     }
 
     /// Stated sensitivity: accept an unknown cleanup provider as active or as a
@@ -252,7 +252,7 @@ struct ConfigStoreTests {
                 asrModel: "large-v3-v20240930_turbo_632MB",
                 legacyEnabledField: false,
                 cleanupProvider: "openrouter",
-                openRouterModel: "openai/gpt-5.4-nano",
+                openRouterModel: "openai/gpt-5.6-luna",
                 writingStyle: "formal"
             ),
         ])
@@ -262,7 +262,7 @@ struct ConfigStoreTests {
             keepWarmSeconds: 45,
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
-            openRouterModel: "openai/gpt-5.4-nano",
+            openRouterModel: "openai/gpt-5.6-luna",
             writingStyle: .formal
         ))
     }
@@ -321,7 +321,7 @@ struct ConfigStoreTests {
             keepWarmSeconds: 90,
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
-            openRouterModel: "openai/gpt-5.4-nano"
+            openRouterModel: "openai/gpt-5.6-luna"
         )
 
         try ConfigStore.save(config, to: defaults)

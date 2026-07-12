@@ -12,13 +12,13 @@ struct DictationMenuTests {
     /// → RED.
     @Test
     func itemsAppearInSpecOrder() {
-        let items = DictationMenu.items(trigger: .fn, selectedModelId: "openai/gpt-5.4-nano")
+        let items = DictationMenu.items(trigger: .fn, selectedModelId: "openai/gpt-5.6-luna")
         #expect(items == [
             .title("Slovo"),
             .status("Idle"),
             .hotkeyHint("Hold fn to talk"),
             .separator,
-            .cleanupModel(selectedModelId: "openai/gpt-5.4-nano"),
+            .cleanupModel(selectedModelId: "openai/gpt-5.6-luna"),
             .addVocabulary,
             .separator,
             .settings,

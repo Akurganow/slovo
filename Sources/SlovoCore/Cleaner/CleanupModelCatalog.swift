@@ -22,7 +22,7 @@ public enum CleanupModelCatalog {
     private static let openRouterOptions: [CleanupModelOption] = [
         CleanupModelOption(
             id: Config.defaultOpenRouterModel,
-            displayName: "GPT-5.4 nano"
+            displayName: "GPT-5.6 Luna"
         ),
         CleanupModelOption(
             id: "anthropic/claude-haiku-4.5",
@@ -43,6 +43,10 @@ public enum CleanupModelCatalog {
         CleanupModelOption(
             id: "mistralai/mistral-small-2603",
             displayName: "Mistral Small 4"
+        ),
+        CleanupModelOption(
+            id: "minimax/minimax-m3",
+            displayName: "MiniMax M3"
         ),
     ]
 }

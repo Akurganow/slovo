@@ -77,13 +77,11 @@ public enum ConfigStore {
             guard language == .auto || RecognitionLanguageCatalog.isSupported(language.rawValue) else {
                 return nil
             }
-            // A cleanup model RETIRED from the catalog must fall back to the default,
-            // not keep flowing to OpenRouter as a dead id: a stale route both surfaces
-            // as a runtime apiError and (the incident behind this migration) let the
-            // provider return a fabricated reply. Only KNOWN-retired ids migrate —
-            // user-chosen custom ids still round-trip untouched.
             let storedOpenRouterModel = cleanup.openRouterModel ?? Config.defaultOpenRouterModel
+            let isFormerDefault = cleanup.modelCatalogVersion == nil
+                && storedOpenRouterModel == ConfigStore.formerDefaultOpenRouterModel
             let openRouterModel = ConfigStore.retiredOpenRouterModels.contains(storedOpenRouterModel)
+                || isFormerDefault
                 ? Config.defaultOpenRouterModel
                 : storedOpenRouterModel
 
@@ -114,7 +112,8 @@ public enum ConfigStore {
                 provider: nil,
                 openRouterModel: config.openRouterModel,
                 writingStyle: config.writingStyle,
-                useSpellCheckHints: config.useSpellCheckHints
+                useSpellCheckHints: config.useSpellCheckHints,
+                modelCatalogVersion: ConfigStore.currentModelCatalogVersion
             )
         }
     }
@@ -124,10 +123,9 @@ public enum ConfigStore {
     private static let legacyAppleSpeechBackend = "speechtranscriber"
     private static let legacyAppleSpeechModel = "system-dictation"
 
-    /// Cleanup model ids removed from `CleanupModelCatalog`; a persisted config on
-    /// one of these migrates to the default on load instead of sending a dead id to
-    /// OpenRouter. Retired-id-specific on purpose so custom user ids round-trip.
     private static let retiredOpenRouterModels: Set<String> = ["google/gemini-2.5-flash-lite"]
+    private static let formerDefaultOpenRouterModel = "openai/gpt-5.4-nano"
+    private static let currentModelCatalogVersion = 1
 
     private struct StoredAsr: Codable {
         let backend: AsrBackend
@@ -188,6 +186,9 @@ public enum ConfigStore {
         // An absent wire field defaults to `true` at decode, so existing installs
         // keep spell-check hints on (backward compatible, no migration).
         let useSpellCheckHints: Bool
+        /// Distinguishes a pre-0.7 default from the same id explicitly saved as a
+        /// custom model after the default changed.
+        let modelCatalogVersion: Int?
 
         private enum CodingKeys: String, CodingKey {
             case enabled
@@ -195,13 +196,21 @@ public enum ConfigStore {
             case openRouterModel
             case writingStyle
             case useSpellCheckHints
+            case modelCatalogVersion
         }
 
-        init(provider: String?, openRouterModel: String?, writingStyle: WritingStyle, useSpellCheckHints: Bool) {
+        init(
+            provider: String?,
+            openRouterModel: String?,
+            writingStyle: WritingStyle,
+            useSpellCheckHints: Bool,
+            modelCatalogVersion: Int? = nil
+        ) {
             self.provider = provider
             self.openRouterModel = openRouterModel
             self.writingStyle = writingStyle
             self.useSpellCheckHints = useSpellCheckHints
+            self.modelCatalogVersion = modelCatalogVersion
         }
 
         init(from decoder: Decoder) throws {
@@ -211,6 +220,7 @@ public enum ConfigStore {
             openRouterModel = try container.decodeIfPresent(String.self, forKey: .openRouterModel)
             writingStyle = try container.decode(WritingStyle.self, forKey: .writingStyle)
             useSpellCheckHints = try container.decodeIfPresent(Bool.self, forKey: .useSpellCheckHints) ?? true
+            modelCatalogVersion = try container.decodeIfPresent(Int.self, forKey: .modelCatalogVersion)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -220,6 +230,7 @@ public enum ConfigStore {
             try container.encodeIfPresent(openRouterModel, forKey: .openRouterModel)
             try container.encode(writingStyle, forKey: .writingStyle)
             try container.encode(useSpellCheckHints, forKey: .useSpellCheckHints)
+            try container.encodeIfPresent(modelCatalogVersion, forKey: .modelCatalogVersion)
         }
     }
 

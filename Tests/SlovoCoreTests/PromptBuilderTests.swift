@@ -22,7 +22,7 @@ struct PromptBuilderTests {
         ]
         let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
             raw: "hello",
-            config: CleanupConfig(model: "openai/gpt-5.4-nano", writingStyle: .formal, language: .auto),
+            config: CleanupConfig(model: "openai/gpt-5.6-luna", writingStyle: .formal, language: .auto),
             context: PersonalizationContext(vocabulary: vocabulary)
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n")

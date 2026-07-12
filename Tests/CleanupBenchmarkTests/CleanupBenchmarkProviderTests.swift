@@ -31,11 +31,11 @@ struct CleanupBenchmarkProviderTests {
     @Test
     func providerSpecParserPinsOpenRouterModelSelection() throws {
         let specs = try CleanupBenchmarkProviderSpec.parseList(
-            "openrouter:openai/gpt-5.4-nano,passthrough"
+            "openrouter:openai/gpt-5.6-luna,passthrough"
         )
 
         #expect(specs == [
-            CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.4-nano"),
+            CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
             CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"),
         ])
         for forbidden in [
@@ -62,7 +62,7 @@ struct CleanupBenchmarkProviderTests {
         ]
 
         let openRouter = try CleanupBenchmarkCandidateFactory.makeCandidate(
-            for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.4-nano"),
+            for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
             environment: environment
         )
         let passThrough = try CleanupBenchmarkCandidateFactory.makeCandidate(
@@ -74,7 +74,7 @@ struct CleanupBenchmarkProviderTests {
         #expect(passThrough.cleaner is PassThrough)
         #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("OPENROUTER_API_KEY")) {
             _ = try CleanupBenchmarkCandidateFactory.makeCandidate(
-                for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.4-nano"),
+                for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
                 environment: [:]
             )
         }

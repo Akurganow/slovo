@@ -7,6 +7,17 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-12
+
+### Changed
+
+- GPT-5.6 Luna replaces GPT-5.4 nano as the default cleanup model. Existing
+  selections of the retired GPT-5.4 nano catalog entry migrate to the new
+  default; custom OpenRouter model ids remain unchanged.
+- MiniMax M3 is now available as an additional curated cleanup model.
+- The cleanup benchmark reference includes fresh 10-repetition measurements
+  for GPT-5.6 Luna and MiniMax M3 over the 31-sample suite.
+
 ## [0.6.0] - 2026-07-11
 
 ### Added

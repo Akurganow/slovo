@@ -14,7 +14,7 @@ struct OpenRouterCleanerTests {
     private static let sentinelKey = "S3NT1NEL-OPENROUTER-KEY-18e7-DO-NOT-LOG"
 
     private static var config: CleanupConfig {
-        CleanupConfig(model: "openai/gpt-5.4-nano", writingStyle: .casual, language: .auto)
+        CleanupConfig(model: "openai/gpt-5.6-luna", writingStyle: .casual, language: .auto)
     }
 
     private static var context: PersonalizationContext {
@@ -55,7 +55,7 @@ struct OpenRouterCleanerTests {
         #expect(request.timeoutInterval == 30)
 
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        #expect(json["model"] as? String == "openai/gpt-5.4-nano")
+        #expect(json["model"] as? String == "openai/gpt-5.6-luna")
         #expect(json["temperature"] as? Double == 0)
         #expect(json["max_tokens"] as? Int == 1_024)
         let reasoning = try #require(

@@ -22,12 +22,13 @@ struct CleanupModelCatalogTests {
         let ids = CleanupModelCatalog.options.map(\.id)
 
         #expect(ids == [
-            "openai/gpt-5.4-nano",
+            "openai/gpt-5.6-luna",
             "anthropic/claude-haiku-4.5",
             "google/gemini-3.1-flash-lite",
             "qwen/qwen3.6-flash",
             "deepseek/deepseek-v4-flash",
             "mistralai/mistral-small-2603",
+            "minimax/minimax-m3",
         ])
         #expect(!ids.contains("google/gemini-2.5-flash-lite"),
                 "the retired Gemini id must be gone; a stale id would surface as a runtime OpenRouter apiError")
@@ -51,12 +52,13 @@ struct CleanupModelCatalogTests {
             "qwen/qwen3.6-flash",
             "deepseek/deepseek-v4-flash",
             "mistralai/mistral-small-2603",
+            "minimax/minimax-m3",
         ] {
             let name = CleanupModelCatalog.displayName(for: id)
             #expect(!name.isEmpty && name != id,
                     "\(id) must carry a curated display name in the existing style; got \(name)")
         }
-        #expect(CleanupModelCatalog.displayName(for: "openai/gpt-5.4-nano") == "GPT-5.4 nano")
+        #expect(CleanupModelCatalog.displayName(for: "openai/gpt-5.6-luna") == "GPT-5.6 Luna")
         #expect(CleanupModelCatalog.displayName(for: "anthropic/claude-haiku-4.5") == "Claude Haiku 4.5")
     }
 }

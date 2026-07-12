@@ -10,10 +10,10 @@ import SlovoTestSupport
 @Suite("ConfigStore cleanup-model migration")
 struct ConfigStoreCatalogMigrationTests {
 
-    /// A persisted cleanup model that has been RETIRED from the catalog (here the
-    /// removed google/gemini-2.5-flash-lite) must MIGRATE to the catalog default on
-    /// load — otherwise the stale id keeps flowing to OpenRouter and surfaces as a
-    /// runtime apiError. This is a SPECIFIC stale-id migration, NOT a catch-all:
+    /// A persisted cleanup model that has been RETIRED from the catalog must
+    /// MIGRATE to the catalog default on load — otherwise the stale id keeps
+    /// flowing to OpenRouter and surfaces as a runtime apiError. This is a SPECIFIC
+    /// stale-id migration, NOT a catch-all:
     /// user-chosen custom ids must still survive load unchanged (already guarded by
     /// ConfigStoreTests.saveRoundTripsOpenRouterModelWithoutProviderField), so the
     /// fix must migrate only known-retired ids, never every non-catalog id.
@@ -24,7 +24,7 @@ struct ConfigStoreCatalogMigrationTests {
     /// only openRouterModel == default would false-green on a broken reject-to-
     /// defaults path.
     /// Stated sensitivity: keep the stored openRouterModel verbatim (no migration) →
-    /// config.openRouterModel is the retired gemini id, not the default → RED.
+    /// config.openRouterModel is the retired id, not the default → RED.
     @Test
     func retiredCleanupModelMigratesToCatalogDefault() throws {
         let defaults = FakeUserDefaults(dataByKey: [
@@ -47,5 +47,28 @@ struct ConfigStoreCatalogMigrationTests {
         #expect(config.writingStyle == .formal)
         #expect(config.keepWarmSeconds == 45)
         #expect(config != .defaults)
+    }
+
+    @Test
+    func formerDefaultMigratesFromLegacyCatalog() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                cleanupProvider: "openrouter",
+                openRouterModel: "openai/gpt-5.4-nano"
+            ),
+        ])
+
+        #expect(ConfigStore.load(from: defaults).openRouterModel == Config.defaultOpenRouterModel)
+    }
+
+    @Test
+    func savedFormerDefaultRoundTripsAsCustomModel() throws {
+        let defaults = FakeUserDefaults()
+        var config = Config.defaults
+        config.openRouterModel = "openai/gpt-5.4-nano"
+
+        try ConfigStore.save(config, to: defaults)
+
+        #expect(ConfigStore.load(from: defaults).openRouterModel == "openai/gpt-5.4-nano")
     }
 }
