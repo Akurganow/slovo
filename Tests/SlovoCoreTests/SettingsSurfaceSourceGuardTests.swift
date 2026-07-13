@@ -106,13 +106,13 @@ struct SettingsSurfaceSourceGuardTests {
 
     /// The quick-add field must become the window's initial keyboard target so the
     /// user can type immediately after opening it from the menu.
-    /// Stated sensitivity: remove either the field's focus binding or its
-    /// `defaultFocus` request → the corresponding expectation goes RED, and the
-    /// field is no longer selected automatically when the window appears.
+    /// Stated sensitivity: remove either modifier, or move `.focused` from this
+    /// TextField to Cancel → the corresponding expectation goes RED.
     @Test
     func quickAddWindowFocusesTheTermFieldByDefault() throws {
         let source = try Self.strippedCode("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains(".focused($isTermsFieldFocused)"))
+        let focusedTermField = #"TextField\("GitHub, OAuth, PostgreSQL",\s*text:\s*\$terms\)\s*\.focused\(\$isTermsFieldFocused\)"#
+        #expect(source.range(of: focusedTermField, options: .regularExpression) != nil)
         #expect(source.contains(".defaultFocus($isTermsFieldFocused, true)"))
     }
 

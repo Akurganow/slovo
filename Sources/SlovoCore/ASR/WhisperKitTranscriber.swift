@@ -3,16 +3,16 @@ import Foundation
 /// The streaming WhisperKit dictation session (one session at a time) behind the
 /// `Transcriber` seam.
 ///
-/// `begin` (key-down) loads the model and encodes the bias prompt; `feed`
-/// converts and accumulates each live chunk during the hold; `finish` (key-up)
-/// decodes the accumulation exactly once and returns the trimmed transcript;
-/// `cancel` tears the session down without decoding. It builds and owns its
+/// `begin` (key-down) loads the model and starts native streaming recognition;
+/// `feed` converts and immediately forwards each live chunk; `finish` (key-up)
+/// finalizes only the unfinished tail and returns the trimmed transcript;
+/// `cancel` tears the session down without a result. It builds and owns its
 /// `ModelLifecycle` internally — after each use the model is kept per
 /// `configuration.keepWarmSeconds` (resident by default, an idle window, or
 /// released immediately). `warmUp` preloads the model without opening a session.
 ///
 /// No WhisperKit SDK type crosses this seam: the engine is injected as a
-/// `ModelLoading & SpeechDecoding` value, the resampler as `AudioConverting`, and
+/// `ModelLoading & SpeechStreamingSessionCreating` value, the resampler as `AudioConverting`, and
 /// the idle-timing source as `Clock`, so the whole session is driven by fakes in
 /// tests. Bias EFFICACY is verified on-device, not here — see
 /// `biasFieldVerification`.
@@ -30,8 +30,8 @@ public actor WhisperKitTranscriber: Transcriber {
         }
     }
 
-    /// Whether the bias-prompt field has been verified to steer recognition. Token
-    /// plumbing is unit-tested; efficacy stays an on-device check.
+    /// Whether the disabled bias-prompt path has been verified safe to re-enable.
+    /// Efficacy stays an on-device check.
     public enum BiasFieldVerification: Equatable, Sendable {
         case requiresL4Verification
     }
@@ -39,21 +39,19 @@ public actor WhisperKitTranscriber: Transcriber {
     public static let biasFieldVerification: BiasFieldVerification = .requiresL4Verification
 
     private let configuration: Configuration
-    private let engine: any ModelLoading & SpeechDecoding & Sendable
+    private let engine: any ModelLoading & SpeechStreamingSessionCreating & Sendable
     private let converter: any AudioConverting
     private let clock: any Clock
     private let lifecycle: ModelLifecycle
 
-    private var sessionOpen = false
-    private var accumulatedSamples: [Float] = []
-    private var promptTokens: [Int]?
+    private var speechSession: (any SpeechStreamingSession)?
     private var releaseTask: Task<Void, Never>?
     private var releaseGeneration = 0
     private var loadTask: Task<Void, Error>?
 
     public init(
         configuration: Configuration = .defaults,
-        engine: some ModelLoading & SpeechDecoding & Sendable,
+        engine: some ModelLoading & SpeechStreamingSessionCreating & Sendable,
         converter: sending some AudioConverting,
         clock: some Clock
     ) {
@@ -80,54 +78,63 @@ public actor WhisperKitTranscriber: Transcriber {
 
     public func begin(biasTerms: [Term]) async throws {
         supersedePendingRelease()
-        accumulatedSamples = []
-        promptTokens = nil
-        sessionOpen = true
-
+        if let speechSession {
+            self.speechSession = nil
+            await speechSession.cancel()
+        }
         do {
             try await ensureModelLoaded()
         } catch {
-            sessionOpen = false
             throw Self.mapLoadFailure(error)
         }
 
         // Bias-prompt injection is DISABLED: WhisperKit + the turbo model return
         // deterministically EMPTY output for ANY non-nil DecodingOptions.promptTokens,
         // proven on the A/B stand with real voice on 2026-07-02 — a non-nil prompt
-        // silently breaks dictation. So `promptTokens` stays nil (set above) and
-        // decode runs unbiased. The budgeted `WhisperKitBiasPromptBuilder` and its
+        // silently breaks dictation. The live session therefore runs unbiased. The
+        // budgeted `WhisperKitBiasPromptBuilder` and its
         // tests are kept intact as the guard for re-enabling once the SDK prompt path
         // works again (tracked follow-up); `biasTerms` still reaches the cleaner via
         // the orchestrator, so vocabulary is not lost meanwhile.
+        do {
+            let speechSession = try engine.makeSpeechStreamingSession()
+            try await speechSession.start()
+            self.speechSession = speechSession
+        } catch {
+            endUse()
+            throw Self.mapSessionFailure(error)
+        }
     }
 
     public func feed(_ chunk: AudioChunk) async throws {
-        guard sessionOpen else { return }
+        guard let speechSession else { return }
+        let samples: [Float]
         do {
-            accumulatedSamples.append(contentsOf: try converter.convert(chunk))
+            samples = try converter.convert(chunk)
         } catch {
             throw TranscriptionError.audioFormatUnsupported
         }
+        do {
+            try await speechSession.append(samples)
+        } catch let error as TranscriptionError {
+            throw error
+        } catch {
+            throw TranscriptionError.engineFailure(underlying: error)
+        }
     }
 
-    /// Note: the streaming converter's final ~235-frame (~15 ms) delay-line residue
-    /// is never flushed here — accepted as immaterial for push-to-talk (trailing
-    /// silence, sub-phoneme). The reused converter also carries that ~15 ms of the
-    /// previous session's tail into the next session's first chunk: same-user,
-    /// in-memory, acoustically negligible; documented, not fixed.
     public func finish() async throws -> String {
-        guard sessionOpen else { return "" }
-        sessionOpen = false
-        // Empty accumulation is a non-error empty result: skip decode entirely
-        // (real WhisperKit may throw on an empty sample array).
-        guard !accumulatedSamples.isEmpty else {
-            endUse()
+        guard let speechSession else {
             return ""
         }
+        self.speechSession = nil
         do {
-            let transcript = try await engine.decode(samples: accumulatedSamples, promptTokens: promptTokens)
+            let transcript = try await speechSession.finish()
             endUse()
             return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch let error as TranscriptionError {
+            endUse()
+            throw error
         } catch {
             endUse()
             throw TranscriptionError.engineFailure(underlying: error)
@@ -135,8 +142,9 @@ public actor WhisperKitTranscriber: Transcriber {
     }
 
     public func cancel() async {
-        guard sessionOpen else { return }
-        sessionOpen = false
+        guard let speechSession else { return }
+        self.speechSession = nil
+        await speechSession.cancel()
         endUse()
     }
 
@@ -162,10 +170,8 @@ public actor WhisperKitTranscriber: Transcriber {
         self.loadTask = nil
     }
 
-    /// Finalizes the lifecycle exactly once per session and clears accumulation.
+    /// Finalizes the lifecycle exactly once per session and clears live state.
     private func endUse() {
-        accumulatedSamples = []
-        promptTokens = nil
         lifecycle.didFinishUse()
         scheduleRelease()
     }
@@ -199,5 +205,9 @@ public actor WhisperKitTranscriber: Transcriber {
 
     private static func mapLoadFailure(_ error: Error) -> TranscriptionError {
         error as? TranscriptionError ?? .backendUnavailable
+    }
+
+    private static func mapSessionFailure(_ error: Error) -> TranscriptionError {
+        error as? TranscriptionError ?? .engineFailure(underlying: error)
     }
 }

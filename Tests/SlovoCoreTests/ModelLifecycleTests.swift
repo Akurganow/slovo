@@ -11,7 +11,7 @@ import SlovoTestSupport
 // plus the `ModelLoading`/`Clock` seams in
 // `Sources/SlovoCore/ASR/ModelLifecycle.swift` (deleted by the abandoned
 // Apple-Speech migration). RED mode now is a COMPILE failure — `ModelLifecycle`
-// (and the `ModelLoading`/`SpeechDecoding` seams the `FakeSpeechEngine` conforms
+// (and the model/live-session seams the `FakeSpeechEngine` conforms
 // to) do not exist in the working tree yet.
 @Suite("Model lifecycle")
 struct ModelLifecycleTests {

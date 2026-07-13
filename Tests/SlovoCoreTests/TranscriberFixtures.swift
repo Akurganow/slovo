@@ -4,7 +4,7 @@ import SlovoTestSupport
 
 /// Shared constructors for `WhisperKitTranscriber` streaming-session tests. The
 /// transcriber injects one engine playing both seam roles (ModelLoading +
-/// SpeechDecoding), an audio converter, and a clock; keep-warm 0 makes didFinishUse
+/// SpeechStreamingSessionCreating), an audio converter, and a clock; keep-warm 0 makes didFinishUse
 /// release immediately, so release is the observable proof of the lifecycle call.
 enum TranscriberFixtures {
     static func makeTranscriber(

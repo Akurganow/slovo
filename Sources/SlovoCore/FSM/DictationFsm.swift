@@ -93,9 +93,9 @@ public enum StageFailure: Equatable, Sendable {
 /// associated value equatable.
 public enum DictationEffect: Equatable, Sendable {
     case beginCapture
-    case endCaptureAndTranscribe
+    case endCaptureAndFinalizeTranscript
     /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
-    /// result. Distinct from `endCaptureAndTranscribe`, which finalizes the
+    /// result. Distinct from `endCaptureAndFinalizeTranscript`, which finalizes the
     /// transcript and drives clean → inject.
     case discardCapture
     case clean(transcript: String)
@@ -133,7 +133,7 @@ public enum DictationFsm {
             return (.recording, [.muteSystemOutput, .beginCapture])
 
         case (.recording, .stopRequested):
-            return (.processing, [.endCaptureAndTranscribe, .restoreSystemOutput])
+            return (.processing, [.endCaptureAndFinalizeTranscript, .restoreSystemOutput])
 
         // Silent interrupt-cancel (right-modifier triggers): drop the recording
         // with nothing inserted and no error. discardCapture releases the mic and

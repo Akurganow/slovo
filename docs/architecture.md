@@ -8,8 +8,9 @@ core seams.
 The dictation flow is:
 
 ```text
-key down -> mute output -> capture microphone
-key up   -> stop capture -> restore output -> transcribe -> clean -> inject
+key down -> mute output -> start microphone + live recognition
+key held -> convert each audio chunk -> update live recognition
+key up   -> stop capture -> finalize unfinished tail -> clean -> inject
 ```
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
@@ -25,8 +26,9 @@ sends only transcript text for the selected routed model id.
 - `SystemAudioController` mutes and restores system output during recording.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
-- `WhisperKitTranscriber` turns audio into text through `WhisperKitEngine`
-  (Whisper large-v3 turbo), keeping the model resident between dictations.
+- `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and
+  finalizes only its unfinished tail at key-up, keeping the model resident
+  between dictations.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
   succeeds.
 - `Injector` inserts the final text into the focused field.

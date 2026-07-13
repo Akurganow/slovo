@@ -18,7 +18,7 @@ struct WhisperKitTranscriberLifecycleTests {
     /// → releaseCount > 0 → RED.
     @Test
     func residentKeepWarmReleasesNothingOnFinish() async throws {
-        let engine = FakeSpeechEngine(decode: .success("привет"))
+        let engine = FakeSpeechEngine(finalize: .success("привет"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil)
 
         try await transcriber.begin(biasTerms: [])
@@ -29,8 +29,8 @@ struct WhisperKitTranscriberLifecycleTests {
     }
 
     /// `warmUp()` preloads the engine WITHOUT opening a session: it loads once and
-    /// neither decodes nor finalizes a lifecycle.
-    /// Stated sensitivity: warmUp that opens/tears a session → decodeCalls non-empty
+    /// neither opens a speech session nor finalizes a lifecycle.
+    /// Stated sensitivity: warmUp that opens/tears a session → finalizeCalls non-empty
     /// or releaseCount > 0 → RED; warmUp that does not load → loadCount 0 → RED.
     @Test
     func warmUpLoadsEngineWithoutOpeningSession() async throws {
@@ -40,7 +40,7 @@ struct WhisperKitTranscriberLifecycleTests {
         try await transcriber.warmUp()
 
         #expect(engine.loadCount == 1, "warmUp must load the engine")
-        #expect(engine.decodeCalls.isEmpty, "warmUp must not decode")
+        #expect(engine.finalizeCalls.isEmpty, "warmUp must not finalize a speech session")
         #expect(engine.releaseCount == 0, "warmUp must not finalize a session")
     }
 
@@ -93,7 +93,7 @@ struct WhisperKitTranscriberLifecycleTests {
     /// RED; scheduling no release at all → RED.
     @Test
     func finiteKeepWarmReleasesAfterClockAdvancesPastWindow() async throws {
-        let engine = FakeSpeechEngine(decode: .success("привет"))
+        let engine = FakeSpeechEngine(finalize: .success("привет"))
         let clock = FakeClock(start: 0)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: 5, clock: clock)
 
@@ -121,7 +121,7 @@ struct WhisperKitTranscriberLifecycleTests {
     /// supersede/generation guard is logged for maintenance task #11, not pinned here.
     @Test
     func reBeginBeforeWindowKeepsModelLoaded() async throws {
-        let engine = FakeSpeechEngine(decode: .success("привет"))
+        let engine = FakeSpeechEngine(finalize: .success("привет"))
         let clock = FakeClock(start: 0)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: 5, clock: clock)
 
@@ -144,7 +144,7 @@ struct WhisperKitTranscriberLifecycleTests {
     /// → releaseCount > 0 → RED.
     @Test
     func residentKeepWarmNeverReleasesUnderClockAdvance() async throws {
-        let engine = FakeSpeechEngine(decode: .success("привет"))
+        let engine = FakeSpeechEngine(finalize: .success("привет"))
         let clock = FakeClock(start: 0)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil, clock: clock)
 
@@ -163,13 +163,13 @@ struct WhisperKitTranscriberLifecycleTests {
     /// A load that fails on the first begin surfaces an honest error; the NEXT begin
     /// RETRIES and loads successfully (single-flight must CLEAR a failed loadTask, not
     /// cache it). loadCount == 2 proves the retry actually re-loaded and the session
-    /// then decodes normally.
+    /// then finalizes normally.
     /// Stated sensitivity: single-flight that caches the failed loadTask → the second
     /// begin JOINS the dead flight, never re-loads (loadCount stays 1) and inherits the
     /// failure → the transcript / loadCount == 2 assertions → RED.
     @Test
     func failedLoadIsRetriedByNextBegin() async throws {
-        let engine = FakeSpeechEngine(decode: .success("привет"), loadFailuresBeforeSuccess: 1)
+        let engine = FakeSpeechEngine(finalize: .success("привет"), loadFailuresBeforeSuccess: 1)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
         do {

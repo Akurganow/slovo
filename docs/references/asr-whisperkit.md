@@ -21,8 +21,8 @@
 
 This document records Slovo's WhisperKit integration path. Slovo's production
 runtime links WhisperKit: production dictation runs Whisper large-v3 turbo
-on-device via the `WhisperKit` product, decoding `[Float]` PCM samples (16 kHz,
-mono) through `transcribe(audioArray:)`.
+on-device via `AudioStreamTranscriber`, fed with 16 kHz mono `[Float]` samples
+from Slovo's existing microphone pipeline.
 
 ## Install (Swift Package Manager)
 
@@ -145,8 +145,8 @@ Both return **`[TranscriptionResult]`** (one element per audio clip / chunk).
 @TranscriptionPropertyLock public var seekTime: Float?
 ```
 
-For slovo's "insert text on release", read `result.text` (concatenate over the
-array if more than one result). `TranscriptionSegment` carries per-segment
+For final tail decoding, read `result.text` and combine it with the stream's
+already-confirmed segments. `TranscriptionSegment` carries per-segment
 `start`/`end`/`text`/`tokens`/`avgLogprob`/`noSpeechProb` and optional
 `words: [WordTiming]?` if word timestamps are enabled.
 
@@ -180,7 +180,7 @@ public init(
 - Language selection requires a **multilingual** model (the `large-v3*` variants
   are multilingual; `*.en` variants are English-only).
 
-## Minimal Swift example (slovo's batch-on-release path)
+## Minimal Swift example (Slovo's live path)
 
 ```swift
 import WhisperKit
@@ -196,12 +196,21 @@ let config = WhisperKitConfig(
 )
 let whisper = try await WhisperKit(config)
 
-// On key release: `samples` is the captured [Float] PCM buffer (16 kHz mono).
-func transcribeOnRelease(_ samples: [Float]) async throws -> String {
-    let options = DecodingOptions(task: .transcribe, language: "ru")
-    let results = try await whisper.transcribe(audioArray: samples, decodeOptions: options)
-    return results.map(\.text).joined(separator: " ")
-}
+let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true)
+let stream = AudioStreamTranscriber(
+    audioEncoder: whisper.audioEncoder,
+    featureExtractor: whisper.featureExtractor,
+    segmentSeeker: whisper.segmentSeeker,
+    textDecoder: whisper.textDecoder,
+    tokenizer: whisper.tokenizer!,
+    audioProcessor: externalAudioInput,
+    decodingOptions: options,
+    stateChangeCallback: handleStateChange
+)
+
+// Start at key-down. `externalAudioInput` receives each converted microphone
+// chunk while the key is held; stop and finalize the unfinished tail at key-up.
+try await stream.startStreamTranscription()
 ```
 
 `ModelComputeOptions` public init (verbatim from `Models.swift`):
@@ -253,8 +262,7 @@ string you pass to `WhisperKitConfig(model:)` is the `<name>` suffix (e.g.
 
 ## Real-time / streaming
 
-slovo is **batch-on-release**, so streaming is informational only. WhisperKit
-ships a real-time transcriber actor for those who need it:
+Slovo uses WhisperKit's real-time transcriber actor:
 
 ```swift
 public actor AudioStreamTranscriber { /* ... */ }
@@ -263,16 +271,18 @@ public actor AudioStreamTranscriber { /* ... */ }
 It is constructed from the lower-level components (audioEncoder,
 featureExtractor, segmentSeeker, textDecoder, tokenizer, audioProcessor) plus
 `decodingOptions`, with knobs like `requiredSegmentsForConfirmation`,
-`silenceThreshold`, `useVAD`, and a `stateChangeCallback`. The SDK's bundled CLI
-also exposes streaming via OpenAI-compatible `/v1/audio/transcriptions`
-endpoints. **slovo does not need any of this** — `transcribe(audioArray:)` is
-the right call.
+`silenceThreshold`, `useVAD`, and a `stateChangeCallback`. Slovo supplies a
+lock-protected `AudioProcessing` bridge so its hardened `AVAudioEngineRecorder`
+remains the only microphone owner. The callback tracks confirmed segments and
+the changeable tail. At key-up, Slovo stops the native loop and decodes only
+audio after the last confirmed segment; a sub-second dictation, which the native
+loop has not processed yet, is finalized from the beginning.
 
 ## slovo gotchas
 
 - **Audio format:** Whisper expects **16 kHz mono Float** PCM normalized to
-  roughly [-1, 1]. Resample/downmix slovo's capture before
-  `transcribe(audioArray:)`, or the output degrades. WhisperKit's
+  roughly [-1, 1]. Resample/downmix each captured chunk before feeding the live
+  input, or the output degrades. WhisperKit's
   `AudioProcessor` helpers can load/convert files, but for the in-memory buffer
   you own the resampling.
 - **Resampler delay-line residue (accepted):** slovo's streaming

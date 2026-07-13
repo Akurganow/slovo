@@ -1,8 +1,8 @@
 import Foundation
 import WhisperKit
 
-/// The on-device WhisperKit SDK behind the `ModelLoading` + `SpeechDecoding`
-/// seams, so no WhisperKit type reaches the streaming transcriber.
+/// The on-device WhisperKit SDK behind model loading and live-session creation,
+/// so no WhisperKit type reaches the streaming transcriber.
 ///
 /// Intentionally thin. The model cache is pinned to an app-owned Application
 /// Support location via an explicit `downloadBase`: the WhisperKit SDK otherwise
@@ -11,7 +11,7 @@ import WhisperKit
 /// on-device, not by unit tests. `@unchecked Sendable` is backed by a lock
 /// around the loaded-model pointer, so the transcriber actor can hold it as a
 /// `Sendable` engine.
-public final class WhisperKitEngine: ModelLoading, SpeechDecoding, @unchecked Sendable {
+public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreating, @unchecked Sendable {
     private let model: String
     private let language: Language
     private let download: Bool
@@ -57,25 +57,23 @@ public final class WhisperKitEngine: ModelLoading, SpeechDecoding, @unchecked Se
         lock.withLock { loadedEngine = nil }
     }
 
-    public func encodePromptTokens(_ prompt: String) -> [Int] {
-        guard let tokenizer = currentEngine?.tokenizer else { return [] }
-        return tokenizer.encode(text: prompt)
-    }
-
-    public func decode(samples: [Float], promptTokens: [Int]?) async throws -> String {
+    public func makeSpeechStreamingSession() throws -> any SpeechStreamingSession {
         guard let engine = currentEngine else {
             throw TranscriptionError.backendUnavailable
         }
-        let results = try await engine.transcribe(
-            audioArray: samples,
-            decodeOptions: DecodingOptions(
-                task: .transcribe,
-                language: language.whisperKitLanguageCode,
-                detectLanguage: language == .auto,
-                promptTokens: promptTokens
-            )
+        return try WhisperKitLiveSession(
+            engine: engine,
+            decodingOptions: decodingOptions()
         )
-        return results.map(\.text).joined(separator: " ")
+    }
+
+    private func decodingOptions() -> DecodingOptions {
+        DecodingOptions(
+            task: .transcribe,
+            language: language.whisperKitLanguageCode,
+            detectLanguage: language == .auto,
+            promptTokens: nil
+        )
     }
 
     private var currentEngine: WhisperKit? {

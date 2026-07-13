@@ -21,7 +21,7 @@ import SlovoCore
 //
 // Override transition table (authoritative for this epic):
 //   idle       + startRequested        -> recording  + [muteSystemOutput, beginCapture]
-//   recording  + stopRequested         -> processing + [endCaptureAndTranscribe, restoreSystemOutput]
+//   recording  + stopRequested         -> processing + [endCaptureAndFinalizeTranscript, restoreSystemOutput]
 //   recording  + failed(f)             -> idle       + [restoreSystemOutput, notify(s), log(.stageFailed), returnToIdle]
 //   processing + transcriptReady(t)    -> processing + [clean(transcript: t)]
 //   processing + cleaned(c)            -> processing + [inject(text: c)]
@@ -50,13 +50,13 @@ struct DictationFsmMuteTests {
     /// On `fn` release (stopRequested while recording), the FSM restores system
     /// audio right after closing the mic — restore happens at key-up.
     /// Stated sensitivity: drop `.restoreSystemOutput` here (revert to
-    /// `[.endCaptureAndTranscribe]`) → RED; reorder before endCapture → RED.
+    /// `[.endCaptureAndFinalizeTranscript]`) → RED; reorder before endCapture → RED.
     @Test
     func stopRequestedRestoresAtKeyUp() {
         let (state, effects) = DictationFsm.transition(.recording, on: .stopRequested)
         #expect(state == .processing, "recording + stopRequested must move to processing, got \(state)")
-        #expect(effects == [.endCaptureAndTranscribe, .restoreSystemOutput],
-                "must emit exactly [endCaptureAndTranscribe, restoreSystemOutput], got \(effects)")
+        #expect(effects == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput],
+                "must emit exactly [endCaptureAndFinalizeTranscript, restoreSystemOutput], got \(effects)")
     }
 
     // MARK: - Error DURING recording still restores (never leave audio muted)

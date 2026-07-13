@@ -2,19 +2,14 @@ import Foundation
 import SlovoCore
 import Synchronization
 
-/// A scriptable spy standing in for the on-device WhisperKit engine behind BOTH
-/// ASR seams: `ModelLoading` (load / keep-warm / release) and the inference seam
-/// `SpeechDecoding` (prompt-token encoding + decode). It subsumes the former
-/// `FakeModel`.
+/// A scriptable spy standing in for model lifecycle and live speech sessions.
 ///
-/// It records an ordered event timeline so tests can assert call ORDER (load
-/// before prompt encoding), the prompt tokens PLUMBED into `decode`, and the
-/// accumulated sample count — without a real model. State is `Mutex`-guarded so
-/// the spy is genuinely race-free when driven through the transcriber actor and
-/// still inspectable from the test afterward.
-public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
-    /// What `decode` should do when invoked.
-    public enum DecodeOutcome: Sendable {
+/// It records an ordered event timeline and the samples finalized by each live
+/// session. State is `Mutex`-guarded so the spy is genuinely race-free when
+/// driven through the transcriber actor and still inspectable afterward.
+public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreating, Sendable {
+    /// What live-session finalization should return.
+    public enum FinalizeOutcome: Sendable {
         case success(String)
         case failure
     }
@@ -23,20 +18,15 @@ public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
     public enum Event: Sendable, Equatable {
         case load
         case release
-        case encodePrompt(String)
-        case decode(sampleCount: Int, promptTokens: [Int]?)
+        case finalize(sampleCount: Int)
     }
 
-    /// A recorded `decode` invocation's arguments.
-    public struct DecodeCall: Sendable, Equatable {
+    /// A recorded live-session finalization's arguments.
+    public struct FinalizeCall: Sendable, Equatable {
         public let sampleCount: Int
-        public let promptTokens: [Int]?
     }
 
-    /// Thrown by `load`/`decode` when scripted to fail. It is deliberately NOT a
-    /// `TranscriptionError`, so the production transcriber must MAP it (decode →
-    /// `.engineFailure`; load → `.backendUnavailable`/`.engineFailure`, never
-    /// `.assetMissing`) rather than let it escape unmapped.
+    /// Thrown by load/finalization when scripted to fail.
     public struct ScriptedFailure: Error {
         public init() {}
     }
@@ -47,40 +37,33 @@ public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
         var loadGateArmed = false
         var loadWaiters: [CheckedContinuation<Void, Never>] = []
         var loadSuspendedSignals: [CheckedContinuation<Void, Never>] = []
+        var streamSamples: [Float] = []
+        var streamAppendCalls: [Int] = []
+        var streamStartCount = 0
+        var streamFinishCount = 0
+        var streamCancelCount = 0
     }
 
     private let state = Mutex(State())
-    private let decodeOutcome: DecodeOutcome
-    private let scriptedPromptTokens: [Int]
+    private let finalizeOutcome: FinalizeOutcome
     private let loadSucceeds: Bool
     private let loadFailuresBeforeSuccess: Int
-    private let tokenize: (@Sendable (String) -> [Int])?
 
     /// - Parameters:
-    ///   - decode: the scripted `decode` outcome.
-    ///   - promptTokens: what `encodePromptTokens` returns; empty models a
-    ///     tokenizer-unavailable engine (no bias tokens).
+    ///   - finalize: the scripted live-session result.
     ///   - loadSucceeds: `false` makes every `load()` throw `ScriptedFailure`.
     ///   - loadFailuresBeforeSuccess: the first N `load()` attempts throw, then
     ///     later attempts succeed (models a transient load failure that a retry
     ///     recovers from). Ignored when `loadSucceeds` is false.
-    ///   - tokenize: when set, `encodePromptTokens` returns `tokenize(prompt)`
-    ///     instead of the fixed `promptTokens` array, modelling a content-
-    ///     proportional tokenizer — needed to exercise prompt-token budgeting, where
-    ///     a budgeted head must differ from the uncapped vocabulary.
     @preconcurrency
     public init(
-        decode: DecodeOutcome = .success(""),
-        promptTokens: [Int] = [],
+        finalize: FinalizeOutcome = .success(""),
         loadSucceeds: Bool = true,
-        loadFailuresBeforeSuccess: Int = 0,
-        tokenize: (@Sendable (String) -> [Int])? = nil
+        loadFailuresBeforeSuccess: Int = 0
     ) {
-        self.decodeOutcome = decode
-        self.scriptedPromptTokens = promptTokens
+        self.finalizeOutcome = finalize
         self.loadSucceeds = loadSucceeds
         self.loadFailuresBeforeSuccess = loadFailuresBeforeSuccess
-        self.tokenize = tokenize
     }
 
     /// The recorded interaction timeline, in invocation order.
@@ -98,22 +81,31 @@ public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
         events.filter { $0 == .release }.count
     }
 
-    /// Every prompt string passed to `encodePromptTokens`, in order.
-    public var encodedPrompts: [String] {
+    /// Every live-session finalization's arguments, in order.
+    public var finalizeCalls: [FinalizeCall] {
         events.compactMap { event in
-            if case let .encodePrompt(prompt) = event { prompt } else { nil }
-        }
-    }
-
-    /// Every `decode` invocation's arguments, in order.
-    public var decodeCalls: [DecodeCall] {
-        events.compactMap { event in
-            if case let .decode(sampleCount, promptTokens) = event {
-                DecodeCall(sampleCount: sampleCount, promptTokens: promptTokens)
+            if case let .finalize(sampleCount) = event {
+                FinalizeCall(sampleCount: sampleCount)
             } else {
                 nil
             }
         }
+    }
+
+    public var streamAppendCalls: [Int] {
+        state.withLock { $0.streamAppendCalls }
+    }
+
+    public var streamStartCount: Int {
+        state.withLock { $0.streamStartCount }
+    }
+
+    public var streamFinishCount: Int {
+        state.withLock { $0.streamFinishCount }
+    }
+
+    public var streamCancelCount: Int {
+        state.withLock { $0.streamCancelCount }
     }
 
     // MARK: - ModelLoading
@@ -211,17 +203,10 @@ public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
         }
     }
 
-    // MARK: - SpeechDecoding
-
-    public func encodePromptTokens(_ prompt: String) -> [Int] {
-        state.withLock { $0.events.append(.encodePrompt(prompt)) }
-        return tokenize?(prompt) ?? scriptedPromptTokens
-    }
-
-    public func decode(samples: [Float], promptTokens: [Int]?) async throws -> String {
-        let outcome = state.withLock { current -> DecodeOutcome in
-            current.events.append(.decode(sampleCount: samples.count, promptTokens: promptTokens))
-            return decodeOutcome
+    private func finalize(samples: [Float]) async throws -> String {
+        let outcome = state.withLock { current -> FinalizeOutcome in
+            current.events.append(.finalize(sampleCount: samples.count))
+            return finalizeOutcome
         }
         switch outcome {
         case .success(let transcript):
@@ -229,5 +214,63 @@ public final class FakeSpeechEngine: ModelLoading, SpeechDecoding, Sendable {
         case .failure:
             throw ScriptedFailure()
         }
+    }
+
+    public func makeSpeechStreamingSession() throws -> any SpeechStreamingSession {
+        FakeSpeechStreamingSession(engine: self)
+    }
+
+    fileprivate func startStream() {
+        state.withLock {
+            $0.streamSamples = []
+            $0.streamStartCount += 1
+        }
+    }
+
+    fileprivate func appendToStream(_ samples: [Float]) {
+        state.withLock {
+            $0.streamSamples.append(contentsOf: samples)
+            $0.streamAppendCalls.append(samples.count)
+        }
+    }
+
+    fileprivate func finishStream() async throws -> String {
+        let samples = state.withLock { current -> [Float] in
+            current.streamFinishCount += 1
+            return current.streamSamples
+        }
+        guard !samples.isEmpty else { return "" }
+        return try await finalize(samples: samples)
+    }
+
+    fileprivate func cancelStream() {
+        state.withLock {
+            $0.streamCancelCount += 1
+            $0.streamSamples = []
+        }
+    }
+}
+
+private actor FakeSpeechStreamingSession: SpeechStreamingSession {
+    private let engine: FakeSpeechEngine
+
+    init(engine: FakeSpeechEngine) {
+        self.engine = engine
+    }
+
+    func start() {
+        engine.startStream()
+    }
+
+    func append(_ samples: [Float]) {
+        engine.appendToStream(samples)
+    }
+
+    func finish() async throws -> String {
+        try await engine.finishStream()
+    }
+
+    func cancel() {
+        engine.cancelStream()
     }
 }

@@ -10,8 +10,8 @@ mono but sometimes stereo). This document is the authoritative reference for the
 two things slovo must do:
 
 1. Capture raw microphone buffers with `AVAudioEngine` + an input tap.
-2. Convert each captured buffer to the ASR target format with `AVAudioConverter`,
-   accumulating the result for a batch transcription on key release.
+2. Convert each captured buffer to the ASR target format with `AVAudioConverter`
+   and feed it to live recognition while the key is held.
 
 It also covers the macOS microphone-permission flow, which is mandatory before
 any capture can succeed.
@@ -163,8 +163,8 @@ input on macOS.
 
 ## Minimal Swift example
 
-End-to-end: request permission, install a tap, convert each buffer to 16 kHz mono
-Float32, accumulate for batch-on-release.
+End-to-end: request permission, install a tap, and stream each converted 16 kHz
+mono Float32 chunk to recognition.
 
 ```swift
 import AVFoundation
@@ -172,6 +172,7 @@ import AVFoundation
 final class MicCapture {
     private let engine = AVAudioEngine()
     private var converter: AVAudioConverter?
+    private let onSamples: @Sendable ([Float]) -> Void
 
     /// ASR target: 16 kHz, mono, 32-bit float, deinterleaved.
     private let targetFormat = AVAudioFormat(
@@ -180,8 +181,9 @@ final class MicCapture {
         channels: 1,
         interleaved: false)!
 
-    /// Accumulated 16 kHz mono samples for the current push-to-talk window.
-    private var samples: [Float] = []
+    init(onSamples: @escaping @Sendable ([Float]) -> Void) {
+        self.onSamples = onSamples
+    }
 
     // MARK: Permission
 
@@ -203,8 +205,6 @@ final class MicCapture {
 
         // Build the converter from the live hardware format to the ASR format.
         converter = AVAudioConverter(from: hwFormat, to: targetFormat)
-        samples.removeAll(keepingCapacity: true)
-
         // Tap with format: nil to receive buffers in the node's own format.
         input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
             self?.append(buffer)   // runs off the main thread
@@ -214,13 +214,12 @@ final class MicCapture {
         try engine.start()
     }
 
-    // MARK: Stop (key up) → hand off accumulated buffer
+    // MARK: Stop (key up)
 
-    func stop() -> [Float] {
+    func stop() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         converter = nil
-        return samples
     }
 
     // MARK: Conversion
@@ -253,17 +252,15 @@ final class MicCapture {
             if let error { print("convert failed: \(error.localizedDescription)") }
             return
         }
-        samples.append(contentsOf: UnsafeBufferPointer(start: channel,
-                                                       count: Int(out.frameLength)))
+        onSamples(Array(UnsafeBufferPointer(start: channel,
+                                            count: Int(out.frameLength))))
     }
 }
 ```
 
-The accumulation pattern (one `AVAudioConverter` per session, append converted
-frames to `samples`) matches Apple's TN3136 model: reuse the converter, drive it
-from the input callback, and read `floatChannelData[0]` for mono output. For
-short push-to-talk windows this batch-on-release approach keeps memory trivial
-(seconds of 16 kHz mono float = a few hundred KB).
+The conversion pattern matches Apple's TN3136 model: reuse one converter for the
+session, drive it from the input callback, and read `floatChannelData[0]` for
+mono output. Slovo immediately forwards each resulting chunk to live recognition.
 
 ## slovo gotchas
 
@@ -279,7 +276,8 @@ short push-to-talk windows this batch-on-release approach keeps memory trivial
   the tap install fails. Do not try to make the tap itself output 16 kHz; the tap
   is not a resampler.
 - **Tap block runs off the main thread.** Keep `append` allocation-light and
-  never touch UI or AppKit from it. Hand the final `[Float]` back on stop.
+  never touch UI or AppKit from it. Forward each converted chunk to the
+  recognition stream.
 - **Permission timing.** Call `ensureMicPermission()` *before* `engine.start()`.
   Starting the engine without authorization throws / raises. On first launch the
   prompt is async — the very first push-to-talk may need to await the user's

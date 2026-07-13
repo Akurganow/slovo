@@ -12,7 +12,7 @@ import SlovoTestSupport
 // existing seam FAKES (running-composition — NEVER a hand-wired copy).
 // This ABSORBS the retired `BiasTermsWiring` coverage: the suite asserts the
 // transcriber received the resolved vocab as `biasTerms` (the fold into the
-// actor's `.endCaptureAndTranscribe`).
+// actor's `.endCaptureAndFinalizeTranscript`).
 //
 // SEED-LEAK RULE: synthetic neutral public anchors only.
 @Suite("Orchestrator pipeline")
@@ -53,7 +53,7 @@ struct OrchestratorTests {
     /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)   // mute + beginCapture
-        await orchestrator.handle(.stopRequested)    // endCaptureAndTranscribe + restore → transcriptReady → clean → inject → injected
+        await orchestrator.handle(.stopRequested)    // finalize transcript + restore → clean → inject → injected
         await orchestrator.awaitPipelineDrain()
     }
 

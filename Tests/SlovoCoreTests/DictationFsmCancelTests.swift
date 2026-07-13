@@ -12,7 +12,7 @@ struct DictationFsmCancelTests {
     /// Cancel while recording discards capture, restores audio, and returns to
     /// idle — silently.
     /// Stated sensitivity: route cancel through the transcribe path
-    /// (`.endCaptureAndTranscribe`) → the effect list differs → RED; add a notify
+    /// (`.endCaptureAndFinalizeTranscript`) → the effect list differs → RED; add a notify
     /// → RED.
     @Test
     func cancelRequestedDiscardsSilentlyAndRestores() {

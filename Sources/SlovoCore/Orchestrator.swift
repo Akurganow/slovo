@@ -79,7 +79,7 @@ public actor Orchestrator {
     /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
     /// drained (via the stream finishing) at key-up.
     private var pumpTask: Task<FeedHealth, Never>?
-    /// The in-flight finish→clean→inject follow-on (see `.endCaptureAndTranscribe`).
+    /// The in-flight finish→clean→inject follow-on (see `.endCaptureAndFinalizeTranscript`).
     private var pipelineTask: Task<Void, Never>?
     /// The committed feed outcome of the current session, used at finish to tell a
     /// total conversion failure apart from legitimate silence.
@@ -266,7 +266,7 @@ public actor Orchestrator {
             pumpTask = makePumpTask(draining: stream)
             return nil
 
-        case .endCaptureAndTranscribe:
+        case .endCaptureAndFinalizeTranscript:
             // Key-up: end capture and drain every remaining fed chunk (the recorder
             // finishing the stream terminates the pump). Finalization is deferred
             // until after the remaining effect list runs, so `.restoreSystemOutput`
