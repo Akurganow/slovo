@@ -7,6 +7,18 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-13
+
+### Changed
+
+- On-device speech recognition now runs continuously while push-to-talk is held,
+  so only the final audio tail remains to finish after key release before cleanup.
+
+### Fixed
+
+- The Add Vocabulary field now receives keyboard focus as soon as its window
+  opens, allowing immediate typing without an extra click.
+
 ## [0.7.0] - 2026-07-12
 
 ### Changed
