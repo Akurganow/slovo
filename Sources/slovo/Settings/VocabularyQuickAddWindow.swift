@@ -48,6 +48,7 @@ private struct VocabularyQuickAddView: View {
     let onAdd: (String) -> Void
     let onCancel: () -> Void
     @State private var terms: String = ""
+    @FocusState private var isTermsFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -55,6 +56,7 @@ private struct VocabularyQuickAddView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             TextField("GitHub, OAuth, PostgreSQL", text: $terms)
+                .focused($isTermsFieldFocused)
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -65,5 +67,6 @@ private struct VocabularyQuickAddView: View {
         }
         .padding()
         .frame(width: 360)
+        .defaultFocus($isTermsFieldFocused, true)
     }
 }

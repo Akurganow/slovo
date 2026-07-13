@@ -104,6 +104,18 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
     }
 
+    /// The quick-add field must become the window's initial keyboard target so the
+    /// user can type immediately after opening it from the menu.
+    /// Stated sensitivity: remove either the field's focus binding or its
+    /// `defaultFocus` request → the corresponding expectation goes RED, and the
+    /// field is no longer selected automatically when the window appears.
+    @Test
+    func quickAddWindowFocusesTheTermFieldByDefault() throws {
+        let source = try Self.strippedCode("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
+        #expect(source.contains(".focused($isTermsFieldFocused)"))
+        #expect(source.contains(".defaultFocus($isTermsFieldFocused, true)"))
+    }
+
     /// Phase 3 landed: the Cleanup pane now hosts the spell-check hints toggle at the
     /// former extension point (inverts the retired
     /// `cleanupPaneLeavesPhase3ExtensionPointUnimplemented`).
