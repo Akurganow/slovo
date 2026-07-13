@@ -48,15 +48,13 @@ private struct VocabularyQuickAddView: View {
     let onAdd: (String) -> Void
     let onCancel: () -> Void
     @State private var terms: String = ""
-    @FocusState private var isTermsFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Comma-separated terms that cleanup must preserve verbatim.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            TextField("GitHub, OAuth, PostgreSQL", text: $terms)
-                .focused($isTermsFieldFocused)
+            InitialFocusTextField(placeholder: "GitHub, OAuth, PostgreSQL", text: $terms)
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -67,6 +65,56 @@ private struct VocabularyQuickAddView: View {
         }
         .padding()
         .frame(width: 360)
-        .defaultFocus($isTermsFieldFocused, true)
+    }
+}
+
+@MainActor
+private struct InitialFocusTextField: NSViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let textField = InitialFirstResponderTextField()
+        textField.placeholderString = placeholder
+        textField.delegate = context.coordinator
+        textField.isBezeled = true
+        textField.isEditable = true
+        textField.isSelectable = true
+        textField.usesSingleLineMode = true
+        return textField
+    }
+
+    func updateNSView(_ textField: NSTextField, context: Context) {
+        if textField.stringValue != text {
+            textField.stringValue = text
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        @Binding private var text: String
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let textField = notification.object as? NSTextField else { return }
+            text = textField.stringValue
+        }
+    }
+}
+
+@MainActor
+private final class InitialFirstResponderTextField: NSTextField {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        window.initialFirstResponder = self
+        window.makeFirstResponder(self)
     }
 }

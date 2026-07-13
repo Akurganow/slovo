@@ -104,16 +104,20 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
     }
 
-    /// The quick-add field must become the window's initial keyboard target so the
-    /// user can type immediately after opening it from the menu.
-    /// Stated sensitivity: remove either modifier, or move `.focused` from this
-    /// TextField to Cancel → the corresponding expectation goes RED.
+    /// The quick-add field must become the AppKit window's first responder after
+    /// joining its view hierarchy so the user can type immediately.
+    /// Stated sensitivity: remove the `viewDidMoveToWindow` override, the
+    /// `initialFirstResponder` assignment, or the `makeFirstResponder` call →
+    /// the corresponding expectation goes RED.
     @Test
     func quickAddWindowFocusesTheTermFieldByDefault() throws {
         let source = try Self.strippedCode("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        let focusedTermField = #"TextField\("GitHub, OAuth, PostgreSQL",\s*text:\s*\$terms\)\s*\.focused\(\$isTermsFieldFocused\)"#
-        #expect(source.range(of: focusedTermField, options: .regularExpression) != nil)
-        #expect(source.contains(".defaultFocus($isTermsFieldFocused, true)"))
+        #expect(source.contains("InitialFocusTextField(placeholder: \"GitHub, OAuth, PostgreSQL\", text: $terms)"))
+        #expect(source.contains("override func viewDidMoveToWindow()"))
+        #expect(source.contains("window.initialFirstResponder = self"))
+        #expect(source.contains("window.makeFirstResponder(self)"))
+        #expect(!source.contains("@FocusState"))
+        #expect(!source.contains(".defaultFocus("))
     }
 
     /// Phase 3 landed: the Cleanup pane now hosts the spell-check hints toggle at the
