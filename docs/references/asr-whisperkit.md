@@ -275,8 +275,27 @@ featureExtractor, segmentSeeker, textDecoder, tokenizer, audioProcessor) plus
 lock-protected `AudioProcessing` bridge so its hardened `AVAudioEngineRecorder`
 remains the only microphone owner. The callback tracks confirmed segments and
 the changeable tail. At key-up, Slovo stops the native loop and decodes only
-audio after the last confirmed segment; a sub-second dictation, which the native
+audio after the last confirmed segment. A sub-second dictation, which the native
 loop has not processed yet, is finalized from the beginning.
+
+For a short final pass with a non-empty live result and no confirmed prefix
+(`confirmedEndSeconds == 0`), Slovo enables word timestamps and applies the
+anomaly score from OpenAI Whisper's
+[silence-around-hallucinations change](https://github.com/openai/whisper/pull/1838).
+The guard is deliberately stricter than the upstream heuristic: it reuses the
+live text only when the final text is the same normalized prefix plus an
+anomalous terminal suffix, and every suffix word starts strictly beyond the
+actual recorded duration. Missing or inconsistent timestamps, a credible word,
+a word that touches recorded audio, or any transcript disagreement keeps the
+final decode. Long recordings do not run word alignment for this guard.
+
+WhisperKit v1.0.0 does not yet populate `noSpeechProb`; upstream tracks that
+work in [issue #27](https://github.com/argmaxinc/argmax-oss-swift/issues/27).
+Its `noSpeechThreshold` therefore cannot yet reject silence inside the decoder.
+Slovo does not fork or replace that mechanism: the final decode still runs, and
+Slovo only validates an impossible terminal suffix afterward. When upstream
+no-speech detection is implemented, it remains enabled and can prevent the
+suffix before Slovo's guard is needed.
 
 ## slovo gotchas
 

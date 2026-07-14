@@ -74,6 +74,23 @@ Clarifications:
 
 ## Engineering process
 
+### User-testable app on this development Mac — one approved build path
+
+When building an app for the user to test on this development Mac, use only the
+repository launcher with the exact stable Developer ID identity already
+installed in the macOS Keychain:
+
+```sh
+SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" \
+  Scripts/build_and_run.sh --verify
+```
+
+Do not substitute ad-hoc signing, another local-development identity, a raw
+SwiftPM executable, or a hand-built app bundle. Before asking the user to test,
+verify that `.build/dev-run/Slovo.app` passes strict code-sign validation, is
+signed by team `ZN8H5SF4R7`, has bundle identifier `com.slovo.app`, and that the
+running `slovo` process executes from that exact bundle.
+
 ### Gate RED→GREEN by Cynefin
 
 Before starting a RED→GREEN cycle, classify the change with Cynefin and decide

@@ -3,59 +3,6 @@ import CoreML
 import Foundation
 @preconcurrency import WhisperKit
 
-struct WhisperKitStreamState: Equatable, Sendable {
-    var confirmedText = ""
-    var unconfirmedText = ""
-    var processedSampleCount = 0
-    var confirmedEndSeconds: Float = 0
-}
-
-enum WhisperKitTranscriptText {
-    static func compose(_ parts: [String]) -> String {
-        parts
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-    }
-}
-
-enum WhisperKitTailFinalization {
-    enum Plan: Equatable, Sendable {
-        case noAudio
-        case reuse(String)
-        case decode(confirmedPrefix: String, fromSeconds: Float)
-    }
-
-    static func plan(totalSampleCount: Int, state: WhisperKitStreamState) -> Plan {
-        guard totalSampleCount > 0 else { return .noAudio }
-        guard state.processedSampleCount < totalSampleCount else {
-            return .reuse(WhisperKitTranscriptText.compose([
-                state.confirmedText,
-                state.unconfirmedText,
-            ]))
-        }
-        return .decode(
-            confirmedPrefix: state.confirmedText,
-            fromSeconds: state.confirmedEndSeconds
-        )
-    }
-
-    nonisolated(nonsending) static func resolve(
-        plan: Plan,
-        decode: (Float) async throws -> String
-    ) async rethrows -> String {
-        switch plan {
-        case .noAudio:
-            return ""
-        case .reuse(let text):
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .decode(let confirmedPrefix, let fromSeconds):
-            let tail = try await decode(fromSeconds)
-            return WhisperKitTranscriptText.compose([confirmedPrefix, tail])
-        }
-    }
-}
-
 /// Supplies Slovo's converted samples to WhisperKit without opening another mic.
 final class WhisperKitStreamInput: AudioProcessing, @unchecked Sendable {
     private struct Energy {
@@ -350,18 +297,51 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
     func finish() async throws -> String {
         try await stopStream()
         let samples = Array(streamInput.audioSamples)
+        let streamState = streamStatus.state
+        let liveText = WhisperKitTranscriptText.compose([
+            streamState.confirmedText,
+            streamState.unconfirmedText,
+        ])
+        let modelWindowSamples = engine.featureExtractor.windowSamples ?? Constants.defaultWindowSamples
+        let shouldGuardTerminalHallucination = WhisperKitTerminalHallucinationGuard.shouldInspect(
+            sampleCount: samples.count,
+            modelWindowSampleCount: modelWindowSamples,
+            confirmedEndSeconds: streamState.confirmedEndSeconds,
+            liveText: liveText
+        )
         let plan = WhisperKitTailFinalization.plan(
             totalSampleCount: samples.count,
-            state: streamStatus.state
+            state: streamState
         )
         return try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds in
             var finalOptions = decodingOptions
             finalOptions.clipTimestamps = [fromSeconds]
+            if shouldGuardTerminalHallucination {
+                finalOptions.wordTimestamps = true
+            }
             let results = try await engine.transcribe(
                 audioArray: samples,
                 decodeOptions: finalOptions
             )
-            return WhisperKitTranscriptText.compose(results.map(\.text))
+            let decodedText = WhisperKitTranscriptText.compose(results.map(\.text))
+            guard shouldGuardTerminalHallucination else { return decodedText }
+            let words = results
+                .flatMap(\.segments)
+                .flatMap { $0.words ?? [] }
+                .map {
+                    WhisperKitDecodedWord(
+                        text: $0.word,
+                        probability: $0.probability,
+                        startSeconds: $0.start,
+                        endSeconds: $0.end
+                    )
+                }
+            return WhisperKitTerminalHallucinationGuard.resolve(
+                liveText: liveText,
+                decodedText: decodedText,
+                words: words,
+                audioDurationSeconds: Float(samples.count) / Float(WhisperKit.sampleRate)
+            )
         }
     }
 

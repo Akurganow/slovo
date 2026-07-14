@@ -195,6 +195,17 @@ struct WhisperKitLiveTranscriptionTests {
         #expect(source.contains("finalOptions.clipTimestamps = [fromSeconds]"))
         #expect(source.contains("processedSampleCount: state.lastBufferSize"))
         #expect(source.contains("confirmedEndSeconds: state.lastConfirmedSegmentEndSeconds"))
+        #expect(source.contains(
+            "let modelWindowSamples = engine.featureExtractor.windowSamples ?? Constants.defaultWindowSamples"
+        ))
+        #expect(source.contains("WhisperKitTerminalHallucinationGuard.shouldInspect("))
+        #expect(source.contains("sampleCount: samples.count"))
+        #expect(source.contains("modelWindowSampleCount: modelWindowSamples"))
+        #expect(source.contains("confirmedEndSeconds: streamState.confirmedEndSeconds"))
+        #expect(source.contains("liveText: liveText"))
+        #expect(source.contains("finalOptions.wordTimestamps = true"))
+        #expect(source.contains("WhisperKitTerminalHallucinationGuard.resolve("))
+        #expect(source.contains("audioDurationSeconds:"))
     }
 
     private static var liveSessionSource: URL {

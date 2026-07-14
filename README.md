@@ -162,13 +162,15 @@ For a fast signed development launch, build and open a staged menu-bar
 bundle:
 
 ```sh
-Scripts/build_and_run.sh --verify
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+  Scripts/build_and_run.sh --verify
 ```
 
 The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`,
 signs it with a stable local code-signing identity and the app
 entitlements, opens it, and verifies that the `slovo` process is running.
-Stable signing is required for macOS TCC permission persistence.
+Stable signing is required for macOS TCC permission persistence; pass the
+identity explicitly so a different certificate cannot be selected implicitly.
 
 Packaging runs in two automated phases: build/sign/notarize the app, then
 package the stapled app into a DMG. Stapling the notarization ticket is the

@@ -27,8 +27,11 @@ sends only transcript text for the selected routed model id.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
 - `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and
-  finalizes only its unfinished tail at key-up, keeping the model resident
-  between dictations.
+  finalizes only its unfinished tail at key-up. On a short final pass with a
+  non-empty live result and no confirmed prefix, Slovo rejects a terminal
+  addition only when the final decode is the exact normalized live result plus
+  an anomalous suffix timestamped strictly beyond the recorded audio. The model
+  remains resident between dictations.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
   succeeds.
 - `Injector` inserts the final text into the focused field.

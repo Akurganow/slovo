@@ -16,15 +16,16 @@ swift build --disable-automatic-resolution
 ## Run
 
 ```sh
-Scripts/build_and_run.sh --verify
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+  Scripts/build_and_run.sh --verify
 ```
 
 The development run script rebuilds the `slovo` product, stages
 `.build/dev-run/Slovo.app`, signs it with a stable local code-signing identity
 and the app entitlements, opens the menu-bar app, and verifies that the `slovo`
 process is running. Stable signing is required for macOS TCC permission
-persistence; set `ALLOW_AD_HOC_SIGNING=1` only for non-persistent permission
-tests.
+persistence; pass the identity explicitly so a different certificate cannot be
+selected implicitly. Ad-hoc builds are not valid for user testing.
 
 ## Test
 

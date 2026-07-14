@@ -7,6 +7,16 @@ once public releases begin.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-14
+
+### Fixed
+
+- For short dictations where live recognition has produced text but has not yet
+  confirmed any prefix, Slovo now rejects an added terminal suffix only when the
+  final decode is the exact normalized live result plus anomalous words
+  timestamped strictly beyond the recorded audio. Every uncertain case keeps the
+  final decode.
+
 ## [0.8.0] - 2026-07-13
 
 ### Changed
