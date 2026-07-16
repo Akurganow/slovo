@@ -7,15 +7,17 @@ extension AppDelegate {
         guard let button else { return }
         button.title = ""
         button.contentTintColor = nil
-        button.image = Self.menuBarGlyphImage(MenuBarGlyph.forState(state))
+        button.image = MenuBarGlyph.image(for: MenuBarGlyph.forState(state), tint: .normal)
             ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
     }
 
     func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
         guard let button, let glyph = MenuBarGlyph.forStatus(status) else { return }
         button.title = ""
-        button.contentTintColor = MenuBarGlyph.tint(forStatus: status) == .error ? .systemRed : nil
-        button.image = Self.menuBarGlyphImage(glyph)
+        // Clear any prior tint; the glyph color now rides on the image itself
+        // (see MenuBarGlyph.image(for:tint:)).
+        button.contentTintColor = nil
+        button.image = MenuBarGlyph.image(for: glyph, tint: MenuBarGlyph.tint(forStatus: status))
             ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
     }
 
@@ -42,25 +44,5 @@ extension AppDelegate {
     func stopModelLoadingPulse(on button: NSStatusBarButton?) {
         button?.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
         button?.layer?.opacity = 1
-    }
-
-    static func menuBarGlyphImage(_ glyph: Character) -> NSImage? {
-        guard let font = NSFont(name: "NotoSansGlagolitic-Regular", size: 16) else {
-            return nil
-        }
-        let text = NSAttributedString(
-            string: String(glyph),
-            attributes: [
-                .font: font,
-                .foregroundColor: NSColor.black,
-            ]
-        )
-        let textSize = text.size()
-        let image = NSImage(size: NSSize(width: ceil(textSize.width), height: ceil(textSize.height)))
-        image.lockFocus()
-        text.draw(at: .zero)
-        image.unlockFocus()
-        image.isTemplate = true
-        return image
     }
 }

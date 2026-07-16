@@ -31,7 +31,7 @@ struct AppShellPackagingTests {
         #expect(appMainMenu.contains(#"#selector(NSText.selectAll(_:))"#))
         #expect(delegate.contains("NSStatusItem"))
         #expect(delegate.contains("setStatusGlyph(.idle"))
-        #expect(glyph.contains("NotoSansGlagolitic-Regular"))
+        #expect(glyph.contains("MenuBarGlyph.image(for:"))
         #expect(glyph.contains("button.image"))
         #expect(!glyph.contains("button?.title = String(MenuBarGlyph"))
     }
