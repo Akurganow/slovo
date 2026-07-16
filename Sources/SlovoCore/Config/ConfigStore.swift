@@ -49,6 +49,44 @@ public enum ConfigStore {
         let mode: String?
         let asr: StoredAsr
         let cleanup: StoredCleanup
+        // An absent wire field defaults to `true` at decode, so pre-feature installs
+        // keep muting (backward compatible, no migration).
+        let mutesSystemAudioWhileDictating: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case language
+            case keepWarmSeconds
+            case trigger
+            case mode
+            case asr
+            case cleanup
+            case mutesSystemAudioWhileDictating
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            language = try container.decode(Language.self, forKey: .language)
+            keepWarmSeconds = try container.decodeIfPresent(Int.self, forKey: .keepWarmSeconds)
+            trigger = try container.decodeIfPresent(String.self, forKey: .trigger)
+            mode = try container.decodeIfPresent(String.self, forKey: .mode)
+            asr = try container.decode(StoredAsr.self, forKey: .asr)
+            cleanup = try container.decode(StoredCleanup.self, forKey: .cleanup)
+            mutesSystemAudioWhileDictating = try container.decodeIfPresent(
+                Bool.self, forKey: .mutesSystemAudioWhileDictating
+            ) ?? true
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(language, forKey: .language)
+            try container.encodeIfPresent(keepWarmSeconds, forKey: .keepWarmSeconds)
+            try container.encodeIfPresent(trigger, forKey: .trigger)
+            try container.encodeIfPresent(mode, forKey: .mode)
+            try container.encode(asr, forKey: .asr)
+            try container.encode(cleanup, forKey: .cleanup)
+            // Explicit on the wire (like `useSpellCheckHints`), never omitted.
+            try container.encode(mutesSystemAudioWhileDictating, forKey: .mutesSystemAudioWhileDictating)
+        }
 
         func validated() -> Config? {
             guard mode == nil || mode == Config.defaultMode else {
@@ -98,7 +136,8 @@ public enum ConfigStore {
                 asrModel: asr.model,
                 openRouterModel: openRouterModel,
                 writingStyle: cleanup.writingStyle,
-                useSpellCheckHints: cleanup.useSpellCheckHints
+                useSpellCheckHints: cleanup.useSpellCheckHints,
+                mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating
             ))
         }
 
@@ -107,6 +146,7 @@ public enum ConfigStore {
             keepWarmSeconds = config.keepWarmSeconds
             trigger = config.trigger.rawValue
             mode = Config.defaultMode
+            mutesSystemAudioWhileDictating = config.mutesSystemAudioWhileDictating
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(
                 provider: nil,

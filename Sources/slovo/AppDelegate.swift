@@ -40,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let config = ConfigStore.load(from: defaults)
         let built = DictationMenuBuilder(target: self).make(
             trigger: config.trigger,
-            selectedModelId: config.openRouterModel
+            selectedModelId: config.openRouterModel,
+            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating
         )
         statusTextItem = built.statusItem
         return built.menu
@@ -308,6 +309,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { @MainActor in
             await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
+    }
+
+    /// Persists a mute-while-dictating change and applies it to the NEXT dictation
+    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the
+    /// resident ASR model is never re-warmed and no loading pulse appears for a
+    /// change that only flips a capture-stage flag. The switch is menu-visible, so
+    /// the status menu is rebuilt to track the checkmark.
+    func applyMuteWhileDictating(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.mutesSystemAudioWhileDictating = enabled
+        do {
+            try ConfigStore.save(config, to: defaults)
+        } catch {
+            logger.error("config save failed")
+            return
+        }
+        installStatusMenu()
+        Task { @MainActor in
+            await composition?.orchestrator.updateMutesSystemAudioWhileDictating(enabled)
+        }
+    }
+
+    @objc
+    func toggleMuteWhileDictating(_ sender: NSMenuItem) {
+        let config = ConfigStore.load(from: defaults)
+        applyMuteWhileDictating(!config.mutesSystemAudioWhileDictating)
     }
 
     /// Persists the spell-check hints toggle and applies it to the NEXT dictation

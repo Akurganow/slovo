@@ -42,6 +42,10 @@ public struct Config: Equatable, Sendable {
     /// Advisory spell-check hints for cleanup, default on (spec Workstream 3). The
     /// input-language hint has no toggle; only the spell pass does.
     public var useSpellCheckHints: Bool
+    /// Whether Slovo mutes system audio output while the push-to-talk key is held,
+    /// default on (today's unconditional-mute behavior). A capture-stage setting, so
+    /// it is not part of `cleanupConfig`.
+    public var mutesSystemAudioWhileDictating: Bool
 
     public var cleanupConfig: CleanupConfig {
         CleanupConfig(
@@ -64,7 +68,8 @@ public struct Config: Equatable, Sendable {
         asrModel: String = Config.defaultAsrModel,
         openRouterModel: String = Config.defaultOpenRouterModel,
         writingStyle: WritingStyle = .casual,
-        useSpellCheckHints: Bool = true
+        useSpellCheckHints: Bool = true,
+        mutesSystemAudioWhileDictating: Bool = true
     ) {
         self.language = language
         self.keepWarmSeconds = keepWarmSeconds
@@ -74,5 +79,6 @@ public struct Config: Equatable, Sendable {
         self.openRouterModel = openRouterModel
         self.writingStyle = writingStyle
         self.useSpellCheckHints = useSpellCheckHints
+        self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
     }
 }

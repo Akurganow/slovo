@@ -244,4 +244,74 @@ struct AppRuntimeSourceGuardTests {
         #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "Status: Idle"], in: settleToIdleBody),
                 "the Idle title must stay guarded by the shown-pipeline-status flag")
     }
+
+    /// AC10: the dropdown's "Mute Audio While Dictating" switch renders as a
+    /// checkmark toggle wired to the AppDelegate selector. The builder lives in the
+    /// app target (not unit-importable), so this scans its source.
+    /// Stated sensitivity: drop the `state = isOn ? .on : .off` checkmark, the
+    /// "Mute Audio While Dictating" title, or the
+    /// `#selector(AppDelegate.toggleMuteWhileDictating` action wiring → the matching
+    /// `#expect` goes RED.
+    @Test
+    func menuBuilderRendersMuteWhileDictatingCheckmarkToggle() throws {
+        let builder = try Self.code("Sources/slovo/DictationMenuBuilder.swift")
+
+        #expect(builder.contains("Mute Audio While Dictating"),
+                "the switch must carry its user-visible title")
+        #expect(builder.contains("state = isOn ? .on : .off"),
+                "the switch must render its persisted state as a checkmark")
+        #expect(builder.contains("#selector(AppDelegate.toggleMuteWhileDictating"),
+                "the switch must be wired to the AppDelegate toggle selector")
+    }
+
+    /// AC11: the mute-while-dictating switch applies live to the NEXT dictation
+    /// without a pipeline rebuild — mirroring the cleanup-model change (#2). It must
+    /// push the flag to the running orchestrator and refresh the menu, never re-warm
+    /// ASR; and `makeMenu` must feed the builder the REAL persisted flag.
+    /// Stated sensitivity: route the change through a rebuild
+    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState), drop the
+    /// live orchestrator update, or hard-code the menu flag instead of reading config
+    /// → the matching `#expect` goes RED.
+    @Test
+    func changingMuteWhileDictatingAppliesLiveWithoutPipelineRebuild() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
+        let applyBody = try Self.functionBody(named: "applyMuteWhileDictating", in: delegate)
+        let toggleBody = try Self.functionBody(named: "toggleMuteWhileDictating", in: delegate)
+        let makeMenuBody = try Self.functionBody(named: "makeMenu", in: delegate)
+
+        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
+            #expect(!applyBody.contains(forbidden),
+                    "changing the mute switch must not \(forbidden): that re-warms ASR and shows the loading pulse")
+        }
+        #expect(applyBody.contains("updateMutesSystemAudioWhileDictating"),
+                "the mute-switch change must apply live to the running orchestrator")
+        #expect(applyBody.contains("installStatusMenu"),
+                "the mute switch is menu-visible, so its change must rebuild the status menu")
+        #expect(toggleBody.contains("applyMuteWhileDictating"),
+                "the @objc toggle selector must route through the live-apply path")
+        #expect(makeMenuBody.contains("mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating"),
+                "makeMenu must feed the builder the REAL persisted flag, not a literal")
+        #expect(orchestrator.contains("func updateMutesSystemAudioWhileDictating"),
+                "the orchestrator must expose a live mute-flag update so no rebuild is needed")
+    }
+
+    /// AC12: the FSM stays PURE — `transition` decides on (state, event) only. The
+    /// mute switch is a CAPTURE-stage flag applied in the orchestrator, never
+    /// threaded into the pure decision table.
+    /// Stated sensitivity: add a config/mute parameter to `transition` (thread the
+    /// live flag into the FSM) → the signature grows that parameter → RED. This is a
+    /// stays-green purity guard; it is green today because the FSM is already pure.
+    @Test
+    func fsmTransitionSignatureTakesNoConfigParameter() throws {
+        let fsm = try Self.code("Sources/SlovoCore/FSM/DictationFsm.swift")
+        let signature = try Self.slice(of: fsm, from: "func transition(", to: ")")
+
+        #expect(signature.contains("_ state:"), "the pure FSM must still switch on the current state")
+        #expect(signature.contains("on event:"), "the pure FSM must still switch on the incoming event")
+        for forbidden in ["config", "Config", "mutes", "muteWhile"] {
+            #expect(!signature.contains(forbidden),
+                    "the pure FSM transition must not take a \(forbidden) parameter")
+        }
+    }
 }

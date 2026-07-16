@@ -41,6 +41,7 @@ public enum PipelineFactory {
         return Orchestrator(
             dependencies: assembly.dependencies,
             cleanupConfig: config.cleanupConfig,
+            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
             vocabularyLimit: vocabularyLimit
         )
     }

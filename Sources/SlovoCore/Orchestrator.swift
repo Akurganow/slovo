@@ -87,11 +87,13 @@ public actor Orchestrator {
 
     private let deps: Dependencies
     private var cleanupConfig: CleanupConfig
+    private var mutesSystemAudioWhileDictating: Bool
     private let vocabularyLimit: Int
 
-    public init(dependencies: Dependencies, cleanupConfig: CleanupConfig, vocabularyLimit: Int = 50) {
+    public init(dependencies: Dependencies, cleanupConfig: CleanupConfig, mutesSystemAudioWhileDictating: Bool = true, vocabularyLimit: Int = 50) {
         self.deps = dependencies
         self.cleanupConfig = cleanupConfig
+        self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
         self.vocabularyLimit = vocabularyLimit
     }
 
@@ -106,6 +108,12 @@ public actor Orchestrator {
     /// (the sole runtime mutation today is the cleanup model id).
     public func updateCleanupConfig(_ config: CleanupConfig) {
         cleanupConfig = config
+    }
+
+    /// Live-pushes the mute-while-dictating setting to the NEXT dictation, like
+    /// `updateCleanupConfig` — a push because only the app knows the toggle changed.
+    public func updateMutesSystemAudioWhileDictating(_ enabled: Bool) {
+        mutesSystemAudioWhileDictating = enabled
     }
 
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
@@ -225,7 +233,8 @@ public actor Orchestrator {
     private func execute(_ effect: DictationEffect) async -> DeferredEffect? {
         switch effect {
         case .muteSystemOutput:
-            // Stash the prior state for the key-up restore.
+            // MUTE is flag-gated but RESTORE stays stash-gated, so a mid-session toggle can't leave audio muted (skipped mute → nothing to restore).
+            guard mutesSystemAudioWhileDictating else { return nil }
             stashedPriorAudio = try? deps.audio.muteSystemOutput()
             return nil
 

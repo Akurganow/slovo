@@ -8,7 +8,7 @@ core seams.
 The dictation flow is:
 
 ```text
-key down -> mute output -> start microphone + live recognition
+key down -> mute output (when enabled) -> start microphone + live recognition
 key held -> convert each audio chunk -> update live recognition
 key up   -> stop capture -> finalize unfinished tail -> clean -> inject
 ```
@@ -23,7 +23,9 @@ sends only transcript text for the selected routed model id.
   default, or a right-hand modifier); `HotkeyDecisionCore` is the pure,
   unit-tested policy that turns key events into start / stop / silent-cancel
   decisions.
-- `SystemAudioController` mutes and restores system output during recording.
+- `SystemAudioController` mutes and restores system output during recording, when
+  the "Mute Audio While Dictating" menu setting is on (the default); with it off,
+  Slovo neither mutes nor restores.
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
 - `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and

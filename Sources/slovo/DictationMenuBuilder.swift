@@ -15,10 +15,10 @@ struct DictationMenuBuilder {
         let statusItem: NSMenuItem
     }
 
-    func make(trigger: HotkeyTrigger, selectedModelId: String) -> Built {
+    func make(trigger: HotkeyTrigger, selectedModelId: String, mutesSystemAudioWhileDictating: Bool) -> Built {
         let menu = NSMenu()
         var statusItem = NSMenuItem()
-        for item in DictationMenu.items(trigger: trigger, selectedModelId: selectedModelId) {
+        for item in DictationMenu.items(trigger: trigger, selectedModelId: selectedModelId, mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating) {
             switch item {
             case .title(let text):
                 menu.addItem(disabled(text))
@@ -37,6 +37,13 @@ struct DictationMenuBuilder {
                 ))
             case .addVocabulary:
                 menu.addItem(target.actionItem("Add Vocabulary...", #selector(AppDelegate.showVocabularyQuickAdd)))
+            case .muteWhileDictating(let isOn):
+                let entry = target.actionItem(
+                    "Mute Audio While Dictating",
+                    #selector(AppDelegate.toggleMuteWhileDictating(_:))
+                )
+                entry.state = isOn ? .on : .off
+                menu.addItem(entry)
             case .settings:
                 let entry = target.actionItem("Settings...", #selector(AppDelegate.showSettingsWindow))
                 entry.keyEquivalent = ","
