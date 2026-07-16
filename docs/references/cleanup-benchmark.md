@@ -96,22 +96,6 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 
 The default benchmark does not download datasets or models at runtime.
 
-## Wispr Flow Reference Bar
-
-Wispr Flow's public feature page describes cleanup beyond raw transcription:
-filler removal, punctuation, list formatting, and correction/backtracking while
-the user speaks. Its release notes also expose cleanup levels from "None" through
-"High", with "Light" specifically cleaning filler words and grammar.
-
-This makes the benchmark's product bar explicit: a fast provider that leaves
-spoken filler words and unstructured run-on text untouched is not good enough,
-even if its latency is excellent.
-
-Wispr's public privacy/data-control pages describe a cloud processing model with
-Privacy Mode and Cloud Sync controls. Slovo should not copy that architecture:
-Slovo's audio path remains local, and only already-transcribed text may leave the
-Mac for OpenRouter cleanup attempts.
-
 ## Providers
 
 The benchmark accepts two provider forms:
@@ -185,10 +169,6 @@ samples.
 
 ## Sources
 
-- Wispr Flow features: https://wisprflow.ai/features
-- Wispr Flow data controls: https://wisprflow.ai/data-controls
-- Wispr Flow privacy: https://wisprflow.ai/privacy
-- Wispr Flow release notes: https://wisprflow.ai/whats-new
 - OpenRouter API docs: https://openrouter.ai/docs
 - OpenRouter Chat Completions API: https://openrouter.ai/docs/api-reference/chat-completion
 - OpenRouter model list API: https://openrouter.ai/api/v1/models
@@ -196,6 +176,4 @@ samples.
 ## Verification
 
 PASS — updated on 2026-07-12 against Slovo's OpenRouter-only cleanup path and a
-live 10-repetition OpenRouter benchmark. Wispr internals are not public; statements
-about its implementation are limited to public privacy/data-control text and
-product features.
+live 10-repetition OpenRouter benchmark.
