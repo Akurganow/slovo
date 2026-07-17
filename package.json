@@ -1,0 +1,10 @@
+{
+  "name": "slovo-release-tooling",
+  "private": true,
+  "description": "Dev-only tooling for Slovo's CI-native release automation. Never published (the app is Swift); release-it is used only as the conventional-commit version-computation engine in the Release workflow. Version of record lives in git tags and Resources/Info.plist, not here.",
+  "license": "GPL-3.0-only",
+  "devDependencies": {
+    "@release-it/conventional-changelog": "11.0.1",
+    "release-it": "20.2.1"
+  }
+}

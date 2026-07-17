@@ -41,7 +41,7 @@ swift test --filter AppShellPackagingTests --disable-automatic-resolution
 
 ## Full Gate
 
-Run the full local gate before committing or tagging:
+Run the full local gate before committing or opening a pull request:
 
 ```sh
 Scripts/diagnose.sh

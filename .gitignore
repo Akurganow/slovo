@@ -1,6 +1,10 @@
 # macOS / Xcode / SwiftPM
 .DS_Store
 .build/
+
+# Node — dev-only release tooling (release-it). Only package.json and the
+# lockfile are tracked; installed packages never are.
+node_modules/
 .swiftpm/
 .codex/
 .agentic/project-profile.md

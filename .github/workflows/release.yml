@@ -1,12 +1,23 @@
 name: Release
 
-# Automatic CI/CD for the distributable app. On every trigger it runs the Swift
-# test gate, then builds, signs (Developer ID), notarizes (App Store Connect API
-# key), and STAPLES the app and DMG, uploading them as a workflow artifact — this
-# is the trunk verification path. On a v* tag it additionally publishes a GitHub
-# Release with the stapled DMG and app zip. Stapling contacts Apple over a clean
-# network, so CI is the first place the full chain can finish (local stapling can
-# be blocked by TLS-inspecting proxies).
+# CI-native release automation. Every push to `main` runs this one pipeline, which
+# itself decides — from the conventional commits since the last release tag —
+# whether a release is due:
+#
+#   * releasable commits (feat / fix / perf / breaking) -> compute the next semver
+#     with release-it, stamp it into Info.plist, build, sign, notarize, staple,
+#     verify, then commit the version bump, tag `v<version>`, and publish a GitHub
+#     Release with the stapled DMG and app zip.
+#   * nothing releasable (docs / chore / ci only) -> the run is trunk verification:
+#     it still tests and packages a signed artifact under a unique dev stamp, but
+#     creates no tag and no release.
+#
+# Humans never run release commands, edit versions, or push tags — the pipeline is
+# the only path. The publish job pushes the bump commit and tag with GITHUB_TOKEN,
+# whose pushes deliberately do NOT re-trigger workflows (GitHub loop protection);
+# together with `[skip ci]` this is why the release completes in a single run and
+# needs no PAT. There is no standalone `tags: v*` trigger: tags are created by this
+# pipeline, so a second, tag-triggered packaging run can never double-fire.
 #
 # Never runs on pull_request: fork PRs get no secrets, and packaging must never be
 # exposed to untrusted code. Signing secrets live in the protected `release`
@@ -14,29 +25,97 @@ name: Release
 on:
   push:
     branches: [ "main" ]
-    tags: [ "v*" ]
   workflow_dispatch:
 
-# Least privilege by default; only the release job is granted contents: write.
+# Least privilege by default; only the publish job is granted contents: write, and
+# it holds no signing secrets.
 permissions:
   contents: read
 
 concurrency:
+  # Do not cancel a release once it starts mutating state. A newer push to main may
+  # still supersede an in-flight run during its `test` phase (the reusable gate has
+  # its own cancel-in-progress group), but that is before any commit/tag/release, so
+  # no partial publish can result. Queued runs re-decide against the tag the prior
+  # run created.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Single source of the test gate: the reusable workflow that also guards PRs.
   test:
     uses: ./.github/workflows/swift.yml
 
-  package:
+  # Decide whether a release is due and, if so, compute the next version. Holds no
+  # secrets and only reads the checkout, so it runs on the cheaper Linux runner.
+  decide:
     needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      releasable: ${{ steps.guard.outputs.releasable }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history and tags: the guard needs the range since the last v* tag,
+          # and release-it reads that tag as the version anchor.
+          fetch-depth: 0
+      - name: Decide whether a release is due
+        id: guard
+        run: Scripts/release-decision.sh
+      - name: Set up Node
+        if: steps.guard.outputs.releasable == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install release tooling
+        if: steps.guard.outputs.releasable == 'true'
+        # --ignore-scripts: release-it and the changelog plugin are pure JS and need
+        # no lifecycle scripts, so no transitive dependency runs install-time code.
+        run: npm ci --ignore-scripts
+      - name: Compute the next release version
+        id: version
+        if: steps.guard.outputs.releasable == 'true'
+        run: |
+          set -euo pipefail
+          version="$(npx --no-install release-it --release-version --ci)"
+          # Delimiter form so a value can never inject extra output keys.
+          {
+            echo "version<<RELEASE_IT_VERSION_EOF"
+            echo "$version"
+            echo "RELEASE_IT_VERSION_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "computed release version: $version"
+
+  package:
+    needs: [ test, decide ]
     runs-on: macos-26
     # Signing secrets are scoped to this protected environment.
     environment: release
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history so the CFBundleVersion build number (git rev-list --count)
+          # is deterministic and monotonic.
+          fetch-depth: 0
+      - name: Stamp the app version
+        env:
+          RELEASABLE: ${{ needs.decide.outputs.releasable }}
+          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          build_number="$(git rev-list --count HEAD)"
+          if [ "$RELEASABLE" = "true" ]; then
+            # Real release: the computed marketing version + a monotonic build number.
+            Scripts/stamp-app-version.sh "$RELEASE_VERSION" "$build_number"
+          else
+            # Trunk verification: a unique, run-scoped dev stamp that never
+            # masquerades as a released build (marked short version + run-number
+            # CFBundleVersion). No tag or release is created for this artifact.
+            current="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)"
+            Scripts/stamp-app-version.sh "${current}-ci.${RUN_NUMBER}" "$RUN_NUMBER"
+          fi
       - name: Cache SwiftPM build
         uses: actions/cache@v6
         with:
@@ -114,31 +193,58 @@ jobs:
             .build/dist/Slovo.zip
           if-no-files-found: error
 
-  release:
-    needs: package
-    # Only tags publish a Release; write access is isolated to this job, which
-    # never touches signing secrets. It only moves artifacts, so it runs on the
-    # cheaper, faster-starting Linux runner rather than tying up a macOS runner.
-    if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    needs: [ decide, package ]
+    # Only a run that decided a release is due publishes. Write access is isolated
+    # to this job, which holds no signing secrets. It only stamps text files, moves
+    # artifacts, tags, and releases, so it runs on the cheaper Linux runner.
+    if: needs.decide.outputs.releasable == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so the committed CFBundleVersion matches the packaged one
+          # deterministically. persist-credentials (default) lets the GITHUB_TOKEN
+          # push the bump commit and tag; those pushes do not re-trigger workflows.
+          fetch-depth: 0
       - name: Download signed artifacts
         uses: actions/download-artifact@v4
         with:
           name: slovo-macos
           path: dist
+      - name: Stamp the release version and cut the changelog
+        env:
+          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          build_number="$(git rev-list --count HEAD)"
+          Scripts/stamp-app-version.sh "$RELEASE_VERSION" "$build_number"
+          Scripts/promote-changelog.sh "$RELEASE_VERSION" "$(date -u +%Y-%m-%d)"
+      - name: Commit, tag, and push the release bump
+        env:
+          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Resources/Info.plist CHANGELOG.md
+          git commit -m "chore(release): v${RELEASE_VERSION} [skip ci]"
+          git tag "v${RELEASE_VERSION}"
+          # Push the commit first; if main advanced meanwhile this fails non-fast-
+          # forward before any tag or release is created, leaving no partial state.
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "v${RELEASE_VERSION}"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        # $GITHUB_REF_NAME is the built-in tag name; it is not interpolated into
-        # the shell from an event field, avoiding expression injection.
+          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "v${RELEASE_VERSION}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
+            --title "v${RELEASE_VERSION}" \
             --generate-notes \
             --verify-tag \
             dist/Slovo.dmg dist/Slovo.zip

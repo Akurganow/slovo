@@ -59,10 +59,12 @@ SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh app
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, because
 ad-hoc builds cannot prove stable macOS privacy or Keychain trust behavior. See
-[docs/release-checklist.md](docs/release-checklist.md) for the full
-build → staple → DMG → staple → publish flow; stapling the notarization ticket is
-the only manual step locally. Published releases run the whole chain, including
-stapling, automatically on tags — see [docs/release-ci.md](docs/release-ci.md).
+[docs/release-checklist.md](docs/release-checklist.md) for the full local
+build → staple → DMG → staple verification flow. Published releases are fully
+automated: a push to `main` runs the whole chain — including notarization,
+stapling, tagging, and publishing — when the conventional commits warrant a
+release; nobody tags or edits a version by hand. See
+[docs/release-ci.md](docs/release-ci.md).
 
 ## Pull Request Checklist
 
@@ -71,3 +73,6 @@ stapling, automatically on tags — see [docs/release-ci.md](docs/release-ci.md)
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
 - [ ] Security or privacy boundary changes are called out explicitly.
+- [ ] `CHANGELOG.md` keeps its top `## [Unreleased]` heading — the release
+      automation promotes it to the new version section, and its absence fails the
+      publish step.

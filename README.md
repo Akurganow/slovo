@@ -172,11 +172,13 @@ entitlements, opens it, and verifies that the `slovo` process is running.
 Stable signing is required for macOS TCC permission persistence; pass the
 identity explicitly so a different certificate cannot be selected implicitly.
 
-Published releases are built automatically: pushing a `v*` tag runs the full
-build/sign/notarize/staple chain on GitHub-hosted macOS runners and publishes the
-stapled DMG to a GitHub Release. See [docs/release-ci.md](docs/release-ci.md) for
-the CI setup and triggers. The local flow below is for manual packaging and for
-verifying a build before tagging.
+Published releases are fully automated: a push to `main` runs one pipeline that
+decides from the conventional commits whether a release is due, computes the next
+version, and runs the full build/sign/notarize/staple chain on GitHub-hosted macOS
+runners, then tags `v<version>` and publishes the stapled DMG to a GitHub Release.
+Nobody runs a release command, edits a version, or pushes a tag by hand. See
+[docs/release-ci.md](docs/release-ci.md) for the CI flow and triggers. The local
+flow below is only for verifying a build before it is merged.
 
 Packaging runs in two automated phases: build/sign/notarize the app, then
 package the stapled app into a DMG. Stapling the notarization ticket is the
@@ -202,7 +204,7 @@ it contacts Apple's CloudKit endpoint and can fail behind a TLS-inspecting
 proxy even when notarization succeeds; run it on a network that does not
 break Apple certificate pinning. See
 [docs/release-checklist.md](docs/release-checklist.md) for verification
-and publishing.
+steps.
 
 The signing script intentionally rejects ad-hoc signing by default because
 macOS privacy grants and Keychain trust are tied to a stable app identity.
