@@ -196,10 +196,12 @@ jobs:
   publish:
     needs: [ decide, package ]
     # Only a run that decided a release is due publishes. Write access is isolated
-    # to this job, which holds no signing secrets. It only stamps text files, moves
-    # artifacts, tags, and releases, so it runs on the cheaper Linux runner.
+    # to this job, which holds no signing secrets. It MUST run on macOS: the
+    # version stamp goes through the repo's single stamping script, which uses
+    # Apple userland (PlistBuddy, plutil) so the committed plist can never drift
+    # from the packaged one — a Linux runner has neither tool (exit 127).
     if: needs.decide.outputs.releasable == 'true'
-    runs-on: ubuntu-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:

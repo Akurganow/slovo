@@ -242,6 +242,29 @@ struct ChangelogPromotionTests {
     }
 }
 
+@Suite("Release workflow platform contract")
+struct ReleaseWorkflowPlatformTests {
+    /// The publish job commits the version through the repo's single stamping
+    /// script, which uses Apple userland (PlistBuddy, plutil) — a Linux runner has
+    /// neither and dies with exit 127, which is exactly how the first live release
+    /// run failed.
+    /// Stated sensitivity: move `publish` back to `runs-on: ubuntu-latest` (or any
+    /// non-macOS runner) → RED.
+    @Test
+    func publishJobRunsOnMacosForTheVersionStamp() throws {
+        let workflowPath = ReleaseScriptRunner.packageRoot
+            .appending(path: ".github/workflows/release.yml")
+        let workflow = try String(contentsOf: workflowPath, encoding: .utf8)
+        let publishJob = try #require(
+            workflow.range(of: "\n  publish:").map { workflow[$0.lowerBound...] },
+            "release.yml must declare a publish job"
+        )
+
+        #expect(publishJob.contains("runs-on: macos-"))
+        #expect(!publishJob.contains("runs-on: ubuntu"))
+    }
+}
+
 enum ReleaseScriptRunner {
     struct CommandResult {
         let exitCode: Int32
