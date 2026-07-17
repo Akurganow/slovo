@@ -26,10 +26,17 @@ Clarifications:
 - **"Live" means LOW LATENCY (text ready at key-up), NOT a visible running
   transcript.** No overlay, no partial text on screen. Only the final cleaned text
   is inserted (raw only on cleanup failure).
-- **Empty result** (key held but only silence, no error): briefly show the
-  Glagolitic letter Nashi "Ⱀ" (U+2C10) in the menu bar, insert nothing, show no
-  alert and no persistent notice — do not distract the user. This is NOT an error,
-  and is distinct from a genuine recognition failure (which is surfaced honestly).
+- **Translate hold.** Holding the push-to-talk key together with Control at any
+  moment of the hold makes that one dictation translate: the single cleanup step
+  also translates the result into the target language chosen in Settings or the
+  menu-bar dropdown, then inserts it. A plain hold (no Control) must never
+  translate.
+- **Mute while dictating.** A menu-bar switch (on by default) silences system
+  audio output while the key is held and restores it afterward; turning it off
+  leaves system audio untouched during dictation.
+- **Empty result** (key held but only silence): the menu bar briefly shows the
+  red failure glyph "Ⱁ" (U+2C11), nothing is inserted, and there is no alert and
+  no persistent notice — do not distract the user.
 - **Errors surface only through the menu-bar icon/status** — never an alert,
   dialog, or focus-stealing notification. Slovo types into the user's current app;
   stealing focus destroys the workflow it exists to serve.

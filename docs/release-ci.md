@@ -53,7 +53,7 @@ never sees signing secrets.
 | `test` | macOS | `contents: read` | none | reusable Swift test gate |
 | `decide` | Linux | `contents: read` | none | run the guard, compute the version |
 | `package` | macOS | `contents: read`, `environment: release` | signing secrets | stamp version, build, sign, notarize, staple, verify, upload artifact |
-| `publish` | Linux | `contents: write` | none (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
+| `publish` | macOS | `contents: write` | none (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
 Signing secrets live only in the protected `release` environment and are reachable
 only from `package`. Write access to the repository is isolated to `publish`,

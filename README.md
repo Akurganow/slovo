@@ -31,6 +31,9 @@ tuned.
 - Optional per-dictation translation: hold Control together with the
   push-to-talk key to translate that dictation into a target language as part
   of the same cleanup step; a plain hold is unchanged.
+- Optional muting of system audio while dictating — a menu-bar **Mute Audio
+  While Dictating** switch (on by default) silences playback during capture and
+  restores it afterward.
 - On-device cleanup hints: your active keyboard language and the system spell
   checker nudge the model toward the right words, without ever leaving the Mac.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
@@ -81,9 +84,9 @@ after that, transcription runs fully on-device.
    release.
 3. Release `fn` / Globe. Cleanup runs immediately through OpenRouter, then
    the cleaned text is inserted into the focused field.
-4. If you held the key but only silence was captured, the menu-bar icon
-   briefly shows the Glagolitic letter `Ⱀ` and nothing is inserted — this is
-   not an error and needs no action.
+4. If you held the key but only silence was captured, nothing is inserted and
+   the menu-bar icon briefly shows the red failure glyph `Ⱁ` — no alert and no
+   persistent notice, so it never distracts you.
 5. If cleanup itself fails (unavailable, refused, misconfigured, or a
    provider/network error — never because a setting disabled cleanup), the
    raw transcript is inserted instead and the menu-bar icon briefly shows

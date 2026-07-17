@@ -115,11 +115,14 @@ public enum DictationEffect: Equatable, Sendable {
 public enum DictationFsm {
     /// The pinned (State, Event) → (State, [Effect]) transition.
     ///
-    /// Mute/restore invariant: system audio is muted once on key-down
-    /// (`idle + startRequested`) and restored exactly once on leaving `recording`
-    /// — whether recording ends normally (`stopRequested`), via a silent cancel
-    /// (`cancelRequested`), or via a failure (`failed`). Restore never runs in
-    /// `processing` (already restored at key-up).
+    /// Mute/restore invariant: the FSM emits `muteSystemOutput` once on key-down
+    /// (`idle + startRequested`) and `restoreSystemOutput` exactly once on leaving
+    /// `recording` — whether recording ends normally (`stopRequested`), via a
+    /// silent cancel (`cancelRequested`), or via a failure (`failed`); restore
+    /// never runs in `processing` (already restored at key-up). The executor may
+    /// skip the actual mute when the user turned it off (flag-gated), but restore
+    /// stays stash-gated, so a skipped mute has nothing to restore and the pair
+    /// still balances.
     ///
     /// An event with no pinned transition for the current state is a lossless
     /// no-op: the state is unchanged and a single `log(.unexpectedEvent)` effect
