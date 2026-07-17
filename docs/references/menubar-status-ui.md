@@ -6,9 +6,9 @@ slovo shows ONE menu-bar status item whose icon switches by dictation state, and
 a popover (on click) carrying the recent-dictation **history** plus the current
 **status**. The user chose **Glagolitic** glyphs for the two primary states:
 
-- recording → Glagolitic **Ⰸ** (ZEMLJA, `U+2C18`, the Glagolitic letter for
+- recording → Glagolitic **Ⰸ** (ZEMLJA, `U+2C08`, the Glagolitic letter for
   Cyrillic «З»);
-- idle → Glagolitic **Ⱄ** (SLOVO, `U+2C44`, for Cyrillic «С»).
+- idle → Glagolitic **Ⱄ** (SLOVO, `U+2C14`, for Cyrillic «С»).
 
 This reference answers the make-or-break question first — *can those glyphs even
 render in the macOS menu bar?* — then collects the verified AppKit / SwiftUI APIs
@@ -29,7 +29,7 @@ JS-rendered) and Apple Support's bundled-font lists; canonical URLs are in
 macOS 15 "Sequoia"). No font needs to be bundled.** macOS ships
 **`Noto Sans Glagolitic` Regular (v2.000)** in `/System/Library/Fonts/Supplemental`,
 and it contains the real Glagolitic letterforms (142 glyphs covering the whole
-`U+2C00–U+2C5F` block — Ⰸ `U+2C18` and Ⱄ `U+2C44` included). Render the glyph
+`U+2C00–U+2C5F` block — Ⰸ `U+2C08` and Ⱄ `U+2C14` included). Render the glyph
 through *that font explicitly*, not through the default menu-bar font.
 
 The critical trap to avoid:
@@ -72,8 +72,8 @@ func menuBarGlyphImage(_ glyph: String, fontName: String, pointSize: CGFloat = 1
 }
 
 // PostScript name to VERIFY on device (see Verification gap): likely "NotoSansGlagolitic-Regular".
-let recordingIcon = menuBarGlyphImage("\u{2C18}", fontName: "NotoSansGlagolitic-Regular") // Ⰸ
-let idleIcon      = menuBarGlyphImage("\u{2C44}", fontName: "NotoSansGlagolitic-Regular") // Ⱄ
+let recordingIcon = menuBarGlyphImage("\u{2C08}", fontName: "NotoSansGlagolitic-Regular") // Ⰸ
+let idleIcon      = menuBarGlyphImage("\u{2C14}", fontName: "NotoSansGlagolitic-Regular") // Ⱄ
 ```
 
 Notes:
@@ -291,7 +291,7 @@ text fields; for a read-only history list this is typically unnecessary.
 
 Glagolitic / fonts:
 - Unicode Glagolitic chart (`U+2C00–U+2C5F`) — https://www.unicode.org/charts/PDF/U2C00.pdf
-- Compart, Glagolitic block (lists `U+2C18` ZEMLJA, `U+2C44` SLOVO) — https://www.compart.com/en/unicode/block/U+2C00
+- Compart, Glagolitic block (lists `U+2C08` ZEMLJA, `U+2C14` SLOVO) — https://www.compart.com/en/unicode/block/U+2C00
 - Font support for Glagolitic (shows LastResort "98%") — https://www.fileformat.info/info/unicode/block/glagolitic/fontsupport.htm
 - Apple LastResort font (what it draws: per-block placeholder squares) — https://www.fileformat.info/resource/software/lastresort/index.htm
 - Fallback font / LastResort (one glyph per block, hex range + block name) — https://en.wikipedia.org/wiki/Fallback_font
@@ -333,7 +333,7 @@ corroborating sources.
 
 ### Confirmed against a primary source
 
-- **Glagolitic codepoints:** `U+2C18` GLAGOLITIC CAPITAL LETTER ZEMLJA, `U+2C44`
+- **Glagolitic codepoints:** `U+2C08` GLAGOLITIC CAPITAL LETTER ZEMLJA, `U+2C14`
   GLAGOLITIC CAPITAL LETTER SLOVO, within block `U+2C00–U+2C5F` (Unicode chart /
   Compart). ✓
 - **macOS bundles Noto Sans Glagolitic:** "Noto Sans Glagolitic Regular" (v2.000)
