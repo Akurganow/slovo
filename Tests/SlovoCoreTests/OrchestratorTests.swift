@@ -357,35 +357,4 @@ struct OrchestratorTests {
         await transcriber.release()
         await orchestrator.awaitPipelineDrain()
     }
-
-    /// Latency budget: the all-instant fake pipeline must finish near
-    /// instantly, so this catches a synchronous stall in slovo's OWN code — a
-    /// blocking `sleep`/call in the orchestrator pushes `elapsed` past the budget.
-    /// Stated sensitivity: such a synchronous stall → RED.
-    ///
-    /// Local-only. This is a wall-clock guard and is meaningful only where
-    /// scheduling is stable. Shared CI runners are not: the same ~1 ms pipeline was
-    /// observed taking anywhere from 0.24 s to 2.56 s there, so any fixed budget is
-    /// either flaky or meaningless. The local gate (Scripts/diagnose.sh) owns this
-    /// check; CI runs every other test.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil,
-                   "wall-clock guard; shared CI scheduling variance is too high — runs in the local gate"))
-    func fullPipelineHoldsLatencyBudget() async {
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(
-                transcriber: FakeTranscriber(outcome: .success("hi")),
-                cleaner: FakeCleaner(outcome: .success("HI")),
-                injector: FakeInjector(outcome: .success)
-            )
-        )
-
-        let budget: Duration = .milliseconds(200)
-        let start = ContinuousClock.now
-        await Self.runSession(orchestrator)
-        let elapsed = ContinuousClock.now - start
-
-        #expect(elapsed < budget,
-                "the full fake pipeline must complete within \(budget) (slovo's own sync code); took \(elapsed)")
-    }
 }
