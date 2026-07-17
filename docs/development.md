@@ -101,12 +101,14 @@ format and benchmark reporting notes.
 Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
 
 ```sh
-SIGNING_IDENTITY="Slovo Local Development" Scripts/sign-and-notarize.sh app
+SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" Scripts/sign-and-notarize.sh app
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See
 [release-checklist.md](release-checklist.md) for the full flow; stapling the
-notarization ticket is the only manual step.
+notarization ticket is the only manual step. Published releases are fully
+automated on CI — see [release-ci.md](release-ci.md); this section covers local
+verification builds only.
 
 ## Repository Hygiene
 
@@ -134,4 +136,6 @@ tap, verify on a real keyboard:
   on the next dictation with no "Preparing Speech Model" pulse.
 - **Translate latch:** hold the push-to-talk key and press or hold Control at any
   point before releasing — the dictation is translated into the configured target
-  (menu bar / Settings → Cleanup); a hold without Control is not translated.
+  (menu bar / Settings → Cleanup), and the menu-bar recording glyph switches live
+  to Pokoji `Ⱂ` while Control is latched; a hold without Control is not translated
+  and keeps the plain recording glyph.

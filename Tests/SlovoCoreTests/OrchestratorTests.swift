@@ -6,7 +6,8 @@ import SlovoCore
 import SlovoTestSupport
 
 // Running pipeline + degradation + the FOLDED vocab→biasTerms, single-flight (no
-// second mute/capture), and the latency budget.
+// second mute/capture). Hot-path latency is guarded separately, by source
+// invariant, in `DictationHotPathLatencySourceGuardTests`.
 //
 // Drives the REAL `PipelineFactory.makeOrchestrator` + `Orchestrator` over the
 // existing seam FAKES (running-composition — NEVER a hand-wired copy).
