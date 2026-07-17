@@ -10,8 +10,11 @@ set -euo pipefail
 #   Scripts/sign-and-notarize.sh dmg        # package the stapled app -> signed, notarized DMG
 #   xcrun stapler staple .build/dist/Slovo.dmg          # manual, on a networked Mac
 #
-# SIGNING_IDENTITY is required. NOTARY_PROFILE (a notarytool keychain profile)
-# enables the notarize step; without it a phase stops after signing.
+# SIGNING_IDENTITY is required. Notarization needs credentials from one of two
+# sources: NOTARY_PROFILE (a notarytool keychain profile, used locally) OR an App
+# Store Connect API key via NOTARY_KEY_P8 (path to the .p8), NOTARY_KEY_ID, and
+# NOTARY_ISSUER_ID (used by CI, which has no keychain). Without either a phase
+# stops after signing.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-release}"
@@ -54,6 +57,22 @@ fi
 if [[ "$SIGNING_IDENTITY" == "-" && "${ALLOW_AD_HOC_SIGNING:-0}" != "1" ]]; then
     echo "Ad-hoc signing requires ALLOW_AD_HOC_SIGNING=1 and cannot prove TCC persistence" >&2
     exit 64
+fi
+
+# Notarization credential source, resolved once for both phases. The keychain
+# profile takes precedence so local runs behave exactly as before; otherwise any
+# App Store Connect API-key variable selects the API-key path. A partial API-key
+# set is rejected rather than silently skipping notarization, so a misconfigured
+# run never ships an unnotarized artifact. An empty array means "sign only".
+notary_submit_args=()
+if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    notary_submit_args=(--keychain-profile "$NOTARY_PROFILE")
+elif [[ -n "${NOTARY_KEY_P8:-}" || -n "${NOTARY_KEY_ID:-}" || -n "${NOTARY_ISSUER_ID:-}" ]]; then
+    if [[ -z "${NOTARY_KEY_P8:-}" || -z "${NOTARY_KEY_ID:-}" || -z "${NOTARY_ISSUER_ID:-}" ]]; then
+        echo "App Store Connect API-key notarization needs NOTARY_KEY_P8, NOTARY_KEY_ID, and NOTARY_ISSUER_ID together" >&2
+        exit 64
+    fi
+    notary_submit_args=(--key "$NOTARY_KEY_P8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID")
 fi
 
 run() {
@@ -111,9 +130,9 @@ build_app() {
     fi
     run codesign "${codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$APP_PATH"
 
-    if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    if [[ ${#notary_submit_args[@]} -gt 0 ]]; then
         run ditto -c -k --keepParent "$APP_PATH" "$APP_ZIP_PATH"
-        run xcrun notarytool submit "$APP_ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+        run xcrun notarytool submit "$APP_ZIP_PATH" "${notary_submit_args[@]}" --wait
     fi
 
     echo "Next: staple the app on a Mac that can reach Apple notarization, then run '$0 dmg':" >&2
@@ -140,8 +159,8 @@ build_dmg() {
         run codesign --force --timestamp --sign "$SIGNING_IDENTITY" "$DMG_PATH"
     fi
 
-    if [[ -n "${NOTARY_PROFILE:-}" ]]; then
-        run xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+    if [[ ${#notary_submit_args[@]} -gt 0 ]]; then
+        run xcrun notarytool submit "$DMG_PATH" "${notary_submit_args[@]}" --wait
     fi
 
     echo "Next: staple the DMG on a Mac that can reach Apple notarization, then publish it:" >&2

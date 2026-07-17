@@ -1,13 +1,13 @@
 name: Swift
 
-# Runs the Swift test suite for the trunk and every change proposed into it.
-# Building and packaging the distributable app (signing, notarization, stapling)
-# stays a local task and is intentionally not part of CI.
+# Reusable Swift test gate. Pull requests into main run it directly; the release
+# pipeline (release.yml) calls it via workflow_call before it builds, signs,
+# notarizes, staples, and publishes the app, so every packaged trunk build and
+# every tagged release is gated by these tests.
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_call:
 
 # Least privilege: the test job only reads the checkout.
 permissions:
@@ -16,7 +16,11 @@ permissions:
 # Supersede an in-progress run when the same ref gets a newer push (saves the
 # scarce macOS runner minutes).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Stable, caller-independent group. As a reusable workflow this must not share a
+  # concurrency group with its caller (release.yml), or a called run could contend
+  # with the run that called it; a literal prefix keeps it distinct while still
+  # canceling superseded pull-request runs.
+  group: swift-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

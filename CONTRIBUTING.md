@@ -61,7 +61,8 @@ The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, becaus
 ad-hoc builds cannot prove stable macOS privacy or Keychain trust behavior. See
 [docs/release-checklist.md](docs/release-checklist.md) for the full
 build → staple → DMG → staple → publish flow; stapling the notarization ticket is
-the only manual step.
+the only manual step locally. Published releases run the whole chain, including
+stapling, automatically on tags — see [docs/release-ci.md](docs/release-ci.md).
 
 ## Pull Request Checklist
 

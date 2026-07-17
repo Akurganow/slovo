@@ -1,0 +1,144 @@
+name: Release
+
+# Automatic CI/CD for the distributable app. On every trigger it runs the Swift
+# test gate, then builds, signs (Developer ID), notarizes (App Store Connect API
+# key), and STAPLES the app and DMG, uploading them as a workflow artifact — this
+# is the trunk verification path. On a v* tag it additionally publishes a GitHub
+# Release with the stapled DMG and app zip. Stapling contacts Apple over a clean
+# network, so CI is the first place the full chain can finish (local stapling can
+# be blocked by TLS-inspecting proxies).
+#
+# Never runs on pull_request: fork PRs get no secrets, and packaging must never be
+# exposed to untrusted code. Signing secrets live in the protected `release`
+# environment and are reachable only from the packaging job.
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+# Least privilege by default; only the release job is granted contents: write.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Single source of the test gate: the reusable workflow that also guards PRs.
+  test:
+    uses: ./.github/workflows/swift.yml
+
+  package:
+    needs: test
+    runs-on: macos-26
+    # Signing secrets are scoped to this protected environment.
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+      - name: Cache SwiftPM build
+        uses: actions/cache@v6
+        with:
+          # Deliberately excludes .build/dist so a restored cache never carries a
+          # stale signed bundle into a fresh packaging run.
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+            .build/release
+          key: ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+      - name: Import Developer ID signing certificate
+        env:
+          DEVELOPER_ID_APP_P12_BASE64: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 }}
+          DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain_path="$RUNNER_TEMP/slovo-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+          cert_path="$RUNNER_TEMP/developer_id_app.p12"
+          printf '%s' "$DEVELOPER_ID_APP_P12_BASE64" | base64 --decode > "$cert_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$cert_path" -P "$DEVELOPER_ID_APP_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$keychain_password" "$keychain_path" >/dev/null
+          # The ephemeral keychain is the only one on the user search list for the
+          # rest of the job, so codesign resolves the Developer ID identity from it.
+          security list-keychains -d user -s "$keychain_path"
+          rm -f "$cert_path"
+      - name: Build, sign, notarize, and staple the app and DMG
+        env:
+          SIGNING_IDENTITY: "Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)"
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          NOTARY_KEY_P8="$RUNNER_TEMP/asc_api_key.p8"
+          export NOTARY_KEY_P8
+          printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$NOTARY_KEY_P8"
+          Scripts/sign-and-notarize.sh app
+          xcrun stapler staple .build/dist/Slovo.app
+          Scripts/sign-and-notarize.sh dmg
+          xcrun stapler staple .build/dist/Slovo.dmg
+          # Release asset must contain the STAPLED app, so re-zip after stapling.
+          ditto -c -k --keepParent .build/dist/Slovo.app .build/dist/Slovo.zip
+          rm -f "$NOTARY_KEY_P8"
+      - name: Verify signing, notarization, and stapling
+        run: |
+          set -euo pipefail
+          app=".build/dist/Slovo.app"
+          dmg=".build/dist/Slovo.dmg"
+          codesign --verify --strict --deep --verbose=2 "$app"
+          codesign --verify --verbose=2 "$dmg"
+          info="$(codesign --display --verbose=4 "$app" 2>&1)"
+          echo "$info"
+          echo "$info" | grep -q "Identifier=com.slovo.app"
+          echo "$info" | grep -q "TeamIdentifier=ZN8H5SF4R7"
+          xcrun stapler validate "$app"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type execute -vv "$app"
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slovo-macos
+          path: |
+            .build/dist/Slovo.dmg
+            .build/dist/Slovo.zip
+          if-no-files-found: error
+
+  release:
+    needs: package
+    # Only tags publish a Release; write access is isolated to this job, which
+    # never touches signing secrets. It only moves artifacts, so it runs on the
+    # cheaper, faster-starting Linux runner rather than tying up a macOS runner.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: slovo-macos
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # $GITHUB_REF_NAME is the built-in tag name; it is not interpolated into
+        # the shell from an event field, avoiding expression injection.
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            dist/Slovo.dmg dist/Slovo.zip

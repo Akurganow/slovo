@@ -2,6 +2,16 @@
 
 Use this checklist before publishing a Slovo build or tag.
 
+## Automated CI/CD
+
+Pushing a `v*` tag runs the full pipeline on GitHub-hosted macOS runners — tests,
+Developer ID signing, notarization, **stapling**, and a published GitHub Release
+with the stapled DMG and app zip. Because CI staples on a clean network, it is the
+first place the whole chain finishes end to end. See
+[release-ci.md](release-ci.md) for the one-time secret setup and the trigger/verify
+flow. The steps below remain the reference for local, manual packaging and for
+verifying a build before tagging.
+
 ## Automated Gate
 
 Run the full local gate:
@@ -28,8 +38,10 @@ avoid ad-hoc signing for release validation because it cannot prove that TCC
 grants survive rebuild. The app bundle must use `LSUIElement=true` and a stable
 bundle identifier.
 
-Set `NOTARY_PROFILE` (a `notarytool` keychain profile) to notarize; without it a
-phase stops after signing.
+Set `NOTARY_PROFILE` (a `notarytool` keychain profile) to notarize locally;
+without it a phase stops after signing. CI notarizes with an App Store Connect API
+key instead (`NOTARY_KEY_P8` / `NOTARY_KEY_ID` / `NOTARY_ISSUER_ID`) — see
+[release-ci.md](release-ci.md).
 
 1. Build, sign, and notarize the app bundle:
 
