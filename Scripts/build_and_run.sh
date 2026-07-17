@@ -67,7 +67,7 @@ resolve_signing_identity() {
 
   local identities preferred count
   identities="$(available_signing_identities)"
-  preferred="$(printf '%s\n' "$identities" | grep -Fx "Slovo Local Development" || true)"
+  preferred="$(printf '%s\n' "$identities" | grep -Fx "Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" || true)"
   if [[ -n "$preferred" ]]; then
     printf '%s\n' "$preferred"
     return
