@@ -132,3 +132,6 @@ tap, verify on a real keyboard:
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
 - **Live change:** switch the key in Settings → General while idle — the new key works
   on the next dictation with no "Preparing Speech Model" pulse.
+- **Translate latch:** hold the push-to-talk key and press or hold Control at any
+  point before releasing — the dictation is translated into the configured target
+  (menu bar / Settings → Cleanup); a hold without Control is not translated.

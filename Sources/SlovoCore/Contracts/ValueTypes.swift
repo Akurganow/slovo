@@ -123,17 +123,28 @@ public struct CleanupConfig: Equatable, Sendable {
     /// findings to the model as advisory hints. The input-language hint is
     /// unaffected — it has no toggle.
     public var useSpellCheckHints: Bool
+    /// The persisted target language a translate pass renders into. Read ONLY when
+    /// `translate` is on; ignored by a plain cleanup pass.
+    public var translationTargetLanguage: Language
+    /// Per-call flag (NOT persisted) the Orchestrator sets per session: on requests
+    /// a translate pass into `translationTargetLanguage`, off keeps today's
+    /// transcription-only cleanup.
+    public var translate: Bool
 
     public init(
         model: String = CleanupDefaults.openRouterModel,
         writingStyle: WritingStyle,
         language: Language,
-        useSpellCheckHints: Bool = true
+        useSpellCheckHints: Bool = true,
+        translationTargetLanguage: Language = .en,
+        translate: Bool = false
     ) {
         self.model = model
         self.writingStyle = writingStyle
         self.language = language
         self.useSpellCheckHints = useSpellCheckHints
+        self.translationTargetLanguage = translationTargetLanguage
+        self.translate = translate
     }
 }
 

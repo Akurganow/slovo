@@ -27,7 +27,7 @@ public enum HotkeyInputEvent: Equatable, Sendable {
 /// keeps working as a normal modifier.
 public enum HotkeyDecision: Equatable, Sendable {
     case start(suppress: Bool)
-    case stop(suppress: Bool)
+    case stop(suppress: Bool, mode: DictationMode)
     /// A non-trigger key went down while a right-modifier trigger was held: cancel
     /// the in-flight dictation silently; the real combo passes through untouched.
     case interruptCancel
@@ -46,6 +46,22 @@ public enum HotkeyDecision: Equatable, Sendable {
 public struct HotkeyDecisionCore {
     public private(set) var isTriggerHeld = false
     private var trigger: HotkeyTrigger
+    /// Latches translate intent for the current session: while held, ANY Control
+    /// latches, so the stop carries `.translate`. Full lifecycle, so a reader need
+    /// not reconstruct it from the scattered mutation sites:
+    /// - reset at each session START edge, so a stale latch never carries over;
+    /// - observed on every held `flagsChanged` before the key-code passthrough guard
+    ///   (a non-trigger Control still latches) and on the start event itself (Control
+    ///   already held at key-down counts);
+    /// - consumed at the STOP edge to pick `.translate` over `.plain`.
+    /// A value left by an abnormal end (`.keyDown` interrupt-cancel or `.tapDisabled`,
+    /// which do not clear it) is harmless: the next start's reset discards it first.
+    private var isControlLatched = false
+    /// The LEFT Control key code, distinct from the Right ⌃ trigger's own key code
+    /// (62): a Right ⌃ hold must not self-latch, but a SECOND, foreign Control still
+    /// latches translate. The flags carry a single `.control` bit either way, so
+    /// only the key code tells the two apart.
+    private static let leftControlKeyCode: Int64 = 59
 
     public init(trigger: HotkeyTrigger) {
         self.trigger = trigger
@@ -56,6 +72,7 @@ public struct HotkeyDecisionCore {
     public mutating func reconfigure(to trigger: HotkeyTrigger) {
         self.trigger = trigger
         isTriggerHeld = false
+        isControlLatched = false
     }
 
     public mutating func handle(_ event: HotkeyInputEvent) -> HotkeyDecision {
@@ -80,28 +97,51 @@ public struct HotkeyDecisionCore {
     }
 
     private mutating func handleFlagsChanged(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
+        // Observe the latch on EVERY flagsChanged during a held session, before the
+        // key-code passthrough guard below, so a non-trigger Control key still
+        // latches even though its event passes through.
+        if isTriggerHeld { observeControlLatch(keyCode: keyCode, flags: flags) }
         switch trigger.behavior {
         case .suppressedFn:
             // fn is keyed on the secondary-fn bit edge, key code ignored — exactly
             // the pre-existing detection.
-            return edge(engaged: flags.contains(.secondaryFn), suppress: true)
+            return edge(engaged: flags.contains(.secondaryFn), suppress: true, keyCode: keyCode, flags: flags)
         case .passthroughRightModifier:
             // The flags carry the modifier class but not the side, so a right
             // modifier requires its side-specific key code; the same class on the
             // other side (or a different key) is not ours.
             guard keyCode == trigger.virtualKeyCode else { return .passThrough }
-            return edge(engaged: flags.contains(trigger.modifierFlag), suppress: false)
+            return edge(engaged: flags.contains(trigger.modifierFlag), suppress: false, keyCode: keyCode, flags: flags)
         }
     }
 
-    private mutating func edge(engaged: Bool, suppress: Bool) -> HotkeyDecision {
+    /// Latches translate when Control engages during the hold. A Right ⌃ trigger
+    /// must not self-latch, so when the trigger IS Control only the LEFT (second)
+    /// Control key code latches; for every other trigger the `.control` bit does.
+    /// One-way: once latched it stays latched until the session's start/stop resets.
+    private mutating func observeControlLatch(keyCode: Int64, flags: HotkeyModifierFlags) {
+        guard !isControlLatched else { return }
+        if trigger.modifierFlag == .control {
+            isControlLatched = keyCode == Self.leftControlKeyCode
+        } else {
+            isControlLatched = flags.contains(.control)
+        }
+    }
+
+    private mutating func edge(engaged: Bool, suppress: Bool, keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
         if engaged, !isTriggerHeld {
             isTriggerHeld = true
+            // Fresh session: clear any prior latch, then let Control-already-held at
+            // key-down latch this session.
+            isControlLatched = false
+            observeControlLatch(keyCode: keyCode, flags: flags)
             return .start(suppress: suppress)
         }
         if !engaged, isTriggerHeld {
             isTriggerHeld = false
-            return .stop(suppress: suppress)
+            let mode: DictationMode = isControlLatched ? .translate : .plain
+            isControlLatched = false
+            return .stop(suppress: suppress, mode: mode)
         }
         return .passThrough
     }

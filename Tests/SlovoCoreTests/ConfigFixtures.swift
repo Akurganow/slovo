@@ -14,7 +14,8 @@ enum ConfigFixtures {
         legacyEnabledField: Bool = true,
         cleanupProvider: String? = nil,
         openRouterModel: String? = nil,
-        writingStyle: String = "casual"
+        writingStyle: String = "casual",
+        translationTargetLanguage: String? = nil
     ) throws -> Data {
         var cleanup: [String: Any] = [
             "enabled": legacyEnabledField,
@@ -39,6 +40,11 @@ enum ConfigFixtures {
         }
         if let mode {
             object["mode"] = mode
+        }
+        // Omitted when nil, so callers can exercise the absent-field decode path
+        // (an absent target must default to "en").
+        if let translationTargetLanguage {
+            object["translationTargetLanguage"] = translationTargetLanguage
         }
         return try encoded(object)
     }

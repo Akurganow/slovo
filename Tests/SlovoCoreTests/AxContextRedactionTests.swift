@@ -41,7 +41,7 @@ struct AxContextRedactionTests {
 
         // Drive a session whose effects include `.log` (single-flight log path).
         await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await transcriber.waitUntilCalled()
         await orchestrator.handle(.startRequested)  // single-flight → a `.log` effect runs
         await transcriber.release()

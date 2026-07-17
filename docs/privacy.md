@@ -9,7 +9,7 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
 | Whisper ASR model | App-owned cache under Application Support | Downloaded once from Hugging Face on first use, then fully local |
-| Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts |
+| Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts (plus a target-language name when translating) |
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
@@ -80,6 +80,11 @@ fields.
 Cleanup is always attempted through OpenRouter and is text-only. The app has no
 cleanup-off user path.
 
+A dictation held with Control is translated in the same request, so translation
+adds no new category of data leaving the Mac: it carries the same transcript
+text already sent for cleanup, plus the name of the target language. Raw audio
+still never leaves.
+
 If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
-unusable response, Slovo falls back to the direct transcript and shows a
-transient error glyph instead of dropping the dictation.
+unusable response, Slovo falls back to the direct, untranslated transcript and
+shows a transient error glyph instead of dropping the dictation.

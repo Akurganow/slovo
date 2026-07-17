@@ -15,10 +15,18 @@ struct DictationMenuBuilder {
         let statusItem: NSMenuItem
     }
 
-    func make(trigger: HotkeyTrigger, selectedModelId: String, mutesSystemAudioWhileDictating: Bool) -> Built {
+    func make(trigger: HotkeyTrigger, selectedModelId: String, mutesSystemAudioWhileDictating: Bool, translationLanguage: String) -> Built {
         let menu = NSMenu()
         var statusItem = NSMenuItem()
-        for item in DictationMenu.items(trigger: trigger, selectedModelId: selectedModelId, mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating) {
+        // Four config arguments no longer fit the strict 160-char line, so the call
+        // is multiline per multiline_arguments_brackets; the source guards assert the
+        // call token and the threaded trigger separately.
+        for item in DictationMenu.items(
+            trigger: trigger,
+            selectedModelId: selectedModelId,
+            mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
+            translationLanguage: translationLanguage
+        ) {
             switch item {
             case .title(let text):
                 menu.addItem(disabled(text))
@@ -35,6 +43,8 @@ struct DictationMenuBuilder {
                     title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
                     selectedModel: modelId
                 ))
+            case .translationLanguage(let selected):
+                menu.addItem(target.translationLanguageMenu(selected: selected))
             case .addVocabulary:
                 menu.addItem(target.actionItem("Add Vocabulary...", #selector(AppDelegate.showVocabularyQuickAdd)))
             case .muteWhileDictating(let isOn):

@@ -34,7 +34,7 @@ struct HotkeyEdgeSequencerTests {
         let sequencer = HotkeyEdgeSequencer { phase in await recorder.handleParkingDown(phase) }
 
         sequencer.send(.down)
-        sequencer.send(.up)
+        sequencer.send(.up(.plain))
 
         await recorder.awaitEntered(1)
         #expect(await recorder.entered == [.down],
@@ -43,7 +43,7 @@ struct HotkeyEdgeSequencerTests {
         await recorder.releaseDown()
         await recorder.awaitHandled(2)
 
-        #expect(await recorder.handled == [.down, .up],
+        #expect(await recorder.handled == [.down, .up(.plain)],
                 "edges must complete one at a time, in receipt order")
         await sequencer.stop()
     }
@@ -59,12 +59,12 @@ struct HotkeyEdgeSequencerTests {
         let sequencer = HotkeyEdgeSequencer { phase in await recorder.record(phase) }
 
         sequencer.send(.down)
-        sequencer.send(.up)
+        sequencer.send(.up(.plain))
         sequencer.send(.down)
-        sequencer.send(.up)
+        sequencer.send(.up(.plain))
 
         await recorder.awaitHandled(4)
-        #expect(await recorder.handled == [.down, .up, .down, .up],
+        #expect(await recorder.handled == [.down, .up(.plain), .down, .up(.plain)],
                 "every edge in a rapid burst must be delivered exactly once, in order")
         await sequencer.stop()
     }
@@ -94,7 +94,7 @@ struct HotkeyEdgeSequencerTests {
         #expect(handled.withLock { $0 } == [.down],
                 "stop() must drain the enqueued edge and join the consumer before returning")
 
-        sequencer.send(.up)
+        sequencer.send(.up(.plain))
         #expect(handled.withLock { $0 } == [.down],
                 "no edge may be delivered after teardown")
     }

@@ -59,7 +59,7 @@ struct PipelineFactoryTests {
         let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
 
         await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
 
         #expect(cleaner.calls.last?.config.model == "anthropic/claude-haiku-4.5")

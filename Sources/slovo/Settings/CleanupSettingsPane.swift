@@ -12,6 +12,7 @@ struct CleanupSettingsPane: View {
     @State private var selectedModelId: String
     @State private var customModelId: String = ""
     @State private var writingStyle: WritingStyle
+    @State private var translationLanguage: String
     @State private var apiKey: String = ""
     @State private var hasSavedKey: Bool
     @State private var useSpellCheckHints: Bool
@@ -21,6 +22,7 @@ struct CleanupSettingsPane: View {
         let config = actions.currentConfig()
         _selectedModelId = State(initialValue: config.openRouterModel)
         _writingStyle = State(initialValue: config.writingStyle)
+        _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _hasSavedKey = State(initialValue: actions.hasOpenRouterKey())
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
     }
@@ -39,6 +41,7 @@ struct CleanupSettingsPane: View {
         Form {
             modelSection
             writingStyleSection
+            translationSection
             apiKeySection
             spellCheckHintsSection
         }
@@ -46,10 +49,11 @@ struct CleanupSettingsPane: View {
         .frame(width: 420)
         .onAppear {
             // Re-seed on every reappearance — the Settings window is cached, so a
-            // cleanup-model change made from the dropdown must not read stale here.
+            // change made from the dropdown must not read stale here.
             let config = actions.currentConfig()
             selectedModelId = config.openRouterModel
             writingStyle = config.writingStyle
+            translationLanguage = config.translationTargetLanguage.rawValue
             hasSavedKey = actions.hasOpenRouterKey()
             useSpellCheckHints = config.useSpellCheckHints
         }
@@ -89,6 +93,21 @@ struct CleanupSettingsPane: View {
                 Text("Very casual").tag(WritingStyle.veryCasual)
             }
             .onChange(of: writingStyle) { _, newValue in actions.setWritingStyle(newValue) }
+        }
+    }
+
+    private var translationSection: some View {
+        // No Auto row: a translate target must be a concrete language (the fail-closed
+        // config guard rejects the sentinel), unlike the recognition-language picker.
+        Section("Translation") {
+            Picker("Translate to", selection: $translationLanguage) {
+                ForEach(RecognitionLanguageCatalog.options) { option in
+                    Text(option.displayName).tag(option.code)
+                }
+            }
+            .onChange(of: translationLanguage) { _, newCode in
+                actions.setTranslationLanguage(Language(rawValue: newCode))
+            }
         }
     }
 

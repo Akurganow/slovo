@@ -154,7 +154,11 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func menuBuilderRendersSettingsAndModelItems() throws {
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
-        #expect(builder.contains("DictationMenu.items(trigger:"))
+        // Four config arguments force a multiline call (strict 160-char lines), so
+        // the call token and the threaded trigger are asserted separately; either
+        // disappearing still reddens this guard.
+        #expect(builder.contains("DictationMenu.items("))
+        #expect(builder.contains("trigger: trigger,"))
         #expect(builder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(builder.contains(#"entry.keyEquivalent = ",""#))
         #expect(builder.contains("target.modelMenu("))

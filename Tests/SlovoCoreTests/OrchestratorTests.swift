@@ -53,7 +53,7 @@ struct OrchestratorTests {
     /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)   // mute + beginCapture
-        await orchestrator.handle(.stopRequested)    // finalize transcript + restore → clean → inject → injected
+        await orchestrator.handle(.stopRequested(.plain))    // finalize transcript + restore → clean → inject → injected
         await orchestrator.awaitPipelineDrain()
     }
 
@@ -298,7 +298,7 @@ struct OrchestratorTests {
         #expect(reported.withLock { $0 } == [.preparingSpeechModel],
                 "ASR preparation status must be surfaced when the session begins at key-down; got \(reported.withLock { $0 })")
 
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await transcriber.waitUntilCalled()
 
         #expect(reported.withLock { $0 } == [.preparingSpeechModel],
@@ -337,7 +337,7 @@ struct OrchestratorTests {
 
         // Drive into processing: Start (mute+capture) then Stop (→ processing).
         await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await transcriber.waitUntilCalled()
         let muteAfterFirst = audio.muteCount
         let captureAfterFirst = recorder.engineStartCount

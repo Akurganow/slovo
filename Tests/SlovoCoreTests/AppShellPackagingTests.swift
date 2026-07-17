@@ -68,7 +68,10 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("presentOnboarding(live.onboardingSteps)"))
         #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
         let menuBuilder = try Self.strippingComments(from: Self.source("Sources/slovo/DictationMenuBuilder.swift"))
-        #expect(menuBuilder.contains("DictationMenu.items(trigger:"))
+        // Multiline call (see SettingsSurfaceSourceGuardTests): call token and the
+        // threaded trigger asserted separately, each independently RED-able.
+        #expect(menuBuilder.contains("DictationMenu.items("))
+        #expect(menuBuilder.contains("trigger: trigger,"))
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(menuBuilder.contains("#selector(AppDelegate.showVocabularyQuickAdd)"))
@@ -95,7 +98,7 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("setStatusGlyph(.processing"))
         #expect(delegate.contains("awaitPipelineDrain()"))
         #expect(delegate.contains("orchestrator.handle(.startRequested)"))
-        #expect(delegate.contains("orchestrator.handle(.stopRequested)"))
+        #expect(delegate.contains("orchestrator.handle(.stopRequested("))
     }
 
     @Test

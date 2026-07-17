@@ -21,8 +21,8 @@ sends only transcript text for the selected routed model id.
 
 - `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
   default, or a right-hand modifier); `HotkeyDecisionCore` is the pure,
-  unit-tested policy that turns key events into start / stop / silent-cancel
-  decisions.
+  unit-tested policy that turns key events into start / stop (plain or
+  translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
   the "Mute Audio While Dictating" menu setting is on (the default); with it off,
   Slovo neither mutes nor restores.
@@ -60,10 +60,18 @@ cleanup, Slovo adds advisory on-device hints to the prompt — the active keyboa
 language and, when enabled, system spell-check suggestions — which the model may
 use but never must; nothing but transcript text leaves the Mac.
 
+Holding Control together with the push-to-talk key at any moment during the hold
+marks that dictation for translation: the same single cleanup request also
+translates the result into the configured target language, instead of running a
+second pass. A plain hold stays untranslated. The target defaults to English and
+is chosen in the menu bar (**Translate to: …**) or Settings; the offered
+languages are the recognition-language list without **Auto**, since a translate
+target must be concrete.
+
 Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, misconfigured,
 refuses the request, rate-limits, or returns an unusable response, Slovo inserts
-the direct transcript and briefly shows the `Ⱁ` error glyph instead of
-cancelling the dictation.
+the direct transcript — untranslated on a translate hold — and briefly shows the
+`Ⱁ` error glyph instead of cancelling the dictation.
 
 ## Storage
 
@@ -79,10 +87,10 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
-an `NSStatusItem` for status, cleanup model selection, vocabulary quick-add,
-first-run setup actions, a **Settings…** window (push-to-talk key, recognition
-language, launch at login, cleanup model and style, OpenRouter key, and
-vocabulary), and quit.
+an `NSStatusItem` for status, cleanup model selection, the translate-to target
+language, vocabulary quick-add, first-run setup actions, a **Settings…** window
+(push-to-talk key, recognition language, launch at login, cleanup model and
+style, translation target, OpenRouter key, and vocabulary), and quit.
 All configuration is native windows — there are no modal alerts.
 
 ## Build Boundaries

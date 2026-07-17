@@ -17,7 +17,7 @@ public enum DictationState: Equatable, Sendable {
 /// `actor Orchestrator`'s `handle(_:)` across isolation.
 public enum DictationEvent: Sendable {
     case startRequested
-    case stopRequested
+    case stopRequested(DictationMode)
     case cancelRequested
     case transcriptReady(String)
     case cleaned(String)

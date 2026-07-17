@@ -108,8 +108,8 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
         case .start(let suppress):
             onTrigger?(.down)
             return suppress ? nil : Unmanaged.passUnretained(event)
-        case .stop(let suppress):
-            onTrigger?(.up)
+        case .stop(let suppress, let mode):
+            onTrigger?(.up(mode))
             return suppress ? nil : Unmanaged.passUnretained(event)
         case .interruptCancel:
             onTrigger?(.cancel)
@@ -120,7 +120,9 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
             if synthesizeUp {
-                onTrigger?(.up)
+                // An emergency stop after tap-disable loses the latch, so it can
+                // only be a plain stop.
+                onTrigger?(.up(.plain))
             }
             return Unmanaged.passUnretained(event)
         case .passThrough:

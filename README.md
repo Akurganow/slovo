@@ -28,6 +28,9 @@ tuned.
   utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
+- Optional per-dictation translation: hold Control together with the
+  push-to-talk key to translate that dictation into a target language as part
+  of the same cleanup step; a plain hold is unchanged.
 - On-device cleanup hints: your active keyboard language and the system spell
   checker nudge the model toward the right words, without ever leaving the Mac.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
@@ -42,7 +45,7 @@ tuned.
   theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
   push-to-talk key, recognition language, launch at login, cleanup model and
-  style, API key, and vocabulary.
+  style, translation target language, API key, and vocabulary.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements
@@ -86,6 +89,14 @@ after that, transcription runs fully on-device.
    raw transcript is inserted instead and the menu-bar icon briefly shows
    the error glyph `Ⱁ`.
 
+To translate a dictation, hold Control at any moment while the push-to-talk key
+is down: that dictation is cleaned and translated into your target language in
+the same single step, then inserted. A plain hold (no Control) is unchanged.
+Choose the target — the Recognition Language list without **Auto** — from the
+menu bar (**Translate to: …**) or **Settings → Cleanup**; the default is
+English. If cleanup fails, the raw untranslated transcript is inserted with the
+same `Ⱁ` notice — translation adds no new error surface.
+
 Errors surface only through the menu-bar icon — never an alert, dialog, or
 focus-stealing notification, since Slovo types into whichever app you're
 already using.
@@ -101,6 +112,8 @@ Slovo has two different data paths:
   runs fully on-device with no per-dictation network calls.
 - Cleanup path: transcript text is sent to OpenRouter when cleanup is
   available. OpenRouter routes the request to the selected model id.
+  Translation, when used, adds no new data category: the same transcript text,
+  plus the target-language name in the request. Raw audio still never leaves.
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. Local personalization databases, seed files,

@@ -41,7 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let built = DictationMenuBuilder(target: self).make(
             trigger: config.trigger,
             selectedModelId: config.openRouterModel,
-            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating
+            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
+            translationLanguage: config.translationTargetLanguage.rawValue
         )
         statusTextItem = built.statusItem
         return built.menu
@@ -72,14 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.statusTextItem?.title = "Status: Recording"
                     }
                     await orchestrator.handle(.startRequested)
-                case .up: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                     await MainActor.run {
                         self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
                         if self?.didShowPipelineStatus == false {
                             self?.statusTextItem?.title = "Status: Processing"
                         }
                     }
-                    await orchestrator.handle(.stopRequested)
+                    await orchestrator.handle(.stopRequested(mode))
                     await orchestrator.awaitPipelineDrain()
                     await MainActor.run { self?.settleToIdle() }
                 case .cancel:
@@ -335,6 +336,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func toggleMuteWhileDictating(_ sender: NSMenuItem) {
         let config = ConfigStore.load(from: defaults)
         applyMuteWhileDictating(!config.mutesSystemAudioWhileDictating)
+    }
+
+    /// Persists a translate-target change and applies it to the NEXT dictation live.
+    /// Like `applyCleanupModel`, this does NOT rebuild the pipeline: the target only
+    /// affects the cleanup prompt in translate mode, so the resident ASR model is
+    /// never re-warmed and no loading pulse appears. The menu is refreshed so the
+    /// selected-language checkmark and the "Translate to" title track the new choice.
+    func applyTranslationLanguage(_ language: Language) {
+        var config = ConfigStore.load(from: defaults)
+        config.translationTargetLanguage = language
+        do {
+            try ConfigStore.save(config, to: defaults)
+        } catch {
+            logger.error("config save failed")
+            return
+        }
+        installStatusMenu()
+        let cleanupConfig = config.cleanupConfig
+        Task { @MainActor in
+            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
+        }
     }
 
     /// Persists the spell-check hints toggle and applies it to the NEXT dictation

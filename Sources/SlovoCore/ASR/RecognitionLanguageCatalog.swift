@@ -47,4 +47,11 @@ public enum RecognitionLanguageCatalog {
     public static func isSupported(_ code: String) -> Bool {
         Constants.languageCodes.contains(code)
     }
+
+    /// The offered English display name for a language `code`, or `nil` when the
+    /// code is not one Slovo offers. Reverse of `options`, so a persisted translate
+    /// target renders as "Russian" rather than the bare "ru" in the prompt and menu.
+    public static func displayName(for code: String) -> String? {
+        options.first { $0.code == code }?.displayName
+    }
 }

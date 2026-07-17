@@ -35,7 +35,7 @@ struct OrchestratorCleanupHintsTests {
 
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }
 

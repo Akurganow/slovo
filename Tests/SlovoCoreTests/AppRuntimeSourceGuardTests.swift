@@ -220,11 +220,11 @@ struct AppRuntimeSourceGuardTests {
         // Sliced per switch arm: a whole-body ordered search stays green when the
         // .cancel arm loses its settle call or the .up arm settles before draining,
         // because the sibling arm still supplies a drain→settle pair.
-        let upArm = try Self.slice(of: startPipelineBody, from: "case .up:", to: "case .cancel:")
+        let upArm = try Self.slice(of: startPipelineBody, from: "case .up(let mode):", to: "case .cancel:")
         let cancelArm = try Self.slice(of: startPipelineBody, from: "case .cancel:")
         // Sensitivity: reorder settle before drain in the .up arm → RED.
         #expect(Self.containsInOrder([
-            "orchestrator.handle(.stopRequested)",
+            "orchestrator.handle(.stopRequested(",
             "awaitPipelineDrain()",
             "self?.settleToIdle()",
         ], in: upArm),

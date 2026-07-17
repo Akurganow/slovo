@@ -13,6 +13,10 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// The Cleanup Model submenu; the argument is the currently selected model id so
     /// the builder can check the right catalog row.
     case cleanupModel(selectedModelId: String)
+    /// The Translation Language submenu; the argument is the currently selected
+    /// target code so the renderer checks the right catalog row — mirrors
+    /// `cleanupModel(selectedModelId:)`.
+    case translationLanguage(selected: String)
     case addVocabulary
     /// The mute-while-dictating switch; the argument is the current setting so the
     /// builder renders the checkmark.
@@ -30,7 +34,8 @@ public enum DictationMenu {
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
-        mutesSystemAudioWhileDictating: Bool
+        mutesSystemAudioWhileDictating: Bool,
+        translationLanguage: String
     ) -> [DictationMenuItem] {
         [
             .title("Slovo"),
@@ -38,6 +43,7 @@ public enum DictationMenu {
             .hotkeyHint("Hold \(trigger.displayName) to talk"),
             .separator,
             .cleanupModel(selectedModelId: selectedModelId),
+            .translationLanguage(selected: translationLanguage),
             .addVocabulary,
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
             .separator,

@@ -52,6 +52,10 @@ public enum ConfigStore {
         // An absent wire field defaults to `true` at decode, so pre-feature installs
         // keep muting (backward compatible, no migration).
         let mutesSystemAudioWhileDictating: Bool
+        // An absent wire field defaults to "en" at decode, so existing installs
+        // predating translate mode keep decoding (backward compatible, no migration),
+        // mirroring the cleanup.useSpellCheckHints precedent.
+        let translationTargetLanguage: Language
 
         private enum CodingKeys: String, CodingKey {
             case language
@@ -61,6 +65,7 @@ public enum ConfigStore {
             case asr
             case cleanup
             case mutesSystemAudioWhileDictating
+            case translationTargetLanguage
         }
 
         init(from decoder: Decoder) throws {
@@ -74,6 +79,7 @@ public enum ConfigStore {
             mutesSystemAudioWhileDictating = try container.decodeIfPresent(
                 Bool.self, forKey: .mutesSystemAudioWhileDictating
             ) ?? true
+            translationTargetLanguage = try container.decodeIfPresent(Language.self, forKey: .translationTargetLanguage) ?? .en
         }
 
         func encode(to encoder: Encoder) throws {
@@ -86,6 +92,7 @@ public enum ConfigStore {
             try container.encode(cleanup, forKey: .cleanup)
             // Explicit on the wire (like `useSpellCheckHints`), never omitted.
             try container.encode(mutesSystemAudioWhileDictating, forKey: .mutesSystemAudioWhileDictating)
+            try container.encode(translationTargetLanguage, forKey: .translationTargetLanguage)
         }
 
         func validated() -> Config? {
@@ -115,6 +122,15 @@ public enum ConfigStore {
             guard language == .auto || RecognitionLanguageCatalog.isSupported(language.rawValue) else {
                 return nil
             }
+
+            // Translate target: unlike the recognition language, "auto" is invalid — a
+            // translate pass has no per-utterance detection, so the target must be a
+            // concrete supported code. Anything else rejects the whole config (fail closed).
+            guard translationTargetLanguage != .auto,
+                  RecognitionLanguageCatalog.isSupported(translationTargetLanguage.rawValue)
+            else {
+                return nil
+            }
             let storedOpenRouterModel = cleanup.openRouterModel ?? Config.defaultOpenRouterModel
             let isFormerDefault = cleanup.modelCatalogVersion == nil
                 && storedOpenRouterModel == ConfigStore.formerDefaultOpenRouterModel
@@ -137,7 +153,8 @@ public enum ConfigStore {
                 openRouterModel: openRouterModel,
                 writingStyle: cleanup.writingStyle,
                 useSpellCheckHints: cleanup.useSpellCheckHints,
-                mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating
+                mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
+                translationTargetLanguage: translationTargetLanguage
             ))
         }
 
@@ -147,6 +164,7 @@ public enum ConfigStore {
             trigger = config.trigger.rawValue
             mode = Config.defaultMode
             mutesSystemAudioWhileDictating = config.mutesSystemAudioWhileDictating
+            translationTargetLanguage = config.translationTargetLanguage
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(
                 provider: nil,

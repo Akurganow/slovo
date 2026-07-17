@@ -53,7 +53,7 @@ struct DictationFsmMuteTests {
     /// `[.endCaptureAndFinalizeTranscript]`) → RED; reorder before endCapture → RED.
     @Test
     func stopRequestedRestoresAtKeyUp() {
-        let (state, effects) = DictationFsm.transition(.recording, on: .stopRequested)
+        let (state, effects) = DictationFsm.transition(.recording, on: .stopRequested(.plain))
         #expect(state == .processing, "recording + stopRequested must move to processing, got \(state)")
         #expect(effects == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput],
                 "must emit exactly [endCaptureAndFinalizeTranscript, restoreSystemOutput], got \(effects)")

@@ -16,6 +16,7 @@ protocol SettingsActions: AnyObject {
 
     func setTrigger(_ trigger: HotkeyTrigger)
     func setRecognitionLanguage(_ language: Language)
+    func setTranslationLanguage(_ language: Language)
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)

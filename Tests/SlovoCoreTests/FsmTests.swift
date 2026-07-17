@@ -77,7 +77,7 @@ struct FsmTests {
     /// effect assertion.
     @Test
     func unhandledPairIsLoggedNoOp() {
-        let (state, effects) = DictationFsm.transition(.idle, on: .stopRequested)
+        let (state, effects) = DictationFsm.transition(.idle, on: .stopRequested(.plain))
         #expect(state == .idle, "an unhandled event must not change state, got \(state)")
         #expect(effects == [.log(.unexpectedEvent)],
                 "an unhandled event must emit exactly [log(.unexpectedEvent)], got \(effects)")
@@ -135,6 +135,26 @@ struct FsmTests {
         #expect(state == .idle, "injected returns to idle, got \(state)")
         #expect(effects == [.returnToIdle],
                 "must emit exactly [returnToIdle], got \(effects)")
+    }
+
+    // MARK: - Dictation mode is inert in the pure transition
+
+    /// M1 (purity guard) — `stopRequested(.translate)` produces the EXACT same
+    /// transition as `stopRequested(.plain)`: the mode is carried for the cleanup
+    /// step (the Orchestrator stashes it), never branched on in the pure FSM.
+    /// Green now (the transition ignores the payload). Stated sensitivity: make the
+    /// FSM branch on the mode (e.g. emit a different effect or state for
+    /// `.translate`) → the translate and plain results diverge → RED.
+    @Test
+    func stopRequestedModeDoesNotAlterThePureTransition() {
+        let translate = DictationFsm.transition(.recording, on: .stopRequested(.translate))
+        let plain = DictationFsm.transition(.recording, on: .stopRequested(.plain))
+
+        #expect(translate.0 == .processing, "translate stop keeps the recording→processing transition")
+        #expect(translate.1 == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput],
+                "translate stop must emit exactly the pinned key-up effects, got \(translate.1)")
+        #expect(translate.0 == plain.0, "the mode must not change the next state")
+        #expect(translate.1 == plain.1, "the mode must not change the emitted effects")
     }
 
     // MARK: - StageFailure equality by value

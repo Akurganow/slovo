@@ -46,7 +46,7 @@ struct OrchestratorMuteWhileDictatingTests {
     /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }
 
@@ -129,7 +129,7 @@ struct OrchestratorMuteWhileDictatingTests {
 
         await orchestrator.handle(.startRequested)                     // mutes; stash set
         await orchestrator.updateMutesSystemAudioWhileDictating(false) // flip mid-session
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
 
         #expect(audio.muteCount == 1, "the session muted at key-down under the old flag")
@@ -155,7 +155,7 @@ struct OrchestratorMuteWhileDictatingTests {
 
         await orchestrator.handle(.startRequested)                    // no mute; stash nil
         await orchestrator.updateMutesSystemAudioWhileDictating(true) // flip mid-session
-        await orchestrator.handle(.stopRequested)
+        await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
 
         #expect(audio.muteCount == 0, "muting was off at key-down, so nothing was muted")

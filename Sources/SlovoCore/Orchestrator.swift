@@ -1,17 +1,6 @@
 import Foundation
 import os
 
-/// A derived, forward-locking AX-context value. v1 ships NO live AX context
-/// (cursor/app-aware tone is v1.x); this type exists so the redaction invariant is
-/// locked BEFORE any AX feature lands — its raw field must NEVER be logged.
-public struct AxContext: Sendable {
-    public let rawNeighborText: String
-
-    public init(rawNeighborText: String) {
-        self.rawNeighborText = rawNeighborText
-    }
-}
-
 /// The seam instances the orchestrator drives. Lets a test inject fakes while
 /// production injects the real adapters.
 public struct Dependencies: Sendable {
@@ -75,6 +64,8 @@ public actor Orchestrator {
     private var state: DictationState = .idle
     private var stashedPriorAudio: PriorAudioState?
     private var sessionVocabulary: [Term] = []
+    /// The mode latched at key-up, read at clean time; reset in `.returnToIdle`.
+    private var sessionMode: DictationMode = .plain
     /// Pipes live capture chunks into the open transcription session during the
     /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
     /// drained (via the stream finishing) at key-up.
@@ -125,6 +116,8 @@ public actor Orchestrator {
 
     /// Drives one event through the FSM and executes the resulting effects in order.
     public func handle(_ event: DictationEvent) async {
+        // Stash the mode before the transition so the FSM stays mode-agnostic.
+        if case .stopRequested(let mode) = event { sessionMode = mode }
         let (next, effects) = DictationFsm.transition(state, on: event)
         state = next
         var deferred: [DeferredEffect] = []
@@ -175,10 +168,13 @@ public actor Orchestrator {
     private func cleanAndContinue(transcript: String) async {
         let context = PersonalizationContext(vocabulary: sessionVocabulary)
         let hints = await gatherCleanupHints(for: transcript)
+        // Apply the per-session translate flag; the target already rides on cleanupConfig.
+        var config = cleanupConfig
+        config.translate = (sessionMode == .translate)
         do {
             let cleaned = try await deps.cleaner.clean(
                 transcript,
-                config: cleanupConfig,
+                config: config,
                 context: context,
                 hints: hints
             )
@@ -322,6 +318,7 @@ public actor Orchestrator {
         case .returnToIdle:
             stashedPriorAudio = nil
             sessionVocabulary = []
+            sessionMode = .plain
             feedHealth = FeedHealth()
             pumpTask?.cancel()
             pumpTask = nil

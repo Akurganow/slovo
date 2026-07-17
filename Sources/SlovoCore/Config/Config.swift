@@ -46,13 +46,17 @@ public struct Config: Equatable, Sendable {
     /// default on (today's unconditional-mute behavior). A capture-stage setting, so
     /// it is not part of `cleanupConfig`.
     public var mutesSystemAudioWhileDictating: Bool
+    /// The persisted target language a translate pass renders into; read only in
+    /// translate mode. Config never yields `translate = true`.
+    public var translationTargetLanguage: Language
 
     public var cleanupConfig: CleanupConfig {
         CleanupConfig(
             model: cleanupModel,
             writingStyle: writingStyle,
             language: language,
-            useSpellCheckHints: useSpellCheckHints
+            useSpellCheckHints: useSpellCheckHints,
+            translationTargetLanguage: translationTargetLanguage
         )
     }
 
@@ -69,7 +73,8 @@ public struct Config: Equatable, Sendable {
         openRouterModel: String = Config.defaultOpenRouterModel,
         writingStyle: WritingStyle = .casual,
         useSpellCheckHints: Bool = true,
-        mutesSystemAudioWhileDictating: Bool = true
+        mutesSystemAudioWhileDictating: Bool = true,
+        translationTargetLanguage: Language = .en
     ) {
         self.language = language
         self.keepWarmSeconds = keepWarmSeconds
@@ -80,5 +85,6 @@ public struct Config: Equatable, Sendable {
         self.writingStyle = writingStyle
         self.useSpellCheckHints = useSpellCheckHints
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
+        self.translationTargetLanguage = translationTargetLanguage
     }
 }

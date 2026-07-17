@@ -34,6 +34,13 @@ extension AppDelegate: SettingsActions {
         retrySetup()
     }
 
+    func setTranslationLanguage(_ language: Language) {
+        // Live: persist + push to the running orchestrator, no rebuild — the target
+        // only shapes the translate-mode prompt, so the resident ASR model is never
+        // re-warmed (unlike the recognition-language change).
+        applyTranslationLanguage(language)
+    }
+
     func setCleanupModel(_ modelId: String) {
         // Live: persist + push to the running orchestrator, no rebuild (#2).
         applyCleanupModel(modelId)

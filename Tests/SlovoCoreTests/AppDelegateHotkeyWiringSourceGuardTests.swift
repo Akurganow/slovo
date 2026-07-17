@@ -81,9 +81,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
 
         #expect(Self.containsInOrder([
-            "case .up:",
+            "case .up(let mode):",
             "isPipelineActive",
-            "orchestrator.handle(.stopRequested)",
+            "orchestrator.handle(.stopRequested(",
         ], in: startPipeline),
         "the .up arm must never stop a session that was never started")
     }
