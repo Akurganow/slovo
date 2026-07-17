@@ -98,6 +98,9 @@ format and benchmark reporting notes.
 
 ## Packaging
 
+Published releases are fully automated (see [release-ci.md](release-ci.md)); this
+local packaging is only for verifying a build before it is merged.
+
 Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
 
 ```sh
@@ -106,9 +109,7 @@ SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" Scr
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See
 [release-checklist.md](release-checklist.md) for the full flow; stapling the
-notarization ticket is the only manual step. Published releases are fully
-automated on CI — see [release-ci.md](release-ci.md); this section covers local
-verification builds only.
+notarization ticket is the only manual step.
 
 ## Repository Hygiene
 
