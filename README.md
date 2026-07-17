@@ -95,6 +95,9 @@ after that, transcription runs fully on-device.
 To translate a dictation, hold Control at any moment while the push-to-talk key
 is down: that dictation is cleaned and translated into your target language in
 the same single step, then inserted. A plain hold (no Control) is unchanged.
+While a translate hold is active, the menu-bar recording glyph is the Glagolitic
+letter Pokoji `Ⱂ` instead of the plain recording glyph, switching the moment
+Control latches so the mode is visible at a glance.
 Choose the target — the Recognition Language list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**; the default is
 English. If cleanup fails, the raw untranslated transcript is inserted with the

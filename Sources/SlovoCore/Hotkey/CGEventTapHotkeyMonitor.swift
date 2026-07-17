@@ -105,12 +105,17 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
         }
 
         switch decisionCore.handle(inputEvent) {
-        case .start(let suppress):
-            onTrigger?(.down)
+        case .start(let suppress, let mode):
+            onTrigger?(.down(mode))
             return suppress ? nil : Unmanaged.passUnretained(event)
         case .stop(let suppress, let mode):
             onTrigger?(.up(mode))
             return suppress ? nil : Unmanaged.passUnretained(event)
+        case .translateLatched:
+            // Live mid-hold latch: report it so the glyph can switch, and pass the
+            // Control key through so it keeps working as a normal modifier.
+            onTrigger?(.translateLatched)
+            return Unmanaged.passUnretained(event)
         case .interruptCancel:
             onTrigger?(.cancel)
             // The real combo (e.g. Right ⌘ + C) must proceed untouched.

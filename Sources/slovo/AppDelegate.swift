@@ -64,15 +64,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             prepareModelGate(for: live)
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
                 switch phase {
-                case .down: guard await MainActor.run(body: { self?.isModelReady == true })
+                case .down(let mode): guard await MainActor.run(body: { self?.isModelReady == true })
                     else { return await MainActor.run { self?.showModelLoadingState() } }
                     await MainActor.run {
                         self?.isPipelineActive = true
                         self?.didShowPipelineStatus = false
-                        self?.setStatusGlyph(.recording, on: self?.statusItem?.button)
+                        self?.setStatusGlyph(recording: mode, on: self?.statusItem?.button)
                         self?.statusTextItem?.title = "Status: Recording"
                     }
                     await orchestrator.handle(.startRequested)
+                case .translateLatched: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                    await MainActor.run { self?.setStatusGlyph(recording: .translate, on: self?.statusItem?.button) }
                 case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                     await MainActor.run {
                         self?.setStatusGlyph(.processing, on: self?.statusItem?.button)

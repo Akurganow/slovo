@@ -7,11 +7,23 @@ public enum MenuBarGlyph {
     public static func forState(_ state: DictationState) -> Character {
         switch state {
         case .recording:
-            return "\u{2C18}"
+            return forRecording(mode: .plain)
         case .idle:
             return "\u{2C14}"
         case .processing:
             return "\u{2C04}"
+        }
+    }
+
+    /// The recording glyph for a session's mode: Zemlja Ⰸ (U+2C08, the Glagolitic
+    /// "Z" for "запись") while plainly dictating, Pokoji Ⱂ (U+2C12) while a translate
+    /// hold is active, so the menu bar tells the two apart at a glance.
+    public static func forRecording(mode: DictationMode) -> Character {
+        switch mode {
+        case .plain:
+            return "\u{2C08}"
+        case .translate:
+            return "\u{2C12}"
         }
     }
 

@@ -63,12 +63,35 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
 
         #expect(Self.containsInOrder([
-            "case .down:",
+            "case .down(let mode):",
             "isModelReady",
             "showModelLoadingState",
             "orchestrator.handle(.startRequested)",
         ], in: startPipeline),
         "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
+    }
+
+    /// The recording glyph must reflect the session's mode: the `.down` arm paints
+    /// the mode's glyph (Ⰸ plain, Ⱂ translate), and a mid-hold Control latch surfaces
+    /// as a `.translateLatched` edge that switches the glyph to translate LIVE, while
+    /// the key is still held. Killing mutation: hard-code the plain glyph in `.down`
+    /// (drop `recording: mode`), or delete the `.translateLatched` arm / its glyph
+    /// switch → RED.
+    @Test
+    func recordingGlyphTracksTheLatchedMode() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "case .down(let mode):",
+            "setStatusGlyph(recording: mode",
+        ], in: startPipeline),
+        "the .down arm must paint the recording glyph for the session's mode")
+        #expect(Self.containsInOrder([
+            "case .translateLatched:",
+            "setStatusGlyph(recording: .translate",
+        ], in: startPipeline),
+        "a mid-hold Control latch must switch the recording glyph to translate live")
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be

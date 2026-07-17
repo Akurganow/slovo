@@ -94,7 +94,7 @@ struct AppShellPackagingTests {
                 "settling to Idle must guard the Idle label so a start-failure status is not overwritten")
         #expect(Self.containsStatement(#"didShowPipelineStatus\s*=\s*true"#, in: showStatusBody))
         #expect(delegate.contains("live.hotkeyMonitor.start()"))
-        #expect(delegate.contains("setStatusGlyph(.recording"))
+        #expect(delegate.contains("setStatusGlyph(recording:"))
         #expect(delegate.contains("setStatusGlyph(.processing"))
         #expect(delegate.contains("awaitPipelineDrain()"))
         #expect(delegate.contains("orchestrator.handle(.startRequested)"))

@@ -10,11 +10,28 @@ import SlovoCore
 struct MenuBarControllerTests {
     private static let sentinel = "S3NT1NEL-HISTORY-51c07e9b-DO-NOT-LOG"
 
+    /// The recording glyph is Zemlja Ⰸ (U+2C08, the Glagolitic "Z" for "запись"),
+    /// NOT the inherited Heru U+2C18 typo.
+    /// Stated sensitivity: return the old U+2C18, or any other codepoint, for the
+    /// recording state → RED.
     @Test
     func glyphMappingUsesDistinctGlyphsForLiveStates() {
-        #expect(MenuBarGlyph.forState(.recording) == "\u{2C18}")
+        #expect(MenuBarGlyph.forState(.recording) == "\u{2C08}")
         #expect(MenuBarGlyph.forState(.idle) == "\u{2C14}")
         #expect(MenuBarGlyph.forState(.processing) == "\u{2C04}")
+    }
+
+    /// The recording glyph distinguishes a translate hold from plain dictation:
+    /// Pokoji Ⱂ (U+2C12) while translating, Zemlja Ⰸ (U+2C08) while plain — and the
+    /// plain recording state maps to the same Zemlja, one source of truth.
+    /// Stated sensitivity: return the plain glyph (or any other codepoint) for
+    /// `.translate`, or swap the two → RED.
+    @Test
+    func recordingGlyphMarksTranslateWithPokoji() {
+        #expect(MenuBarGlyph.forRecording(mode: .plain) == "\u{2C08}")
+        #expect(MenuBarGlyph.forRecording(mode: .translate) == "\u{2C12}")
+        #expect(MenuBarGlyph.forRecording(mode: .plain) != MenuBarGlyph.forRecording(mode: .translate))
+        #expect(MenuBarGlyph.forState(.recording) == MenuBarGlyph.forRecording(mode: .plain))
     }
 
     /// Stated sensitivity: reuse the processing glyph for cleanup degradation or

@@ -15,7 +15,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func fnFlagEdgeStartsAndStopsSuppressed() {
         var core = HotkeyDecisionCore(trigger: .fn)
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true))
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         #expect(core.isTriggerHeld)
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .plain))
         #expect(!core.isTriggerHeld)
@@ -42,7 +42,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func rightModifierStartsAndStopsPassedThrough() {
         var core = HotkeyDecisionCore(trigger: .rightCommand)
-        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false, mode: .plain))
         #expect(core.isTriggerHeld)
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain))
         #expect(!core.isTriggerHeld)
@@ -116,7 +116,7 @@ struct HotkeyDecisionCoreTests {
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
         core.reconfigure(to: .rightShift)
         #expect(!core.isTriggerHeld)
-        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
     }
 
     // MARK: - Control-latch: holding Control at any moment during the hold latches
@@ -140,7 +140,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func controlPressedMidHoldLatchesTranslate() {
         var core = HotkeyDecisionCore(trigger: .fn)
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true))
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         // A control key engages while fn is still held (fn bit still present).
         _ = core.handle(.flagsChanged(keyCode: 59, flags: [.secondaryFn, .control]))
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .translate))
@@ -167,8 +167,8 @@ struct HotkeyDecisionCoreTests {
         for (trigger, keyCode, flag) in cases {
             var core = HotkeyDecisionCore(trigger: trigger)
             let suppress = trigger == .fn
-            #expect(core.handle(.flagsChanged(keyCode: keyCode, flags: [flag, .control])) == .start(suppress: suppress),
-                    "\(trigger) must still start when control is already held at key-down")
+            #expect(core.handle(.flagsChanged(keyCode: keyCode, flags: [flag, .control])) == .start(suppress: suppress, mode: .translate),
+                    "\(trigger) must still start (in .translate) when control is already held at key-down")
             // Control already released before key-up: only the start edge could have latched.
             #expect(core.handle(.flagsChanged(keyCode: keyCode, flags: [])) == .stop(suppress: suppress, mode: .translate),
                     "\(trigger): control held at key-down must latch the session's stop into .translate")
@@ -187,7 +187,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func controlLatchIsObservedBeforeTheKeyCodePassthroughGuard() {
         var core = HotkeyDecisionCore(trigger: .rightCommand)
-        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false, mode: .plain))
         // Left control (non-trigger key code) engages while Right ⌘ is held.
         _ = core.handle(.flagsChanged(keyCode: 59, flags: [.command, .control]))
         // Release the trigger with Control already gone: no stop-edge re-latch.
@@ -202,7 +202,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func rightControlTriggerDoesNotSelfLatch() {
         var core = HotkeyDecisionCore(trigger: .rightControl)
-        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .plain))
     }
 
@@ -214,7 +214,7 @@ struct HotkeyDecisionCoreTests {
     @Test
     func rightControlTriggerLatchesOnAForeignControl() {
         var core = HotkeyDecisionCore(trigger: .rightControl)
-        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
         _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
         #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .translate))
     }
@@ -275,7 +275,7 @@ struct HotkeyDecisionCoreTests {
         var core = HotkeyDecisionCore(trigger: .fn)
 
         // Session 1: Control held at key-down latches translate...
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn, .control])) == .start(suppress: true))
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn, .control])) == .start(suppress: true, mode: .translate))
         // ...but the hold ends abnormally (tap death), emitting no stop.
         #expect(core.handle(.tapDisabled) == .resync(synthesizeUp: true))
 
@@ -296,12 +296,77 @@ struct HotkeyDecisionCoreTests {
         var core = HotkeyDecisionCore(trigger: .rightCommand)
 
         // Session 1: Control also held at key-down latches translate...
-        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command, .control])) == .start(suppress: false))
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command, .control])) == .start(suppress: false, mode: .translate))
         // ...but a non-trigger key goes down → interrupt-cancel (no stop).
         #expect(core.handle(.keyDown) == .interruptCancel)
 
         // Session 2: a fresh no-Control hold must stop plain.
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain))
+    }
+
+    // MARK: - Live latch signal: the recording glyph needs the latch surfaced DURING
+    // the hold, not only as the `.translate` at key-up.
+
+    /// LL1 — Control already held at key-down starts directly in `.translate`, so the
+    /// recording glyph can be the translate glyph from the very first frame (no plain
+    /// flash). No separate live-latch event: the start already carries the mode.
+    /// Stated sensitivity: ignore the key-down latch in the start edge (always
+    /// `.start(mode: .plain)`) → RED.
+    @Test
+    func controlHeldAtKeyDownStartsInTranslateMode() {
+        var core = HotkeyDecisionCore(trigger: .fn)
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn, .control]))
+            == .start(suppress: true, mode: .translate))
+    }
+
+    /// LL2 — Control pressed MID-hold surfaces `.translateLatched` on that very event
+    /// (fn trigger, foreign left control kc59), so the glyph can switch live instead of
+    /// waiting for the `.translate` stop at key-up.
+    /// Stated sensitivity: stop surfacing the live latch (return the plain
+    /// `.passThrough` for the mid-hold event) → RED.
+    @Test
+    func midHoldControlSurfacesTranslateLatchLive() {
+        var core = HotkeyDecisionCore(trigger: .fn)
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.secondaryFn, .control])) == .translateLatched)
+    }
+
+    /// LL3 — the live latch is observed BEFORE the key-code passthrough guard: a
+    /// foreign left control (kc59) mid-hold surfaces `.translateLatched` even though
+    /// its key code is not the Right ⌘ trigger's own.
+    /// Stated sensitivity: move the observe AFTER the key-code guard (kc59 returns
+    /// before latching) → the event stays a plain passThrough → RED.
+    @Test
+    func midHoldForeignControlSurfacesTranslateLatchBeforeKeyCodeGuard() {
+        var core = HotkeyDecisionCore(trigger: .rightCommand)
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.command, .control])) == .translateLatched)
+    }
+
+    /// LL4 — the live latch fires EXACTLY ONCE per session: a second held event after
+    /// the latch already engaged is an ordinary `.passThrough`, never a repeated
+    /// `.translateLatched` (the glyph must not thrash).
+    /// Stated sensitivity: drop the `!wasLatched` guard (surface the latch on every
+    /// held event while latched) → the second event re-emits `.translateLatched` → RED.
+    @Test
+    func translateLatchSurfacesOnlyOncePerSession() {
+        var core = HotkeyDecisionCore(trigger: .fn)
+        _ = core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn]))
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.secondaryFn, .control])) == .translateLatched)
+        // A further modifier engages while Control is still latched: no re-emit.
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.secondaryFn, .control, .shift])) == .passThrough)
+    }
+
+    /// LL5 — a plain hold NEVER surfaces a live latch: pressing a non-Control modifier
+    /// mid-hold stays a `.passThrough`, and the session still stops `.plain`.
+    /// Stated sensitivity: latch on any modifier (not just Control) → the mid-hold
+    /// Shift event surfaces `.translateLatched` → RED.
+    @Test
+    func plainHoldNeverSurfacesTranslateLatch() {
+        var core = HotkeyDecisionCore(trigger: .fn)
+        _ = core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn]))
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.secondaryFn, .shift])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .plain))
     }
 }

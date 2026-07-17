@@ -33,17 +33,17 @@ struct HotkeyEdgeSequencerTests {
         let recorder = EdgeSinkRecorder()
         let sequencer = HotkeyEdgeSequencer { phase in await recorder.handleParkingDown(phase) }
 
-        sequencer.send(.down)
+        sequencer.send(.down(.plain))
         sequencer.send(.up(.plain))
 
         await recorder.awaitEntered(1)
-        #expect(await recorder.entered == [.down],
+        #expect(await recorder.entered == [.down(.plain)],
                 "the following edge must not begin while the first handler is still running")
 
         await recorder.releaseDown()
         await recorder.awaitHandled(2)
 
-        #expect(await recorder.handled == [.down, .up(.plain)],
+        #expect(await recorder.handled == [.down(.plain), .up(.plain)],
                 "edges must complete one at a time, in receipt order")
         await sequencer.stop()
     }
@@ -58,13 +58,13 @@ struct HotkeyEdgeSequencerTests {
         let recorder = EdgeSinkRecorder()
         let sequencer = HotkeyEdgeSequencer { phase in await recorder.record(phase) }
 
-        sequencer.send(.down)
+        sequencer.send(.down(.plain))
         sequencer.send(.up(.plain))
-        sequencer.send(.down)
+        sequencer.send(.down(.plain))
         sequencer.send(.up(.plain))
 
         await recorder.awaitHandled(4)
-        #expect(await recorder.handled == [.down, .up(.plain), .down, .up(.plain)],
+        #expect(await recorder.handled == [.down(.plain), .up(.plain), .down(.plain), .up(.plain)],
                 "every edge in a rapid burst must be delivered exactly once, in order")
         await sequencer.stop()
     }
@@ -88,14 +88,14 @@ struct HotkeyEdgeSequencerTests {
         let handled = Mutex<[HotkeyPhase]>([])
         let sequencer = HotkeyEdgeSequencer { phase in handled.withLock { $0.append(phase) } }
 
-        sequencer.send(.down)
+        sequencer.send(.down(.plain))
         await sequencer.stop()
 
-        #expect(handled.withLock { $0 } == [.down],
+        #expect(handled.withLock { $0 } == [.down(.plain)],
                 "stop() must drain the enqueued edge and join the consumer before returning")
 
         sequencer.send(.up(.plain))
-        #expect(handled.withLock { $0 } == [.down],
+        #expect(handled.withLock { $0 } == [.down(.plain)],
                 "no edge may be delivered after teardown")
     }
 }
@@ -122,7 +122,7 @@ private actor EdgeSinkRecorder {
     func handleParkingDown(_ phase: HotkeyPhase) async {
         entered.append(phase)
         resolveCountWaiters()
-        if phase == .down, !downReleased {
+        if phase == .down(.plain), !downReleased {
             await withCheckedContinuation { downGate = $0 }
         }
         handled.append(phase)

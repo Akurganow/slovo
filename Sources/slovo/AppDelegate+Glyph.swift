@@ -11,6 +11,17 @@ extension AppDelegate {
             ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
     }
 
+    /// Paints the recording glyph for the session's mode (Ⰸ plain, Ⱂ translate), so
+    /// a translate hold — including one that latches live mid-hold — is visible in
+    /// the menu bar while the key is still held.
+    func setStatusGlyph(recording mode: DictationMode, on button: NSStatusBarButton?) {
+        guard let button else { return }
+        button.title = ""
+        button.contentTintColor = nil
+        button.image = MenuBarGlyph.image(for: MenuBarGlyph.forRecording(mode: mode), tint: .normal)
+            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+    }
+
     func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
         guard let button, let glyph = MenuBarGlyph.forStatus(status) else { return }
         button.title = ""

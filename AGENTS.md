@@ -31,6 +31,11 @@ Clarifications:
   also translates the result into the target language chosen in Settings or the
   menu-bar dropdown, then inserts it. A plain hold (no Control) must never
   translate.
+- **Translate hold glyph.** While a translate hold is active (Control latched at
+  any moment during the push-to-talk hold), the recording glyph is the Glagolitic
+  letter Pokoji "Ⱂ" (U+2C12) instead of the plain recording glyph Zemlja "Ⰸ"
+  (U+2C08); it switches live the moment Control latches, so the mode is visible at
+  a glance.
 - **Mute while dictating.** A menu-bar switch (on by default) silences system
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.

@@ -26,8 +26,15 @@ public enum HotkeyInputEvent: Equatable, Sendable {
 /// for fn (its event is hidden from the OS); a right modifier passes through so it
 /// keeps working as a normal modifier.
 public enum HotkeyDecision: Equatable, Sendable {
-    case start(suppress: Bool)
+    /// Start a session; `mode` is the intent latched at the key-down edge, so
+    /// Control already held at key-down starts directly in `.translate`.
+    case start(suppress: Bool, mode: DictationMode)
     case stop(suppress: Bool, mode: DictationMode)
+    /// Control latched translate LIVE, mid-hold, on an event that otherwise passes
+    /// through. Surfaced so the UI can switch the recording glyph the moment the
+    /// latch engages instead of waiting for the stop edge. Fires at most once per
+    /// session (the latch is one-way); the underlying event is passed through.
+    case translateLatched
     /// A non-trigger key went down while a right-modifier trigger was held: cancel
     /// the in-flight dictation silently; the real combo passes through untouched.
     case interruptCancel
@@ -97,10 +104,26 @@ public struct HotkeyDecisionCore {
     }
 
     private mutating func handleFlagsChanged(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
-        // Observe the latch on EVERY flagsChanged during a held session, before the
-        // key-code passthrough guard below, so a non-trigger Control key still
-        // latches even though its event passes through.
-        if isTriggerHeld { observeControlLatch(keyCode: keyCode, flags: flags) }
+        // The start edge (and its own latch observation) lives in `edge`; only a
+        // held session observes the latch here — before the key-code passthrough
+        // guard below, so a non-trigger Control key still latches even though its
+        // event passes through.
+        guard isTriggerHeld else {
+            return decisionForFlags(keyCode: keyCode, flags: flags)
+        }
+        let wasLatched = isControlLatched
+        observeControlLatch(keyCode: keyCode, flags: flags)
+        let decision = decisionForFlags(keyCode: keyCode, flags: flags)
+        // A fresh mid-hold latch only ever coincides with a passthrough event (the
+        // trigger bit is still engaged, so this is neither a start nor a stop);
+        // surface it live so the recording glyph can switch without waiting for stop.
+        if !wasLatched, isControlLatched, decision == .passThrough {
+            return .translateLatched
+        }
+        return decision
+    }
+
+    private mutating func decisionForFlags(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
         switch trigger.behavior {
         case .suppressedFn:
             // fn is keyed on the secondary-fn bit edge, key code ignored — exactly
@@ -132,10 +155,10 @@ public struct HotkeyDecisionCore {
         if engaged, !isTriggerHeld {
             isTriggerHeld = true
             // Fresh session: clear any prior latch, then let Control-already-held at
-            // key-down latch this session.
+            // key-down latch this session so the start already carries `.translate`.
             isControlLatched = false
             observeControlLatch(keyCode: keyCode, flags: flags)
-            return .start(suppress: suppress)
+            return .start(suppress: suppress, mode: isControlLatched ? .translate : .plain)
         }
         if !engaged, isTriggerHeld {
             isTriggerHeld = false
