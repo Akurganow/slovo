@@ -28,8 +28,6 @@ struct DictationMenuBuilder {
             translationLanguage: translationLanguage
         ) {
             switch item {
-            case .title(let text):
-                menu.addItem(disabled(text))
             case .status(let word):
                 let entry = disabled(word)
                 statusItem = entry

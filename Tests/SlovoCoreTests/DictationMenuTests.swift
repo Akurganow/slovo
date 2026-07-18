@@ -6,13 +6,12 @@ import SlovoCore
 // hint, verified without a running status bar.
 @Suite("Dictation menu model")
 struct DictationMenuTests {
-    /// The items appear in the fixed spec order, grouped by role: header (title,
-    /// status, hotkey hint), separator, live switches (cleanup-model,
+    /// The items appear in the fixed spec order, grouped by role: the header
+    /// (status, hotkey hint — no separate "Slovo" title item, since it never read
+    /// as clickable), separator, live switches (cleanup-model,
     /// translation-language, mute-while-dictating), separator, window openers
-    /// (add-vocabulary, about, settings), separator, quit. The mute switch closes
-    /// the live-switch group; Add Vocabulary opens the window-opener group; About
-    /// sits between Add Vocabulary and Settings; Quit is isolated after its own
-    /// separator.
+    /// (add-vocabulary, settings), separator, quit, then About — the trailing
+    /// group's last entry, right after Quit.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
@@ -24,7 +23,6 @@ struct DictationMenuTests {
             translationLanguage: "en"
         )
         #expect(items == [
-            .title("Slovo"),
             .status("Idle"),
             .hotkeyHint("Hold fn to talk"),
             .separator,
@@ -33,38 +31,49 @@ struct DictationMenuTests {
             .muteWhileDictating(isOn: true),
             .separator,
             .addVocabulary,
-            .about,
             .settings,
             .separator,
             .quit,
+            .about,
         ])
     }
 
-    /// The About entry lives in the window-opener group: it directly follows Add
-    /// Vocabulary and sits directly before Settings (About convention keeps it just
-    /// above Settings). Quit is isolated after its own trailing separator.
-    /// Stated sensitivity: drop `.about` → it is absent → RED; move it out of the
-    /// after-add-vocabulary / before-settings slot → the ordered-neighbour asserts
-    /// redden.
+    /// About is the very last entry in the dropdown, directly after Quit, in the
+    /// same trailing group (no separator between them).
+    /// Stated sensitivity: move `.about` out of the last slot (e.g. ahead of Quit,
+    /// or back to the top) → `quitPrecedesAbout` reddens on the ordering assert;
+    /// drop `.about` entirely → `items.last == .about` reddens.
     @Test
-    func aboutItemSitsBetweenAddVocabularyAndSettings() {
+    func aboutIsTheLastItem() {
         let items = DictationMenu.items(
             trigger: .fn,
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en"
         )
-        #expect(items.contains(.about))
+        #expect(items.last == .about)
+    }
 
-        guard let addVocabularyIndex = items.firstIndex(of: .addVocabulary),
-              let aboutIndex = items.firstIndex(of: .about),
-              let settingsIndex = items.firstIndex(of: .settings)
+    /// Quit directly precedes About — they share the trailing group with no
+    /// separator between them.
+    /// Stated sensitivity: swap the two (About above Quit) → the index assert
+    /// reddens; insert a `.separator` between them → `quitIndex + 1` no longer
+    /// equals `aboutIndex` → RED.
+    @Test
+    func quitPrecedesAbout() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en"
+        )
+        guard let quitIndex = items.firstIndex(of: .quit),
+              let aboutIndex = items.firstIndex(of: .about)
         else {
-            Issue.record("add-vocabulary, about, and settings items must all be present: \(items)")
+            Issue.record("quit and about items must both be present: \(items)")
             return
         }
-        #expect(aboutIndex == addVocabularyIndex + 1, "about must sit right after Add Vocabulary")
-        #expect(settingsIndex == aboutIndex + 1, "settings must directly follow about")
+        #expect(aboutIndex == quitIndex + 1, "about must directly follow quit with no separator")
     }
 
     /// AC9: passing the flag as `false` yields `.muteWhileDictating(isOn: false)` in
@@ -82,7 +91,6 @@ struct DictationMenuTests {
             translationLanguage: "en"
         )
         #expect(items == [
-            .title("Slovo"),
             .status("Idle"),
             .hotkeyHint("Hold fn to talk"),
             .separator,
@@ -91,10 +99,10 @@ struct DictationMenuTests {
             .muteWhileDictating(isOn: false),
             .separator,
             .addVocabulary,
-            .about,
             .settings,
             .separator,
             .quit,
+            .about,
         ])
     }
 

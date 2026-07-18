@@ -2,8 +2,6 @@
 /// and the dynamic hotkey hint are unit-testable. The app target renders each case
 /// into an `NSMenuItem`.
 public enum DictationMenuItem: Equatable, Sendable {
-    /// The disabled app-name header.
-    case title(String)
     /// The disabled live status line; the argument is the state word, rendered on
     /// its own (e.g. "Idle") so it reads without a redundant label.
     case status(String)
@@ -21,21 +19,21 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// The mute-while-dictating switch; the argument is the current setting so the
     /// builder renders the checkmark. Closes the live-switch group.
     case muteWhileDictating(isOn: Bool)
-    /// The About window entry; sits in the window-opener group, between Add
-    /// Vocabulary and Settings.
-    case about
     case settings
     case quit
+    /// The About window entry; trails the dropdown, directly after Quit, in the
+    /// same closing group.
+    case about
 }
 
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
-    /// reads where it is expected: the header (title, status, hotkey hint), the live
+    /// reads where it is expected: the header (status, hotkey hint), the live
     /// switches (cleanup model, translate target, mute), the window openers (Add
-    /// Vocabulary, About, Settings), and the isolated Quit — each group fenced by a
-    /// separator. The hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to
-    /// talk").
+    /// Vocabulary, Settings), and the closing group (Quit, then About last) — each
+    /// group fenced by a separator except the closing pair, which shares one group.
+    /// The hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk").
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
@@ -43,7 +41,6 @@ public enum DictationMenu {
         translationLanguage: String
     ) -> [DictationMenuItem] {
         [
-            .title("Slovo"),
             .status("Idle"),
             .hotkeyHint("Hold \(trigger.displayName) to talk"),
             .separator,
@@ -52,10 +49,10 @@ public enum DictationMenu {
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
             .separator,
             .addVocabulary,
-            .about,
             .settings,
             .separator,
             .quit,
+            .about,
         ]
     }
 }
