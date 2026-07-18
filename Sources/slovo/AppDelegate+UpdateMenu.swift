@@ -32,12 +32,16 @@ extension AppDelegate {
             item.isHidden = true
             item.isEnabled = false
             item.action = nil
+            // A ready-state label must not outlive the state: VoiceOver would keep
+            // announcing "activate to restart" on a row that no longer restarts.
+            item.setAccessibilityLabel(nil)
         case .downloading(let version):
             item.isHidden = false
             item.isEnabled = false
             item.action = nil
             item.title = "Downloading v\(version)"
             item.attributedTitle = Self.updateStatusTitle("Downloading v\(version)")
+            item.setAccessibilityLabel(nil)
         case .ready(let version):
             item.isHidden = false
             item.isEnabled = true
