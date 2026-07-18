@@ -21,19 +21,20 @@ public enum DictationMenuItem: Equatable, Sendable {
     case muteWhileDictating(isOn: Bool)
     case settings
     case quit
-    /// The About window entry; trails the dropdown, directly after Quit, in the
-    /// same closing group.
+    /// The About window entry; the first interactive item, in its own group
+    /// directly below the status header.
     case about
 }
 
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
-    /// reads where it is expected: the header (status, hotkey hint), the live
-    /// switches (cleanup model, translate target, mute), the window openers (Add
-    /// Vocabulary, Settings), and the closing group (Quit, then About last) — each
-    /// group fenced by a separator except the closing pair, which shares one group.
-    /// The hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk").
+    /// reads where it is expected: the header (status, hotkey hint), About as the
+    /// first interactive item in its own group (echoing the app-menu convention),
+    /// the live switches (cleanup model, translate target, mute), the window
+    /// openers (Add Vocabulary, Settings), and Quit isolated last — each group
+    /// fenced by a separator. The hint reads "Hold <displayName> to talk"
+    /// (e.g. "Hold Right ⌘ to talk").
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
@@ -44,6 +45,8 @@ public enum DictationMenu {
             .status("Idle"),
             .hotkeyHint("Hold \(trigger.displayName) to talk"),
             .separator,
+            .about,
+            .separator,
             .cleanupModel(selectedModelId: selectedModelId),
             .translationLanguage(selected: translationLanguage),
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
@@ -52,7 +55,6 @@ public enum DictationMenu {
             .settings,
             .separator,
             .quit,
-            .about,
         ]
     }
 }

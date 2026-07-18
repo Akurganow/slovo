@@ -8,10 +8,9 @@ import SlovoCore
 struct DictationMenuTests {
     /// The items appear in the fixed spec order, grouped by role: the header
     /// (status, hotkey hint — no separate "Slovo" title item, since it never read
-    /// as clickable), separator, live switches (cleanup-model,
-    /// translation-language, mute-while-dictating), separator, window openers
-    /// (add-vocabulary, settings), separator, quit, then About — the trailing
-    /// group's last entry, right after Quit.
+    /// as clickable), separator, About in its own group, separator, live switches
+    /// (cleanup-model, translation-language, mute-while-dictating), separator,
+    /// window openers (add-vocabulary, settings), separator, quit isolated last.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
@@ -26,6 +25,8 @@ struct DictationMenuTests {
             .status("Idle"),
             .hotkeyHint("Hold fn to talk"),
             .separator,
+            .about,
+            .separator,
             .cleanupModel(selectedModelId: "openai/gpt-5.6-luna"),
             .translationLanguage(selected: "en"),
             .muteWhileDictating(isOn: true),
@@ -34,46 +35,45 @@ struct DictationMenuTests {
             .settings,
             .separator,
             .quit,
-            .about,
         ])
     }
 
-    /// About is the very last entry in the dropdown, directly after Quit, in the
-    /// same trailing group (no separator between them).
-    /// Stated sensitivity: move `.about` out of the last slot (e.g. ahead of Quit,
-    /// or back to the top) → `quitPrecedesAbout` reddens on the ordering assert;
-    /// drop `.about` entirely → `items.last == .about` reddens.
+    /// About is the first interactive item: it directly follows the first
+    /// separator (the one closing the disabled status header) and is itself
+    /// followed by a separator, so it reads as its own group.
+    /// Stated sensitivity: move `.about` anywhere else (into the switches group,
+    /// back after Quit) → the first-separator-neighbour assert reddens; drop the
+    /// separator after it → the own-group assert reddens.
     @Test
-    func aboutIsTheLastItem() {
+    func aboutIsTheFirstInteractiveItemInItsOwnGroup() {
         let items = DictationMenu.items(
             trigger: .fn,
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en"
         )
-        #expect(items.last == .about)
-    }
-
-    /// Quit directly precedes About — they share the trailing group with no
-    /// separator between them.
-    /// Stated sensitivity: swap the two (About above Quit) → the index assert
-    /// reddens; insert a `.separator` between them → `quitIndex + 1` no longer
-    /// equals `aboutIndex` → RED.
-    @Test
-    func quitPrecedesAbout() {
-        let items = DictationMenu.items(
-            trigger: .fn,
-            selectedModelId: "m",
-            mutesSystemAudioWhileDictating: true,
-            translationLanguage: "en"
-        )
-        guard let quitIndex = items.firstIndex(of: .quit),
+        guard let firstSeparatorIndex = items.firstIndex(of: .separator),
               let aboutIndex = items.firstIndex(of: .about)
         else {
-            Issue.record("quit and about items must both be present: \(items)")
+            Issue.record("separator and about items must both be present: \(items)")
             return
         }
-        #expect(aboutIndex == quitIndex + 1, "about must directly follow quit with no separator")
+        #expect(aboutIndex == firstSeparatorIndex + 1, "about must directly follow the status header")
+        #expect(items[aboutIndex + 1] == .separator, "about must sit alone in its own group")
+    }
+
+    /// Quit closes the dropdown as the isolated last item.
+    /// Stated sensitivity: append anything after `.quit` (as About once was) or
+    /// drop `.quit` → `items.last == .quit` reddens.
+    @Test
+    func quitIsTheLastItem() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en"
+        )
+        #expect(items.last == .quit)
     }
 
     /// AC9: passing the flag as `false` yields `.muteWhileDictating(isOn: false)` in
@@ -94,6 +94,8 @@ struct DictationMenuTests {
             .status("Idle"),
             .hotkeyHint("Hold fn to talk"),
             .separator,
+            .about,
+            .separator,
             .cleanupModel(selectedModelId: "x"),
             .translationLanguage(selected: "en"),
             .muteWhileDictating(isOn: false),
@@ -102,7 +104,6 @@ struct DictationMenuTests {
             .settings,
             .separator,
             .quit,
-            .about,
         ])
     }
 
