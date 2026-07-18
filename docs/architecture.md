@@ -88,10 +88,11 @@ are never committed.
 
 The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
 an `NSStatusItem` for status, cleanup model selection, the translate-to target
-language, vocabulary quick-add, first-run setup actions, a **Settings…** window
-(push-to-talk key, recognition language, launch at login, cleanup model and
-style, translation target, OpenRouter key, and vocabulary), and quit.
-All configuration is native windows — there are no modal alerts.
+language, the mute-while-dictating switch, vocabulary quick-add, first-run setup
+actions, a **Settings…** window (push-to-talk key, recognition language, launch at
+login, cleanup model and style, translation target, OpenRouter key, and
+vocabulary), quit, and an **About** window with a quick guide and the running
+version. All configuration is native windows — there are no modal alerts.
 
 ## Build Boundaries
 

@@ -74,8 +74,9 @@ after that, transcription runs fully on-device.
    Dock icon.
 4. Grant **Microphone** and **Accessibility** when prompted. Accessibility
    is required for the global `fn` / Globe hotkey.
-5. Open the menu-bar item, choose **Update OpenRouter Key** to enable
-   cleanup, and optionally **Add Vocabulary…** to protect your own terms.
+5. Open the menu-bar item, choose **Settings…**, and add your OpenRouter API
+   key in the **Cleanup** section to enable cleanup. Optionally use the menu-bar
+   **Add Vocabulary…** action to protect your own terms.
 
 ## Usage
 
