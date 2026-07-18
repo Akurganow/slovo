@@ -49,6 +49,8 @@ tuned.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
   push-to-talk key, recognition language, launch at login, cleanup model and
   style, translation target language, API key, and vocabulary.
+- A menu-bar **About Slovo** window with a built-in quick guide (dictate,
+  translate, cleanup, vocabulary) and the running version.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements

@@ -21,6 +21,8 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// The mute-while-dictating switch; the argument is the current setting so the
     /// builder renders the checkmark.
     case muteWhileDictating(isOn: Bool)
+    /// The About window entry; sits in the trailing meta-group before Settings.
+    case about
     case settings
     case quit
 }
@@ -30,7 +32,8 @@ public enum DictationMenu {
     /// The dropdown's top-level items in display order. The hint reads
     /// "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk"). The
     /// mute-while-dictating switch carries the live setting and sits after Add
-    /// Vocabulary, before the trailing separator.
+    /// Vocabulary, before the trailing separator. About sits in the trailing
+    /// meta-group after that separator, directly before Settings.
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
@@ -47,6 +50,7 @@ public enum DictationMenu {
             .addVocabulary,
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
             .separator,
+            .about,
             .settings,
             .quit,
         ]

@@ -8,9 +8,11 @@ import SlovoCore
 struct DictationMenuTests {
     /// The items appear in the fixed spec order: title, status, hotkey hint,
     /// separator, cleanup-model, translation-language, add-vocabulary,
-    /// mute-while-dictating, separator, settings, quit. The translation-language
+    /// mute-while-dictating, separator, about, settings, quit. The translation-language
     /// item sits right after cleanup-model; the mute switch sits AFTER Add
-    /// Vocabulary and BEFORE the trailing separator, carrying the live flag.
+    /// Vocabulary and BEFORE the trailing separator, carrying the live flag; About
+    /// sits in the trailing meta-group after the separator and directly before
+    /// Settings.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
@@ -31,9 +33,37 @@ struct DictationMenuTests {
             .addVocabulary,
             .muteWhileDictating(isOn: true),
             .separator,
+            .about,
             .settings,
             .quit,
         ])
+    }
+
+    /// The About entry lives in the trailing meta-group: it follows the trailing
+    /// separator and sits directly before Settings (About convention keeps it just
+    /// above Settings). Quit stays last.
+    /// Stated sensitivity: drop `.about` → it is absent → RED; move it out of the
+    /// after-separator / before-settings slot (e.g. above the separator, or below
+    /// Settings) → the ordered-neighbour asserts redden.
+    @Test
+    func aboutItemPrecedesSettingsInTrailingMetaGroup() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en"
+        )
+        #expect(items.contains(.about))
+
+        guard let separatorIndex = items.lastIndex(of: .separator),
+              let aboutIndex = items.firstIndex(of: .about),
+              let settingsIndex = items.firstIndex(of: .settings)
+        else {
+            Issue.record("separator, about, and settings items must all be present: \(items)")
+            return
+        }
+        #expect(aboutIndex == separatorIndex + 1, "about must sit right after the trailing separator")
+        #expect(settingsIndex == aboutIndex + 1, "settings must directly follow about")
     }
 
     /// AC9: passing the flag as `false` yields `.muteWhileDictating(isOn: false)` in
@@ -60,6 +90,7 @@ struct DictationMenuTests {
             .addVocabulary,
             .muteWhileDictating(isOn: false),
             .separator,
+            .about,
             .settings,
             .quit,
         ])

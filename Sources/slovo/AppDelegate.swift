@@ -11,6 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
     var settingsWindowController: SettingsWindowController?
+    // Internal (not private) so the AppDelegate+About extension in its own file can
+    // reach the cached window; a repeat click must focus it, not open a second one.
+    var aboutWindow: AboutWindow?
     private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
     private var didShowPipelineStatus = false
     var isPipelineActive = false

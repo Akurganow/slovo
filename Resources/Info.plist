@@ -26,6 +26,8 @@
 	<string>26.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Alexander Kurganov</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Slovo records dictation audio only while the hold-to-talk trigger is pressed.</string>
 	<key>NSPrincipalClass</key>

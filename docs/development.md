@@ -140,3 +140,12 @@ tap, verify on a real keyboard:
   (menu bar / Settings → Cleanup), and the menu-bar recording glyph switches live
   to Pokoji `Ⱂ` while Control is latched; a hold without Control is not translated
   and keeps the plain recording glyph.
+
+## Manual About-window check (UI-only)
+
+The About window is presented through AppKit and is not exercised in CI. After
+changing it, verify by hand:
+
+- **Single instance:** open **About Slovo** from the menu bar, then open it again —
+  the same window is focused, not a second copy. The version line and the
+  push-to-talk keycap match the current build and the configured key.
