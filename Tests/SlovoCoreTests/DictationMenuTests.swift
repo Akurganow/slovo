@@ -6,13 +6,13 @@ import SlovoCore
 // hint, verified without a running status bar.
 @Suite("Dictation menu model")
 struct DictationMenuTests {
-    /// The items appear in the fixed spec order: title, status, hotkey hint,
-    /// separator, cleanup-model, translation-language, add-vocabulary,
-    /// mute-while-dictating, separator, about, settings, quit. The translation-language
-    /// item sits right after cleanup-model; the mute switch sits AFTER Add
-    /// Vocabulary and BEFORE the trailing separator, carrying the live flag; About
-    /// sits in the trailing meta-group after the separator and directly before
-    /// Settings.
+    /// The items appear in the fixed spec order, grouped by role: header (title,
+    /// status, hotkey hint), separator, live switches (cleanup-model,
+    /// translation-language, mute-while-dictating), separator, window openers
+    /// (add-vocabulary, about, settings), separator, quit. The mute switch closes
+    /// the live-switch group; Add Vocabulary opens the window-opener group; About
+    /// sits between Add Vocabulary and Settings; Quit is isolated after its own
+    /// separator.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
@@ -30,23 +30,24 @@ struct DictationMenuTests {
             .separator,
             .cleanupModel(selectedModelId: "openai/gpt-5.6-luna"),
             .translationLanguage(selected: "en"),
-            .addVocabulary,
             .muteWhileDictating(isOn: true),
             .separator,
+            .addVocabulary,
             .about,
             .settings,
+            .separator,
             .quit,
         ])
     }
 
-    /// The About entry lives in the trailing meta-group: it follows the trailing
-    /// separator and sits directly before Settings (About convention keeps it just
-    /// above Settings). Quit stays last.
+    /// The About entry lives in the window-opener group: it directly follows Add
+    /// Vocabulary and sits directly before Settings (About convention keeps it just
+    /// above Settings). Quit is isolated after its own trailing separator.
     /// Stated sensitivity: drop `.about` → it is absent → RED; move it out of the
-    /// after-separator / before-settings slot (e.g. above the separator, or below
-    /// Settings) → the ordered-neighbour asserts redden.
+    /// after-add-vocabulary / before-settings slot → the ordered-neighbour asserts
+    /// redden.
     @Test
-    func aboutItemPrecedesSettingsInTrailingMetaGroup() {
+    func aboutItemSitsBetweenAddVocabularyAndSettings() {
         let items = DictationMenu.items(
             trigger: .fn,
             selectedModelId: "m",
@@ -55,14 +56,14 @@ struct DictationMenuTests {
         )
         #expect(items.contains(.about))
 
-        guard let separatorIndex = items.lastIndex(of: .separator),
+        guard let addVocabularyIndex = items.firstIndex(of: .addVocabulary),
               let aboutIndex = items.firstIndex(of: .about),
               let settingsIndex = items.firstIndex(of: .settings)
         else {
-            Issue.record("separator, about, and settings items must all be present: \(items)")
+            Issue.record("add-vocabulary, about, and settings items must all be present: \(items)")
             return
         }
-        #expect(aboutIndex == separatorIndex + 1, "about must sit right after the trailing separator")
+        #expect(aboutIndex == addVocabularyIndex + 1, "about must sit right after Add Vocabulary")
         #expect(settingsIndex == aboutIndex + 1, "settings must directly follow about")
     }
 
@@ -70,7 +71,7 @@ struct DictationMenuTests {
     /// the same pinned position — proving the item reflects the argument, not a
     /// hard-coded on/off.
     /// Stated sensitivity: hard-code the item's `isOn`, drop the item, or move it out
-    /// of the after-addVocabulary / before-trailing-separator slot → the exact
+    /// of the after-translation-language / before-separator slot → the exact
     /// sequence mismatches → RED.
     @Test
     func muteWhileDictatingItemReflectsDisabledFlagAndPosition() {
@@ -87,18 +88,19 @@ struct DictationMenuTests {
             .separator,
             .cleanupModel(selectedModelId: "x"),
             .translationLanguage(selected: "en"),
-            .addVocabulary,
             .muteWhileDictating(isOn: false),
             .separator,
+            .addVocabulary,
             .about,
             .settings,
+            .separator,
             .quit,
         ])
     }
 
     /// U1 — the translation-language item carries the selected target code and sits
-    /// directly between cleanup-model and add-vocabulary (mirroring cleanup-model's
-    /// selected-id contract). RED now: the model does not emit the item.
+    /// directly between cleanup-model and mute-while-dictating (mirroring
+    /// cleanup-model's selected-id contract), inside the live-switch group.
     /// Stated sensitivity: drop the item → it is absent → RED; misorder it (not right
     /// after cleanup-model) → the ordered-neighbour assert reddens; hardcode/drop the
     /// selected code → `.translationLanguage(selected: "ru")` mismatches → RED.
@@ -109,13 +111,13 @@ struct DictationMenuTests {
 
         guard let cleanupIndex = items.firstIndex(of: .cleanupModel(selectedModelId: "m")),
               let translationIndex = items.firstIndex(of: .translationLanguage(selected: "ru")),
-              let addVocabularyIndex = items.firstIndex(of: .addVocabulary)
+              let muteIndex = items.firstIndex(of: .muteWhileDictating(isOn: true))
         else {
-            Issue.record("cleanup-model, translation-language, and add-vocabulary items must all be present: \(items)")
+            Issue.record("cleanup-model, translation-language, and mute-while-dictating items must all be present: \(items)")
             return
         }
         #expect(translationIndex == cleanupIndex + 1, "translation-language must sit right after cleanup-model")
-        #expect(addVocabularyIndex == translationIndex + 1, "add-vocabulary must directly follow translation-language")
+        #expect(muteIndex == translationIndex + 1, "mute-while-dictating must directly follow translation-language")
     }
 
     /// The hint uses the trigger's display name, not its wire value.

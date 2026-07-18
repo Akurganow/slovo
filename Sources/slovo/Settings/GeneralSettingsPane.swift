@@ -25,23 +25,21 @@ struct GeneralSettingsPane: View {
 
     var body: some View {
         Form {
-            Section("Push-to-talk key") {
-                Picker("Hold to talk", selection: $trigger) {
+            Section("Dictation") {
+                Picker("Push-to-talk key", selection: $trigger) {
                     ForEach(HotkeyTrigger.allCases, id: \.self) { option in
                         Text(option.displayName).tag(option)
                     }
                 }
                 .onChange(of: trigger) { _, newValue in actions.setTrigger(newValue) }
-            }
-            Section("Recognition language") {
-                Picker("Language", selection: $language) {
+                Picker("Recognition language", selection: $language) {
                     Text("Auto").tag(Language.auto)
                     ForEach(RecognitionLanguageCatalog.options) { option in
                         Text(option.displayName).tag(Language(rawValue: option.code))
                     }
                 }
                 .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
-                Text("Auto detects the language and handles mixed Russian + English speech best.")
+                Text("Auto handles mixed Russian + English best.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

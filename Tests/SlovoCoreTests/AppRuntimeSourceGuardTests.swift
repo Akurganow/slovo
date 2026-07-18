@@ -241,8 +241,27 @@ struct AppRuntimeSourceGuardTests {
         // title unconditionally (drop either guard) → its flag vanishes → RED.
         #expect(Self.containsInOrder(["if", "isShowingSadToFailStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
                 "the idle glyph must stay guarded by the sad-to-fail flag")
-        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "Status: Idle"], in: settleToIdleBody),
+        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", #"title = "Idle""#], in: settleToIdleBody),
                 "the Idle title must stay guarded by the shown-pipeline-status flag")
+    }
+
+    /// The live status line renders the bare state word: the "Status:" prefix was
+    /// dropped at every render site so it reads without a redundant label. The
+    /// prefix is set at roughly nine sites across these two app-target files
+    /// (recording, processing, idle, setup / hotkey-setup required, the
+    /// preparing-model pulse), only one of which the settle-to-idle guard above
+    /// pins by position — so a whole-file negative assert is what stops the prefix
+    /// creeping back into any unguarded site. Mirrors the DictationMenuBuilder
+    /// prefix guard. `code(_:)` strips comments (but keeps string literals), so a
+    /// future comment naming the old prefix cannot false-trip this.
+    /// Stated sensitivity: reintroduce `"Status: Idle"` in the model-gate file, or
+    /// `"Status: Recording"` in AppDelegate, → the matching `#expect` goes RED.
+    @Test
+    func statusTitlesCarryNoRedundantPrefix() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let modelGate = try Self.code("Sources/slovo/AppDelegate+ModelGate.swift")
+        #expect(!delegate.contains("Status: "))
+        #expect(!modelGate.contains("Status: "))
     }
 
     /// AC10: the dropdown's "Mute Audio While Dictating" switch renders as a

@@ -41,7 +41,7 @@ tuned.
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
 - Local SQLite personalization store for vocabulary hints — add and remove
-  terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary...**
+  terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary…**
   quick action — to protect your own terms during cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states, plus a monochrome app icon that follows the system
@@ -75,7 +75,7 @@ after that, transcription runs fully on-device.
 4. Grant **Microphone** and **Accessibility** when prompted. Accessibility
    is required for the global `fn` / Globe hotkey.
 5. Open the menu-bar item, choose **Update OpenRouter Key** to enable
-   cleanup, and optionally **Add Vocabulary...** to protect your own terms.
+   cleanup, and optionally **Add Vocabulary…** to protect your own terms.
 
 ## Usage
 

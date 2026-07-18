@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.isPipelineActive = true
                         self?.didShowPipelineStatus = false
                         self?.setStatusGlyph(recording: mode, on: self?.statusItem?.button)
-                        self?.statusTextItem?.title = "Status: Recording"
+                        self?.statusTextItem?.title = "Recording"
                     }
                     await orchestrator.handle(.startRequested)
                 case .translateLatched: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
@@ -82,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await MainActor.run {
                         self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
                         if self?.didShowPipelineStatus == false {
-                            self?.statusTextItem?.title = "Status: Processing"
+                            self?.statusTextItem?.title = "Processing"
                         }
                     }
                     await orchestrator.handle(.stopRequested(mode))
@@ -120,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             setStatusGlyph(.idle, on: statusItem?.button)
         }
         if !didShowPipelineStatus {
-            statusTextItem?.title = "Status: Idle"
+            statusTextItem?.title = "Idle"
         }
     }
 
@@ -131,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Setup" dialog re-appeared once for each permission because its dedup keyed
         // on the shrinking set of still-pending steps.
         onboardingSteps = steps
-        statusTextItem?.title = "Status: Setup Required"
+        statusTextItem?.title = "Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
     }
 
@@ -154,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func presentHotkeyRecovery() {
-        statusTextItem?.title = "Status: Hotkey Setup Required"
+        statusTextItem?.title = "Hotkey Setup Required"
         statusItem?.menu = makeHotkeyRecoveryMenu()
     }
 
@@ -208,11 +208,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.isShowingSadToFailStatus = false
                 self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
                 if self?.isPipelineActive == false {
-                    self?.statusTextItem?.title = "Status: Idle"
+                    self?.statusTextItem?.title = "Idle"
                 }
             }
         }
-        statusTextItem?.title = "Status: \(Self.title(for: status))"
+        statusTextItem?.title = Self.title(for: status)
     }
 
     @objc

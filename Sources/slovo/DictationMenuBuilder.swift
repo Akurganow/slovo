@@ -31,7 +31,7 @@ struct DictationMenuBuilder {
             case .title(let text):
                 menu.addItem(disabled(text))
             case .status(let word):
-                let entry = disabled("Status: \(word)")
+                let entry = disabled(word)
                 statusItem = entry
                 menu.addItem(entry)
             case .hotkeyHint(let text):
@@ -46,7 +46,7 @@ struct DictationMenuBuilder {
             case .translationLanguage(let selected):
                 menu.addItem(target.translationLanguageMenu(selected: selected))
             case .addVocabulary:
-                menu.addItem(target.actionItem("Add Vocabulary...", #selector(AppDelegate.showVocabularyQuickAdd)))
+                menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
             case .muteWhileDictating(let isOn):
                 let entry = target.actionItem(
                     "Mute Audio While Dictating",
@@ -57,7 +57,7 @@ struct DictationMenuBuilder {
             case .about:
                 menu.addItem(target.actionItem("About Slovo", #selector(AppDelegate.showAboutWindow)))
             case .settings:
-                let entry = target.actionItem("Settings...", #selector(AppDelegate.showSettingsWindow))
+                let entry = target.actionItem("Settings…", #selector(AppDelegate.showSettingsWindow))
                 entry.keyEquivalent = ","
                 menu.addItem(entry)
             case .quit:

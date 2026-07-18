@@ -27,6 +27,21 @@ struct VocabularySettingsPane: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Terms cleanup keeps verbatim — names, brands, jargon.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            table
+        }
+        .padding()
+        .frame(width: 420, height: 360)
+        .onAppear {
+            // Same reason as the other panes: the window is cached, not recreated.
+            records = actions.listVocabulary()
+        }
+    }
+
+    private var table: some View {
         VStack(spacing: 0) {
             List(selection: $selection) {
                 ForEach(records, id: \.id) { record in
@@ -35,6 +50,17 @@ struct VocabularySettingsPane: View {
                 .onDelete(perform: delete)
             }
             .listStyle(.plain)
+            .overlay {
+                // Centered in the empty list so the pane explains itself before any
+                // term exists, rather than showing a blank box.
+                if records.isEmpty {
+                    Text("No terms yet — add words cleanup should never rewrite.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                }
+            }
             Divider()
             editBar
         }
@@ -44,12 +70,6 @@ struct VocabularySettingsPane: View {
             // editable table rather than a bare list with a detached button row.
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(.quaternary, lineWidth: 1)
-        }
-        .padding()
-        .frame(width: 420, height: 360)
-        .onAppear {
-            // Same reason as the other panes: the window is cached, not recreated.
-            records = actions.listVocabulary()
         }
     }
 
@@ -87,6 +107,11 @@ struct VocabularySettingsPane: View {
 
     private var addTermPopover: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Same wording as the menu-bar quick-add window, so the two entry points
+            // describe the field identically.
+            Text("Comma-separated terms that cleanup must preserve verbatim.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             // Comma-separated bulk add is preserved: the seam splits the input.
             TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
                 .frame(width: 240)

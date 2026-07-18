@@ -1,8 +1,8 @@
 import SwiftUI
 import SlovoCore
 
-/// Settings → Cleanup: the cleanup model (catalog + custom id), writing style, and
-/// the OpenRouter API key.
+/// Settings → Cleanup: the cleanup step (model, writing style, translate target),
+/// the OpenRouter API key, and the spell-check language hints.
 @MainActor
 struct CleanupSettingsPane: View {
     // Unowned, not strong: AppDelegate (the only conformer) is an app-lifetime
@@ -39,9 +39,7 @@ struct CleanupSettingsPane: View {
 
     var body: some View {
         Form {
-            modelSection
-            writingStyleSection
-            translationSection
+            cleanupSection
             apiKeySection
             spellCheckHintsSection
         }
@@ -59,56 +57,65 @@ struct CleanupSettingsPane: View {
         }
     }
 
-    private var modelSection: some View {
-        Section("Cleanup model") {
-            Picker("Model", selection: $selectedModelId) {
-                ForEach(CleanupModelCatalog.options, id: \.id) { option in
-                    Text(option.displayName).tag(option.id)
-                }
-                if !catalogIds.contains(selectedModelId) {
-                    Text(selectedModelId).tag(selectedModelId)
-                }
-            }
-            .onChange(of: selectedModelId) { _, newValue in actions.setCleanupModel(newValue) }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    TextField("openrouter/model-id", text: $customModelId)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Use", action: useCustomModel)
-                        .disabled(trimmedCustomModelId.isEmpty)
-                }
-                Text("Route cleanup through any model id from openrouter.ai/models.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    // Model, writing style, and translate target share one section: they are the
+    // knobs of a single cleanup step, so grouping them makes the relationship —
+    // including the hidden Control-to-translate trigger — visible at a glance. Each
+    // row is its own view so no single closure grows unwieldy.
+    private var cleanupSection: some View {
+        Section("Cleanup") {
+            modelRow
+            writingStyleRow
+            translateRow
         }
     }
 
-    private var writingStyleSection: some View {
-        Section("Writing style") {
-            Picker("Style", selection: $writingStyle) {
-                Text("Formal").tag(WritingStyle.formal)
-                Text("Casual").tag(WritingStyle.casual)
-                Text("Very casual").tag(WritingStyle.veryCasual)
+    @ViewBuilder private var modelRow: some View {
+        Picker("Model", selection: $selectedModelId) {
+            ForEach(CleanupModelCatalog.options, id: \.id) { option in
+                Text(option.displayName).tag(option.id)
             }
-            .onChange(of: writingStyle) { _, newValue in actions.setWritingStyle(newValue) }
+            if !catalogIds.contains(selectedModelId) {
+                Text(selectedModelId).tag(selectedModelId)
+            }
+        }
+        .onChange(of: selectedModelId) { _, newValue in actions.setCleanupModel(newValue) }
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                TextField("openrouter/model-id", text: $customModelId)
+                    .textFieldStyle(.roundedBorder)
+                Button("Use", action: useCustomModel)
+                    .disabled(trimmedCustomModelId.isEmpty)
+            }
+            Text("Any model id from openrouter.ai/models. Needs your key below.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var translationSection: some View {
+    private var writingStyleRow: some View {
+        Picker("Writing style", selection: $writingStyle) {
+            Text("Formal").tag(WritingStyle.formal)
+            Text("Casual").tag(WritingStyle.casual)
+            Text("Very casual").tag(WritingStyle.veryCasual)
+        }
+        .onChange(of: writingStyle) { _, newValue in actions.setWritingStyle(newValue) }
+    }
+
+    @ViewBuilder private var translateRow: some View {
         // No Auto row: a translate target must be a concrete language (the fail-closed
         // config guard rejects the sentinel), unlike the recognition-language picker.
-        Section("Translation") {
-            Picker("Translate to", selection: $translationLanguage) {
-                ForEach(RecognitionLanguageCatalog.options) { option in
-                    Text(option.displayName).tag(option.code)
-                }
-            }
-            .onChange(of: translationLanguage) { _, newCode in
-                actions.setTranslationLanguage(Language(rawValue: newCode))
+        Picker("Translate to", selection: $translationLanguage) {
+            ForEach(RecognitionLanguageCatalog.options) { option in
+                Text(option.displayName).tag(option.code)
             }
         }
+        .onChange(of: translationLanguage) { _, newCode in
+            actions.setTranslationLanguage(Language(rawValue: newCode))
+        }
+        Text("Used when you hold Control while dictating.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private var apiKeySection: some View {
@@ -138,6 +145,9 @@ struct CleanupSettingsPane: View {
         Section("Language hints") {
             Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
                 .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
+            Text("Spell-check findings from your Mac guide cleanup toward the right words.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

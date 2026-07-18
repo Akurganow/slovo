@@ -149,8 +149,12 @@ struct SettingsSurfaceSourceGuardTests {
     }
 
     /// The menu builder renders the model items and wires the Settings + quit
-    /// actions with their key equivalents. Stated sensitivity: drop the Settings
-    /// item or its "," key equivalent → RED.
+    /// actions with their key equivalents. The window-opener labels use a real
+    /// ellipsis (not ASCII "..."), and the live status line renders the bare state
+    /// word without a redundant "Status:" prefix. Stated sensitivity: drop the
+    /// Settings item or its "," key equivalent → RED; revert an ellipsis to "..." →
+    /// the ellipsis `#expect` reddens; reintroduce the "Status:" prefix → the
+    /// negative `#expect` reddens.
     @Test
     func menuBuilderRendersSettingsAndModelItems() throws {
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
@@ -163,6 +167,9 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(builder.contains(#"entry.keyEquivalent = ",""#))
         #expect(builder.contains("target.modelMenu("))
         #expect(builder.contains(#"keyEquivalent: "q""#))
+        #expect(builder.contains("Add Vocabulary…"))
+        #expect(builder.contains("Settings…"))
+        #expect(!builder.contains("Status: "))
     }
 
     /// `makeMenu` must pass the REAL current config to the builder. Without this,

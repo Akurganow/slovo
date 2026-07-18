@@ -18,13 +18,13 @@ extension AppDelegate {
             self.stopModelLoadingPulse(on: self.statusItem?.button)
             guard !self.isPipelineActive, !self.isShowingSadToFailStatus else { return }
             self.setStatusGlyph(.idle, on: self.statusItem?.button)
-            self.statusTextItem?.title = "Status: Idle"
+            self.statusTextItem?.title = "Idle"
         }
     }
 
     func showModelLoadingState() {
         setStatusGlyph(status: .preparingSpeechModel, on: statusItem?.button)
-        statusTextItem?.title = "Status: \(Self.title(for: .preparingSpeechModel))"
+        statusTextItem?.title = Self.title(for: .preparingSpeechModel)
         startModelLoadingPulse(on: statusItem?.button)
     }
 }
