@@ -21,8 +21,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var isModelReady = false
     private var onboardingSteps: [OnboardingStep] = []
     private var sadToFailResetTask: Task<Void, Never>?
+    // Sibling of sadToFailResetTask: the pending reset of the update-install-failure
+    // glyph flash, cancelled before a new flash so overlaps don't stack.
+    var updateFailureResetTask: Task<Void, Never>?
     private var hotkeyEdgeSequencer: HotkeyEdgeSequencer?
     private var isRebuildingPipeline = false
+    // Strong reference is load-bearing: Sparkle holds the updater and user-driver
+    // delegates weakly, so the coordinator would deallocate without this.
+    var updaterCoordinator: UpdaterCoordinator?
+    // The one persistent update-line item, built by DictationMenuBuilder and mutated
+    // in place by the update renderer; never rebuilt on a transition.
+    var updateMenuItem: NSMenuItem?
+    // True only while the onboarding menu is shown, so the dictation dropdown's
+    // shared menu delegate never triggers the onboarding refresh on open.
+    private var isPresentingOnboarding = false
 
     init(logger: Logger, defaults: UserDefaults = .standard) {
         self.logger = logger
@@ -36,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = item
 
         startPipeline()
+        startUpdater()
         logger.info("menu bar app ready")
     }
 
@@ -48,6 +61,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             translationLanguage: config.translationTargetLanguage.rawValue
         )
         statusTextItem = built.statusItem
+        // Sync the freshly built update row to the current state, so a rebuild while
+        // an update is downloading or ready shows the right line immediately.
+        if let indication = updaterCoordinator?.currentIndication {
+            renderUpdateIndication(indication)
+        }
         return built.menu
     }
 
@@ -64,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 logger.info("onboarding pending")
                 return
             }
+            isPresentingOnboarding = false
             prepareModelGate(for: live)
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
                 switch phase {
@@ -131,6 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Setup" dialog re-appeared once for each permission because its dedup keyed
         // on the shrinking set of still-pending steps.
         onboardingSteps = steps
+        isPresentingOnboarding = true
         statusTextItem?.title = "Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
     }
@@ -171,6 +191,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // The dictation dropdown shares this delegate; only the onboarding menu
+        // wants the pending-permission refresh.
+        guard isPresentingOnboarding else { return }
         refreshOnboardingMenuIfNeeded()
     }
 
@@ -341,47 +364,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func toggleMuteWhileDictating(_ sender: NSMenuItem) {
         let config = ConfigStore.load(from: defaults)
         applyMuteWhileDictating(!config.mutesSystemAudioWhileDictating)
-    }
-
-    /// Persists a translate-target change and applies it to the NEXT dictation live.
-    /// Like `applyCleanupModel`, this does NOT rebuild the pipeline: the target only
-    /// affects the cleanup prompt in translate mode, so the resident ASR model is
-    /// never re-warmed and no loading pulse appears. The menu is refreshed so the
-    /// selected-language checkmark and the "Translate to" title track the new choice.
-    func applyTranslationLanguage(_ language: Language) {
-        var config = ConfigStore.load(from: defaults)
-        config.translationTargetLanguage = language
-        do {
-            try ConfigStore.save(config, to: defaults)
-        } catch {
-            logger.error("config save failed")
-            return
-        }
-        installStatusMenu()
-        let cleanupConfig = config.cleanupConfig
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
-    }
-
-    /// Persists the spell-check hints toggle and applies it to the NEXT dictation
-    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the change
-    /// only affects hint gathering, so the resident ASR model is never re-warmed and
-    /// no loading pulse appears. The toggle is not menu-visible, so the status menu
-    /// is not rebuilt.
-    func applySpellCheckHints(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.useSpellCheckHints = enabled
-        do {
-            try ConfigStore.save(config, to: defaults)
-        } catch {
-            logger.error("config save failed")
-            return
-        }
-        let cleanupConfig = config.cleanupConfig
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
     }
 
     private static func title(for step: OnboardingStep) -> String {

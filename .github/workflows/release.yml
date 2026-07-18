@@ -184,19 +184,48 @@ jobs:
           xcrun stapler validate "$app"
           xcrun stapler validate "$dmg"
           spctl --assess --type execute -vv "$app"
+      - name: Generate the Sparkle appcast
+        # Only a real release has a version for the version-pinned enclosure URL;
+        # trunk-verification runs skip this (same releasable gate as version stamping).
+        if: needs.decide.outputs.releasable == 'true'
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          # EdDSA private key via a temp file (same pattern as the notary .p8),
+          # removed right after; it stays in this job and never reaches publish.
+          ed_key_file="$RUNNER_TEMP/sparkle_ed_private_key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$ed_key_file"
+          # Feed generate_appcast a directory holding ONLY the release DMG, so the
+          # sibling Slovo.zip is never treated as a second update archive.
+          appcast_dir="$RUNNER_TEMP/appcast"
+          mkdir -p "$appcast_dir"
+          cp .build/dist/Slovo.dmg "$appcast_dir/"
+          .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+            --ed-key-file "$ed_key_file" \
+            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${RELEASE_VERSION}/" \
+            "$appcast_dir"
+          cp "$appcast_dir/appcast.xml" .build/dist/appcast.xml
+          rm -f "$ed_key_file"
       - name: Upload signed artifacts
         uses: actions/upload-artifact@v4
         with:
           name: slovo-macos
+          # appcast.xml is present only on releasable runs; upload-artifact errors
+          # only when the whole set is empty, so the dmg/zip keep trunk runs valid.
           path: |
             .build/dist/Slovo.dmg
             .build/dist/Slovo.zip
+            .build/dist/appcast.xml
           if-no-files-found: error
 
   publish:
     needs: [ decide, package ]
     # Only a run that decided a release is due publishes. Write access is isolated
-    # to this job, which holds no signing secrets. It MUST run on macOS: the
+    # to this job, which holds no signing secrets (nor the EdDSA appcast key — it
+    # only attaches the appcast.xml the package job already generated). It MUST run
+    # on macOS: the
     # version stamp goes through the repo's single stamping script, which uses
     # Apple userland (PlistBuddy, plutil) so the committed plist can never drift
     # from the packaged one — a Linux runner has neither tool (exit 127).
@@ -249,4 +278,4 @@ jobs:
             --title "v${RELEASE_VERSION}" \
             --generate-notes \
             --verify-tag \
-            dist/Slovo.dmg dist/Slovo.zip
+            dist/Slovo.dmg dist/Slovo.zip dist/appcast.xml

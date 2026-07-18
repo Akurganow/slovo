@@ -28,6 +28,21 @@ build_app() {
     --product "$PROCESS_NAME"
 }
 
+# Locate the single Sparkle.framework SwiftPM unpacks under .build/artifacts.
+# Mirrors the release script's discovery (Scripts/sign-and-notarize.sh) minus its
+# DRY_RUN fallback — the dev launcher always stages for real — and uses the same
+# count-and-fail idiom as resolve_signing_identity.
+sparkle_framework_path() {
+  local found count
+  found="$(find "$ROOT_DIR/.build/artifacts" -type d -name "Sparkle.framework" 2>/dev/null || true)"
+  count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [[ "$count" != "1" ]]; then
+    echo "expected exactly one Sparkle.framework under .build/artifacts, found $count (run swift build first / clear stale artifacts)" >&2
+    exit 65
+  fi
+  printf '%s\n' "$found"
+}
+
 stage_bundle() {
   local build_binary
   build_binary="$(swift build \
@@ -53,6 +68,15 @@ stage_bundle() {
     --output-format human-readable-text >/dev/null
   cp "$icon_build/Assets.car" "$APP_CONTENTS/Resources/Assets.car"
   cp "$icon_build/$APP_NAME.icns" "$APP_CONTENTS/Resources/$APP_NAME.icns"
+
+  # Embed Sparkle so the dev bundle matches the release bundle shape. ditto
+  # preserves the framework's symlinks and exec bits (a flattening copy breaks
+  # it); the unused XPC services are stripped just as the release script does.
+  local sparkle_framework
+  sparkle_framework="$(sparkle_framework_path)"
+  ditto "$sparkle_framework" "$APP_CONTENTS/Frameworks/Sparkle.framework"
+  rm -r "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
+  rm "$APP_CONTENTS/Frameworks/Sparkle.framework/XPCServices"
 }
 
 available_signing_identities() {
@@ -92,6 +116,13 @@ resolve_signing_identity() {
 sign_bundle() {
   local identity
   identity="$(resolve_signing_identity)"
+  # Inside-out: Sparkle's nested helpers, then the framework, before the app.
+  # Never deep-sign — it mis-signs the Autoupdate helper (Sparkle #1641).
+  # Sparkle code carries no entitlements; dev keeps the existing no-timestamp
+  # signing.
+  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
+  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
+  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework"
   codesign \
     --force \
     --options runtime \

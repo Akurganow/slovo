@@ -27,6 +27,7 @@ enum GateChecks {
     enum Rule: String {
         case dependencyDirection = "dependency-direction"
         case redactionLint = "redaction-lint"
+        case singleRelaunchCallSite = "single-relaunch-call-site"
     }
 
     // MARK: - Dependency direction
@@ -97,6 +98,49 @@ enum GateChecks {
     /// Recursively scans every source under `root` for redaction violations.
     static func redactionViolations(inSourceTreeAt root: String) -> [GateViolation] {
         sourceFiles(under: root).flatMap { redactionViolations(inFileAt: $0) }
+    }
+
+    // MARK: - Single relaunch call site
+
+    /// The never-self-restart tripwire: exactly ONE invocation of the relaunch
+    /// coordinator `installDownloadedUpdateAndRelaunch` may exist in the scanned
+    /// tree (its `func` definition excluded). Zero sites means the Restart path
+    /// is missing; two or more re-open the self-restart door the design closed.
+    static func singleRelaunchViolations(inSourceTreeAt root: String) -> [GateViolation] {
+        let sites = relaunchInvocationSites(under: root)
+        if sites.count == 1 { return [] }
+        if sites.isEmpty {
+            let missingRestartPath = GateViolation(
+                file: root,
+                rule: Rule.singleRelaunchCallSite.rawValue,
+                detail: "no installDownloadedUpdateAndRelaunch invocation; the Restart path is missing"
+            )
+            return [missingRestartPath]
+        }
+        return sites.map { site in
+            GateViolation(
+                file: site,
+                rule: Rule.singleRelaunchCallSite.rawValue,
+                detail: "\(sites.count) relaunch invocation sites; the never-self-restart design allows exactly one"
+            )
+        }
+    }
+
+    /// One entry per invocation occurrence of the relaunch token, comment-stripped;
+    /// the `func` definition line is not a call site.
+    private static func relaunchInvocationSites(under root: String) -> [String] {
+        let token = "installDownloadedUpdateAndRelaunch"
+        var sites: [String] = []
+        for path in sourceFiles(under: root) {
+            guard let source = try? String(contentsOfFile: path, encoding: .utf8) else { continue }
+            for line in source.split(separator: "\n") {
+                let code = strippingLineComment(from: String(line))
+                guard code.contains(token) else { continue }
+                if firstMatch(in: code, pattern: #"\bfunc\s+installDownloadedUpdateAndRelaunch\b"#) != nil { continue }
+                sites.append(path)
+            }
+        }
+        return sites
     }
 
     // MARK: - Dependency-direction helpers

@@ -62,6 +62,17 @@ extension AppDelegate: SettingsActions {
         applySpellCheckHints(enabled)
     }
 
+    func setAutomaticallyInstallsUpdates(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.automaticallyInstallsUpdates = enabled
+        guard persist(config) else { return }
+        // Apply live to the running updater so OFF halts the scheduler at once (no
+        // feed fetch, no download); no pipeline rebuild, no ASR re-warm.
+        if let updater = updaterCoordinator?.updater {
+            UpdaterActivation.apply(automaticUpdatesEnabled: enabled, to: updater)
+        }
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         // Registers/unregisters the login item via SMAppService; a pure system-
         // service write like saveOpenRouterKey() — no pipeline rebuild, no ASR
@@ -105,6 +116,37 @@ extension AppDelegate: SettingsActions {
             try composition?.personalization.removeVocabulary(id: id)
         } catch {
             logger.error("vocabulary remove failed")
+        }
+    }
+
+    /// Persists a translate-target change and applies it to the NEXT dictation live.
+    /// Like `applyCleanupModel`, this does NOT rebuild the pipeline: the target only
+    /// affects the cleanup prompt in translate mode, so the resident ASR model is
+    /// never re-warmed and no loading pulse appears. The menu is refreshed so the
+    /// selected-language checkmark and the "Translate to" title track the new choice.
+    func applyTranslationLanguage(_ language: Language) {
+        var config = ConfigStore.load(from: defaults)
+        config.translationTargetLanguage = language
+        guard persist(config) else { return }
+        installStatusMenu()
+        let cleanupConfig = config.cleanupConfig
+        Task { @MainActor in
+            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
+        }
+    }
+
+    /// Persists the spell-check hints toggle and applies it to the NEXT dictation
+    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the change
+    /// only affects hint gathering, so the resident ASR model is never re-warmed and
+    /// no loading pulse appears. The toggle is not menu-visible, so the status menu
+    /// is not rebuilt.
+    func applySpellCheckHints(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.useSpellCheckHints = enabled
+        guard persist(config) else { return }
+        let cleanupConfig = config.cleanupConfig
+        Task { @MainActor in
+            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
     }
 

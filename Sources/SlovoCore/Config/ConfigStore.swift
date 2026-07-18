@@ -56,6 +56,9 @@ public enum ConfigStore {
         // predating translate mode keep decoding (backward compatible, no migration),
         // mirroring the cleanup.useSpellCheckHints precedent.
         let translationTargetLanguage: Language
+        // An absent wire field defaults to `true` at decode, so installs predating
+        // auto-update keep updates on (backward compatible, no migration).
+        let automaticallyInstallsUpdates: Bool
 
         private enum CodingKeys: String, CodingKey {
             case language
@@ -66,6 +69,7 @@ public enum ConfigStore {
             case cleanup
             case mutesSystemAudioWhileDictating
             case translationTargetLanguage
+            case automaticallyInstallsUpdates
         }
 
         init(from decoder: Decoder) throws {
@@ -80,6 +84,9 @@ public enum ConfigStore {
                 Bool.self, forKey: .mutesSystemAudioWhileDictating
             ) ?? true
             translationTargetLanguage = try container.decodeIfPresent(Language.self, forKey: .translationTargetLanguage) ?? .en
+            automaticallyInstallsUpdates = try container.decodeIfPresent(
+                Bool.self, forKey: .automaticallyInstallsUpdates
+            ) ?? true
         }
 
         func encode(to encoder: Encoder) throws {
@@ -93,6 +100,8 @@ public enum ConfigStore {
             // Explicit on the wire (like `useSpellCheckHints`), never omitted.
             try container.encode(mutesSystemAudioWhileDictating, forKey: .mutesSystemAudioWhileDictating)
             try container.encode(translationTargetLanguage, forKey: .translationTargetLanguage)
+            // Explicit on the wire (like `mutesSystemAudioWhileDictating`), never omitted.
+            try container.encode(automaticallyInstallsUpdates, forKey: .automaticallyInstallsUpdates)
         }
 
         func validated() -> Config? {
@@ -154,7 +163,8 @@ public enum ConfigStore {
                 writingStyle: cleanup.writingStyle,
                 useSpellCheckHints: cleanup.useSpellCheckHints,
                 mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
-                translationTargetLanguage: translationTargetLanguage
+                translationTargetLanguage: translationTargetLanguage,
+                automaticallyInstallsUpdates: automaticallyInstallsUpdates
             ))
         }
 
@@ -165,6 +175,7 @@ public enum ConfigStore {
             mode = Config.defaultMode
             mutesSystemAudioWhileDictating = config.mutesSystemAudioWhileDictating
             translationTargetLanguage = config.translationTargetLanguage
+            automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(
                 provider: nil,

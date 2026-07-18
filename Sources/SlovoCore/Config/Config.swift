@@ -49,6 +49,10 @@ public struct Config: Equatable, Sendable {
     /// The persisted target language a translate pass renders into; read only in
     /// translate mode. Config never yields `translate = true`.
     public var translationTargetLanguage: Language
+    /// Whether Slovo automatically installs updates (hourly background check,
+    /// silent download, install-on-quit), default on. Off makes zero
+    /// update-related network requests.
+    public var automaticallyInstallsUpdates: Bool
 
     public var cleanupConfig: CleanupConfig {
         CleanupConfig(
@@ -74,7 +78,8 @@ public struct Config: Equatable, Sendable {
         writingStyle: WritingStyle = .casual,
         useSpellCheckHints: Bool = true,
         mutesSystemAudioWhileDictating: Bool = true,
-        translationTargetLanguage: Language = .en
+        translationTargetLanguage: Language = .en,
+        automaticallyInstallsUpdates: Bool = true
     ) {
         self.language = language
         self.keepWarmSeconds = keepWarmSeconds
@@ -86,5 +91,6 @@ public struct Config: Equatable, Sendable {
         self.useSpellCheckHints = useSpellCheckHints
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
         self.translationTargetLanguage = translationTargetLanguage
+        self.automaticallyInstallsUpdates = automaticallyInstallsUpdates
     }
 }

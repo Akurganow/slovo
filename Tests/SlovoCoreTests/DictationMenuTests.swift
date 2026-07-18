@@ -19,7 +19,8 @@ struct DictationMenuTests {
             trigger: .fn,
             selectedModelId: "openai/gpt-5.6-luna",
             mutesSystemAudioWhileDictating: true,
-            translationLanguage: "en"
+            translationLanguage: "en",
+            update: .hidden
         )
         #expect(items == [
             .status("Idle"),
@@ -38,30 +39,6 @@ struct DictationMenuTests {
         ])
     }
 
-    /// About is the first interactive item: it directly follows the first
-    /// separator (the one closing the disabled status header) and is itself
-    /// followed by a separator, so it reads as its own group.
-    /// Stated sensitivity: move `.about` anywhere else (into the switches group,
-    /// back after Quit) → the first-separator-neighbour assert reddens; drop the
-    /// separator after it → the own-group assert reddens.
-    @Test
-    func aboutIsTheFirstInteractiveItemInItsOwnGroup() {
-        let items = DictationMenu.items(
-            trigger: .fn,
-            selectedModelId: "m",
-            mutesSystemAudioWhileDictating: true,
-            translationLanguage: "en"
-        )
-        guard let firstSeparatorIndex = items.firstIndex(of: .separator),
-              let aboutIndex = items.firstIndex(of: .about)
-        else {
-            Issue.record("separator and about items must both be present: \(items)")
-            return
-        }
-        #expect(aboutIndex == firstSeparatorIndex + 1, "about must directly follow the status header")
-        #expect(items[aboutIndex + 1] == .separator, "about must sit alone in its own group")
-    }
-
     /// Quit closes the dropdown as the isolated last item.
     /// Stated sensitivity: append anything after `.quit` (as About once was) or
     /// drop `.quit` → `items.last == .quit` reddens.
@@ -71,7 +48,8 @@ struct DictationMenuTests {
             trigger: .fn,
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
-            translationLanguage: "en"
+            translationLanguage: "en",
+            update: .hidden
         )
         #expect(items.last == .quit)
     }
@@ -88,7 +66,8 @@ struct DictationMenuTests {
             trigger: .fn,
             selectedModelId: "x",
             mutesSystemAudioWhileDictating: false,
-            translationLanguage: "en"
+            translationLanguage: "en",
+            update: .hidden
         )
         #expect(items == [
             .status("Idle"),
@@ -115,7 +94,7 @@ struct DictationMenuTests {
     /// selected code → `.translationLanguage(selected: "ru")` mismatches → RED.
     @Test
     func translationLanguageItemFollowsCleanupModel() {
-        let items = DictationMenu.items(trigger: .fn, selectedModelId: "m", mutesSystemAudioWhileDictating: true, translationLanguage: "ru")
+        let items = DictationMenu.items(trigger: .fn, selectedModelId: "m", mutesSystemAudioWhileDictating: true, translationLanguage: "ru", update: .hidden)
         #expect(items.contains(.translationLanguage(selected: "ru")))
 
         guard let cleanupIndex = items.firstIndex(of: .cleanupModel(selectedModelId: "m")),
@@ -134,7 +113,13 @@ struct DictationMenuTests {
     /// → "Hold right-command to talk" ≠ "Hold Right ⌘ to talk" → RED.
     @Test
     func hotkeyHintUsesTriggerDisplayName() {
-        let items = DictationMenu.items(trigger: .rightCommand, selectedModelId: "x", mutesSystemAudioWhileDictating: true, translationLanguage: "en")
+        let items = DictationMenu.items(
+            trigger: .rightCommand,
+            selectedModelId: "x",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en",
+            update: .hidden
+        )
         #expect(items.contains(.hotkeyHint("Hold Right ⌘ to talk")))
     }
 
@@ -148,8 +133,110 @@ struct DictationMenuTests {
             trigger: .fn,
             selectedModelId: "anthropic/claude-haiku-4.5",
             mutesSystemAudioWhileDictating: true,
-            translationLanguage: "en"
+            translationLanguage: "en",
+            update: .hidden
         )
         #expect(items.contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-4.5")))
+    }
+
+    /// While an update downloads, the status header gains EXACTLY ONE extra
+    /// disabled line — `.updateDownloading` — at index 2: directly after the
+    /// hotkey hint, directly before the first separator, no separator of its
+    /// own; everything else stays exactly today's menu.
+    /// Stated sensitivity: ignore the `update` argument (render nothing), render
+    /// the wrong case, place the line at any other index, or fence it with an
+    /// extra separator → the exact sequence mismatches → RED.
+    @Test
+    func downloadingUpdateInsertsOneHeaderLine() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en",
+            update: .downloading(version: "0.14.0")
+        )
+        #expect(items == [
+            .status("Idle"),
+            .hotkeyHint("Hold fn to talk"),
+            .updateDownloading(version: "0.14.0"),
+            .separator,
+            .about,
+            .separator,
+            .cleanupModel(selectedModelId: "m"),
+            .translationLanguage(selected: "en"),
+            .muteWhileDictating(isOn: true),
+            .separator,
+            .addVocabulary,
+            .settings,
+            .separator,
+            .quit,
+        ])
+    }
+
+    /// Once an update is downloaded and validated, the same header slot (index
+    /// 2) holds the hybrid `.updateReady` row instead — again exactly one extra
+    /// element over today's menu, with no extra separator.
+    /// Stated sensitivity: ignore the `update` argument, keep showing
+    /// `.updateDownloading`, move the row out of the header slot, or add a
+    /// separator around it → the exact sequence mismatches → RED.
+    @Test
+    func readyUpdateHoldsTheSameHeaderSlot() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en",
+            update: .ready(version: "0.14.0")
+        )
+        #expect(items == [
+            .status("Idle"),
+            .hotkeyHint("Hold fn to talk"),
+            .updateReady(version: "0.14.0"),
+            .separator,
+            .about,
+            .separator,
+            .cleanupModel(selectedModelId: "m"),
+            .translationLanguage(selected: "en"),
+            .muteWhileDictating(isOn: true),
+            .separator,
+            .addVocabulary,
+            .settings,
+            .separator,
+            .quit,
+        ])
+    }
+
+    /// About is the first interactive item in its own group: it directly follows
+    /// the FIRST separator (the one closing the disabled status header) and is
+    /// itself followed by a separator, so it reads as its own group — and that
+    /// position is invariant across ALL update states (nothing, a downloading
+    /// line, or the ready hybrid row in the header). Deliberate grouping
+    /// exception per the design spec: in `ready` the header slot holds an
+    /// actionable hybrid row, so the "first interactive item" wording holds
+    /// outside `ready` — the position pin holds always.
+    /// Stated sensitivity: move `.about` anywhere else (into the switches group,
+    /// back after Quit) or drop its trailing separator → RED; insert the update
+    /// line BELOW the first separator, or fence it with its own separator →
+    /// About shifts off the first-separator neighbour slot → RED.
+    @Test
+    func aboutPositionIsInvariantAcrossUpdateStates() {
+        let states: [UpdateIndication] = [.hidden, .downloading(version: "0.14.0"), .ready(version: "0.14.0")]
+        for update in states {
+            let items = DictationMenu.items(
+                trigger: .fn,
+                selectedModelId: "m",
+                mutesSystemAudioWhileDictating: true,
+                translationLanguage: "en",
+                update: update
+            )
+            guard let firstSeparatorIndex = items.firstIndex(of: .separator),
+                  let aboutIndex = items.firstIndex(of: .about)
+            else {
+                Issue.record("separator and about items must both be present for \(update): \(items)")
+                continue
+            }
+            #expect(aboutIndex == firstSeparatorIndex + 1, "about must directly follow the first separator for \(update)")
+            #expect(items[aboutIndex + 1] == .separator, "about must sit alone in its own group for \(update)")
+        }
     }
 }

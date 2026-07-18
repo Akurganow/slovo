@@ -20,6 +20,7 @@ protocol SettingsActions: AnyObject {
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)
+    func setAutomaticallyInstallsUpdates(_ enabled: Bool)
     func setLaunchAtLogin(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)
 

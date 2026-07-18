@@ -1,0 +1,10 @@
+import Foundation
+
+// Fixture: the ONE allowed invocation site — the user-initiated Restart click.
+final class RestartMenuAction {
+    let coordinator = UpdaterCoordinator()
+
+    func restartClicked() {
+        coordinator.installDownloadedUpdateAndRelaunch()
+    }
+}

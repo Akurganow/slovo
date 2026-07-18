@@ -92,6 +92,25 @@ APP_ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 DMG_STAGING="$DIST_DIR/$APP_NAME-dmg-staging"
 
+# Locate the single Sparkle.framework SwiftPM unpacks under .build/artifacts.
+# Real staging demands exactly one (zero/multiple is a setup error worth
+# stopping for); a DRY_RUN plan falls back to the canonical artifact path so the
+# printed plan stays stable on machines that have not fetched the artifact.
+sparkle_framework_path() {
+    local canonical found count
+    canonical="$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+    found="$(find "$ROOT/.build/artifacts" -type d -name "Sparkle.framework" 2>/dev/null || true)"
+    count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
+    if [[ "$count" == "1" ]]; then
+        printf '%s\n' "$found"
+    elif [[ "$DRY_RUN" == "1" ]]; then
+        printf '%s\n' "$canonical"
+    else
+        echo "Expected exactly one Sparkle.framework under $ROOT/.build/artifacts, found $count" >&2
+        exit 65
+    fi
+}
+
 build_app() {
     if [[ -e "$APP_PATH" ]]; then
         echo "$APP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
@@ -123,6 +142,31 @@ build_app() {
         --output-format human-readable-text
     run install -m 0644 "$icon_build/Assets.car" "$CONTENTS_PATH/Resources/Assets.car"
     run install -m 0644 "$icon_build/$APP_NAME.icns" "$CONTENTS_PATH/Resources/$APP_NAME.icns"
+
+    # Embed Sparkle for auto-update. ditto preserves the framework's internal
+    # symlinks and executable bits — a flattening copy breaks the bundle.
+    local sparkle_framework
+    sparkle_framework="$(sparkle_framework_path)"
+    run ditto "$sparkle_framework" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
+
+    # Not sandboxed → Sparkle's XPC services are unused; strip them from the
+    # staged copy to shrink the signing/notarization surface. Drop the versioned
+    # dir and the now-dangling framework-root symlink so codesign --strict sees
+    # no broken link.
+    run rm -r "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
+    run rm "$CONTENTS_PATH/Frameworks/Sparkle.framework/XPCServices"
+
+    # Inside-out signing: Sparkle's nested helpers, then the framework, before
+    # the app below. Deep signing mis-signs the Autoupdate helper and fails only
+    # at notarization (Sparkle #1641), so each piece is signed explicitly;
+    # Sparkle code carries no entitlements.
+    local sparkle_codesign_args=(--force --options runtime)
+    if [[ "$SIGNING_IDENTITY" != "-" ]]; then
+        sparkle_codesign_args+=(--timestamp)
+    fi
+    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
+    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
+    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
 
     local codesign_args=(--force --options runtime --entitlements "$ROOT/slovo.entitlements")
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then

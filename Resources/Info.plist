@@ -34,5 +34,17 @@
 	<string>NSApplication</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Slovo transcribes dictated speech into text for insertion into the active app.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/Akurganow/slovo/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Dj1g2DArdtH4NFiJMtqSAiFgnc1UIJieDaziw5cSOXo=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

@@ -60,7 +60,7 @@ struct CleanupHintsWiringSourceGuardTests {
     /// mistake guarded for the cleanup-model change — turns this red.
     @Test
     func spellCheckToggleAppliesLiveWithoutRebuild() throws {
-        let delegate = try Self.source("Sources/slovo/AppDelegate.swift")
+        let delegate = try Self.source("Sources/slovo/Settings/AppDelegate+Settings.swift")
 
         #expect(delegate.contains("func applySpellCheckHints("))
         #expect(delegate.contains("config.useSpellCheckHints = "))

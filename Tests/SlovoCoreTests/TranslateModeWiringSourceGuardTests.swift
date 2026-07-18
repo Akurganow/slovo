@@ -40,7 +40,7 @@ struct TranslateModeWiringSourceGuardTests {
     /// rebuild) → a negative `#expect` reddens.
     @Test
     func applyTranslationLanguageAppliesLiveWithoutRebuild() {
-        let delegate = Self.code("Sources/slovo/AppDelegate.swift")
+        let delegate = Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
         let body = Self.functionBody(named: "applyTranslationLanguage", in: delegate)
         #expect(body.contains("installStatusMenu()"),
                 "applyTranslationLanguage must rebuild the status menu to recheck the selected row")

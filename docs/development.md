@@ -149,3 +149,25 @@ changing it, verify by hand:
 - **Single instance:** open **About Slovo** from the menu bar, then open it again —
   the same window is focused, not a second copy. The version line and the
   push-to-talk keycap match the current build and the configured key.
+
+## Manual auto-update checks (release-only)
+
+The silent Sparkle pipeline is not exercised in CI (out-of-process installer,
+real signatures). Before the FIRST Sparkle-enabled release ships, verify by hand
+on the dev Mac:
+
+- **Silent update:** install a previous release build into `/Applications`,
+  publish a newer test release, then launch the old build. Within the hourly
+  window it downloads silently — no window, no notification — and the dropdown's
+  status header shows "Downloading v<next>", then the hybrid "Update ready —
+  v<next>" row (grey status line; "Restart" in white under highlight).
+- **Both apply paths:** clicking **Restart** installs and relaunches into the new
+  version; ignoring it and Quitting normally installs on the way out, so the next
+  launch is the new version. The app never restarts on its own.
+- **Toggle off:** with Settings → General "Automatically install updates" off, no
+  appcast fetch and no download happen at all.
+- **Mandatory negative Team-ID check (before the first release):** feed the
+  installed framework a correctly-EdDSA-signed DMG whose bundle is signed by a
+  DIFFERENT Team ID — it MUST be rejected and silently discarded (nothing
+  installed, no indication). This is the proof of the same-Developer-ID
+  authenticity guarantee (closes design open-question OQ5).

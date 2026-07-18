@@ -24,6 +24,10 @@ set -euo pipefail
 #   RELEASE_DECISION_INPUT=stdin     classify NUL-separated commit messages read
 #                                    from stdin. Used by the test suite to feed
 #                                    deterministic fixtures with no git state.
+#
+# Failure contract: in default (git) mode a git failure — not a repository, or a
+# `git describe` error other than a missing tag — exits non-zero and prints no
+# release decision, so a broken or unavailable git is never read as a release.
 
 emit() {
     printf 'releasable=%s\n' "$1"
@@ -72,16 +76,42 @@ main() {
         return
     fi
 
-    local last_tag range
-    if last_tag="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null)"; then
-        range="${last_tag}..HEAD"
-    else
+    # A broken or unavailable git must never read as "first release": require a
+    # real repository first, so only a genuine no-tag repo can reach the
+    # first-release branch below.
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        echo "release-decision: not a git repository or git is unavailable; refusing to decide" >&2
+        exit 74
+    fi
+
+    # Capture describe's stderr so a genuine missing tag (the first release) is
+    # told apart from any other failure (e.g. fork/EAGAIN under CI load), which
+    # must surface rather than silently cut a release. The `if` guards the
+    # failing command so `set -e` does not abort here. LC_ALL=C pins git's
+    # gettext-localized stderr so the no-tag family match holds under any locale.
+    local last_tag describe_err
+    describe_err="$(mktemp)"
+    # Belt against an abnormal kill; the explicit rm -f calls below are the
+    # normal-path cleanup. Fires once at script exit (main() runs once); the `:-`
+    # default avoids a set -u unbound error once the local has left scope.
+    trap 'rm -f "${describe_err:-}"' EXIT
+    if last_tag="$(LC_ALL=C git describe --tags --abbrev=0 --match 'v*' 2>"$describe_err")"; then
+        rm -f "$describe_err"
+        git log --format=%B -z "${last_tag}..HEAD" | classify_stream
+        return
+    fi
+
+    local describe_message
+    describe_message="$(cat "$describe_err")"
+    rm -f "$describe_err"
+    if grep -qE 'No names found|No tags can describe|cannot describe' <<<"$describe_message"; then
         # No prior release tag: the first release is always due.
         emit true
         return
     fi
 
-    git log --format=%B -z "$range" | classify_stream
+    echo "release-decision: git describe failed: $describe_message" >&2
+    exit 74
 }
 
 main "$@"

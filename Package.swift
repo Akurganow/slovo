@@ -31,6 +31,10 @@ let package = Package(
         // Modern (SMAppService-based) launch-at-login, for macOS 13+. Consumed by
         // the app target only — never SlovoCore, which must stay UI/login-free.
         .package(url: "https://github.com/sindresorhus/LaunchAtLogin-Modern", from: "1.1.0"),
+        // Sparkle 2 auto-update engine. App target only — SlovoCore stays
+        // Sparkle-free, enforced by the SwiftPM target graph (an `import Sparkle`
+        // in the core cannot compile).
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
     ],
     targets: [
         // Objective-C interop shims that Swift cannot express live here — a
@@ -84,8 +88,15 @@ let package = Package(
                 "SlovoCore",
                 .product(name: "Settings", package: "Settings"),
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
+                // App-shell auto-update; never linked into SlovoCore so the core
+                // stays updater-free (target-graph enforced).
+                .product(name: "Sparkle", package: "Sparkle"),
             ],
             swiftSettings: strictSwiftSettings,
+            // The staged bundle carries Sparkle.framework in Contents/Frameworks;
+            // this rpath lets the launched executable resolve it, declared here
+            // instead of mutating the binary in the packaging scripts.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])],
             plugins: swiftLintPlugins
         ),
         // Unit/behavioral tests for the core library.

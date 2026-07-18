@@ -157,7 +157,7 @@ an Apple ID and app-specific password.
 
 ### 3. Create the `release` environment and secrets
 
-In **Settings → Environments**, create an environment named `release`. Add the five
+In **Settings → Environments**, create an environment named `release`. Add the six
 secrets below as **environment** secrets (not repository secrets), so only the
 packaging job can read them.
 
@@ -168,6 +168,7 @@ packaging job can read them.
 | `ASC_API_KEY_P8_BASE64` | base64 of the App Store Connect `.p8` (step 2) |
 | `ASC_API_KEY_ID` | the App Store Connect Key ID (step 2) |
 | `ASC_API_ISSUER_ID` | the App Store Connect Issuer ID (step 2) |
+| `SPARKLE_ED_PRIVATE_KEY` | the Sparkle EdDSA private key that signs the appcast feed |
 
 If you add a **deployment branch/tag** rule to the `release` environment, it must
 allow `main` — the packaging job runs on every push to `main`, not only on tags.
@@ -184,9 +185,10 @@ package artifacts but fail at the commit/tag step.
 ## What you observe
 
 - **A releasable push:** a new tag `v<version>` and a GitHub Release appear with
-  `Slovo.dmg` and `Slovo.zip` attached and generated notes; the `README.md` install
-  link and Release badge point at the latest release, so a published release is
-  immediately what users download.
+  `Slovo.dmg`, `Slovo.zip`, and `appcast.xml` (the Sparkle auto-update feed)
+  attached and generated notes; the `README.md` install link and Release badge
+  point at the latest release, so a published release is immediately what users
+  download, and installed copies auto-update from the published `appcast.xml`.
 - **A non-releasable push:** open the run and download the `slovo-macos` artifact
   from the run summary. Unzip it, mount `Slovo.dmg`, drag **Slovo** to Applications,
   and launch it. A stapled build opens with no Gatekeeper network round-trip.

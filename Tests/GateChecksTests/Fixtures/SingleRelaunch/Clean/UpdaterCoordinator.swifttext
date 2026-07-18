@@ -1,0 +1,9 @@
+import Foundation
+
+// Fixture: the relaunch coordinator DEFINITION — not a call site; the scanner
+// must exclude `func installDownloadedUpdateAndRelaunch` itself.
+final class UpdaterCoordinator {
+    func installDownloadedUpdateAndRelaunch() {
+        // invokes Sparkle's immediate install + relaunch
+    }
+}

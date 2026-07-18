@@ -1,0 +1,11 @@
+import Foundation
+
+// RED fixture: a SECOND invocation site — the exact never-self-restart breach
+// the gate exists to catch (an automatic restart path beside the user click).
+final class ImpatientAutoRestart {
+    let coordinator = UpdaterCoordinator()
+
+    func onUpdateReady() {
+        coordinator.installDownloadedUpdateAndRelaunch()
+    }
+}
