@@ -35,8 +35,12 @@ struct AboutView: View {
                 .font(.custom("NotoSansGlagolitic-Regular", size: 64))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text("Slovo")
-                .font(.title.weight(.semibold))
+            // The wordmark is "Slovo" transliterated into Glagolitic — ⰔⰎⰑⰂⰑ
+            // (Slovo, Ljudije, Onu, Vede, Onu, capital forms) — in the same face
+            // as the brand glyph; VoiceOver still reads the Latin app name.
+            Text("ⰔⰎⰑⰂⰑ")
+                .font(.custom("NotoSansGlagolitic-Regular", size: 24))
+                .accessibilityLabel("Slovo")
             Text(AboutInfo.versionLine(marketingVersion: version, buildNumber: build))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -63,7 +67,10 @@ struct AboutView: View {
                     Text("to translate")
                 }
             }
-            GuideRow(systemImage: "wand.and.stars", description: "Pick the model in Settings ▸ Cleanup. A custom model needs your OpenRouter key.") {
+            GuideRow(
+                systemImage: "wand.and.stars",
+                description: "Cleanup and translation need your OpenRouter API key — without it you get the raw transcript. Key and model: Settings ▸ Cleanup."
+            ) {
                 Text("Cleanup polishes every dictation")
             }
             GuideRow(systemImage: "text.book.closed", description: "Names, brands, jargon — Settings ▸ Vocabulary.") {
@@ -73,7 +80,7 @@ struct AboutView: View {
     }
 
     private var privacyNote: some View {
-        Text("Speech is recognized on your Mac. Only the text leaves your device, and only to Clean Up.")
+        Text("Speech is recognized on your Mac. Only the text leaves your device, and only to your OpenRouter account for cleanup.")
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
