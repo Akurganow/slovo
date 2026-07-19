@@ -46,3 +46,4 @@ id_rsa*
 
 # Local scratch (user voice samples for on-device ASR checks) — never commit.
 /tmp/
+/.claude/
