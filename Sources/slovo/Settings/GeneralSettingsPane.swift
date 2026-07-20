@@ -41,7 +41,7 @@ struct GeneralSettingsPane: View {
                     }
                 }
                 .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
-                Text("Auto handles mixed Russian + English best.")
+                Text("Auto handles mixed-language speech best.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

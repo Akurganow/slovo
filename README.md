@@ -24,8 +24,8 @@ tuned.
 - Push-to-talk dictation from a configurable key — the `fn` / Globe key by
   default, or a right-hand modifier (⌘, ⌥, ⌃, ⇧), chosen in Settings.
 - Local speech capture and on-device transcription through WhisperKit
-  (Whisper large-v3 turbo), including mixed Russian + English in one
-  utterance.
+  (Whisper large-v3 turbo), including several languages mixed within a
+  single utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
 - Optional per-dictation translation: hold Control together with the
@@ -102,9 +102,9 @@ While a translate hold is active, the menu-bar recording glyph is the Glagolitic
 letter Pokoji `Ⱂ` instead of the plain recording glyph, switching the moment
 Control latches so the mode is visible at a glance.
 Choose the target — the Recognition Language list without **Auto** — from the
-menu bar (**Translate to: …**) or **Settings → Cleanup**; the default is
-English. If cleanup fails, the raw untranslated transcript is inserted with the
-same `Ⱁ` notice — translation adds no new error surface.
+menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
+raw untranslated transcript is inserted with the same `Ⱁ` notice — translation
+adds no new error surface.
 
 Errors surface only through the menu-bar icon — never an alert, dialog, or
 focus-stealing notification, since Slovo types into whichever app you're
