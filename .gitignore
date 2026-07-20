@@ -47,3 +47,6 @@ id_rsa*
 # Local scratch (user voice samples for on-device ASR checks) — never commit.
 /tmp/
 /.claude/
+
+# Browser-automation artifacts (Playwright MCP page snapshots) — never commit.
+/.playwright-mcp/
