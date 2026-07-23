@@ -16,7 +16,10 @@ struct CleanupSettingsPane: View {
     @State private var apiKey: String = ""
     @State private var hasSavedKey: Bool
     @State private var useSpellCheckHints: Bool
-    @State private var availability: CleanupAvailability
+    // The observed model, not a value snapshot (spec D1): the subscription
+    // repaints the pane on any funnel write in the same runloop — no re-fetch
+    // sites, nothing to go stale.
+    @ObservedObject private var availabilityModel: CleanupAvailabilityModel
 
     init(actions: any SettingsActions) {
         self.actions = actions
@@ -26,8 +29,10 @@ struct CleanupSettingsPane: View {
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _hasSavedKey = State(initialValue: actions.hasOpenRouterKey())
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
-        _availability = State(initialValue: actions.cleanupAvailability())
+        _availabilityModel = ObservedObject(wrappedValue: actions.cleanupAvailabilityModel)
     }
+
+    private var availability: CleanupAvailability { availabilityModel.availability }
 
     private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
 
@@ -59,7 +64,6 @@ struct CleanupSettingsPane: View {
             translationLanguage = config.translationTargetLanguage.rawValue
             hasSavedKey = actions.hasOpenRouterKey()
             useSpellCheckHints = config.useSpellCheckHints
-            availability = actions.cleanupAvailability()
         }
     }
 
@@ -70,10 +74,7 @@ struct CleanupSettingsPane: View {
         Section {
             Toggle("Clean up dictation", isOn: Binding(
                 get: { availability.isOn },
-                set: { enabled in
-                    actions.setCleanupEnabled(enabled)
-                    availability = actions.cleanupAvailability()
-                }
+                set: { enabled in actions.setCleanupEnabled(enabled) }
             ))
             .disabled(!availability.isToggleEnabled)
             if let status = availability.settingsStatusLine {
@@ -190,7 +191,5 @@ struct CleanupSettingsPane: View {
         actions.saveOpenRouterKey(trimmedApiKey)
         apiKey = ""
         hasSavedKey = true
-        // A first key can flip offNoKey → the stored preference's state live.
-        availability = actions.cleanupAvailability()
     }
 }

@@ -13,10 +13,6 @@ extension AppDelegate: SettingsActions {
         openRouterKeyProvider.hasConfiguredKey()
     }
 
-    func cleanupAvailability() -> CleanupAvailability {
-        currentCleanupAvailability()
-    }
-
     func setCleanupEnabled(_ enabled: Bool) {
         applyCleanupEnabled(enabled)
     }

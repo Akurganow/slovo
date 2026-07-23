@@ -10,9 +10,11 @@ protocol SettingsActions: AnyObject {
     func currentConfig() -> Config
     /// Whether an OpenRouter key is present (attributes-only; never decrypts it).
     func hasOpenRouterKey() -> Bool
-    /// The effective cleanup state and its cause, for the pane's master toggle,
-    /// status line, and disabled sections.
-    func cleanupAvailability() -> CleanupAvailability
+    /// The observable effective-cleanup state (and its cause) behind the pane's
+    /// master toggle, status line, and disabled sections. The pane renders it
+    /// live — the app's push funnel is its only writer (spec D1), and no
+    /// snapshot/poll accessor exists so a pane cannot hold a stale copy.
+    var cleanupAvailabilityModel: CleanupAvailabilityModel { get }
     /// Whether Slovo is registered to open at login (reads the system login-item
     /// service; like `hasOpenRouterKey()`, an attributes-only system read).
     func launchAtLoginEnabled() -> Bool

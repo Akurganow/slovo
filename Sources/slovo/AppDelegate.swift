@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
     let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
+    // Lazy so the seed can run the live derivation (a phase-2 self call); after
+    // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
+    // Settings pane can never observe a value the funnel did not publish.
+    lazy var cleanupAvailabilityModel = CleanupAvailabilityModel(availability: currentCleanupAvailability())
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
@@ -371,16 +375,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The single push funnel (spec amendment A5): every mutation that can change
     /// the effective cleanup state — the toggle, a key save, any cleanup tunable —
     /// re-derives `preference && keyPresent` HERE and pushes exactly one
-    /// CleanupConfig. No other call site may talk to updateCleanupConfig.
+    /// CleanupConfig. No other call site may talk to updateCleanupConfig, and no
+    /// other site may write `cleanupAvailabilityModel` (spec D1).
     func pushEffectiveCleanupConfig() {
         let config = ConfigStore.load(from: defaults)
         var cleanupConfig = config.cleanupConfig
         // The effective-on rule has ONE definition (CleanupAvailability.derive);
         // this site only CALLS it — never re-spell the predicate here.
-        cleanupConfig.runsCleaner = CleanupAvailability.derive(
+        let availability = CleanupAvailability.derive(
             preference: config.cleanupEnabled,
             keyPresent: hasOpenRouterKey()
-        ).isOn
+        )
+        cleanupConfig.runsCleaner = availability.isOn
+        // Published before the async orchestrator hop: the pane observes this
+        // model, so the write must land in the same runloop turn as the mutation.
+        cleanupAvailabilityModel.update(availability)
         Task { @MainActor in
             await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
