@@ -69,9 +69,9 @@ struct DictationMenuBuilder {
                 entry.isEnabled = enabled
                 menu.addItem(entry)
             case .addOpenRouterKey:
-                // Replaces the whole cleanup block in the no-key state; opens Settings
-                // → Cleanup so the user can add a key (the way out of no-key).
-                menu.addItem(target.actionItem("Add OpenRouter Key…", #selector(AppDelegate.showCleanupSettingsForKey)))
+                // Replaces the whole cleanup block in the no-key state; opens the
+                // dedicated key-entry window so the user can add a key (the way out).
+                menu.addItem(target.actionItem("Add OpenRouter Key…", #selector(AppDelegate.showAddOpenRouterKeyWindow)))
             case .translationLanguage(let selected, let enabled):
                 let entry = target.translationLanguageMenu(selected: selected)
                 entry.isEnabled = enabled

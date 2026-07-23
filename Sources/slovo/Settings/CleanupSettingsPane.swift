@@ -16,10 +16,6 @@ struct CleanupSettingsPane: View {
     @State private var apiKey: String = ""
     @State private var isConfirmingKeyRemoval = false
     @State private var useSpellCheckHints: Bool
-    // Focus target for the no-key add-key affordance: with no key the model row
-    // shows an "Add OpenRouter Key…" button in place of the picker, and it focuses
-    // the key field below so the user lands where they type the key.
-    @FocusState private var keyFieldFocused: Bool
     // The observed model, not a value snapshot (spec D1): the subscription
     // repaints the pane on any funnel write in the same runloop — no re-fetch
     // sites, nothing to go stale.
@@ -56,6 +52,7 @@ struct CleanupSettingsPane: View {
         Form {
             masterSection
             cleanupSection
+                .disabled(!availability.isOn)
             apiKeySection
             spellCheckHintsSection
                 .disabled(!availability.isOn)
@@ -96,33 +93,14 @@ struct CleanupSettingsPane: View {
     // including the hidden Control-to-translate trigger — visible at a glance. Each
     // row is its own view so no single closure grows unwieldy.
     private var cleanupSection: some View {
-        // The model row carries its own no-key/off logic (replace vs disable); the
-        // other two are plain dependent controls, grayed whenever cleanup is off.
         Section("Cleanup") {
             modelRow
             writingStyleRow
-                .disabled(!availability.isOn)
             translateRow
-                .disabled(!availability.isOn)
         }
     }
 
     @ViewBuilder private var modelRow: some View {
-        if availability == .offNoKey {
-            // No key: nothing to select, so the picker is REPLACED by the affordance
-            // that fixes that — focus the key field below so the user can add a key.
-            addKeyButton
-        } else {
-            modelPicker
-                .disabled(!availability.isOn)
-        }
-    }
-
-    private var addKeyButton: some View {
-        Button("Add OpenRouter Key…") { keyFieldFocused = true }
-    }
-
-    @ViewBuilder private var modelPicker: some View {
         Picker("Model", selection: $selectedModelId) {
             ForEach(CleanupModelCatalog.options, id: \.id) { option in
                 Text(option.displayName).tag(option.id)
@@ -177,7 +155,6 @@ struct CleanupSettingsPane: View {
                 HStack(spacing: 8) {
                     SecureField("Enter a new key", text: $apiKey)
                         .textFieldStyle(.roundedBorder)
-                        .focused($keyFieldFocused)
                     Button("Save", action: saveKey)
                         .disabled(trimmedApiKey.isEmpty)
                 }

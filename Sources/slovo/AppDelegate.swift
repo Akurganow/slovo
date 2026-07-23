@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // reach the cached window; a repeat click must focus it, not open a second one.
     var aboutWindow: AboutWindow?
     private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
+    private var openRouterKeyWindow: OpenRouterKeyWindow?
     private var didShowPipelineStatus = false
     var isPipelineActive = false
     // A brief self-clearing status glyph is on screen (sad-to-fail degradation or the
@@ -313,6 +314,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             })
         }
         vocabularyQuickAddWindow?.show()
+    }
+
+    /// Opens the dedicated Add-OpenRouter-Key window — the no-key menu-bar affordance.
+    /// Save routes through the existing key-save path (`saveOpenRouterKey` → provider
+    /// store + the availability funnel), so every surface repaints as it does for a
+    /// pane save; the window closes itself on save or cancel.
+    @objc
+    func showAddOpenRouterKeyWindow() {
+        if openRouterKeyWindow == nil {
+            openRouterKeyWindow = OpenRouterKeyWindow(onSave: { [weak self] key in
+                self?.saveOpenRouterKey(key)
+            })
+        }
+        openRouterKeyWindow?.show()
     }
 
     // Internal (not private) so the AppDelegate+Settings extension can call it

@@ -34,21 +34,19 @@ struct CleanupSettingsPaneSourceGuardTests {
         #expect(!source.contains("Cleanup is off"), "copy lives in CleanupAvailability, not the pane")
     }
 
-    /// Stated sensitivity: change the dependent-control count (forget a control, or
-    /// gate the wrong number) → the `== 4` assert reddens; add
+    /// Stated sensitivity: change the dependent-section count (forget a section, or
+    /// gate the wrong number) → the `== 2` assert reddens; add
     /// `.disabled(!availability.isOn)` to the API-key section (the exact mutation this
     /// guards) → the key-section assert reddens. The key-section check targets
     /// availability gating specifically — the Save button's own empty-field
-    /// `.disabled(trimmedApiKey.isEmpty)` is a legitimate, unrelated guard and must
-    /// not count. The dependent controls are now gated per-row (the model picker, the
-    /// writing-style row, the translate row, and the spell-check-hints section), since
-    /// the model row alone replaces its control with the add-key affordance in the
-    /// no-key state and so cannot ride a section-level gate.
+    /// `.disabled(trimmedApiKey.isEmpty)` is a legitimate, unrelated guard and must not
+    /// count. The dependent controls ride two section-level gates: the whole Cleanup
+    /// section (model, writing style, translate) and the spell-check-hints section.
     @Test
     func dependentSectionsDisabledAndKeySectionExempt() throws {
         let source = try Self.paneSource()
         let disabledCount = source.components(separatedBy: ".disabled(!availability.isOn)").count - 1
-        #expect(disabledCount == 4, "model picker, writing style, translate, spell-check hints; found \(disabledCount)")
+        #expect(disabledCount == 2, "cleanupSection and spellCheckHintsSection; found \(disabledCount)")
         guard let apiStart = source.range(of: "private var apiKeySection") else {
             Issue.record("apiKeySection not found")
             return
@@ -61,40 +59,32 @@ struct CleanupSettingsPaneSourceGuardTests {
         #expect(!apiBody.contains(".disabled(!availability"), "the key section must never be gated by availability")
     }
 
-    /// Selector-replaced-in-offNoKey: with no key there is nothing to select, so the
-    /// model row renders the add-key affordance IN PLACE OF the picker, and that
-    /// affordance focuses the key field below (field focus achieved on the pane).
-    /// Stated sensitivity: drop the `availability == .offNoKey` branch (always show
-    /// the picker), drop the add-key button, or drop the field-focus wiring → RED.
+    /// Disabled-picker-in-offNoKey (supersedes the old replace-with-add-key pin): with
+    /// no key the model picker grays exactly like writing style and translate — it
+    /// rides the cleanupSection's availability gate, and the pane no longer
+    /// special-cases the no-key state with an active control. The key field in the
+    /// API-key section is the pane's affordance for entering a key; the dedicated
+    /// add-key WINDOW is the menu's, not a focus-a-field-below button here.
+    /// Stated sensitivity: reintroduce an `availability == .offNoKey` branch (an active
+    /// control in the model row), bring back the `addKeyButton`, or drop the
+    /// cleanupSection availability gate (so the model no longer grays in no-key) → RED.
     @Test
-    func modelSelectorReplacedByAddKeyInNoKeyState() throws {
+    func modelSelectorGraysInOffNoKeyLikeTheOtherDependentRows() throws {
         let source = try Self.paneSource()
-        let modelRowBody = try Self.bodyOf("private var modelRow", in: source)
-        #expect(modelRowBody.contains("if availability == .offNoKey"),
-                "the model row must branch on the no-key state")
-        #expect(modelRowBody.contains("addKeyButton"),
-                "the no-key branch must render the add-key affordance instead of the picker")
-        #expect(modelRowBody.contains("modelPicker"),
-                "the key-present branch must still render the model picker")
-        let addKeyBody = try Self.bodyOf("private var addKeyButton", in: source)
-        #expect(addKeyBody.contains(#"Button("Add OpenRouter Key…")"#),
-                "the add-key affordance keeps its pinned copy")
-        #expect(addKeyBody.contains("keyFieldFocused = true"),
-                "the add-key affordance must focus the key field")
-        #expect(source.contains(".focused($keyFieldFocused)"),
-                "the key field must be a focus target for the add-key affordance")
-    }
+        #expect(!source.contains("availability == .offNoKey"),
+                "the pane must not special-case the no-key state with an active control")
+        #expect(!source.contains("addKeyButton"),
+                "the focus-a-field-below add-key button is removed; the menu's key window replaces it")
 
-    /// Selector-disabled-in-offByChoice: when a key is present but cleanup is off the
-    /// model picker stays visible but disabled — there IS a selection, it just cannot
-    /// take effect. The picker's key-present branch carries the availability gate.
-    /// Stated sensitivity: drop the picker's `.disabled(!availability.isOn)` → RED.
-    @Test
-    func modelPickerIsDisabledWhenCleanupOff() throws {
-        let source = try Self.paneSource()
-        let modelRowBody = try Self.bodyOf("private var modelRow", in: source)
-        #expect(modelRowBody.contains(".disabled(!availability.isOn)"),
-                "the model picker must be gated off when cleanup is off with a key present")
+        let bodyBlock = try Self.bodyOf("var body", in: source)
+        guard let cleanup = bodyBlock.range(of: "cleanupSection"),
+              let api = bodyBlock.range(of: "apiKeySection")
+        else {
+            Issue.record("cleanupSection/apiKeySection not found in body")
+            return
+        }
+        #expect(bodyBlock[cleanup.upperBound..<api.lowerBound].contains(".disabled(!availability.isOn)"),
+                "the Cleanup section must be availability-gated so the model grays in the no-key state")
     }
 
     /// Extracts the body of a `private var` declaration — from its head to the next
