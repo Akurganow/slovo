@@ -42,7 +42,7 @@ struct CleanerHintsThreadingTests {
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         let messages = try #require(json["messages"] as? [[String: String]])
         let systemContent = try #require(messages.first?["content"])
-        #expect(systemContent.contains("Keyboard input language at dictation time: ru."))
+        #expect(systemContent.contains("Keyboard input language at dictation time: Russian (ru)."))
         #expect(systemContent.contains("prieved → prived, primed"))
     }
 

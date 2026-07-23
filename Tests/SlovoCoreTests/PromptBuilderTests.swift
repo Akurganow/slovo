@@ -108,7 +108,7 @@ struct PromptBuilderTests {
         let systemText = prompt.systemBlocks.joined(separator: "\n\n")
 
         #expect(systemText.contains("Advisory context (may be wrong"))
-        #expect(systemText.contains("Keyboard input language at dictation time: ru."))
+        #expect(systemText.contains("Keyboard input language at dictation time: Russian (ru)."))
         #expect(systemText.contains("recieve → receive, relieve"))
         #expect(systemText.contains("teh → the"))
         #expect(systemText.contains("keep it unchanged"))
@@ -144,7 +144,7 @@ struct PromptBuilderTests {
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n\n")
 
-        #expect(systemText.contains("Keyboard input language at dictation time: en."))
+        #expect(systemText.contains("Keyboard input language at dictation time: English (en)."))
         #expect(!systemText.contains("flagged these tokens"))
     }
 

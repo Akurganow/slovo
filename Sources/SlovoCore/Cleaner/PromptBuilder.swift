@@ -1,3 +1,5 @@
+import Foundation
+
 /// Provider-neutral cleanup prompt built from config and personalization.
 public struct CleanupPrompt: Sendable, Equatable {
     public let model: String
@@ -62,16 +64,34 @@ public struct PromptBuilder: Sendable {
         )
     }
 
-    /// The advisory hint block, or nil when there is nothing to advise. The model is
-    /// told these signals may be wrong and must never force a correct proper noun,
-    /// technical term, or intentional code-switched word to change.
+    /// The advisory hint block, or nil when there is nothing to advise. The keyboard
+    /// language is presented as the most likely dictation language — a prior for
+    /// resolving language ambiguity, never a license to translate or to flatten
+    /// code-switching. Spell signals stay soft: they must never force a correct
+    /// proper noun, technical term, or intentional code-switched word to change.
     private func advisoryBlock(for hints: CleanupHints) -> String? {
         guard hints.inputLocale != nil || !hints.spellFindings.isEmpty else {
             return nil
         }
         var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
         if let locale = hints.inputLocale {
-            lines.append("Keyboard input language at dictation time: \(locale).")
+            // TIS reports a BCP-47 tag; the model reasons better about a long English
+            // name, so resolve one (catalog first, then Foundation) and fall back to
+            // the raw tag rather than inventing a name.
+            let languageName = RecognitionLanguageCatalog.displayName(for: locale)
+                ?? Locale(identifier: "en").localizedString(forIdentifier: locale)
+                ?? locale
+            let labeled = languageName == locale ? locale : "\(languageName) (\(locale))"
+            lines.append("Keyboard input language at dictation time: \(labeled).")
+            lines.append(
+                "Treat \(languageName) as the most likely language of this dictation: "
+                    + "if a short or ambiguous transcript reads like a mistranscription into "
+                    + "a similar-sounding language, prefer reading it as \(languageName)."
+            )
+            lines.append(
+                "This is a prior, not an override: never let it suppress genuine "
+                    + "code-switching or words the speaker clearly dictated in another language."
+            )
         }
         if !hints.spellFindings.isEmpty {
             let rendered = hints.spellFindings
