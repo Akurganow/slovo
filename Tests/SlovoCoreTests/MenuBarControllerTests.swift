@@ -10,28 +10,53 @@ import SlovoCore
 struct MenuBarControllerTests {
     private static let sentinel = "S3NT1NEL-HISTORY-51c07e9b-DO-NOT-LOG"
 
-    /// The recording glyph is Zemlja Ⰸ (U+2C08, the Glagolitic "Z" for "запись"),
-    /// NOT the inherited Heru U+2C18 typo.
-    /// Stated sensitivity: return the old U+2C18, or any other codepoint, for the
-    /// recording state → RED.
+    /// The recording state maps to Cherv Ⱍ (U+2C1D, the Glagolitic "чистота"/clean
+    /// sense — cleanup will run), which REPLACES the old catch-all Zemlja Ⰸ now that
+    /// recording is a mode family; NOT the inherited Heru U+2C18 typo.
+    /// Stated sensitivity: revert the recording state to Zemlja U+2C08 (or any other
+    /// codepoint) → RED.
     @Test
     func glyphMappingUsesDistinctGlyphsForLiveStates() {
-        #expect(MenuBarGlyph.forState(.recording) == "\u{2C08}")
+        #expect(MenuBarGlyph.forState(.recording) == "\u{2C1D}")
         #expect(MenuBarGlyph.forState(.idle) == "\u{2C14}")
         #expect(MenuBarGlyph.forState(.processing) == "\u{2C04}")
     }
 
-    /// The recording glyph distinguishes a translate hold from plain dictation:
-    /// Pokoji Ⱂ (U+2C12) while translating, Zemlja Ⰸ (U+2C08) while plain — and the
-    /// plain recording state maps to the same Zemlja, one source of truth.
-    /// Stated sensitivity: return the plain glyph (or any other codepoint) for
-    /// `.translate`, or swap the two → RED.
+    /// The recording glyph is a fully semantic three-letter family varying on one
+    /// dimension (the letter): Cherv Ⱍ (U+2C1D) clean, Glagoli Ⰳ (U+2C03) raw,
+    /// Pokoji Ⱂ (U+2C12) translate — all distinct — and the default recording state
+    /// maps to the clean glyph (one source of truth).
+    /// Stated sensitivity: revert clean to Zemlja U+2C08, map raw to the clean glyph
+    /// (collapsing the family to two letters), or move translate off Pokoji → RED.
     @Test
-    func recordingGlyphMarksTranslateWithPokoji() {
-        #expect(MenuBarGlyph.forRecording(mode: .plain) == "\u{2C08}")
+    func recordingGlyphFamilyMapsEachModeToItsLetter() {
+        #expect(MenuBarGlyph.forRecording(mode: .clean) == "\u{2C1D}")
+        #expect(MenuBarGlyph.forRecording(mode: .raw) == "\u{2C03}")
         #expect(MenuBarGlyph.forRecording(mode: .translate) == "\u{2C12}")
-        #expect(MenuBarGlyph.forRecording(mode: .plain) != MenuBarGlyph.forRecording(mode: .translate))
-        #expect(MenuBarGlyph.forState(.recording) == MenuBarGlyph.forRecording(mode: .plain))
+
+        let glyphs: Set<Character> = [
+            MenuBarGlyph.forRecording(mode: .clean),
+            MenuBarGlyph.forRecording(mode: .raw),
+            MenuBarGlyph.forRecording(mode: .translate),
+        ]
+        #expect(glyphs.count == 3, "each recording mode must have its own distinct letter")
+        #expect(MenuBarGlyph.forState(.recording) == MenuBarGlyph.forRecording(mode: .clean))
+    }
+
+    /// The recording-glyph mode is DERIVED from the latched dictation mode and
+    /// cleanup availability — raw is the availability axis, not a `DictationMode`.
+    /// Raw wins whenever cleanup is off (even with Control latched: a translate hold
+    /// cannot run without cleanup); with cleanup on, translate marks a translate
+    /// latch and clean marks a plain hold.
+    /// Stated sensitivity: yield `.translate` for a translate hold while cleanup is
+    /// off (must be `.raw`), yield anything but `.raw` when cleanup is off, or swap
+    /// the on-mode results → RED.
+    @Test
+    func recordingGlyphModeDerivesFromModeAndAvailability() {
+        #expect(MenuBarGlyph.recordingGlyphMode(mode: .plain, isCleanupOn: true) == .clean)
+        #expect(MenuBarGlyph.recordingGlyphMode(mode: .translate, isCleanupOn: true) == .translate)
+        #expect(MenuBarGlyph.recordingGlyphMode(mode: .plain, isCleanupOn: false) == .raw)
+        #expect(MenuBarGlyph.recordingGlyphMode(mode: .translate, isCleanupOn: false) == .raw)
     }
 
     /// Stated sensitivity: reuse the processing glyph for cleanup degradation or

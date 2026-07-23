@@ -100,17 +100,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await MainActor.run {
                         self?.isPipelineActive = true
                         self?.didShowPipelineStatus = false
-                        // A translate hold cannot run while cleanup is off, so the
-                        // glyph must not promise it (spec: Pokoji never appears in
-                        // off-mode; the hotkey core still latches).
-                        let glyphMode = self?.currentCleanupAvailability().isOn == true ? mode : DictationMode.plain
-                        self?.setStatusGlyph(recording: glyphMode, on: self?.statusItem?.button)
+                        // The recording glyph is the semantic family (raw Ⰳ when
+                        // cleanup is off — a translate hold cannot run there, though
+                        // the hotkey core still latches — clean Ⱍ for a plain hold,
+                        // translate Ⱂ for a Control latch), derived from the live
+                        // availability inside applyRecordingGlyph.
+                        self?.applyRecordingGlyph(mode)
                         self?.statusTextItem?.title = "Recording"
                     }
                     await orchestrator.handle(.startRequested)
                 case .translateLatched:
-                    guard await MainActor.run(body: { self?.isPipelineActive == true && self?.currentCleanupAvailability().isOn == true }) else { return }
-                    await MainActor.run { self?.setStatusGlyph(recording: .translate, on: self?.statusItem?.button) }
+                    guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                    await MainActor.run { self?.applyRecordingGlyph(.translate) }
                 case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                     await MainActor.run {
                         self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
@@ -142,6 +143,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             logger.error("production composition failed")
         }
+    }
+
+    /// Derives and paints the recording glyph for a session's mode from the LIVE
+    /// cleanup availability. The availability is read exactly once — here, as the
+    /// derivation argument — so no sequencer arm carries a separate gate read that a
+    /// mutant could leave dead while still running the paint; both arms share this.
+    func applyRecordingGlyph(_ mode: DictationMode) {
+        let glyphMode = MenuBarGlyph.recordingGlyphMode(mode: mode, isCleanupOn: currentCleanupAvailability().isOn)
+        setStatusGlyph(recording: glyphMode, on: statusItem?.button)
     }
 
     /// Return the menu-bar glyph and status text to Idle when a session settles

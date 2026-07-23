@@ -71,14 +71,20 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
     }
 
-    /// The recording glyph must reflect the session's mode, gated on cleanup being
-    /// effectively on: the `.down` arm paints the mode's glyph (Ⰸ plain, Ⱂ translate)
-    /// when cleanup is on and the plain glyph when off (a translate hold cannot run
-    /// in off-mode), and a mid-hold Control latch surfaces as a `.translateLatched`
-    /// edge that switches the glyph to translate LIVE, while the key is still held.
-    /// Killing mutation: hard-code the plain glyph in `.down` (drop the `? mode`
-    /// arm), drop the availability gate, or delete the `.translateLatched` arm / its
-    /// glyph switch → RED.
+    /// The recording glyph must be DERIVED from the session's mode and the LIVE
+    /// cleanup availability, through ONE shared path so the derivation cannot fork:
+    /// both the `.down` and `.translateLatched` arms route the glyph through
+    /// `applyRecordingGlyph`, and that helper derives it via `recordingGlyphMode` fed
+    /// the live `currentCleanupAvailability().isOn` (the single, consumed read). The
+    /// latch still surfaces the mode change LIVE while the key is held; a plain hold
+    /// paints clean, and cleanup-off collapses either to raw.
+    /// Killing mutation: paint a hard-coded glyph in either arm (drop the
+    /// `applyRecordingGlyph` routing); hard-code `isCleanupOn:` in the helper so the
+    /// live availability no longer flows into the derivation; add a SECOND, hardcoded
+    /// `recordingGlyphMode(` call to drive the paint while a decoy live call satisfies
+    /// the availability pin (the exactly-one-call count catches this); or decouple the
+    /// derived value from the paint, e.g. `recording: mode == .translate ? .translate
+    /// : glyphMode` (the `recording: glyphMode` bind catches this) → RED.
     @Test
     func recordingGlyphTracksTheLatchedMode() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -86,15 +92,25 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         #expect(Self.containsInOrder([
             "case .down(let mode):",
-            "let glyphMode = self?.currentCleanupAvailability().isOn == true ? mode : DictationMode.plain",
-            "setStatusGlyph(recording: glyphMode",
+            "applyRecordingGlyph(mode)",
         ], in: startPipeline),
-        "the .down arm must paint the mode's glyph when cleanup is on, and the plain glyph when off")
+        "the .down arm must route the recording glyph through applyRecordingGlyph")
         #expect(Self.containsInOrder([
             "case .translateLatched:",
-            "setStatusGlyph(recording: .translate",
+            "applyRecordingGlyph(.translate)",
         ], in: startPipeline),
-        "a mid-hold Control latch must switch the recording glyph to translate live")
+        "the translate latch must route the recording glyph through applyRecordingGlyph, live")
+
+        let helper = try Self.functionBody(named: "applyRecordingGlyph", in: delegate)
+        #expect(Self.containsInOrder([
+            "MenuBarGlyph.recordingGlyphMode(",
+            "isCleanupOn: currentCleanupAvailability().isOn",
+        ], in: helper),
+        "applyRecordingGlyph must derive the glyph via recordingGlyphMode fed the live availability")
+        #expect(helper.contains("setStatusGlyph(recording: glyphMode"),
+                "the paint must bind the DERIVED glyphMode directly, not a decoupled expression")
+        #expect(helper.components(separatedBy: "recordingGlyphMode(").count - 1 == 1,
+                "the helper must derive exactly once — a second, hardcoded call could drive the paint while a live decoy satisfies the availability pin")
     }
 
     /// App-level key facts (has-key, save-key, cleanup availability) must read a
