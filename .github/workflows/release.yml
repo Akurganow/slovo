@@ -241,7 +241,7 @@ jobs:
           # push the bump commit and tag; those pushes do not re-trigger workflows.
           fetch-depth: 0
       - name: Download signed artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: slovo-macos
           path: dist
