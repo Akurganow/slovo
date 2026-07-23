@@ -209,7 +209,7 @@ jobs:
           cp "$appcast_dir/appcast.xml" .build/dist/appcast.xml
           rm -f "$ed_key_file"
       - name: Upload signed artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: slovo-macos
           # appcast.xml is present only on releasable runs; upload-artifact errors
