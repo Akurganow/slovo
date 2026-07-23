@@ -257,6 +257,39 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes
 small, run `Scripts/diagnose.sh`, do not commit secrets or local
 personalization data, and document behavior changes in English.
 
+## What Slovo Is Not
+
+Slovo is deliberately small: hold a key, speak, release, get clean text.
+Everything it does serves that single loop — dictate, clean up, optionally
+translate, insert. To stay simple and unobtrusive, Slovo intentionally does
+not implement:
+
+- **No history.** Nothing is stored after the text is inserted — no
+  transcript log to browse, search, or leak.
+- **No main window.** No overlay, no visible live transcript — only the
+  menu-bar icon and the on-demand Settings, About, and Add Vocabulary
+  panels.
+- **No features beyond the loop.** No meeting recording or file
+  transcription, no voice commands or computer control, no snippets,
+  modes, or personas.
+
+This is today's deliberate scope, not a forever promise — but a feature
+request that adds a new step to that loop will most likely be declined.
+
+If you want a more capable or professional tool, these are excellent and
+serve different needs:
+
+- [Wispr Flow](https://wisprflow.ai) — polished, cross-platform AI
+  dictation for everyday professional writing.
+- [superwhisper](https://superwhisper.com) — deeply customizable Mac
+  dictation with local or cloud models.
+- [Talon](https://talonvoice.com) — full hands-free computer control,
+  built for accessibility and voice coding.
+
+And if you like Slovo's open-source, on-device approach but want more
+features, have a look at [VoiceInk](https://tryvoiceink.com) (GPLv3,
+built on whisper.cpp).
+
 ## Support
 
 Slovo is free, open source, and has no telemetry or paid tier. If it's useful
