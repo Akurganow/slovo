@@ -17,7 +17,10 @@ Raw audio stays on the Mac and is transcribed on-device through WhisperKit
 (Whisper large-v3 turbo). While the cleanup setting is on, cleanup is attempted
 through OpenRouter and sends only transcript text for the selected routed model
 id; while cleanup is effectively off (toggled off, or no OpenRouter key), the
-raw final transcript is pasted once at key-up with zero network requests.
+raw final transcript is pasted once at key-up with zero network requests. An
+empty or whitespace-only final transcript never reaches cleanup or injection in
+either mode: nothing is inserted, and the menu bar briefly shows the failure
+glyph.
 
 ## Core Components
 
@@ -111,13 +114,23 @@ are never committed.
 
 ## Menu-Bar App
 
-The app is packaged as an `LSUIElement` menu-bar app. It has no Dock icon and uses
-an `NSStatusItem` for status, cleanup model selection, the translate-to target
-language, the mute-while-dictating switch, vocabulary quick-add, first-run setup
-actions, a **Settings…** window (push-to-talk key, recognition language, launch at
-login, cleanup model and style, translation target, OpenRouter key, and
-vocabulary), quit, and an **About** window with a quick guide and the running
-version. All configuration is native windows — there are no modal alerts.
+The app is packaged as an `LSUIElement` menu-bar app with no Dock icon. Its
+`NSStatusItem` dropdown holds the live status and hotkey hint plus an
+always-visible update row — **Check for Updates…** when idle (a manual silent
+check), **Checking…** during any check, then silent download progress and the
+hybrid **Update ready — v… / Restart** line, rendering the pure
+`UpdateIndication` state folded from the silent Sparkle pipeline. Below it sits
+the cleanup block: the **Clean Up Dictation** switch, cleanup model selection,
+and the translate-to target language; while no OpenRouter key is saved the whole
+block collapses to a single **Add OpenRouter Key…** item that opens a dedicated
+key-entry window. Then come vocabulary quick-add with the mute-while-dictating
+switch, and a bottom section with **Settings…**, **About**, and quit; first-run
+setup actions replace the dropdown until permissions are granted. The
+**Settings…** window covers the push-to-talk key, recognition language, launch
+at login, automatic updates, cleanup model and style, translation target,
+OpenRouter key, and vocabulary; the **About** window carries a quick guide and
+the running version. All configuration is native windows — there are no modal
+alerts.
 
 ## Build Boundaries
 

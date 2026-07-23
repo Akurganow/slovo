@@ -97,5 +97,6 @@ shows a transient error glyph instead of dropping the dictation.
 When automatic updates are enabled (the default), Slovo checks GitHub about once
 an hour for a newer release and downloads it silently in the background; nothing
 about your dictation is sent. The **Automatically install updates** switch in
-Settings → General turns this off entirely — with it off, Slovo makes no
-update-related network requests.
+Settings → General turns scheduled checking off — with it off, Slovo makes no
+update-related network requests on its own; the menu-bar **Check for Updates…**
+row still performs a one-shot check, but only when you click it.

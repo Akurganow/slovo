@@ -159,13 +159,15 @@ on the dev Mac:
 - **Silent update:** install a previous release build into `/Applications`,
   publish a newer test release, then launch the old build. Within the hourly
   window it downloads silently — no window, no notification — and the dropdown's
-  status header shows "Downloading v<next>", then the hybrid "Update ready —
-  v<next>" row (grey status line; "Restart" in white under highlight).
+  always-visible update row shows "Checking…" during the check, "Downloading
+  v<next>", then the hybrid "Update ready — v<next>" row (grey status line;
+  "Restart" in white under highlight).
 - **Both apply paths:** clicking **Restart** installs and relaunches into the new
   version; ignoring it and Quitting normally installs on the way out, so the next
   launch is the new version. The app never restarts on its own.
 - **Toggle off:** with Settings → General "Automatically install updates" off, no
-  appcast fetch and no download happen at all.
+  scheduled appcast fetch and no download happen on their own; the menu-bar
+  "Check for Updates…" row still runs a check, but only when clicked.
 - **Mandatory negative Team-ID check (before the first release):** feed the
   installed framework a correctly-EdDSA-signed DMG whose bundle is signed by a
   DIFFERENT Team ID — it MUST be rejected and silently discarded (nothing

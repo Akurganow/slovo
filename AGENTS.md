@@ -49,8 +49,10 @@ Clarifications:
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.
 - **Empty result** (key held but only silence): the menu bar briefly shows the
-  red failure glyph "Ⱁ" (U+2C11), nothing is inserted, and there is no alert and
-  no persistent notice — do not distract the user.
+  red failure glyph "Ⱁ" (U+2C11), nothing is inserted, and cleanup is never
+  called — an empty or whitespace-only transcript must reach neither OpenRouter
+  nor the pasteboard. There is no alert and no persistent notice — do not
+  distract the user.
 - **Errors surface only through the menu-bar icon/status** — never an alert,
   dialog, or focus-stealing notification. Slovo types into the user's current app;
   stealing focus destroys the workflow it exists to serve.

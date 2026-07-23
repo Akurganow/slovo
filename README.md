@@ -44,8 +44,9 @@ tuned.
   nudge the model toward the right words. Slovo gathers them on your Mac, then
   sends them to OpenRouter with the transcript as advisory context.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
-  runs; a **Remove Key…** button in **Settings → Cleanup** deletes it (cleanup
-  then turns off until you add a key again).
+  runs — added through the menu-bar **Add OpenRouter Key…** window or
+  **Settings → Cleanup**; a **Remove Key…** button in **Settings → Cleanup**
+  deletes it (cleanup then turns off until you add a key again).
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
 - Local SQLite personalization store for vocabulary hints — add and remove
@@ -55,10 +56,16 @@ tuned.
   processing states — the recording glyph names the mode: `Ⱍ` clean, `Ⰳ` raw,
   `Ⱂ` translate — plus a monochrome app icon that follows the system theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
-  push-to-talk key, recognition language, launch at login, cleanup model and
-  style, translation target language, API key, and vocabulary.
+  push-to-talk key, recognition language, launch at login, automatic updates,
+  cleanup model and style, translation target language, API key, and
+  vocabulary.
 - A menu-bar **About Slovo** window with a built-in quick guide (dictate,
-  translate, cleanup, vocabulary) and the running version.
+  cleanup, translate, vocabulary) and the running version.
+- Silent automatic updates with an always-visible menu-bar update row:
+  **Check for Updates…** runs a manual silent check, **Checking…** shows while
+  any check runs, and a downloaded update offers **Update ready — v…** /
+  **Restart**. The **Automatically install updates** switch (Settings →
+  General, on by default) turns scheduled checking off.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements
@@ -83,9 +90,10 @@ after that, transcription runs fully on-device.
    Dock icon.
 4. Grant **Microphone** and **Accessibility** when prompted. Accessibility
    is required for the global `fn` / Globe hotkey.
-5. Open the menu-bar item, choose **Settings…**, and add your OpenRouter API
-   key in the **Cleanup** section to enable cleanup. Optionally use the menu-bar
-   **Add Vocabulary…** action to protect your own terms.
+5. Cleanup is optional: open the menu-bar item, choose **Add OpenRouter
+   Key…**, and save your OpenRouter API key in the small key window to enable
+   it (the key can be managed later in **Settings → Cleanup**). Optionally use
+   the menu-bar **Add Vocabulary…** action to protect your own terms.
 
 ## Usage
 
