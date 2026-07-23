@@ -8,11 +8,44 @@ struct WhisperKitStreamState: Equatable, Sendable {
 }
 
 enum WhisperKitTranscriptText {
+    // The single compose chokepoint every `finish()` outcome routes through, so
+    // sanitizing here is the AUTHORITATIVE token-domain guarantee (spec
+    // 2026-07-23): no `<|...|>` reaches the cleaner or the paste path.
     static func compose(_ parts: [String]) -> String {
-        parts
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        strippingSpecialTokens(
+            parts
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        )
+    }
+
+    /// AUTHORITATIVE token-domain guarantor (spec 2026-07-23): Slovo-owned,
+    /// surface-form bound, WhisperKit-version-independent. Sanitizing the JOINED
+    /// output (not each part) is deliberate: a `<|...|>` token can straddle the
+    /// part boundary, so the join separator must be inside the scan window. The
+    /// decoder's `skipSpecialTokens` is the first-line optimization, not the
+    /// contract — this is the guarantee that survives an SDK change.
+    ///
+    /// Universality beyond today's observed emission: the well-formed strip runs
+    /// to a FIXPOINT so nested forms (`<|a<|b|>|>`) fully unwind, then one
+    /// end-anchored pass removes a trailing unclosed fragment (`<|start` at the
+    /// very end — the truncation shape), leaving mid-string unclosed fragments
+    /// untouched. The final whitespace collapse is UNCONDITIONAL — it applies to
+    /// every compose output whether or not a token was stripped, because speech
+    /// output carries no meaningful multi-spaces.
+    static func strippingSpecialTokens(_ text: String) -> String {
+        var stripped = text
+        while true {
+            let next = stripped.replacingOccurrences(
+                of: #"<\|[^<>|]*\|>"#, with: " ", options: .regularExpression)
+            if next == stripped { break }
+            stripped = next
+        }
+        return stripped
+            .replacingOccurrences(of: #"<\|[^<>|]*$"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

@@ -63,15 +63,25 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         }
         return try WhisperKitLiveSession(
             engine: engine,
-            decodingOptions: decodingOptions()
+            decodingOptions: Self.decodingOptions(language: language)
         )
     }
 
-    private func decodingOptions() -> DecodingOptions {
+    /// The streaming decoder options for `language`. Internal (not private) so
+    /// the token-clean contract's first-line layer — `skipSpecialTokens` — is
+    /// pinned by a `@testable` unit test without widening the public API.
+    ///
+    /// `skipSpecialTokens: true` is the FIRST-LINE optimization for the
+    /// token-clean text domain: SDK-owned and token-ID-exact, but version-
+    /// dependent. The AUTHORITATIVE guarantor is the compose-site sanitizer
+    /// (`WhisperKitTranscriptText.strippingSpecialTokens`). `detectLanguage`
+    /// pairs with the `.auto` sentinel so mixed RU+EN keeps auto-detecting.
+    static func decodingOptions(language: Language) -> DecodingOptions {
         DecodingOptions(
             task: .transcribe,
             language: language.whisperKitLanguageCode,
             detectLanguage: language == .auto,
+            skipSpecialTokens: true,
             promptTokens: nil
         )
     }
