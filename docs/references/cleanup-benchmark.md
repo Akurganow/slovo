@@ -131,6 +131,13 @@ Full OpenRouter catalog snapshot, measured on 2026-07-02 with 10
 repetitions over the 30-sample `slovo-cleanup-v1` suite, using the exact request
 the app sends (reasoning disabled via `reasoning: {effort: "none"}`).
 
+> Suite-version note: `slovo-cleanup-v1` grew from 30 to 31 samples on
+> 2026-07-07 (a fourth `safety-negative` sample guarding the
+> invented-closing-pleasantries regression), so runs measured before that
+> date total 300 (30×10) and later runs total 310 (31×10). The historical
+> numbers below are NOT restated; compare across suite versions by pass
+> RATE (passed/runs), never by raw passed counts.
+
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `openrouter:anthropic/claude-haiku-4.5` | 300 | 230 | 0 | 1270.8 ms | 3408.4 ms |

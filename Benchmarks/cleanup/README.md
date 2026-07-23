@@ -17,7 +17,13 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `punctuation-structure` | 5 | Long dictated streams, sentence splitting, list-like structure |
 | `commands-editor` | 3 | Action-like editor and system commands |
 | `inverse-text-normalization` | 4 | Time, percent, version, and date normalization |
-| `safety-negative` | 3 | No chat wrapper, no unsolicited translation, preserve dictated text |
+| `safety-negative` | 4 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text |
+
+Total: **31 samples** (30 at the 2026-07-02 baseline; the fourth
+`safety-negative` sample — the invented-closing-pleasantries regression —
+was added on 2026-07-07). A full run is samples × repetitions, so
+"310 runs" = 31 × 10 today, while tables dated before 2026-07-07 show
+300 = 30 × 10. Compare suite versions by PASS RATE, not raw counts.
 
 ## Upstream Research
 

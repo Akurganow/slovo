@@ -125,6 +125,25 @@ red on broken code. A test that stays green on both the correct and a mutated
 implementation proves nothing — prove RED before GREEN, and document the concrete
 breakage each regression test catches.
 
+### The endpoint of feature work is a verified commit on local main
+
+A feature is DONE only when it lands as a verified commit on LOCAL main —
+implementer branches → independent audit (correctness, complexity, design,
+test sensitivity) → full gates (`Scripts/diagnose.sh`) on the integrated
+result → merge into local main. Parked branches are not a deliverable.
+Pushing to any remote remains a separate act, triggered only by the owner.
+
+### License compliance is part of every change
+
+Slovo is GPLv3. Any change that adds, removes, or updates a dependency,
+bundles a new resource, or brings in external code must keep the license
+posture correct IN THE SAME CHANGE: verify the component's license is
+GPLv3-compatible, and keep the third-party notices artifact (and the
+README license section) current so every shipped component's copyright and
+permission notice travels with the binary. Never vendor code or assets
+whose license is unknown or incompatible (e.g. PolyForm Noncommercial —
+a real trap already caught once: Lightning-SimulWhisper).
+
 ### Before you open a pull request
 
 - Run `Scripts/diagnose.sh` (build, tests, and strict lint as independent stages).
