@@ -160,6 +160,7 @@ public enum ConfigStore {
                 asrBackend: asr.backend,
                 asrModel: asr.model,
                 openRouterModel: openRouterModel,
+                cleanupEnabled: cleanup.enabled,
                 writingStyle: cleanup.writingStyle,
                 useSpellCheckHints: cleanup.useSpellCheckHints,
                 mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
@@ -178,6 +179,7 @@ public enum ConfigStore {
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
             asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
             cleanup = StoredCleanup(
+                enabled: config.cleanupEnabled,
                 provider: nil,
                 openRouterModel: config.openRouterModel,
                 writingStyle: config.writingStyle,
@@ -249,6 +251,9 @@ public enum ConfigStore {
     }
 
     private struct StoredCleanup: Codable {
+        // Formerly decoded-and-discarded; absent defaults to `true` so every
+        // pre-feature blob keeps cleanup on (backward compatible, no migration).
+        let enabled: Bool
         let provider: String?
         let openRouterModel: String?
         let writingStyle: WritingStyle
@@ -269,12 +274,14 @@ public enum ConfigStore {
         }
 
         init(
+            enabled: Bool,
             provider: String?,
             openRouterModel: String?,
             writingStyle: WritingStyle,
             useSpellCheckHints: Bool,
             modelCatalogVersion: Int? = nil
         ) {
+            self.enabled = enabled
             self.provider = provider
             self.openRouterModel = openRouterModel
             self.writingStyle = writingStyle
@@ -284,7 +291,7 @@ public enum ConfigStore {
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            _ = try container.decodeIfPresent(Bool.self, forKey: .enabled)
+            enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
             provider = try container.decodeIfPresent(String.self, forKey: .provider)
             openRouterModel = try container.decodeIfPresent(String.self, forKey: .openRouterModel)
             writingStyle = try container.decode(WritingStyle.self, forKey: .writingStyle)
@@ -294,7 +301,7 @@ public enum ConfigStore {
 
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(true, forKey: .enabled)
+            try container.encode(enabled, forKey: .enabled)
             try container.encodeIfPresent(provider, forKey: .provider)
             try container.encodeIfPresent(openRouterModel, forKey: .openRouterModel)
             try container.encode(writingStyle, forKey: .writingStyle)

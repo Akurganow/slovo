@@ -66,6 +66,10 @@ public actor Orchestrator {
     private var sessionVocabulary: [Term] = []
     /// The mode latched at key-up, read at clean time; reset in `.returnToIdle`.
     private var sessionMode: DictationMode = .plain
+    /// Effective cleanup flag snapshotted at `.beginCapture` (the `sessionVocabulary`
+    /// pattern) so a mid-hold `updateCleanupConfig` push affects only the NEXT
+    /// session — one dictation's key-up clean short-circuit is decided once.
+    private var sessionRunsCleaner = true
     /// Pipes live capture chunks into the open transcription session during the
     /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
     /// drained (via the stream finishing) at key-up.
@@ -166,6 +170,13 @@ public actor Orchestrator {
     /// hints, runs the cleaner, and feeds the cleaned result (or a cleanup failure)
     /// back through the FSM. Its own method so the effect switch stays cohesive.
     private func cleanAndContinue(transcript: String) async {
+        // Deliberate pass-through, not a cleanup: cleanup-off forwards the raw
+        // transcript untouched and never consults the session mode, so translation
+        // is suppressed too (the `.clean` effect over-promises here by design).
+        guard sessionRunsCleaner else {
+            await handle(.cleaned(transcript))
+            return
+        }
         let context = PersonalizationContext(vocabulary: sessionVocabulary)
         let hints = await gatherCleanupHints(for: transcript)
         // Apply the per-session translate flag; the target already rides on cleanupConfig.
@@ -235,40 +246,7 @@ public actor Orchestrator {
             return nil
 
         case .beginCapture:
-            // Key-down: open mic capture AND the streaming ASR session, then pipe
-            // each captured chunk into the session for the duration of the hold.
-            let stream: AsyncStream<AudioChunk>
-            do {
-                stream = try await deps.recorder.start()
-            } catch let error as AudioCaptureError {
-                await handle(.failed(.capture(error)))
-                return nil
-            } catch {
-                await handle(.failed(.capture(.engineStartFailed)))
-                return nil
-            }
-
-            // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
-            // resolve the personalization vocabulary once and reuse it as the ASR
-            // bias and the cleaner context.
-            let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
-            sessionVocabulary = biasTerms
-            deps.reportStatus(.preparingSpeechModel)
-            do {
-                try await deps.transcriber.begin(biasTerms: biasTerms)
-            } catch let error as TranscriptionError {
-                // Release the mic first, then contain the failure.
-                await deps.recorder.stop()
-                await handle(.failed(.transcription(error)))
-                return nil
-            } catch {
-                await deps.recorder.stop()
-                await handle(.failed(.transcription(.engineFailure(underlying: error))))
-                return nil
-            }
-
-            feedHealth = FeedHealth()
-            pumpTask = makePumpTask(draining: stream)
+            await beginCapture()
             return nil
 
         case .endCaptureAndFinalizeTranscript:
@@ -319,12 +297,56 @@ public actor Orchestrator {
             stashedPriorAudio = nil
             sessionVocabulary = []
             sessionMode = .plain
+            sessionRunsCleaner = true
             feedHealth = FeedHealth()
             pumpTask?.cancel()
             pumpTask = nil
             pipelineTask = nil
             return nil
         }
+    }
+
+    /// Key-down: open mic capture AND the streaming ASR session, then spawn the
+    /// pump that pipes each captured chunk into the session for the hold.
+    /// Extracted from `execute` so that switch stays within its body-length gate.
+    private func beginCapture() async {
+        let stream: AsyncStream<AudioChunk>
+        do {
+            stream = try await deps.recorder.start()
+        } catch let error as AudioCaptureError {
+            await handle(.failed(.capture(error)))
+            return
+        } catch {
+            await handle(.failed(.capture(.engineStartFailed)))
+            return
+        }
+
+        // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
+        // resolve the personalization vocabulary once and reuse it as the ASR
+        // bias and the cleaner context.
+        let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
+        sessionVocabulary = biasTerms
+        // Latch the effective-cleanup flag once, HERE — never read
+        // `cleanupConfig.runsCleaner` at clean time: a mid-hold `updateCleanupConfig`
+        // push would otherwise split this session's key-up clean short-circuit,
+        // running the cleaner on a transcript the session began without.
+        sessionRunsCleaner = cleanupConfig.runsCleaner
+        deps.reportStatus(.preparingSpeechModel)
+        do {
+            try await deps.transcriber.begin(biasTerms: biasTerms)
+        } catch let error as TranscriptionError {
+            // Release the mic first, then contain the failure.
+            await deps.recorder.stop()
+            await handle(.failed(.transcription(error)))
+            return
+        } catch {
+            await deps.recorder.stop()
+            await handle(.failed(.transcription(.engineFailure(underlying: error))))
+            return
+        }
+
+        feedHealth = FeedHealth()
+        pumpTask = makePumpTask(draining: stream)
     }
 
     /// Silent cancel: release the mic and tear down the ASR session WITHOUT a

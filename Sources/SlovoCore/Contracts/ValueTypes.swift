@@ -130,6 +130,12 @@ public struct CleanupConfig: Equatable, Sendable {
     /// a translate pass into `translationTargetLanguage`, off keeps today's
     /// transcription-only cleanup.
     public var translate: Bool
+    /// Whether the cleanup step runs at all for the NEXT session — the EFFECTIVE
+    /// value (stored preference AND key present), derived in the app layer so
+    /// the orchestrator never learns about keys. Latched per session at
+    /// key-down; `CleanupConfig` mixes provenance deliberately: tunables (how),
+    /// `translate` (per-call), and this (whether-to-run) all ride one push.
+    public var runsCleaner: Bool
 
     public init(
         model: String = CleanupDefaults.openRouterModel,
@@ -137,7 +143,8 @@ public struct CleanupConfig: Equatable, Sendable {
         language: Language,
         useSpellCheckHints: Bool = true,
         translationTargetLanguage: Language = .en,
-        translate: Bool = false
+        translate: Bool = false,
+        runsCleaner: Bool = true
     ) {
         self.model = model
         self.writingStyle = writingStyle
@@ -145,6 +152,7 @@ public struct CleanupConfig: Equatable, Sendable {
         self.useSpellCheckHints = useSpellCheckHints
         self.translationTargetLanguage = translationTargetLanguage
         self.translate = translate
+        self.runsCleaner = runsCleaner
     }
 }
 

@@ -71,12 +71,14 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
     }
 
-    /// The recording glyph must reflect the session's mode: the `.down` arm paints
-    /// the mode's glyph (Ⰸ plain, Ⱂ translate), and a mid-hold Control latch surfaces
-    /// as a `.translateLatched` edge that switches the glyph to translate LIVE, while
-    /// the key is still held. Killing mutation: hard-code the plain glyph in `.down`
-    /// (drop `recording: mode`), or delete the `.translateLatched` arm / its glyph
-    /// switch → RED.
+    /// The recording glyph must reflect the session's mode, gated on cleanup being
+    /// effectively on: the `.down` arm paints the mode's glyph (Ⰸ plain, Ⱂ translate)
+    /// when cleanup is on and the plain glyph when off (a translate hold cannot run
+    /// in off-mode), and a mid-hold Control latch surfaces as a `.translateLatched`
+    /// edge that switches the glyph to translate LIVE, while the key is still held.
+    /// Killing mutation: hard-code the plain glyph in `.down` (drop the `? mode`
+    /// arm), drop the availability gate, or delete the `.translateLatched` arm / its
+    /// glyph switch → RED.
     @Test
     func recordingGlyphTracksTheLatchedMode() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -84,14 +86,49 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         #expect(Self.containsInOrder([
             "case .down(let mode):",
-            "setStatusGlyph(recording: mode",
+            "let glyphMode = self?.currentCleanupAvailability().isOn == true ? mode : DictationMode.plain",
+            "setStatusGlyph(recording: glyphMode",
         ], in: startPipeline),
-        "the .down arm must paint the recording glyph for the session's mode")
+        "the .down arm must paint the mode's glyph when cleanup is on, and the plain glyph when off")
         #expect(Self.containsInOrder([
             "case .translateLatched:",
             "setStatusGlyph(recording: .translate",
         ], in: startPipeline),
         "a mid-hold Control latch must switch the recording glyph to translate live")
+    }
+
+    /// App-level key facts (has-key, save-key, cleanup availability) must read a
+    /// provider the AppDelegate OWNS, never one pulled out of the pipeline
+    /// composite. Reaching through `composition?.openRouterKeyProvider` gates an
+    /// app fact behind the pipeline's lifetime: before composition exists,
+    /// `hasConfiguredKey() ?? false` fabricates "no key" — freezing the launch menu
+    /// in offNoKey (toggle + translate disabled) while cleanup actually works — and
+    /// `store(key)` via the optional chain silently drops the save. Ownership
+    /// inversion (AppDelegate constructs the provider and injects it into makeLive)
+    /// removes the unknown state by construction.
+    /// Killing mutation: reintroduce `composition?.openRouterKeyProvider` for a key
+    /// read, or a `?? false` fallback on hasOpenRouterKey → RED.
+    @Test
+    func appLayerKeyFactsReadTheAppOwnedProviderNotThePipeline() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+
+        // Ownership: the app constructs the provider and injects it into the pipeline.
+        #expect(delegate.contains("KeychainOpenRouterKeyProvider("),
+                "AppDelegate must own the key provider so key facts never depend on the pipeline's lifetime")
+        #expect(delegate.contains("openRouterKeyProvider: openRouterKeyProvider"),
+                "the app-owned provider must be injected into AppComposition.makeLive")
+
+        // No app-layer key read may reach through the pipeline composite.
+        for source in [delegate, settings] {
+            #expect(!source.contains("composition?.openRouterKeyProvider"),
+                    "app-layer key facts must use the AppDelegate-owned provider, not the pipeline composite")
+        }
+        let hasKey = try Self.functionBody(named: "hasOpenRouterKey", in: settings)
+        #expect(!hasKey.contains("?? false"),
+                "hasOpenRouterKey must not fabricate 'no key' from a missing composition")
+        #expect(hasKey.contains("openRouterKeyProvider.hasConfiguredKey()"),
+                "hasOpenRouterKey must read the app-owned provider directly")
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be
@@ -184,9 +221,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "the keyDown arm must map to the payload-free input, not read the event")
         #expect(!monitor.contains("keyboardGetUnicodeString"),
                 "the tap must never read a keystroke's typed character")
-        // Exactly one key-code read is allowed — the flagsChanged side detection. A
-        // second read means the keyDown arm reads key identity (privacy leak).
-        let keyCodeReads = monitor.components(separatedBy: "getIntegerValueField").count - 1
+        // Exactly one key-CODE read is allowed — the flagsChanged trigger
+        // detection. The keyDown arm records only that a key went down; a
+        // `.keyboardEventKeycode` read there would retain the pressed key (leak).
+        let keyCodeReads = monitor.components(separatedBy: ".keyboardEventKeycode").count - 1
         #expect(keyCodeReads == 1,
                 "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
     }

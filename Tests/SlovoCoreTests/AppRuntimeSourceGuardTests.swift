@@ -128,8 +128,8 @@ struct AppRuntimeSourceGuardTests {
     /// ASR model and shows the "Preparing Speech Model" loading pulse — alarming
     /// and misleading for a change that only swaps the cleanup LLM id.
     /// Stated sensitivity: route the cleanup-model change back through
-    /// retrySetup()/startPipeline (a pipeline rebuild) or drop the live
-    /// orchestrator update → RED.
+    /// retrySetup()/startPipeline (a pipeline rebuild) or drop the live push
+    /// through the effective-config funnel (`pushEffectiveCleanupConfig()`) → RED.
     @Test
     func changingCleanupModelAppliesLiveWithoutPipelineRebuild() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -144,8 +144,8 @@ struct AppRuntimeSourceGuardTests {
             #expect(!applyBody.contains(forbidden),
                     "changing the cleanup model must not \(forbidden): that re-warms ASR and shows the loading pulse")
         }
-        #expect(applyBody.contains("updateCleanupConfig"),
-                "the cleanup-model change must apply live to the running orchestrator")
+        #expect(applyBody.contains("pushEffectiveCleanupConfig()"),
+                "the cleanup-model change must apply live through the effective-config funnel")
         #expect(orchestrator.contains("func updateCleanupConfig"),
                 "the orchestrator must expose a live cleanup-config update so no rebuild is needed")
     }

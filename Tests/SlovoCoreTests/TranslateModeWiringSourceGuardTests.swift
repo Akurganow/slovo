@@ -35,17 +35,18 @@ struct TranslateModeWiringSourceGuardTests {
     /// G-MENU-2 — applying a translate language is a LIVE apply (persist + rebuild
     /// the status menu + push the cleanup config), never a pipeline rebuild — mirrors
     /// `applyCleanupModel`.
-    /// Stated sensitivity: drop `installStatusMenu()` or `updateCleanupConfig` → the
-    /// positive `#expect` reddens; route through `startPipeline`/`retrySetup` (an ASR
-    /// rebuild) → a negative `#expect` reddens.
+    /// Stated sensitivity: drop `installStatusMenu()` or the live push through the
+    /// effective-config funnel (`pushEffectiveCleanupConfig()`) → the positive
+    /// `#expect` reddens; route through `startPipeline`/`retrySetup` (an ASR rebuild)
+    /// → a negative `#expect` reddens.
     @Test
     func applyTranslationLanguageAppliesLiveWithoutRebuild() {
         let delegate = Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
         let body = Self.functionBody(named: "applyTranslationLanguage", in: delegate)
         #expect(body.contains("installStatusMenu()"),
                 "applyTranslationLanguage must rebuild the status menu to recheck the selected row")
-        #expect(body.contains("updateCleanupConfig"),
-                "applyTranslationLanguage must push the new cleanup config to the running orchestrator")
+        #expect(body.contains("pushEffectiveCleanupConfig()"),
+                "applyTranslationLanguage must push the effective cleanup config live through the funnel")
         #expect(!body.contains("startPipeline"),
                 "applyTranslationLanguage must not rebuild the pipeline")
         #expect(!body.contains("retrySetup"),

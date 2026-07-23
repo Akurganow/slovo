@@ -38,6 +38,10 @@ public struct Config: Equatable, Sendable {
     public var asrBackend: AsrBackend
     public var asrModel: String
     public var openRouterModel: String
+    /// Whether the cleanup step runs at all — the user's stored PREFERENCE.
+    /// The per-session EFFECTIVE value also requires an OpenRouter key; see
+    /// `CleanupAvailability` (app layer) and `CleanupConfig.runsCleaner`.
+    public var cleanupEnabled: Bool
     public var writingStyle: WritingStyle
     /// Advisory spell-check hints for cleanup, default on (spec Workstream 3). The
     /// input-language hint has no toggle; only the spell pass does.
@@ -60,7 +64,9 @@ public struct Config: Equatable, Sendable {
             writingStyle: writingStyle,
             language: language,
             useSpellCheckHints: useSpellCheckHints,
-            translationTargetLanguage: translationTargetLanguage
+            translationTargetLanguage: translationTargetLanguage,
+            // Preference only — the key fact joins in the app layer.
+            runsCleaner: cleanupEnabled
         )
     }
 
@@ -75,6 +81,7 @@ public struct Config: Equatable, Sendable {
         asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
         openRouterModel: String = Config.defaultOpenRouterModel,
+        cleanupEnabled: Bool = true,
         writingStyle: WritingStyle = .casual,
         useSpellCheckHints: Bool = true,
         mutesSystemAudioWhileDictating: Bool = true,
@@ -87,6 +94,7 @@ public struct Config: Equatable, Sendable {
         self.asrBackend = asrBackend
         self.asrModel = asrModel
         self.openRouterModel = openRouterModel
+        self.cleanupEnabled = cleanupEnabled
         self.writingStyle = writingStyle
         self.useSpellCheckHints = useSpellCheckHints
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating

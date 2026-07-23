@@ -9,7 +9,6 @@ enum AppComposition {
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
         let config: Config
-        let openRouterKeyProvider: KeychainOpenRouterKeyProvider
         let permissionRequester: any PermissionRequester
         let modelWarmUp: Task<Void, Never>
         let personalization: GRDBPersonalizationSource
@@ -17,13 +16,13 @@ enum AppComposition {
 
     static func makeLive(
         defaults: UserDefaults = .standard,
+        openRouterKeyProvider: KeychainOpenRouterKeyProvider,
         fileManager: FileManager = .default,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) throws -> Live {
         let config = ConfigStore.load(from: defaults)
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
         let permissionPreflighter = SystemPermissionPreflighter()
-        let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
         let database = try PersonalizationDatabase.open(
             at: personalizationDatabasePath(fileManager: fileManager).path
         )
@@ -69,18 +68,27 @@ enum AppComposition {
             spellCheckHints: SystemSpellCheckHintProvider()
         )
 
+        // The ONE effective-on definition (CleanupAvailability.derive), applied
+        // at build time so the first dictation never races a push. The
+        // orchestrator never learns about keys.
+        var cleanupConfig = config.cleanupConfig
+        cleanupConfig.runsCleaner = CleanupAvailability.derive(
+            preference: config.cleanupEnabled,
+            keyPresent: openRouterKeyProvider.hasConfiguredKey()
+        ).isOn
+
         return Live(
             orchestrator: PipelineFactory.makeOrchestrator(
                 config: config,
                 dependencies: dependencies,
-                vocabularyLimit: vocabularyLimit
+                vocabularyLimit: vocabularyLimit,
+                cleanupConfig: cleanupConfig
             ),
             hotkeyMonitor: CGEventTapHotkeyMonitor(trigger: config.trigger),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight()
             ),
             config: config,
-            openRouterKeyProvider: openRouterKeyProvider,
             permissionRequester: permissionPreflighter,
             modelWarmUp: modelWarmUp,
             personalization: source

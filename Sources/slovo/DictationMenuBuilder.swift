@@ -15,8 +15,17 @@ struct DictationMenuBuilder {
         let statusItem: NSMenuItem
     }
 
-    func make(trigger: HotkeyTrigger, selectedModelId: String, mutesSystemAudioWhileDictating: Bool, translationLanguage: String) -> Built {
+    func make(
+        trigger: HotkeyTrigger,
+        selectedModelId: String,
+        mutesSystemAudioWhileDictating: Bool,
+        translationLanguage: String,
+        cleanupAvailability: CleanupAvailability
+    ) -> Built {
         let menu = NSMenu()
+        // Explicit enable/disable control: auto-enablement would re-enable the
+        // translate submenu and the no-key toggle that this builder disables.
+        menu.autoenablesItems = false
         // The status dropdown is its own menu delegate: the hybrid update row needs
         // the willHighlight swap and the menuWillOpen re-sync.
         menu.delegate = target
@@ -29,6 +38,7 @@ struct DictationMenuBuilder {
             selectedModelId: selectedModelId,
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
             translationLanguage: translationLanguage,
+            cleanupAvailability: cleanupAvailability,
             update: .hidden
         ) {
             switch item {
@@ -54,8 +64,23 @@ struct DictationMenuBuilder {
                     title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
                     selectedModel: modelId
                 ))
-            case .translationLanguage(let selected):
-                menu.addItem(target.translationLanguageMenu(selected: selected))
+            case .translationLanguage(let selected, let enabled):
+                let entry = target.translationLanguageMenu(selected: selected)
+                entry.isEnabled = enabled
+                menu.addItem(entry)
+            case .cleanupToggle(let availability):
+                if availability.isToggleEnabled {
+                    let entry = target.actionItem(
+                        "Clean Up Dictation",
+                        #selector(AppDelegate.toggleCleanupDictation(_:))
+                    )
+                    entry.state = availability.isOn ? .on : .off
+                    menu.addItem(entry)
+                } else {
+                    // No key: shown off AND disabled — a control that cannot
+                    // take effect is never rendered flippable (spec).
+                    menu.addItem(disabled("Clean Up Dictation"))
+                }
             case .addVocabulary:
                 menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
             case .muteWhileDictating(let isOn):

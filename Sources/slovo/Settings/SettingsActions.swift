@@ -10,6 +10,9 @@ protocol SettingsActions: AnyObject {
     func currentConfig() -> Config
     /// Whether an OpenRouter key is present (attributes-only; never decrypts it).
     func hasOpenRouterKey() -> Bool
+    /// The effective cleanup state and its cause, for the pane's master toggle,
+    /// status line, and disabled sections.
+    func cleanupAvailability() -> CleanupAvailability
     /// Whether Slovo is registered to open at login (reads the system login-item
     /// service; like `hasOpenRouterKey()`, an attributes-only system read).
     func launchAtLoginEnabled() -> Bool
@@ -20,6 +23,7 @@ protocol SettingsActions: AnyObject {
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)
+    func setCleanupEnabled(_ enabled: Bool)
     func setAutomaticallyInstallsUpdates(_ enabled: Bool)
     func setLaunchAtLogin(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)

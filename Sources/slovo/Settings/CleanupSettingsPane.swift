@@ -16,6 +16,7 @@ struct CleanupSettingsPane: View {
     @State private var apiKey: String = ""
     @State private var hasSavedKey: Bool
     @State private var useSpellCheckHints: Bool
+    @State private var availability: CleanupAvailability
 
     init(actions: any SettingsActions) {
         self.actions = actions
@@ -25,6 +26,7 @@ struct CleanupSettingsPane: View {
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _hasSavedKey = State(initialValue: actions.hasOpenRouterKey())
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
+        _availability = State(initialValue: actions.cleanupAvailability())
     }
 
     private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
@@ -39,9 +41,12 @@ struct CleanupSettingsPane: View {
 
     var body: some View {
         Form {
+            masterSection
             cleanupSection
+                .disabled(!availability.isOn)
             apiKeySection
             spellCheckHintsSection
+                .disabled(!availability.isOn)
         }
         .formStyle(.grouped)
         .frame(width: 420)
@@ -54,6 +59,28 @@ struct CleanupSettingsPane: View {
             translationLanguage = config.translationTargetLanguage.rawValue
             hasSavedKey = actions.hasOpenRouterKey()
             useSpellCheckHints = config.useSpellCheckHints
+            availability = actions.cleanupAvailability()
+        }
+    }
+
+    // The toggle displays the EFFECTIVE state (off-and-disabled with no key)
+    // while writes go to the stored preference; a computed binding keeps the
+    // display/preference split without onChange re-entry.
+    private var masterSection: some View {
+        Section {
+            Toggle("Clean up dictation", isOn: Binding(
+                get: { availability.isOn },
+                set: { enabled in
+                    actions.setCleanupEnabled(enabled)
+                    availability = actions.cleanupAvailability()
+                }
+            ))
+            .disabled(!availability.isToggleEnabled)
+            if let status = availability.settingsStatusLine {
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -163,5 +190,7 @@ struct CleanupSettingsPane: View {
         actions.saveOpenRouterKey(trimmedApiKey)
         apiKey = ""
         hasSavedKey = true
+        // A first key can flip offNoKey → the stored preference's state live.
+        availability = actions.cleanupAvailability()
     }
 }

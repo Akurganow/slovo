@@ -263,6 +263,7 @@ struct ConfigStoreTests {
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             openRouterModel: "openai/gpt-5.6-luna",
+            cleanupEnabled: false,
             writingStyle: .formal
         ))
     }

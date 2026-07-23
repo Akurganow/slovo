@@ -9,8 +9,9 @@ struct DictationMenuTests {
     /// The items appear in the fixed spec order, grouped by role: the header
     /// (status, hotkey hint — no separate "Slovo" title item, since it never read
     /// as clickable), separator, About in its own group, separator, live switches
-    /// (cleanup-model, translation-language, mute-while-dictating), separator,
-    /// window openers (add-vocabulary, settings), separator, quit isolated last.
+    /// (cleanup-model, translation-language, cleanup-toggle, mute-while-dictating),
+    /// separator, window openers (add-vocabulary, settings), separator, quit
+    /// isolated last.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
@@ -20,6 +21,7 @@ struct DictationMenuTests {
             selectedModelId: "openai/gpt-5.6-luna",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .hidden
         )
         #expect(items == [
@@ -29,7 +31,8 @@ struct DictationMenuTests {
             .about,
             .separator,
             .cleanupModel(selectedModelId: "openai/gpt-5.6-luna"),
-            .translationLanguage(selected: "en"),
+            .translationLanguage(selected: "en", enabled: true),
+            .cleanupToggle(availability: .on),
             .muteWhileDictating(isOn: true),
             .separator,
             .addVocabulary,
@@ -49,6 +52,7 @@ struct DictationMenuTests {
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .hidden
         )
         #expect(items.last == .quit)
@@ -58,8 +62,8 @@ struct DictationMenuTests {
     /// the same pinned position — proving the item reflects the argument, not a
     /// hard-coded on/off.
     /// Stated sensitivity: hard-code the item's `isOn`, drop the item, or move it out
-    /// of the after-translation-language / before-separator slot → the exact
-    /// sequence mismatches → RED.
+    /// of the after-cleanup-toggle / before-separator slot → the exact sequence
+    /// mismatches → RED.
     @Test
     func muteWhileDictatingItemReflectsDisabledFlagAndPosition() {
         let items = DictationMenu.items(
@@ -67,6 +71,7 @@ struct DictationMenuTests {
             selectedModelId: "x",
             mutesSystemAudioWhileDictating: false,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .hidden
         )
         #expect(items == [
@@ -76,7 +81,8 @@ struct DictationMenuTests {
             .about,
             .separator,
             .cleanupModel(selectedModelId: "x"),
-            .translationLanguage(selected: "en"),
+            .translationLanguage(selected: "en", enabled: true),
+            .cleanupToggle(availability: .on),
             .muteWhileDictating(isOn: false),
             .separator,
             .addVocabulary,
@@ -87,25 +93,80 @@ struct DictationMenuTests {
     }
 
     /// U1 — the translation-language item carries the selected target code and sits
-    /// directly between cleanup-model and mute-while-dictating (mirroring
+    /// directly between cleanup-model and the cleanup-toggle (mirroring
     /// cleanup-model's selected-id contract), inside the live-switch group.
     /// Stated sensitivity: drop the item → it is absent → RED; misorder it (not right
     /// after cleanup-model) → the ordered-neighbour assert reddens; hardcode/drop the
-    /// selected code → `.translationLanguage(selected: "ru")` mismatches → RED.
+    /// selected code → `.translationLanguage(selected: "ru", enabled:)` mismatches → RED.
     @Test
     func translationLanguageItemFollowsCleanupModel() {
-        let items = DictationMenu.items(trigger: .fn, selectedModelId: "m", mutesSystemAudioWhileDictating: true, translationLanguage: "ru", update: .hidden)
-        #expect(items.contains(.translationLanguage(selected: "ru")))
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "ru",
+            cleanupAvailability: .on,
+            update: .hidden
+        )
+        #expect(items.contains(.translationLanguage(selected: "ru", enabled: true)))
 
         guard let cleanupIndex = items.firstIndex(of: .cleanupModel(selectedModelId: "m")),
-              let translationIndex = items.firstIndex(of: .translationLanguage(selected: "ru")),
+              let translationIndex = items.firstIndex(of: .translationLanguage(selected: "ru", enabled: true)),
               let muteIndex = items.firstIndex(of: .muteWhileDictating(isOn: true))
         else {
             Issue.record("cleanup-model, translation-language, and mute-while-dictating items must all be present: \(items)")
             return
         }
         #expect(translationIndex == cleanupIndex + 1, "translation-language must sit right after cleanup-model")
-        #expect(muteIndex == translationIndex + 1, "mute-while-dictating must directly follow translation-language")
+        #expect(muteIndex == translationIndex + 2, "mute-while-dictating trails translation-language by two — the cleanup-toggle sits between")
+    }
+
+    /// The cleanup toggle closes the live-switch group directly above mute and
+    /// carries the full availability so the renderer can show off-and-disabled.
+    /// Stated sensitivity: drop `.cleanupToggle` from `items` or move it after
+    /// `.muteWhileDictating` → RED (exact-order assertion).
+    @Test
+    func cleanupToggleSitsDirectlyAboveMuteAndCarriesAvailability() {
+        let items = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en",
+            cleanupAvailability: .offByChoice,
+            update: .hidden
+        )
+        let toggleIndex = items.firstIndex(of: .cleanupToggle(availability: .offByChoice))
+        let muteIndex = items.firstIndex(of: .muteWhileDictating(isOn: true))
+        #expect(toggleIndex != nil && muteIndex != nil)
+        #expect(toggleIndex.map { $0 + 1 } == muteIndex, "the toggle closes the cleanup group right above mute")
+    }
+
+    /// The translate submenu reads as unavailable whenever cleanup is effectively
+    /// off (a translate hold cannot run then), and enabled only when cleanup is on.
+    /// Stated sensitivity: hardcode `enabled: true` for the translate submenu →
+    /// the `.offNoKey` expectation reads enabled → RED.
+    @Test
+    func translateSubmenuIsDisabledWheneverCleanupIsEffectivelyOff() {
+        for availability in [CleanupAvailability.offByChoice, .offNoKey] {
+            let items = DictationMenu.items(
+                trigger: .fn,
+                selectedModelId: "m",
+                mutesSystemAudioWhileDictating: true,
+                translationLanguage: "en",
+                cleanupAvailability: availability,
+                update: .hidden
+            )
+            #expect(items.contains(.translationLanguage(selected: "en", enabled: false)), "\(availability)")
+        }
+        let onItems = DictationMenu.items(
+            trigger: .fn,
+            selectedModelId: "m",
+            mutesSystemAudioWhileDictating: true,
+            translationLanguage: "en",
+            cleanupAvailability: .on,
+            update: .hidden
+        )
+        #expect(onItems.contains(.translationLanguage(selected: "en", enabled: true)))
     }
 
     /// The hint uses the trigger's display name, not its wire value.
@@ -118,6 +179,7 @@ struct DictationMenuTests {
             selectedModelId: "x",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .hidden
         )
         #expect(items.contains(.hotkeyHint("Hold Right ⌘ to talk")))
@@ -134,6 +196,7 @@ struct DictationMenuTests {
             selectedModelId: "anthropic/claude-haiku-4.5",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .hidden
         )
         #expect(items.contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-4.5")))
@@ -153,6 +216,7 @@ struct DictationMenuTests {
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .downloading(version: "0.14.0")
         )
         #expect(items == [
@@ -163,7 +227,8 @@ struct DictationMenuTests {
             .about,
             .separator,
             .cleanupModel(selectedModelId: "m"),
-            .translationLanguage(selected: "en"),
+            .translationLanguage(selected: "en", enabled: true),
+            .cleanupToggle(availability: .on),
             .muteWhileDictating(isOn: true),
             .separator,
             .addVocabulary,
@@ -186,6 +251,7 @@ struct DictationMenuTests {
             selectedModelId: "m",
             mutesSystemAudioWhileDictating: true,
             translationLanguage: "en",
+            cleanupAvailability: .on,
             update: .ready(version: "0.14.0")
         )
         #expect(items == [
@@ -196,7 +262,8 @@ struct DictationMenuTests {
             .about,
             .separator,
             .cleanupModel(selectedModelId: "m"),
-            .translationLanguage(selected: "en"),
+            .translationLanguage(selected: "en", enabled: true),
+            .cleanupToggle(availability: .on),
             .muteWhileDictating(isOn: true),
             .separator,
             .addVocabulary,
@@ -227,6 +294,7 @@ struct DictationMenuTests {
                 selectedModelId: "m",
                 mutesSystemAudioWhileDictating: true,
                 translationLanguage: "en",
+                cleanupAvailability: .on,
                 update: update
             )
             guard let firstSeparatorIndex = items.firstIndex(of: .separator),

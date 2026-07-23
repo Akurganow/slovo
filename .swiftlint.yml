@@ -93,6 +93,12 @@ function_body_length:
   warning: 80
   error: 120
 
+# The dropdown model `DictationMenu.items` threads six independent display
+# inputs into one ordered list; allow six before flagging, keep the error ceiling.
+function_parameter_count:
+  warning: 6
+  error: 8
+
 identifier_name:
   excluded:
     - ac
@@ -103,6 +109,7 @@ identifier_name:
     - fn
     - i
     - id
+    - on
     - op
     - p5
     - p7
@@ -121,3 +128,7 @@ line_length:
 type_body_length:
   warning: 400
   error: 600
+
+file_length:
+  # Count code mass, not documentation — the house style is comment-dense.
+  ignore_comment_only_lines: true

@@ -36,7 +36,21 @@ sends only transcript text for the selected routed model id.
   remains resident between dictations.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
   succeeds.
-- `Injector` inserts the final text into the focused field.
+- `Injector` inserts the final text into the focused field with an atomic paste.
+- `CleanupAvailability` is the app layer's single source of truth for whether
+  cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
+  key). The menu, Settings, the recording glyph, and the orchestrator push all
+  read this one derivation (`preference && keyPresent`), so the state is never
+  re-derived divergently.
+- `AgreementPrefixPolicy` is the pure live-typing text policy used when cleanup
+  is off: a LocalAgreement-2 word-boundary fold over the hypothesis stream that
+  emits only agreed word prefixes during the hold, plus the key-up reconciliation
+  math (already-exact / type-remainder / backspace-and-retype) bounded by what
+  was actually typed.
+- `TypingInjector` types the agreed deltas into the focused field via synthesized
+  keystrokes and never touches the pasteboard. Its CGEvents carry a self-tag so
+  the hotkey tap tells Slovo's own keystrokes from the user's and never treats
+  live typing as an interrupt-cancel.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
@@ -73,6 +87,30 @@ Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, misconfigured,
 refuses the request, rate-limits, or returns an unusable response, Slovo inserts
 the direct transcript — untranslated on a translate hold — and briefly shows the
 `Ⱁ` error glyph instead of cancelling the dictation.
+
+## Live Typing (cleanup off)
+
+When cleanup is effectively off — the user turned **Clean Up Dictation** off, or
+no OpenRouter key is configured — the dictation stays entirely on-device and the
+orchestrator types stabilized words into the focused field during the hold
+instead of pasting once at key-up. Nothing but synthesized keystrokes reaches the
+field, and the text never transits the clipboard. A single reconciliation pass at
+key-up makes the field match the final transcript; a cancel or a failed
+transcription deletes exactly what was typed (nothing is left inserted).
+
+```mermaid
+flowchart TD
+    hold["Push-to-talk hold"] --> avail{"CleanupAvailability<br/>effectively on?"}
+    avail -->|on| cleaned["OpenRouter cleanup -> atomic paste at key-up"]
+    avail -->|off| snap["Transcriber.hypotheses()<br/>one snapshot per decode pass"]
+    snap --> fold["AgreementPrefixPolicy.step<br/>LocalAgreement-2 word-boundary fold"]
+    fold -->|agreed delta| type["TypingInjector.type<br/>self-tagged CGEvents"]
+    type --> field["Focused field, live during the hold"]
+    keyup["Key up: final transcript"] --> reconcile["AgreementPrefixPolicy.reconcile"]
+    reconcile -->|type remainder / backspace + retype| field
+    cancel["Cancel or transcription failure"] --> wipe["Delete exactly what was typed"]
+    wipe --> field
+```
 
 ## Storage
 

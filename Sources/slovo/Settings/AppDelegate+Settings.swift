@@ -10,7 +10,15 @@ extension AppDelegate: SettingsActions {
     }
 
     func hasOpenRouterKey() -> Bool {
-        composition?.openRouterKeyProvider.hasConfiguredKey() ?? false
+        openRouterKeyProvider.hasConfiguredKey()
+    }
+
+    func cleanupAvailability() -> CleanupAvailability {
+        currentCleanupAvailability()
+    }
+
+    func setCleanupEnabled(_ enabled: Bool) {
+        applyCleanupEnabled(enabled)
     }
 
     func launchAtLoginEnabled() -> Bool {
@@ -50,10 +58,7 @@ extension AppDelegate: SettingsActions {
         var config = ConfigStore.load(from: defaults)
         config.writingStyle = style
         guard persist(config) else { return }
-        let cleanupConfig = config.cleanupConfig
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
+        pushEffectiveCleanupConfig()
     }
 
     func setSpellCheckHints(_ enabled: Bool) {
@@ -84,7 +89,11 @@ extension AppDelegate: SettingsActions {
         // The cleaner reads the key lazily at cleanup time, so a save needs no
         // rebuild and never re-warms ASR.
         do {
-            try composition?.openRouterKeyProvider.store(key)
+            try openRouterKeyProvider.store(key)
+            // A key appearing (or changing) can flip the effective state from
+            // offNoKey: refresh the menu and re-push through the single funnel.
+            installStatusMenu()
+            pushEffectiveCleanupConfig()
         } catch {
             logger.error("openrouter key save failed")
         }
@@ -129,10 +138,7 @@ extension AppDelegate: SettingsActions {
         config.translationTargetLanguage = language
         guard persist(config) else { return }
         installStatusMenu()
-        let cleanupConfig = config.cleanupConfig
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
+        pushEffectiveCleanupConfig()
     }
 
     /// Persists the spell-check hints toggle and applies it to the NEXT dictation
@@ -144,10 +150,7 @@ extension AppDelegate: SettingsActions {
         var config = ConfigStore.load(from: defaults)
         config.useSpellCheckHints = enabled
         guard persist(config) else { return }
-        let cleanupConfig = config.cleanupConfig
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
+        pushEffectiveCleanupConfig()
     }
 
     /// Saves `config`, logging and abandoning the change on a validation/save error

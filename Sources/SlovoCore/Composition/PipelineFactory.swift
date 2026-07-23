@@ -35,12 +35,13 @@ public enum PipelineFactory {
     public static func makeOrchestrator(
         config: Config,
         dependencies: Dependencies,
-        vocabularyLimit: Int = 50
+        vocabularyLimit: Int = 50,
+        cleanupConfig: CleanupConfig? = nil
     ) -> Orchestrator {
         let assembly = assemble(config: config, dependencies: dependencies)
         return Orchestrator(
             dependencies: assembly.dependencies,
-            cleanupConfig: config.cleanupConfig,
+            cleanupConfig: cleanupConfig ?? config.cleanupConfig,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
             vocabularyLimit: vocabularyLimit
         )

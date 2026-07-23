@@ -28,6 +28,11 @@ tuned.
   single utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
+- A **Clean Up Dictation** toggle (menu bar and Settings, on by default). Turn
+  it off — or run without an OpenRouter key — for the explicit raw-transcript
+  mode: zero network requests, and stabilized words are typed straight into the
+  focused field live during the hold, reconciled to the final transcript at
+  key-up. Translation is unavailable while cleanup is off.
 - Optional per-dictation translation: hold Control together with the
   push-to-talk key to translate that dictation into a target language as part
   of the same cleanup step; a plain hold is unchanged.
@@ -124,6 +129,10 @@ Slovo has two different data paths:
   available. OpenRouter routes the request to the selected model id.
   Translation, when used, adds no new data category: the same transcript text,
   plus the target-language name in the request. Raw audio still never leaves.
+  With **Clean Up Dictation** off (or no key configured) this path is not
+  taken at all: the entire dictation stays on-device with no network requests,
+  and the live-typed text is inserted by synthesized keystrokes — it never
+  transits the clipboard.
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. Local personalization databases, seed files,

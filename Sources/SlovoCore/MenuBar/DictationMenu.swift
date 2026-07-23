@@ -18,10 +18,15 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// The Cleanup Model submenu; the argument is the currently selected model id so
     /// the builder can check the right catalog row.
     case cleanupModel(selectedModelId: String)
-    /// The Translation Language submenu; the argument is the currently selected
+    /// The Translation Language submenu; `selected` is the currently selected
     /// target code so the renderer checks the right catalog row — mirrors
-    /// `cleanupModel(selectedModelId:)`.
-    case translationLanguage(selected: String)
+    /// `cleanupModel(selectedModelId:)`. `enabled` is false whenever cleanup is
+    /// effectively off: a translate hold cannot run then, so the picker must read
+    /// as unavailable rather than silently ignored.
+    case translationLanguage(selected: String, enabled: Bool)
+    /// The Clean Up Dictation switch; carries the full availability so the
+    /// renderer can show off-and-disabled for the no-key state.
+    case cleanupToggle(availability: CleanupAvailability)
     case addVocabulary
     /// The mute-while-dictating switch; the argument is the current setting so the
     /// builder renders the checkmark. Closes the live-switch group.
@@ -54,6 +59,7 @@ public enum DictationMenu {
         selectedModelId: String,
         mutesSystemAudioWhileDictating: Bool,
         translationLanguage: String,
+        cleanupAvailability: CleanupAvailability,
         update: UpdateIndication
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
@@ -65,7 +71,8 @@ public enum DictationMenu {
             .about,
             .separator,
             .cleanupModel(selectedModelId: selectedModelId),
-            .translationLanguage(selected: translationLanguage),
+            .translationLanguage(selected: translationLanguage, enabled: cleanupAvailability.isOn),
+            .cleanupToggle(availability: cleanupAvailability),
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
             .separator,
             .addVocabulary,

@@ -16,16 +16,23 @@ Slovo is a private, on-device push-to-talk dictation app for macOS. One dictatio
    transcribes live (low latency).
 3. **Key up** — the transcript is already ready, or nearly ready.
 4. **Immediately after key up** — text cleanup runs (via OpenRouter).
-5. **Cleanup is always attempted.** The raw transcript is inserted directly ONLY on
-   a genuine cleanup failure (unavailable / refused / misconfigured / provider or
-   network error) — NEVER because a setting disabled cleanup.
+5. **Cleanup is always attempted while the cleanup setting is on (the default).**
+   The raw transcript is inserted directly only on a genuine cleanup failure
+   (unavailable / refused / misconfigured / provider or network error) — or when
+   the user has turned the "Clean Up Dictation" setting off (or no OpenRouter key
+   is configured), which is the explicit raw-transcript mode: zero network,
+   translation unavailable.
 6. The final cleaned text is inserted into the focused app.
 
 Clarifications:
 
 - **"Live" means LOW LATENCY (text ready at key-up), NOT a visible running
   transcript.** No overlay, no partial text on screen. Only the final cleaned text
-  is inserted (raw only on cleanup failure).
+  is inserted (raw only on cleanup failure). With cleanup ON this still holds: no
+  overlay, no partial text. With cleanup OFF, stabilized words are typed into the
+  focused field during the hold (LocalAgreement policy) and one reconciliation
+  pass at key-up makes the field match the final transcript; there is still no
+  overlay and no floating UI.
 - **Translate hold.** Holding the push-to-talk key together with Control at any
   moment of the hold makes that one dictation translate: the single cleanup step
   also translates the result into the target language chosen in Settings or the

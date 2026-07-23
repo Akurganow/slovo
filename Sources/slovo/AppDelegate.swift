@@ -7,6 +7,10 @@ import os
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let logger: Logger
     let defaults: UserDefaults
+    /// Key presence is an APP fact, not a pipeline fact: the app owns the provider
+    /// and injects it into the pipeline, so has-key / save-key / cleanup
+    /// availability never depend on whether the pipeline composite exists yet.
+    let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
@@ -58,7 +62,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             trigger: config.trigger,
             selectedModelId: config.openRouterModel,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            translationLanguage: config.translationTargetLanguage.rawValue
+            translationLanguage: config.translationTargetLanguage.rawValue,
+            cleanupAvailability: currentCleanupAvailability()
         )
         statusTextItem = built.statusItem
         // Sync the freshly built update row to the current state, so a rebuild while
@@ -71,11 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func startPipeline() {
         do {
-            let live = try AppComposition.makeLive(defaults: defaults, statusReporter: { [weak self] status in
-                Task { @MainActor [weak self] in
-                    self?.showStatus(status)
+            let live = try AppComposition.makeLive(
+                defaults: defaults,
+                openRouterKeyProvider: openRouterKeyProvider,
+                statusReporter: { [weak self] status in
+                    Task { @MainActor [weak self] in
+                        self?.showStatus(status)
+                    }
                 }
-            })
+            )
             composition = live
             guard live.onboardingSteps == [.ready] else {
                 presentOnboarding(live.onboardingSteps)
@@ -91,11 +100,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await MainActor.run {
                         self?.isPipelineActive = true
                         self?.didShowPipelineStatus = false
-                        self?.setStatusGlyph(recording: mode, on: self?.statusItem?.button)
+                        // A translate hold cannot run while cleanup is off, so the
+                        // glyph must not promise it (spec: Pokoji never appears in
+                        // off-mode; the hotkey core still latches).
+                        let glyphMode = self?.currentCleanupAvailability().isOn == true ? mode : DictationMode.plain
+                        self?.setStatusGlyph(recording: glyphMode, on: self?.statusItem?.button)
                         self?.statusTextItem?.title = "Recording"
                     }
                     await orchestrator.handle(.startRequested)
-                case .translateLatched: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                case .translateLatched:
+                    guard await MainActor.run(body: { self?.isPipelineActive == true && self?.currentCleanupAvailability().isOn == true }) else { return }
                     await MainActor.run { self?.setStatusGlyph(recording: .translate, on: self?.statusItem?.button) }
                 case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                     await MainActor.run {
@@ -334,10 +348,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         installStatusMenu()
-        let cleanupConfig = config.cleanupConfig
+        pushEffectiveCleanupConfig()
+    }
+
+    func currentCleanupAvailability() -> CleanupAvailability {
+        CleanupAvailability.derive(
+            preference: ConfigStore.load(from: defaults).cleanupEnabled,
+            keyPresent: hasOpenRouterKey()
+        )
+    }
+
+    /// The single push funnel (spec amendment A5): every mutation that can change
+    /// the effective cleanup state — the toggle, a key save, any cleanup tunable —
+    /// re-derives `preference && keyPresent` HERE and pushes exactly one
+    /// CleanupConfig. No other call site may talk to updateCleanupConfig.
+    func pushEffectiveCleanupConfig() {
+        let config = ConfigStore.load(from: defaults)
+        var cleanupConfig = config.cleanupConfig
+        // The effective-on rule has ONE definition (CleanupAvailability.derive);
+        // this site only CALLS it — never re-spell the predicate here.
+        cleanupConfig.runsCleaner = CleanupAvailability.derive(
+            preference: config.cleanupEnabled,
+            keyPresent: hasOpenRouterKey()
+        ).isOn
         Task { @MainActor in
             await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
+    }
+
+    /// Persists the preference and applies it to the NEXT dictation live — the
+    /// applyMuteWhileDictating shape: no rebuild, no ASR re-warm; the menu is
+    /// rebuilt for the checkmark and the translate submenu's enabled state.
+    func applyCleanupEnabled(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.cleanupEnabled = enabled
+        do {
+            try ConfigStore.save(config, to: defaults)
+        } catch {
+            logger.error("config save failed")
+            return
+        }
+        installStatusMenu()
+        pushEffectiveCleanupConfig()
+    }
+
+    @objc
+    func toggleCleanupDictation(_ sender: NSMenuItem) {
+        applyCleanupEnabled(!ConfigStore.load(from: defaults).cleanupEnabled)
     }
 
     /// Persists a mute-while-dictating change and applies it to the NEXT dictation

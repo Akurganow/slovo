@@ -169,13 +169,21 @@ struct OrchestratorTests {
                 "a failing cleaner must degrade to the RAW transcript via PassThrough; got \(String(describing: injector.calls.last))")
     }
 
-    /// A legacy persisted `cleanup.enabled=false` flag must not become a user-off
-    /// path. Cleanup is always attempted upstream, with PassThrough reserved for
-    /// sad-to-fail degradation.
-    /// Stated sensitivity: preserve the legacy disabled state in config or branch
-    /// on it in the factory -> the upstream cleaner is not called -> RED.
+    /// A persisted `cleanup.enabled=false` is now a first-class user-off mode, not
+    /// a degradation (spec §Revised product invariants, owner-approved 2026-07-22):
+    /// loaded end-to-end from the stored blob, the orchestrator skips the cleaner
+    /// entirely and injects the RAW transcript. The composition still wraps the
+    /// upstream cleaner before PassThrough — the skip is a runtime latch, not a
+    /// composition change — so PassThrough stays reserved for genuine failures in
+    /// cleanup-ON mode. This is the only test covering the full path (stored blob →
+    /// `ConfigStore.load` → `Config.cleanupConfig.runsCleaner` → session latch);
+    /// the override-based `OrchestratorCleanupToggleTests` bypass that mapping.
+    /// Stated sensitivity: restore the discard-decode (`_ = decodeIfPresent` for
+    /// `cleanup.enabled`), or drop the `Config.cleanupConfig → runsCleaner`
+    /// mapping, or remove the `sessionRunsCleaner` guard -> `runsCleaner` reads
+    /// `true`, the cleaner is called, and "HI" is injected -> RED.
     @Test
-    func legacyDisabledConfigStillAttemptsUpstreamCleaner() async throws {
+    func persistedDisabledConfigSkipsCleanerEndToEnd() async throws {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
@@ -203,12 +211,11 @@ struct OrchestratorTests {
         await Self.runSession(orchestrator)
 
         #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "legacy disabled config must still compose upstream cleanup before PassThrough; got \(summary.fallbackChainKinds)")
-        #expect(cleaner.calls.count == 1,
-                "cleanup must be attempted even when persisted legacy config says enabled=false; got \(cleaner.calls.count) calls")
-        #expect(cleaner.calls.last?.config.model == "openai/gpt-5.6-luna")
-        #expect(injector.calls.last == "HI",
-                "successful cleanup must inject cleaned text, not preserve a user-disabled raw path; got \(String(describing: injector.calls.last))")
+                "cleanup-off changes runtime behavior, not composition; got \(summary.fallbackChainKinds)")
+        #expect(cleaner.calls.isEmpty,
+                "a persisted enabled=false must skip the cleaner, not attempt it; got \(cleaner.calls.count) calls")
+        #expect(injector.calls.last == "hi",
+                "cleanup-off injects the raw transcript, not a cleaned result; got \(String(describing: injector.calls.last))")
     }
 
     /// A non-CleanupError from the cleaner is not a degradation case. It must be
