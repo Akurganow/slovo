@@ -104,11 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await MainActor.run {
                         self?.isPipelineActive = true
                         self?.didShowPipelineStatus = false
-                        // The recording glyph is the semantic family (raw Ⰳ when
-                        // cleanup is off — a translate hold cannot run there, though
-                        // the hotkey core still latches — clean Ⱍ for a plain hold,
-                        // translate Ⱂ for a Control latch), derived from the live
-                        // availability inside applyRecordingGlyph.
+                        // The recording glyph is the semantic family, derived in
+                        // applyRecordingGlyph from the live availability (letter
+                        // mnemonics: MenuBarGlyph.forRecording).
                         self?.applyRecordingGlyph(mode)
                         self?.statusTextItem?.title = "Recording"
                     }
