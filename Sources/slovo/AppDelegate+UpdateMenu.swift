@@ -87,7 +87,7 @@ extension AppDelegate {
         button.contentTintColor = nil
         button.image = MenuBarGlyph.image(for: "\u{2C11}", tint: .error)
             ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
-        // Tracked reset, mirroring sadToFailResetTask: cancel any pending reset before
+        // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
         // scheduling anew, and skip the reset if superseded or if a dictation started
         // within the window (its recording glyph must not be stomped back to idle).
         updateFailureResetTask?.cancel()

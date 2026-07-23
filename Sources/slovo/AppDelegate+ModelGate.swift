@@ -16,7 +16,7 @@ extension AppDelegate {
             // surfaces the honest error through the normal status path.
             self.isModelReady = true
             self.stopModelLoadingPulse(on: self.statusItem?.button)
-            guard !self.isPipelineActive, !self.isShowingSadToFailStatus else { return }
+            guard !self.isPipelineActive, !self.isShowingBriefStatus else { return }
             self.setStatusGlyph(.idle, on: self.statusItem?.button)
             self.statusTextItem?.title = "Idle"
         }

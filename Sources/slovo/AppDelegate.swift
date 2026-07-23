@@ -25,11 +25,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
     private var didShowPipelineStatus = false
     var isPipelineActive = false
-    var isShowingSadToFailStatus = false
+    // A brief self-clearing status glyph is on screen (sad-to-fail degradation or the
+    // empty-result flash); settleToIdle must not stomp it back to idle mid-window.
+    var isShowingBriefStatus = false
     var isModelReady = false
     private var onboardingSteps: [OnboardingStep] = []
-    private var sadToFailResetTask: Task<Void, Never>?
-    // Sibling of sadToFailResetTask: the pending reset of the update-install-failure
+    private var briefStatusResetTask: Task<Void, Never>?
+    // Sibling of briefStatusResetTask: the pending reset of the update-install-failure
     // glyph flash, cancelled before a new flash so overlaps don't stack.
     var updateFailureResetTask: Task<Void, Never>?
     private var hotkeyEdgeSequencer: HotkeyEdgeSequencer?
@@ -161,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// already-shown pipeline status untouched.
     private func settleToIdle() {
         isPipelineActive = false
-        if !isShowingSadToFailStatus {
+        if !isShowingBriefStatus {
             setStatusGlyph(.idle, on: statusItem?.button)
         }
         if !didShowPipelineStatus {
@@ -241,7 +243,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func showStatus(_ status: StatusMessage) {
-        guard status.isPersistentNotice || status.isSadToFailNotice || isPipelineActive else {
+        guard status.isPersistentNotice
+            || status.isSadToFailNotice
+            || status.isNoSpeechNotice
+            || isPipelineActive else {
+            return
+        }
+        // The empty result flashes the red glyph ONLY: no status-line text and no
+        // didShowPipelineStatus latch, so settleToIdle still returns the line to
+        // "Idle" while the brief glyph rides out its window — the spec wants the flash
+        // without a lingering notice ("do not distract the user").
+        if status.isNoSpeechNotice {
+            flashBriefStatusGlyph(status)
             return
         }
         if status.isPersistentNotice {
@@ -249,19 +262,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if status.isSadToFailNotice {
             didShowPipelineStatus = true
-            isShowingSadToFailStatus = true
-            setStatusGlyph(status: status, on: statusItem?.button)
-            sadToFailResetTask?.cancel()
-            sadToFailResetTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(5))
-                self?.isShowingSadToFailStatus = false
-                self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
-                if self?.isPipelineActive == false {
-                    self?.statusTextItem?.title = "Idle"
-                }
-            }
+            flashBriefStatusGlyph(status)
         }
         statusTextItem?.title = Self.title(for: status)
+    }
+
+    /// Flashes the brief red status glyph and schedules its self-clear. Shared by the
+    /// sad-to-fail degradation and the empty-result: both paint a red glyph that must
+    /// survive settleToIdle (via isShowingBriefStatus) and auto-reset after the window.
+    private func flashBriefStatusGlyph(_ status: StatusMessage) {
+        isShowingBriefStatus = true
+        setStatusGlyph(status: status, on: statusItem?.button)
+        briefStatusResetTask?.cancel()
+        briefStatusResetTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            self?.isShowingBriefStatus = false
+            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
+            if self?.isPipelineActive == false {
+                self?.statusTextItem?.title = "Idle"
+            }
+        }
     }
 
     @objc

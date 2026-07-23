@@ -191,26 +191,40 @@ struct AppRuntimeSourceGuardTests {
         // The settle-to-idle sequence is shared by key-up and the silent cancel, so
         // it lives in settleToIdle rather than inline in the sequencer closure.
         let settleToIdleBody = try Self.functionBody(named: "settleToIdle", in: delegate)
+        // The brief self-clearing glyph (sad-to-fail and empty-result) lives in the
+        // shared flashBriefStatusGlyph helper, so its self-clear is pinned there.
+        let flashBriefStatusGlyphBody = try Self.functionBody(named: "flashBriefStatusGlyph", in: delegate)
 
         #expect(!StatusMessage.preparingSpeechModel.isPersistentNotice)
         #expect(StatusMessage.cleanupUnavailableInsertedAsSpoken.isSadToFailNotice)
         #expect(!StatusMessage.cleanupUnavailableInsertedAsSpoken.isPersistentNotice)
-        #expect(Self.statementCount(
-            #"guard status\.isPersistentNotice \|\| status\.isSadToFailNotice \|\| isPipelineActive else \{"#,
-            in: showStatusBody
-        ) > 0)
+        // The gate lets only real notices through — each transient/persistent notice
+        // kind plus the active pipeline. Sensitivity: drop any disjunct → RED.
+        #expect(Self.containsInOrder([
+            "guard status.isPersistentNotice",
+            "|| status.isSadToFailNotice",
+            "|| status.isNoSpeechNotice",
+            "|| isPipelineActive else {",
+        ], in: showStatusBody))
         #expect(Self.containsInOrder([
             "if status.isPersistentNotice",
             "didShowPipelineStatus = true",
             "statusTextItem?.title",
         ], in: showStatusBody))
+        // The sad-to-fail status routes to the shared brief-glyph flash, which paints
+        // the glyph and schedules its self-clear back to idle after the brief window —
+        // so the degradation notice cannot stick. Sensitivity: drop the sad-to-fail
+        // route to flashBriefStatusGlyph, or the helper's timed reset → RED.
         #expect(Self.containsInOrder([
             "if status.isSadToFailNotice",
+            "flashBriefStatusGlyph(status)",
+        ], in: showStatusBody))
+        #expect(Self.containsInOrder([
             "setStatusGlyph(status",
             "Task { @MainActor",
             "try? await Task.sleep(for: .seconds(5))",
             "setStatusGlyph(.idle",
-        ], in: showStatusBody))
+        ], in: flashBriefStatusGlyphBody))
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)
         #expect(Self.statementCount(#"isPipelineActive\s*=\s*false"#, in: settleToIdleBody) == 1)
         #expect(Self.containsInOrder([
@@ -239,8 +253,8 @@ struct AppRuntimeSourceGuardTests {
         // Presence-only for the two independent if-guards (their relative order and
         // negation spelling are free). Sensitivity: set the idle glyph or the Idle
         // title unconditionally (drop either guard) → its flag vanishes → RED.
-        #expect(Self.containsInOrder(["if", "isShowingSadToFailStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
-                "the idle glyph must stay guarded by the sad-to-fail flag")
+        #expect(Self.containsInOrder(["if", "isShowingBriefStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
+                "the idle glyph must stay guarded by the brief-status flag")
         #expect(Self.containsInOrder(["if", "didShowPipelineStatus", #"title = "Idle""#], in: settleToIdleBody),
                 "the Idle title must stay guarded by the shown-pipeline-status flag")
     }

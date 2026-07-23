@@ -23,6 +23,10 @@ extension AppDelegate {
             return "Microphone Unavailable"
         case .cleanupFailed:
             return "Cleanup Failed"
+        case .noSpeechDetected:
+            // The empty-result surface is glyph-only; this title exists for switch
+            // exhaustiveness and is never placed on the status line (see showStatus).
+            return "No Speech"
         }
     }
 }

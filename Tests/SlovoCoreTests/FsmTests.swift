@@ -115,6 +115,48 @@ struct FsmTests {
                 "must emit exactly [clean(transcript: \"hi\")], got \(effects)")
     }
 
+    /// Genuine silence — an empty transcript in processing must NEVER reach cleanup
+    /// (no network round trip) or injection (no clipboard ⌘V cycle); it returns to
+    /// idle and surfaces only the brief no-speech glyph.
+    /// Stated sensitivity: drop the empty guard so the transition emits
+    /// `.clean(transcript: "")` and stays in `.processing` (the pre-fix behavior) →
+    /// RED on the no-clean and idle assertions.
+    @Test
+    func processingEmptyTranscriptSkipsCleanAndInjectAndReturnsToIdle() {
+        let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady(""))
+        #expect(state == .idle, "silence must return the session to idle, got \(state)")
+        #expect(!Self.hasClean(effects), "silence must never reach the cleaner; got \(effects)")
+        #expect(!Self.hasInject(effects), "silence must never reach the injector; got \(effects)")
+        #expect(effects.contains(.notify(.noSpeechDetected)),
+                "silence must surface the brief no-speech glyph; got \(effects)")
+    }
+
+    /// Whitespace-only counts as empty: the ASR sanitizer can finalize genuine
+    /// silence to bare whitespace, which must take the SAME no-speech path — not be
+    /// cleaned as though it were speech.
+    /// Stated sensitivity: implement the guard with `transcript.isEmpty` instead of a
+    /// whitespace-trimmed emptiness check → "  \n" is cleaned/injected → RED here
+    /// (the empty-string test above stays green, so this variant is the mutant-catcher).
+    @Test
+    func processingWhitespaceOnlyTranscriptTakesTheNoSpeechPath() {
+        let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady("  \n"))
+        #expect(state == .idle, "whitespace-only silence must return the session to idle, got \(state)")
+        #expect(!Self.hasClean(effects), "whitespace-only silence must never reach the cleaner; got \(effects)")
+        #expect(!Self.hasInject(effects), "whitespace-only silence must never reach the injector; got \(effects)")
+        #expect(effects.contains(.notify(.noSpeechDetected)),
+                "whitespace-only silence must surface the brief no-speech glyph; got \(effects)")
+    }
+
+    /// True iff any effect is a `.clean` (payload-agnostic): a silence path must emit none.
+    private static func hasClean(_ effects: [DictationEffect]) -> Bool {
+        effects.contains { if case .clean = $0 { return true }; return false }
+    }
+
+    /// True iff any effect is an `.inject` (payload-agnostic): a silence path must emit none.
+    private static func hasInject(_ effects: [DictationEffect]) -> Bool {
+        effects.contains { if case .inject = $0 { return true }; return false }
+    }
+
     /// `processing + cleaned(c)` must emit `inject(text: c)` carrying the EXACT
     /// cleaned payload.
     /// Stated sensitivity: emit `.inject(text: "WRONG")` (or drop the payload) → RED.

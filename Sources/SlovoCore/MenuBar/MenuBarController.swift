@@ -64,7 +64,7 @@ public enum MenuBarGlyph {
 
     public static func forStatus(_ status: StatusMessage) -> Character? {
         switch status {
-        case .cleanupUnavailableInsertedAsSpoken:
+        case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
             return "\u{2C11}"
         case .preparingSpeechModel:
             return "\u{2C06}"
@@ -82,7 +82,7 @@ public enum MenuBarGlyph {
 
     public static func tint(forStatus status: StatusMessage) -> MenuBarGlyphTint {
         switch status {
-        case .cleanupUnavailableInsertedAsSpoken:
+        case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
             return .error
         case .preparingSpeechModel,
              .cleanupDeclinedInsertedAsSpoken,

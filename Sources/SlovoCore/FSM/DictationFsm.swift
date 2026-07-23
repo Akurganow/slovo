@@ -45,10 +45,13 @@ public enum StatusMessage: Equatable, Sendable {
     case injectionFailed
     case microphoneUnavailable
     case cleanupFailed
+    /// A held key produced only silence. Surfaced as a brief glyph-only flash, never
+    /// a lingering notice (see `isNoSpeechNotice`).
+    case noSpeechDetected
 
     public var isPersistentNotice: Bool {
         switch self {
-        case .preparingSpeechModel, .cleanupUnavailableInsertedAsSpoken:
+        case .preparingSpeechModel, .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
             return false
         case .cleanupDeclinedInsertedAsSpoken,
              .accessibilityDenied,
@@ -64,6 +67,13 @@ public enum StatusMessage: Equatable, Sendable {
 
     public var isSadToFailNotice: Bool {
         self == .cleanupUnavailableInsertedAsSpoken
+    }
+
+    /// The empty-result surface: a held key produced only silence. A brief glyph-only
+    /// notice — no status-line text, no persistence — so a silent hold flashes the red
+    /// glyph without leaving a lingering notice (spec: Empty result, "do not distract").
+    public var isNoSpeechNotice: Bool {
+        self == .noSpeechDetected
     }
 }
 
@@ -151,6 +161,15 @@ public enum DictationFsm {
             return (.idle, [.restoreSystemOutput, .notify(statusMessage(for: failure)), .log(.stageFailed), .returnToIdle])
 
         case (.processing, .transcriptReady(let transcript)):
+            // Whitespace-only is empty: the ASR sanitizer can finalize genuine
+            // silence to "" or bare whitespace. Empty output must never reach cleanup
+            // (no OpenRouter round trip, which could invent text) or injection (no
+            // clipboard ⌘V cycle, which can delete a selection on an empty pasteboard)
+            // in ANY mode — surface only the brief no-speech glyph and reset to idle.
+            let hasSpeech = transcript.contains { !$0.isWhitespace }
+            guard hasSpeech else {
+                return (.idle, [.notify(.noSpeechDetected), .returnToIdle])
+            }
             return (.processing, [.clean(transcript: transcript)])
 
         case (.processing, .cleaned(let cleaned)):
