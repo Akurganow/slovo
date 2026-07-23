@@ -1,3 +1,4 @@
+import AppKit
 import SlovoCore
 import SwiftUI
 
@@ -91,8 +92,22 @@ struct AboutView: View {
             Link("Releases on GitHub", destination: Self.releasesURL)
             Text("·").foregroundStyle(.secondary)
             Link("Support on Ko-fi", destination: Self.supportURL)
+            Text("·").foregroundStyle(.secondary)
+            // A file, not a web URL, so it is a link-styled Button rather than a
+            // `Link`: it resolves the bundled notices at tap time, keeping this
+            // view's rendering free of `Bundle` access (previews/tests still draw).
+            Button("Acknowledgements") { Self.openAcknowledgements() }
+                .buttonStyle(.link)
         }
         .font(.footnote)
+    }
+
+    /// Opens the third-party license notices bundled in the app's Resources
+    /// (THIRD-PARTY-NOTICES.md, staged there by the packaging scripts) in the
+    /// user's default handler.
+    private static func openAcknowledgements() {
+        guard let url = Bundle.main.url(forResource: "THIRD-PARTY-NOTICES", withExtension: "md") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private static let releasesURL = URL(string: "https://github.com/Akurganow/slovo/releases")!

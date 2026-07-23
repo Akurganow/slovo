@@ -143,6 +143,11 @@ build_app() {
     run install -m 0644 "$icon_build/Assets.car" "$CONTENTS_PATH/Resources/Assets.car"
     run install -m 0644 "$icon_build/$APP_NAME.icns" "$CONTENTS_PATH/Resources/$APP_NAME.icns"
 
+    # Ship the third-party license notices with the binary. Staged before signing
+    # so the codesign below seals it into the bundle; a resource added afterward
+    # would break the seal.
+    run install -m 0644 "$ROOT/THIRD-PARTY-NOTICES.md" "$CONTENTS_PATH/Resources/THIRD-PARTY-NOTICES.md"
+
     # Embed Sparkle for auto-update. ditto preserves the framework's internal
     # symlinks and executable bits — a flattening copy breaks the bundle.
     local sparkle_framework
