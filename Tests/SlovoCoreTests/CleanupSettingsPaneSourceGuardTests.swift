@@ -34,18 +34,21 @@ struct CleanupSettingsPaneSourceGuardTests {
         #expect(!source.contains("Cleanup is off"), "copy lives in CleanupAvailability, not the pane")
     }
 
-    /// Stated sensitivity: change the dependent-section count (forget a section, or
-    /// gate the wrong number) → the `== 2` assert reddens; add
+    /// Stated sensitivity: change the dependent-control count (forget a control, or
+    /// gate the wrong number) → the `== 4` assert reddens; add
     /// `.disabled(!availability.isOn)` to the API-key section (the exact mutation this
     /// guards) → the key-section assert reddens. The key-section check targets
     /// availability gating specifically — the Save button's own empty-field
     /// `.disabled(trimmedApiKey.isEmpty)` is a legitimate, unrelated guard and must
-    /// not count.
+    /// not count. The dependent controls are now gated per-row (the model picker, the
+    /// writing-style row, the translate row, and the spell-check-hints section), since
+    /// the model row alone replaces its control with the add-key affordance in the
+    /// no-key state and so cannot ride a section-level gate.
     @Test
     func dependentSectionsDisabledAndKeySectionExempt() throws {
         let source = try Self.paneSource()
         let disabledCount = source.components(separatedBy: ".disabled(!availability.isOn)").count - 1
-        #expect(disabledCount == 2, "cleanupSection and spellCheckHintsSection; found \(disabledCount)")
+        #expect(disabledCount == 4, "model picker, writing style, translate, spell-check hints; found \(disabledCount)")
         guard let apiStart = source.range(of: "private var apiKeySection") else {
             Issue.record("apiKeySection not found")
             return
@@ -57,4 +60,53 @@ struct CleanupSettingsPaneSourceGuardTests {
         let apiBody = tail.range(of: "\n    private var").map { tail[..<$0.lowerBound] } ?? tail
         #expect(!apiBody.contains(".disabled(!availability"), "the key section must never be gated by availability")
     }
+
+    /// Selector-replaced-in-offNoKey: with no key there is nothing to select, so the
+    /// model row renders the add-key affordance IN PLACE OF the picker, and that
+    /// affordance focuses the key field below (field focus achieved on the pane).
+    /// Stated sensitivity: drop the `availability == .offNoKey` branch (always show
+    /// the picker), drop the add-key button, or drop the field-focus wiring → RED.
+    @Test
+    func modelSelectorReplacedByAddKeyInNoKeyState() throws {
+        let source = try Self.paneSource()
+        let modelRowBody = try Self.bodyOf("private var modelRow", in: source)
+        #expect(modelRowBody.contains("if availability == .offNoKey"),
+                "the model row must branch on the no-key state")
+        #expect(modelRowBody.contains("addKeyButton"),
+                "the no-key branch must render the add-key affordance instead of the picker")
+        #expect(modelRowBody.contains("modelPicker"),
+                "the key-present branch must still render the model picker")
+        let addKeyBody = try Self.bodyOf("private var addKeyButton", in: source)
+        #expect(addKeyBody.contains(#"Button("Add OpenRouter Key…")"#),
+                "the add-key affordance keeps its pinned copy")
+        #expect(addKeyBody.contains("keyFieldFocused = true"),
+                "the add-key affordance must focus the key field")
+        #expect(source.contains(".focused($keyFieldFocused)"),
+                "the key field must be a focus target for the add-key affordance")
+    }
+
+    /// Selector-disabled-in-offByChoice: when a key is present but cleanup is off the
+    /// model picker stays visible but disabled — there IS a selection, it just cannot
+    /// take effect. The picker's key-present branch carries the availability gate.
+    /// Stated sensitivity: drop the picker's `.disabled(!availability.isOn)` → RED.
+    @Test
+    func modelPickerIsDisabledWhenCleanupOff() throws {
+        let source = try Self.paneSource()
+        let modelRowBody = try Self.bodyOf("private var modelRow", in: source)
+        #expect(modelRowBody.contains(".disabled(!availability.isOn)"),
+                "the model picker must be gated off when cleanup is off with a key present")
+    }
+
+    /// Extracts the body of a `private var` declaration — from its head to the next
+    /// `private var` (or EOF) — so a guard scoped to one computed view cannot be
+    /// satisfied by a token living in a sibling.
+    private static func bodyOf(_ head: String, in source: String) throws -> Substring {
+        guard let start = source.range(of: head) else {
+            throw Failure.notFound(head)
+        }
+        let tail = source[start.upperBound...]
+        return tail.range(of: "\n    private var").map { tail[..<$0.lowerBound] } ?? tail
+    }
+
+    private enum Failure: Error { case notFound(String) }
 }

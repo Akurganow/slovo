@@ -59,28 +59,33 @@ struct DictationMenuBuilder {
                 menu.addItem(disabled("Update ready — v\(version)"))
             case .separator:
                 menu.addItem(.separator())
-            case .cleanupModel(let modelId):
-                menu.addItem(target.modelMenu(
+            case .cleanupModel(let modelId, let enabled):
+                let entry = target.modelMenu(
                     title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
                     selectedModel: modelId
-                ))
+                )
+                // Grayed but visible when cleanup is off with a key present: there is
+                // a selection, it just cannot take effect — mirrors translationLanguage.
+                entry.isEnabled = enabled
+                menu.addItem(entry)
+            case .addOpenRouterKey:
+                // Replaces the whole cleanup block in the no-key state; opens Settings
+                // → Cleanup so the user can add a key (the way out of no-key).
+                menu.addItem(target.actionItem("Add OpenRouter Key…", #selector(AppDelegate.showCleanupSettingsForKey)))
             case .translationLanguage(let selected, let enabled):
                 let entry = target.translationLanguageMenu(selected: selected)
                 entry.isEnabled = enabled
                 menu.addItem(entry)
-            case .cleanupToggle(let availability):
-                if availability.isToggleEnabled {
-                    let entry = target.actionItem(
-                        "Clean Up Dictation",
-                        #selector(AppDelegate.toggleCleanupDictation(_:))
-                    )
-                    entry.state = availability.isOn ? .on : .off
-                    menu.addItem(entry)
-                } else {
-                    // No key: shown off AND disabled — a control that cannot
-                    // take effect is never rendered flippable (spec).
-                    menu.addItem(disabled("Clean Up Dictation"))
-                }
+            case .cleanupToggle(let isOn):
+                // Always actionable: the switch is emitted only when a key is present,
+                // so there is no off-and-disabled path to render — `isOn` only drives
+                // the checkmark.
+                let entry = target.actionItem(
+                    "Clean Up Dictation",
+                    #selector(AppDelegate.toggleCleanupDictation(_:))
+                )
+                entry.state = isOn ? .on : .off
+                menu.addItem(entry)
             case .addVocabulary:
                 menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
             case .muteWhileDictating(let isOn):
@@ -95,6 +100,9 @@ struct DictationMenuBuilder {
             case .settings:
                 let entry = target.actionItem("Settings…", #selector(AppDelegate.showSettingsWindow))
                 entry.keyEquivalent = ","
+                // HIG-canonical settings symbol; SF Symbols render as template images,
+                // so it adapts to the light/dark menu bar automatically.
+                entry.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
                 menu.addItem(entry)
             case .quit:
                 menu.addItem(NSMenuItem(

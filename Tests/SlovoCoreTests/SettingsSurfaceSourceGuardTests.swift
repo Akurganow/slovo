@@ -150,12 +150,13 @@ struct SettingsSurfaceSourceGuardTests {
     }
 
     /// The menu builder renders the model items and wires the Settings + quit
-    /// actions with their key equivalents. The window-opener labels use a real
-    /// ellipsis (not ASCII "..."), and the live status line renders the bare state
-    /// word without a redundant "Status:" prefix. Stated sensitivity: drop the
-    /// Settings item or its "," key equivalent → RED; revert an ellipsis to "..." →
-    /// the ellipsis `#expect` reddens; reintroduce the "Status:" prefix → the
-    /// negative `#expect` reddens.
+    /// actions with their key equivalents. The Settings item carries the HIG-canonical
+    /// `gearshape` SF Symbol. The window-opener labels use a real ellipsis (not ASCII
+    /// "..."), and the live status line renders the bare state word without a
+    /// redundant "Status:" prefix. Stated sensitivity: drop the Settings item, its ","
+    /// key equivalent, or its gearshape icon → RED; revert an ellipsis to "..." → the
+    /// ellipsis `#expect` reddens; reintroduce the "Status:" prefix → the negative
+    /// `#expect` reddens.
     @Test
     func menuBuilderRendersSettingsAndModelItems() throws {
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
@@ -166,11 +167,78 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(builder.contains("trigger: trigger,"))
         #expect(builder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(builder.contains(#"entry.keyEquivalent = ",""#))
+        #expect(builder.contains(#"NSImage(systemSymbolName: "gearshape""#),
+                "the Settings item must carry the HIG-canonical gearshape symbol")
         #expect(builder.contains("target.modelMenu("))
         #expect(builder.contains(#"keyEquivalent: "q""#))
         #expect(builder.contains("Add Vocabulary…"))
         #expect(builder.contains("Settings…"))
         #expect(!builder.contains("Status: "))
+    }
+
+    /// The builder renders the no-key add-key affordance and gates the model submenu:
+    /// the add-key item routes through `showCleanupSettingsForKey` (opening Settings →
+    /// Cleanup), and the model submenu's `isEnabled` tracks the item's `enabled` flag
+    /// (grayed when cleanup is off with a key present). Stated sensitivity: drop the
+    /// add-key routing, or hardcode the model submenu's `isEnabled` in its own case →
+    /// RED.
+    @Test
+    func menuBuilderRendersAddKeyAndGatedModelSubmenu() throws {
+        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        #expect(builder.contains("Add OpenRouter Key…"))
+        #expect(builder.contains("#selector(AppDelegate.showCleanupSettingsForKey)"))
+
+        guard let modelCase = builder.range(of: "case .cleanupModel(let modelId, let enabled):"),
+              let nextCase = builder.range(of: "case .", range: modelCase.upperBound..<builder.endIndex)
+        else {
+            Issue.record("cleanupModel case not found in builder")
+            return
+        }
+        let modelCaseBody = builder[modelCase.upperBound..<nextCase.lowerBound]
+        #expect(modelCaseBody.contains("entry.isEnabled = enabled"),
+                "the model submenu must gray from the item's enabled flag, not a constant")
+    }
+
+    /// The cleanup toggle renders as an always-actionable item — the type narrowing to
+    /// `isOn` removed the off-and-disabled path — with its checkmark driven by `isOn`.
+    /// Stated sensitivity: reintroduce a `disabled("Clean Up Dictation")` rendering, or
+    /// stop driving the state from `isOn` → RED.
+    @Test
+    func menuBuilderRendersCleanupToggleAsActionable() throws {
+        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        guard let toggleCase = builder.range(of: "case .cleanupToggle(let isOn):"),
+              let nextCase = builder.range(of: "case .", range: toggleCase.upperBound..<builder.endIndex)
+        else {
+            Issue.record("cleanupToggle case not found in builder")
+            return
+        }
+        let toggleCaseBody = builder[toggleCase.upperBound..<nextCase.lowerBound]
+        #expect(toggleCaseBody.contains("entry.state = isOn ? .on : .off"),
+                "the toggle's checkmark must track isOn")
+        #expect(!toggleCaseBody.contains(#"disabled("Clean Up Dictation")"#),
+                "the toggle must be actionable — no off-and-disabled rendering path")
+    }
+
+    /// The menu's add-key affordance must actually NAVIGATE to the Cleanup pane —
+    /// pinning the selector name alone is not enough: a body that opened another pane,
+    /// or did nothing, would still satisfy a name-only guard yet defeat the affordance.
+    /// Scope to the method body and assert it shows the Cleanup pane specifically.
+    /// Stated sensitivity: switch the pane to `"general"`, or empty the body (a no-op)
+    /// → RED.
+    @Test
+    func addKeySelectorNavigatesToTheCleanupPane() throws {
+        let settings = try Self.strippedCode("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        guard let head = settings.range(of: "func showCleanupSettingsForKey"),
+              let nextFunc = settings.range(of: "func ", range: head.upperBound..<settings.endIndex)
+        else {
+            Issue.record("showCleanupSettingsForKey not found")
+            return
+        }
+        let body = settings[head.upperBound..<nextFunc.lowerBound]
+        #expect(body.contains("show(pane:"),
+                "the add-key affordance must open a specific Settings pane, not just any window")
+        #expect(body.contains(#"PaneIdentifier("cleanup")"#),
+                "the add-key affordance must open the Cleanup pane, not another")
     }
 
     /// `makeMenu` must pass the REAL current config to the builder. Without this,

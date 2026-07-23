@@ -189,6 +189,20 @@ extension AppDelegate {
         settingsWindowController?.show()
     }
 
+    /// Opens Settings on the Cleanup pane — the no-key menu-bar affordance shown in
+    /// place of the cleanup controls. Field-level focus of the key field is not
+    /// reachable through the Settings package's window machinery, so this opens the
+    /// pane (the accepted floor); the pane's own in-place add-key button focuses the
+    /// field directly.
+    @objc
+    func showCleanupSettingsForKey() {
+        if settingsWindowController == nil {
+            settingsWindowController = makeSettingsWindowController()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindowController?.show(pane: Settings.PaneIdentifier("cleanup"))
+    }
+
     private func makeSettingsWindowController() -> SettingsWindowController {
         SettingsWindowController(panes: [
             Settings.Pane(
