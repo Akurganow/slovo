@@ -69,6 +69,14 @@ public struct HotkeyDecisionCore {
     /// latches translate. The flags carry a single `.control` bit either way, so
     /// only the key code tells the two apart.
     private static let leftControlKeyCode: Int64 = 59
+    /// Whether the LEFT Control key is physically down, tracked on EVERY
+    /// `flagsChanged` (session or not). The Right ⌃ start event carries the
+    /// trigger's own key code and the sideless `.control` class bit, so only this
+    /// bit lets a Control pre-held BEFORE key-down latch translate at the start
+    /// edge. Reset on `reconfigure` and `.tapDisabled` — after a config change or
+    /// a tap gap the bit may be stale, and a conservative drop can only miss a
+    /// latch, never invent one.
+    private var isLeftControlDown = false
 
     public init(trigger: HotkeyTrigger) {
         self.trigger = trigger
@@ -80,6 +88,7 @@ public struct HotkeyDecisionCore {
         self.trigger = trigger
         isTriggerHeld = false
         isControlLatched = false
+        isLeftControlDown = false
     }
 
     public mutating func handle(_ event: HotkeyInputEvent) -> HotkeyDecision {
@@ -99,11 +108,14 @@ public struct HotkeyDecisionCore {
         case .tapDisabled:
             let wasHeld = isTriggerHeld
             isTriggerHeld = false
+            isLeftControlDown = false
             return .resync(synthesizeUp: wasHeld)
         }
     }
 
     private mutating func handleFlagsChanged(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
+        // Must run before any latch decision below reads the bit for this event.
+        trackLeftControl(keyCode: keyCode, flags: flags)
         // The start edge (and its own latch observation) lives in `edge`; only a
         // held session observes the latch here — before the key-code passthrough
         // guard below, so a non-trigger Control key still latches even though its
@@ -140,14 +152,31 @@ public struct HotkeyDecisionCore {
 
     /// Latches translate when Control engages during the hold. A Right ⌃ trigger
     /// must not self-latch, so when the trigger IS Control only the LEFT (second)
-    /// Control key code latches; for every other trigger the `.control` bit does.
+    /// Control latches — either this very event is the kc59 key, or the tracked
+    /// bit says left Control was already down when the start edge fired (the start
+    /// event's own key code is the trigger's, so the bit is the only carrier
+    /// there). For every other trigger the `.control` bit suffices.
     /// One-way: once latched it stays latched until the session's start/stop resets.
     private mutating func observeControlLatch(keyCode: Int64, flags: HotkeyModifierFlags) {
         guard !isControlLatched else { return }
         if trigger.modifierFlag == .control {
-            isControlLatched = keyCode == Self.leftControlKeyCode
+            isControlLatched = keyCode == Self.leftControlKeyCode || isLeftControlDown
         } else {
             isControlLatched = flags.contains(.control)
+        }
+    }
+
+    /// Keeps `isLeftControlDown` current from the raw event stream. A kc59 event
+    /// follows the `.control` class bit (its release still carries the bit while
+    /// the right side holds it — a brief stale-true window); any control-free
+    /// event proves BOTH sides are up and heals the bit, and the trigger's own
+    /// control-free release edge always precedes the next start, so a stale bit
+    /// can never reach a start-edge latch.
+    private mutating func trackLeftControl(keyCode: Int64, flags: HotkeyModifierFlags) {
+        if keyCode == Self.leftControlKeyCode {
+            isLeftControlDown = flags.contains(.control)
+        } else if !flags.contains(.control) {
+            isLeftControlDown = false
         }
     }
 

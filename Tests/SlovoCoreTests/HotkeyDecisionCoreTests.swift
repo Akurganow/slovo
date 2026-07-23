@@ -263,6 +263,64 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.flagsChanged(keyCode: 60, flags: [])) == .stop(suppress: false, mode: .plain))
     }
 
+    /// L8(a) — a left Control held since BEFORE the session latches the Right ⌃
+    /// start edge into `.translate`. The start event's own key code is the
+    /// trigger's (62) and the single `.control` class bit cannot name the side, so
+    /// only a bit tracked from the earlier kc59 press can carry the knowledge to
+    /// the start edge. RED now: the pre-session kc59 press is discarded
+    /// (`isTriggerHeld` is false) and the start-edge latch sees only kc62 → the
+    /// session starts and stops `.plain`.
+    /// Stated sensitivity: drop the tracked-bit consult in the start-edge latch →
+    /// the start reads `.plain` → RED.
+    @Test
+    func preHeldLeftControlLatchesRightControlStartEdge() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        // Left control goes down before any session; the event passes through.
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .passThrough)
+        // The Right ⌃ trigger engages: the start must already carry .translate.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .translate))
+        // Left control released mid-hold (the class bit stays set — right holds it).
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        // The session latch is one-way: the stop still carries .translate.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .translate))
+    }
+
+    /// L8(b) — a left Control pressed AND released before the session leaves no
+    /// latch: the tracked bit must follow the release, not stick at the press.
+    /// Green on the correct code (and trivially green pre-fix, where no bit exists).
+    /// Stated sensitivity: make the tracked bit one-way (never cleared by the kc59
+    /// release) → the start latches `.translate` → RED.
+    @Test
+    func leftControlReleasedBeforeSessionDoesNotLatch() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: []))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .plain))
+    }
+
+    /// L8(c) — a STALE tracked bit heals before the next start edge can consume it.
+    /// Releasing left Control while the trigger still holds the class bit leaves the
+    /// bit stale-true (the kc59 release still carries `.control`, so the side is
+    /// unprovable there); the trigger release carries no `.control` at all, which
+    /// proves both sides are up and must clear the bit — session B stays `.plain`.
+    /// Stated sensitivity: drop the control-free heal (update the bit on kc59 events
+    /// only) → the stale bit latches session B's start into `.translate` → RED.
+    @Test
+    func staleLeftControlBitHealsOnControlFreeEventBeforeNextSession() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        // Session A: pre-held left control latches translate at the start edge.
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .translate))
+        // Left up while the trigger is held: the class bit stays set (stale window).
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        // The trigger release is control-free → heals the bit at the stop edge.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .translate))
+        // Session B: no left control anywhere → must not latch from the stale bit.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .plain))
+    }
+
     /// F2(a) — a latched hold that ends ABNORMALLY via `.tapDisabled` must not leave a
     /// sticky translate: the next fresh no-Control hold stops `.plain`. Passes on the
     /// correct code. The tap-death path emits no `.stop`, so the stop-edge reset never
@@ -305,6 +363,79 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain))
     }
 
+    /// F3(a) — `reconfigure` drops the tracked left-Control bit: after a live
+    /// trigger change the core deliberately distrusts every piece of pre-change
+    /// state (same doctrine as the held-bit reset), so a left Control pressed
+    /// before the change cannot latch the first session on the new trigger.
+    /// Stated sensitivity: keep the bit across `reconfigure` → the post-change
+    /// start latches `.translate` → RED.
+    @Test
+    func reconfigureClearsTheTrackedLeftControlBit() {
+        var core = HotkeyDecisionCore(trigger: .fn)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        core.reconfigure(to: .rightControl)
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+    }
+
+    /// F3(b) — `.tapDisabled` drops the tracked left-Control bit: a tap gap can
+    /// swallow the kc59 release, so a bit carried across the gap may be stale —
+    /// the conservative reset keeps a dead tap from latching a later session.
+    /// Stated sensitivity: keep the bit across `.tapDisabled` → the post-resync
+    /// start latches `.translate` → RED.
+    @Test
+    func tapDisabledClearsTheTrackedLeftControlBit() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        #expect(core.handle(.tapDisabled) == .resync(synthesizeUp: false))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+    }
+
+    /// F4(a) — a `.keyDown` interrupt-cancel must NOT clear the tracked
+    /// left-Control bit: unlike a tap gap, the tap stays alive across an
+    /// interrupt, so the bit is still trustworthy — a left Control held through
+    /// the interrupt must latch the NEXT session's start edge into `.translate`.
+    /// (From the core's view a kc62 + `.control` event while not held IS a start
+    /// edge — the class bit cannot say whether the OTHER side made it a release —
+    /// so the re-engage below is exactly what the tap delivers.)
+    /// Stated sensitivity: clear the bit on the `.keyDown` interrupt → session
+    /// B's start reads `.plain` → RED.
+    @Test
+    func interruptCancelKeepsTheTrackedLeftControlBit() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .translate))
+        // A non-trigger key press interrupts session A; the tap stays alive.
+        #expect(core.handle(.keyDown) == .interruptCancel)
+        // Left Control never left: the next engage must latch again from the bit.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .translate))
+    }
+
+    /// F4(b) — the stale-window heal also covers the interrupt-cancel exit: left
+    /// released mid-hold leaves the bit stale-true (the kc59 release still carries
+    /// `.control` from the held trigger), the interrupt cancels with no stop edge,
+    /// and the mandatory post-interrupt control-free trigger release heals the bit
+    /// — session B stays `.plain`. Distinct from L8(c): there the healing event is
+    /// session A's own STOP edge; here the session is already cancelled and the
+    /// healing event is a non-held passthrough.
+    /// Stated sensitivity: drop the control-free heal → the stale bit latches
+    /// session B's start into `.translate` → RED (via the cancel path, with no
+    /// stop edge anywhere before session B).
+    @Test
+    func staleLeftControlBitHealsAfterInterruptCancel() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .translate))
+        // Left up while the trigger is held: the class bit stays set (stale window).
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        // The combo key press cancels session A — no stop edge runs.
+        #expect(core.handle(.keyDown) == .interruptCancel)
+        // The trigger release is control-free (left is truly up) → heals the bit.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .passThrough)
+        // Session B: must not latch from the stale bit.
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [])) == .stop(suppress: false, mode: .plain))
+    }
+
     // MARK: - Live latch signal: the recording glyph needs the latch surfaced DURING
     // the hold, not only as the `.translate` at key-up.
 
@@ -342,6 +473,23 @@ struct HotkeyDecisionCoreTests {
         var core = HotkeyDecisionCore(trigger: .rightCommand)
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.command, .control])) == .translateLatched)
+    }
+
+    /// LL6 — mirror of LL3 for the Right ⌃ trigger: a foreign LEFT Control (kc59)
+    /// pressed mid-hold surfaces `.translateLatched` ON THE PRESS EVENT itself.
+    /// L5(b) only asserts the eventual `.translate` stop, so it cannot see a latch
+    /// that arrives late — this test pins the LIVE glyph switch for this
+    /// trigger+key combo.
+    /// Stated sensitivity: the COMPOUND mutant — run `trackLeftControl` after the
+    /// latch observation AND reduce the control-trigger latch to
+    /// `isLeftControlDown` alone. Each half alone is equivalent (the other defense
+    /// covers it); together they delay the latch to the stop edge, the press event
+    /// stays a plain `.passThrough`, and only this assert reddens.
+    @Test
+    func midHoldForeignControlSurfacesTranslateLatchLiveOnRightControlTrigger() {
+        var core = HotkeyDecisionCore(trigger: .rightControl)
+        #expect(core.handle(.flagsChanged(keyCode: 62, flags: [.control])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .translateLatched)
     }
 
     /// LL4 — the live latch fires EXACTLY ONCE per session: a second held event after
