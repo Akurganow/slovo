@@ -58,7 +58,8 @@ curated OpenRouter model ids and a custom id entry. Selecting a model changes
 only the model id. The key is read lazily when cleanup runs. Before each
 cleanup, Slovo adds advisory on-device hints to the prompt — the active keyboard
 language and, when enabled, system spell-check suggestions — which the model may
-use but never must; nothing but transcript text leaves the Mac.
+use but never must; these hints travel to OpenRouter in the prompt alongside the
+transcript, and only the raw audio never leaves the Mac.
 
 Holding Control together with the push-to-talk key at any moment during the hold
 marks that dictation for translation: the same single cleanup request also

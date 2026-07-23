@@ -34,8 +34,9 @@ tuned.
 - Optional muting of system audio while dictating — a menu-bar **Mute Audio
   While Dictating** switch (on by default) silences playback during capture and
   restores it afterward.
-- On-device cleanup hints: your active keyboard language and the system spell
-  checker nudge the model toward the right words, without ever leaving the Mac.
+- Cleanup hints: your active keyboard language and the system spell checker
+  nudge the model toward the right words. Slovo gathers them on your Mac, then
+  sends them to OpenRouter with the transcript as advisory context.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
   runs.
 - Clipboard-based text insertion with secure-input checks and clipboard
