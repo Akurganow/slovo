@@ -95,6 +95,19 @@ extension AppDelegate: SettingsActions {
         }
     }
 
+    func removeOpenRouterKey() {
+        // The mirror of saveOpenRouterKey: deleting the key flips the effective
+        // state to offNoKey, so refresh the menu and re-push through the single
+        // funnel — the observed model repaints the pane from there.
+        do {
+            try openRouterKeyProvider.removeKey()
+            installStatusMenu()
+            pushEffectiveCleanupConfig()
+        } catch {
+            logger.error("openrouter key removal failed")
+        }
+    }
+
     func listVocabulary() -> [VocabularyRecord] {
         do {
             return try composition?.personalization.allVocabulary() ?? []

@@ -14,6 +14,7 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
     private let readKey: @Sendable () -> String?
     private let keyExists: @Sendable () -> Bool
     private let writeKey: @Sendable (String) throws -> Void
+    private let deleteKey: @Sendable () throws -> Void
     private let cachedKey = Mutex<String?>(nil)
 
     public convenience init(service: String, account: String, environmentKey: String) {
@@ -21,7 +22,8 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
             environmentKey: environmentKey,
             readKey: { Self.keychainKey(service: service, account: account) },
             keyExists: { Self.keychainItemExists(service: service, account: account) },
-            writeKey: { try Self.store($0, service: service, account: account) }
+            writeKey: { try Self.store($0, service: service, account: account) },
+            deleteKey: { try Self.deleteKeychainItem(service: service, account: account) }
         )
     }
 
@@ -30,12 +32,14 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         environmentKey: String,
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
-        writeKey: @escaping @Sendable (String) throws -> Void
+        writeKey: @escaping @Sendable (String) throws -> Void,
+        deleteKey: @escaping @Sendable () throws -> Void
     ) {
         self.environmentKey = environmentKey
         self.readKey = readKey
         self.keyExists = keyExists
         self.writeKey = writeKey
+        self.deleteKey = deleteKey
     }
 
     public func apiKey() throws -> String {
@@ -62,6 +66,15 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         }
         try writeKey(trimmed)
         cachedKey.withLock { $0 = trimmed }
+    }
+
+    /// Deletes the stored key and forgets the process-local cache, so the very
+    /// next read reports the key as missing — a cached copy must never outlive
+    /// the stored item. On a delete failure the cache is kept: the item is
+    /// still stored, so the cache stays truthful.
+    public func removeKey() throws {
+        try deleteKey()
+        cachedKey.withLock { $0 = nil }
     }
 
     private func environmentKeyValue() -> String? {
@@ -95,6 +108,20 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else {
+            throw StoreError.keychain(status)
+        }
+    }
+
+    private static func deleteKeychainItem(service: String, account: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        // An already-absent item counts as success: the user's goal is "no key",
+        // and errSecItemNotFound means exactly that.
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
             throw StoreError.keychain(status)
         }
     }

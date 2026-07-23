@@ -17,13 +17,15 @@ public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider, Cleanup
         environmentKey: String = "OPENROUTER_API_KEY",
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
-        writeKey: @escaping @Sendable (String) throws -> Void
+        writeKey: @escaping @Sendable (String) throws -> Void,
+        deleteKey: @escaping @Sendable () throws -> Void
     ) {
         storage = KeychainAPIKeyProvider(
             environmentKey: environmentKey,
             readKey: readKey,
             keyExists: keyExists,
-            writeKey: writeKey
+            writeKey: writeKey,
+            deleteKey: deleteKey
         )
     }
 
@@ -41,5 +43,9 @@ public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider, Cleanup
 
     public func store(_ key: String) throws {
         try storage.store(key)
+    }
+
+    public func removeKey() throws {
+        try storage.removeKey()
     }
 }

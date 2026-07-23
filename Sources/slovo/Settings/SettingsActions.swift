@@ -29,6 +29,9 @@ protocol SettingsActions: AnyObject {
     func setAutomaticallyInstallsUpdates(_ enabled: Bool)
     func setLaunchAtLogin(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)
+    /// Deletes the saved OpenRouter key; availability refreshes through the
+    /// app's push funnel, so every surface flips to offNoKey live.
+    func removeOpenRouterKey()
 
     func listVocabulary() -> [VocabularyRecord]
     func addVocabulary(_ commaSeparatedTerms: String)

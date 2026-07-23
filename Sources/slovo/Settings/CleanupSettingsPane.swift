@@ -14,7 +14,7 @@ struct CleanupSettingsPane: View {
     @State private var writingStyle: WritingStyle
     @State private var translationLanguage: String
     @State private var apiKey: String = ""
-    @State private var hasSavedKey: Bool
+    @State private var isConfirmingKeyRemoval = false
     @State private var useSpellCheckHints: Bool
     // The observed model, not a value snapshot (spec D1): the subscription
     // repaints the pane on any funnel write in the same runloop — no re-fetch
@@ -27,12 +27,16 @@ struct CleanupSettingsPane: View {
         _selectedModelId = State(initialValue: config.openRouterModel)
         _writingStyle = State(initialValue: config.writingStyle)
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
-        _hasSavedKey = State(initialValue: actions.hasOpenRouterKey())
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
         _availabilityModel = ObservedObject(wrappedValue: actions.cleanupAvailabilityModel)
     }
 
     private var availability: CleanupAvailability { availabilityModel.availability }
+
+    // offNoKey is definitionally "no key" (derive()'s keyPresent = false axis),
+    // so the observed availability is the single truthful key-presence signal —
+    // no manual snapshot to drift after a failed save or remove.
+    private var hasKey: Bool { availability != .offNoKey }
 
     private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
 
@@ -62,7 +66,6 @@ struct CleanupSettingsPane: View {
             selectedModelId = config.openRouterModel
             writingStyle = config.writingStyle
             translationLanguage = config.translationTargetLanguage.rawValue
-            hasSavedKey = actions.hasOpenRouterKey()
             useSpellCheckHints = config.useSpellCheckHints
         }
     }
@@ -155,16 +158,36 @@ struct CleanupSettingsPane: View {
                     Button("Save", action: saveKey)
                         .disabled(trimmedApiKey.isEmpty)
                 }
-                if hasSavedKey {
-                    Label("A key is saved in your Keychain.", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if hasKey {
+                    savedKeyRow
                 } else {
                     Text("Stored in your Keychain. Create one at openrouter.ai/keys.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    // Removal is destructive and confirmed in place: it flips cleanup to
+    // offNoKey, so a slip must not be one click — and the dialog stays inside
+    // the Settings window (house rule: never a separate alert window).
+    private var savedKeyRow: some View {
+        HStack {
+            Label("A key is saved in your Keychain.", systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Remove Key…", role: .destructive) { isConfirmingKeyRemoval = true }
+        }
+        .confirmationDialog(
+            "Remove the OpenRouter API key?",
+            isPresented: $isConfirmingKeyRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Key", role: .destructive, action: removeSavedKey)
+        } message: {
+            Text("Cleanup will turn off until you add a key again.")
         }
     }
 
@@ -190,6 +213,9 @@ struct CleanupSettingsPane: View {
         guard !trimmedApiKey.isEmpty else { return }
         actions.saveOpenRouterKey(trimmedApiKey)
         apiKey = ""
-        hasSavedKey = true
+    }
+
+    private func removeSavedKey() {
+        actions.removeOpenRouterKey()
     }
 }

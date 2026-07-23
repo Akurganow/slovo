@@ -165,7 +165,8 @@ struct OpenRouterCleanerTests {
                 return "synthetic-openrouter-key"
             },
             keyExists: { true },
-            writeKey: { _ in }
+            writeKey: { _ in },
+            deleteKey: { }
         )
         let first = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
         let second = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))

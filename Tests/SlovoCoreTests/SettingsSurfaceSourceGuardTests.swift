@@ -57,7 +57,8 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(cleanup.contains(".onAppear"))
         #expect(cleanup.contains("selectedModelId = config.openRouterModel"))
         #expect(cleanup.contains("writingStyle = config.writingStyle"))
-        #expect(cleanup.contains("hasSavedKey = actions.hasOpenRouterKey()"))
+        // Key presence is NOT re-seeded here: the pane derives it live from the
+        // observed availability model, so there is no snapshot to refresh.
         #expect(cleanup.contains("useSpellCheckHints = config.useSpellCheckHints"))
 
         let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
