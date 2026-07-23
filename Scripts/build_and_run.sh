@@ -69,6 +69,10 @@ stage_bundle() {
   cp "$icon_build/Assets.car" "$APP_CONTENTS/Resources/Assets.car"
   cp "$icon_build/$APP_NAME.icns" "$APP_CONTENTS/Resources/$APP_NAME.icns"
 
+  # Ship the third-party license notices with the binary, matching the release
+  # bundle shape. Staged here (before sign_bundle) so the signature seals it in.
+  cp "$ROOT_DIR/THIRD-PARTY-NOTICES.md" "$APP_CONTENTS/Resources/THIRD-PARTY-NOTICES.md"
+
   # Embed Sparkle so the dev bundle matches the release bundle shape. ditto
   # preserves the framework's symlinks and exec bits (a flattening copy breaks
   # it); the unused XPC services are stripped just as the release script does.

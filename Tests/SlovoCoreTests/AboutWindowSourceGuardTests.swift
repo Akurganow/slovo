@@ -77,6 +77,21 @@ struct AboutWindowSourceGuardTests {
         #expect(view.contains("Keycap(label: triggerName)"))
     }
 
+    /// The About window offers an Acknowledgements affordance that opens the bundled
+    /// third-party notices file (THIRD-PARTY-NOTICES.md, staged into the app's
+    /// Resources by the packaging scripts) in the user's default handler.
+    /// Stated sensitivity: drop the "Acknowledgements" label, stop resolving the
+    /// bundled THIRD-PARTY-NOTICES resource, or drop the `NSWorkspace.shared.open`
+    /// call → the matching `#expect` goes RED (a comment mention cannot satisfy it —
+    /// the scan strips comments). RED today: the affordance does not yet exist.
+    @Test
+    func aboutViewOffersAcknowledgementsOpeningBundledNotices() throws {
+        let view = try Self.strippedCode("Sources/slovo/About/AboutView.swift")
+        #expect(view.contains("\"Acknowledgements\""))
+        #expect(view.contains("THIRD-PARTY-NOTICES"))
+        #expect(view.contains("NSWorkspace.shared.open"))
+    }
+
     private static func code(_ relativePath: String) throws -> String {
         try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
     }

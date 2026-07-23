@@ -271,9 +271,22 @@ terminology in public issues.
 
 ## License
 
+Copyright (C) 2026 Alexander Kurganov.
+
 GNU General Public License v3.0. See [LICENSE](LICENSE).
 
 Slovo is copyleft: any distributed work based on this source must itself
-be released under the GPLv3. The bundled dependencies (GRDB.swift,
-argmax-oss-swift / WhisperKit) are MIT-licensed and compatible with this
-license.
+be released under the GPLv3.
+
+The shipped app bundle redistributes several third-party components, all
+under permissive licenses compatible with the GPLv3: WhisperKit
+(argmax-oss-swift, MIT — with an Apache-2.0 portion, swift-transformers),
+GRDB.swift (MIT), Settings (MIT), LaunchAtLogin-Modern (MIT), and Sparkle
+(MIT, with four external notices for bsdiff, sais-lite, ed25519, and
+SUSignatureVerifier). Their full copyright and permission notices are
+reproduced verbatim in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md),
+which also ships inside the app (About ▸ Acknowledgements).
+
+`swift-argument-parser` (Apache-2.0) is resolved by the package graph but
+not linked into the shipped executable, and SwiftLint is a build-time lint
+tool only — neither is redistributed.
