@@ -116,6 +116,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
 
     Notes:
       The report prints aggregate metrics only. It does not print raw transcripts, cleaned output, or API keys.
+      The passthrough candidate is the raw-mode (cleanup disabled) baseline: a no-op cleaner timed in place of the whole cleaner stage raw mode skips.
 
     """
 }

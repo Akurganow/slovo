@@ -103,7 +103,11 @@ The benchmark accepts two provider forms:
 - `openrouter:<model-id>` sends transcript text to OpenRouter with the selected
   routed model id and requires `OPENROUTER_API_KEY`.
 - `passthrough` preserves the raw transcript locally and provides a latency and
-  quality floor.
+  quality floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
+  short-circuits the whole cleaner stage (the orchestrator skips hint-gathering
+  and the cleaner), and `passthrough`, a no-op cleaner, is the closest
+  harness-measurable proxy for that skipped stage's ~0 ms cost (see
+  "No-cleanup (raw) baseline" below).
 
 The curated OpenRouter shortlist currently mirrors the app menu:
 
@@ -124,6 +128,29 @@ Latest candidate benchmark, measured on 2026-07-12 with 10 repetitions over the
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `openrouter:openai/gpt-5.6-luna` | 310 | 226 | 1 | 662.7 ms | 1100.7 ms |
 | `openrouter:minimax/minimax-m3` | 310 | 208 | 0 | 1164.1 ms | 2788.2 ms |
+
+### No-cleanup (raw) baseline
+
+Raw mode (cleanup toggled off) short-circuits the whole cleaner stage — the
+orchestrator skips hint-gathering and the cleaner, not just the network call;
+`passthrough`, a no-op cleaner, is the closest harness-measurable proxy for
+that skipped stage's ~0 ms cost. Measured live on 2026-07-23 with 1 repetition
+over the 31-sample suite (no API key, no network, zero cost):
+
+| Candidate | Runs | Passed | Errors | p50 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `passthrough:none` (raw mode) | 31 | 0 | 0 | 0.0 ms | 0.0 ms |
+
+> What this number covers (noted 2026-07-23): cleaner-stage time only — the
+> in-process call the harness times for every candidate. The harness does NOT
+> measure WhisperKit tail finalization or the paste into the focused app; the
+> end-to-end key-up→inserted latency of raw mode is an owner-runbook
+> measurement, not a harness number. This row is a documented baseline for
+> reading the cleanup-model latencies above; it does not gate CI. `Passed 0`
+> is expected: the quality expectations describe cleaned text, and raw
+> transcripts fail them by design (the quality floor). For cross-version
+> comparisons, apply the suite-version note below: compare by pass rate,
+> never by raw passed counts.
 
 ### Full catalog baseline
 
@@ -184,3 +211,6 @@ samples.
 
 PASS — updated on 2026-07-12 against Slovo's OpenRouter-only cleanup path and a
 live 10-repetition OpenRouter benchmark.
+
+PASS — no-cleanup (raw) baseline row measured live on 2026-07-23 with a
+single-repetition passthrough run over the 31-sample suite (no network).
