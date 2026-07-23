@@ -45,43 +45,72 @@ struct AboutView: View {
             Text(AboutInfo.versionLine(marketingVersion: version, buildNumber: build))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Text("Private push-to-talk dictation for macOS")
+            Text("Private, on-device push-to-talk dictation for macOS")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
 
+    // Cleanup precedes translate so the "needs cleanup on" dependency reads
+    // top-down.
     private var guide: some View {
         VStack(alignment: .leading, spacing: 12) {
-            GuideRow(systemImage: "mic.fill", description: "Release — the cleaned text lands in the focused app.") {
-                HStack(spacing: 4) {
-                    Text("Hold")
-                    Keycap(label: triggerName)
-                    Text("to dictate")
-                }
-            }
-            GuideRow(systemImage: "globe", description: "Hold Control too; your words arrive in the target language picked in the menu.") {
-                HStack(spacing: 4) {
-                    Text("Add")
-                    Keycap(label: "⌃")
-                    Text("to translate")
-                }
-            }
-            GuideRow(
-                systemImage: "wand.and.stars",
-                description: "Cleanup and translation need your OpenRouter API key — without it you get the raw transcript. Key and model: Settings ▸ Cleanup."
-            ) {
-                Text("Cleanup polishes every dictation")
-            }
-            GuideRow(systemImage: "text.book.closed", description: "Names, brands, jargon — Settings ▸ Vocabulary.") {
-                Text("Vocabulary keeps your terms verbatim")
+            dictateRow
+            cleanupRow
+            translateRow
+            vocabularyRow
+        }
+    }
+
+    private var dictateRow: some View {
+        GuideRow(
+            systemImage: "mic.fill",
+            description: "Release — the text lands in the focused app. Works out of the box: no account, no key required."
+        ) {
+            HStack(spacing: 4) {
+                Text("Hold")
+                Keycap(label: triggerName)
+                Text("to dictate")
             }
         }
     }
 
+    private var cleanupRow: some View {
+        GuideRow(
+            systemImage: "wand.and.stars",
+            description: "Add your own OpenRouter key to polish dictations into clean prose. "
+                + "Without a key — or with cleanup switched off — the transcript is inserted exactly as spoken. "
+                + "Key and model: Settings ▸ Cleanup."
+        ) {
+            Text("Cleanup is optional")
+        }
+    }
+
+    private var translateRow: some View {
+        GuideRow(
+            systemImage: "globe",
+            description: "Hold Control too; your words arrive in the target language picked in the menu. Translation needs cleanup on."
+        ) {
+            HStack(spacing: 4) {
+                Text("Add")
+                Keycap(label: "⌃")
+                Text("to translate")
+            }
+        }
+    }
+
+    private var vocabularyRow: some View {
+        GuideRow(systemImage: "text.book.closed", description: "Names, brands, jargon — Settings ▸ Vocabulary.") {
+            Text("Vocabulary keeps your terms verbatim")
+        }
+    }
+
     private var privacyNote: some View {
-        Text("Speech is recognized on your Mac. Only the text leaves your device, and only to your OpenRouter account for cleanup.")
+        Text(
+            "Speech is recognized on your Mac. Nothing leaves your device unless cleanup is on "
+                + "— then only the transcript text goes to your own OpenRouter account."
+        )
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -89,7 +118,7 @@ struct AboutView: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            Link("Releases on GitHub", destination: Self.releasesURL)
+            Link("Slovo on GitHub", destination: Self.repositoryURL)
             Text("·").foregroundStyle(.secondary)
             Link("Support on Ko-fi", destination: Self.supportURL)
             Text("·").foregroundStyle(.secondary)
@@ -110,7 +139,7 @@ struct AboutView: View {
         NSWorkspace.shared.open(url)
     }
 
-    private static let releasesURL = URL(string: "https://github.com/Akurganow/slovo/releases")!
+    private static let repositoryURL = URL(string: "https://github.com/Akurganow/slovo")!
     private static let supportURL = URL(string: "https://ko-fi.com/akurganow")!
 }
 
