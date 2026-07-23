@@ -121,7 +121,10 @@ public actor Orchestrator {
     /// Drives one event through the FSM and executes the resulting effects in order.
     public func handle(_ event: DictationEvent) async {
         // Stash the mode before the transition so the FSM stays mode-agnostic.
-        if case .stopRequested(let mode) = event { sessionMode = mode }
+        if case .stopRequested(let mode) = event {
+            sessionMode = mode
+            Self.diagnosticLog.log("dictation.stopRequested") // pairs with "injection.pasted": runbook key-up → inserted delta
+        }
         let (next, effects) = DictationFsm.transition(state, on: event)
         state = next
         var deferred: [DeferredEffect] = []

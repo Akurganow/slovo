@@ -1,3 +1,5 @@
+import os
+
 /// Injects text by driving the system pasteboard and a synthesized ⌘V.
 /// SECURITY-CRITICAL — the sequence below is exact and its ordering is the whole
 /// point:
@@ -22,6 +24,11 @@ public struct ClipboardPasteInjector: Injector {
     private let secureInput: SecureInput
     private let keystroke: PasteKeystroke
     private let restoreDelay: Duration
+
+    /// Timing mark sink for the raw-latency runbook: same subsystem/category as
+    /// the orchestrator's dictation diagnostics, so one `log show` predicate
+    /// covers both ends of the key-up → inserted interval.
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     /// The conceal markers: clipboard managers skip items carrying these.
     private static let markerTypes = [
@@ -75,6 +82,13 @@ public struct ClipboardPasteInjector: Injector {
 
         // 8. Paste, surfacing the failure (never swallowed).
         try keystroke.paste()
+
+        // Timing mark BEFORE the restore delay, deliberately: once ⌘V is posted
+        // the text is already in the focused app, so the delay below is clipboard
+        // bookkeeping, not user-visible latency — marking after it would overstate
+        // the runbook's key-up → inserted measurement by `restoreDelay`.
+        // Static text only, no payload.
+        Self.diagnosticLog.log("injection.pasted")
 
         // 9. Let the app consume the paste before the deferred restore lands.
         try? await Task.sleep(for: restoreDelay)

@@ -152,6 +152,29 @@ over the 31-sample suite (no API key, no network, zero cost):
 > comparisons, apply the suite-version note below: compare by pass rate,
 > never by raw passed counts.
 
+The end-to-end number is captured OUTSIDE the harness, from the app's own
+timing marks: `dictation.stopRequested` at key-up (Orchestrator) and
+`injection.pasted` right after the paste keystroke (ClipboardPasteInjector),
+both in the `com.slovo.app` / `dictation` log category. Procedure: launch the
+signed dev build with cleanup off, run one dictation, then:
+
+```sh
+log show --last 5m --style json \
+  --predicate 'subsystem == "com.slovo.app" AND category == "dictation" AND (eventMessage == "dictation.stopRequested" OR eventMessage == "injection.pasted")'
+```
+
+The latency is `timestamp(injection.pasted) − timestamp(dictation.stopRequested)`.
+The paste mark deliberately precedes the 300 ms clipboard-restore delay, which
+is not user-visible latency. Template, to be filled from the runbook
+measurement:
+
+> End-to-end (runbook measurement, this development Mac, 2026-MM-DD): with
+> cleanup off, key-up → text inserted measured at NNN ms (single live
+> dictation, real pipeline: WhisperKit tail finalization + clipboard paste;
+> delta between the `dictation.stopRequested` and `injection.pasted` log
+> marks). Real-pipeline number on this Mac, distinct from the harness's
+> cleaner-stage column above; not a CI gate.
+
 ### Full catalog baseline
 
 Full OpenRouter catalog snapshot, measured on 2026-07-02 with 10
