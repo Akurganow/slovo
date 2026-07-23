@@ -17,32 +17,34 @@ Slovo is a private, on-device push-to-talk dictation app for macOS. One dictatio
 3. **Key up** — the transcript is already ready, or nearly ready.
 4. **Immediately after key up** — text cleanup runs (via OpenRouter).
 5. **Cleanup is always attempted while the cleanup setting is on (the default).**
-   The raw transcript is inserted directly only on a genuine cleanup failure
-   (unavailable / refused / misconfigured / provider or network error) — or when
-   the user has turned the "Clean Up Dictation" setting off (or no OpenRouter key
-   is configured), which is the explicit raw-transcript mode: zero network,
-   translation unavailable.
-6. The final cleaned text is inserted into the focused app.
+   With cleanup on, the raw transcript is inserted directly only on a genuine
+   cleanup failure (unavailable / refused / misconfigured / provider or network
+   error). Raw-by-choice is a first-class mode, not a failure: with the "Clean
+   Up Dictation" toggle off (menu bar or Settings) — or with no OpenRouter key
+   configured, which is the same effective off mode automatically — the raw
+   final transcript is inserted once at key-up with zero network requests;
+   translation is unavailable there.
+6. The final text — cleaned when cleanup is on, raw in raw mode — is inserted
+   into the focused app.
 
 Clarifications:
 
 - **"Live" means LOW LATENCY (text ready at key-up), NOT a visible running
-  transcript.** No overlay, no partial text on screen. Only the final cleaned text
-  is inserted (raw only on cleanup failure). With cleanup ON this still holds: no
-  overlay, no partial text. With cleanup OFF, stabilized words are typed into the
-  focused field during the hold (LocalAgreement policy) and one reconciliation
-  pass at key-up makes the field match the final transcript; there is still no
-  overlay and no floating UI.
+  transcript.** No overlay, no partial text on screen. In BOTH modes the final
+  text is inserted exactly once at key-up: the cleaned text while cleanup is on
+  (raw only on a genuine cleanup failure), the raw final transcript in raw mode.
 - **Translate hold.** Holding the push-to-talk key together with Control at any
   moment of the hold makes that one dictation translate: the single cleanup step
   also translates the result into the target language chosen in Settings or the
   menu-bar dropdown, then inserts it. A plain hold (no Control) must never
-  translate.
-- **Translate hold glyph.** While a translate hold is active (Control latched at
-  any moment during the push-to-talk hold), the recording glyph is the Glagolitic
-  letter Pokoji "Ⱂ" (U+2C12) instead of the plain recording glyph Zemlja "Ⰸ"
-  (U+2C08); it switches live the moment Control latches, so the mode is visible at
-  a glance.
+  translate, and translate requires cleanup to be effectively on — while cleanup
+  is off, Control has no effect on the dictation.
+- **Recording glyph family.** The recording glyph names the mode: the Glagolitic
+  letter Cherv "Ⱍ" (U+2C1D) while a plain hold records with cleanup on, Glagoli
+  "Ⰳ" (U+2C03) while cleanup is effectively off (raw mode, either cause), and
+  Pokoji "Ⱂ" (U+2C12) while a translate hold is active (Control latched at any
+  moment of the hold; the glyph switches live the moment Control latches, so the
+  mode is visible at a glance). The failure glyph "Ⱁ" (U+2C11) is unchanged.
 - **Mute while dictating.** A menu-bar switch (on by default) silences system
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.

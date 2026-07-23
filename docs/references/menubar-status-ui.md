@@ -328,6 +328,11 @@ Cross-references (do not duplicate):
 Date: 2026-06-28
 Verdict: **PASS (with 2 device-only gaps)**
 
+Maintenance note (2026-07-23): the glyph codepoints quoted in this reference
+cannot be pinned by tests; on any glyph change, re-check every codepoint here
+against `Sources/SlovoCore/MenuBar/MenuBarController.swift` (the mnemonic
+authority) by hand.
+
 Independent live-source validation of every load-bearing claim. Apple symbol pages
 validated via the `data/documentation/...json` endpoints (HTML is JS-rendered);
 font presence validated via Apple Support's official bundled-font pages and

@@ -77,8 +77,11 @@ fields.
 
 ## Cloud Cleanup
 
-Cleanup is always attempted through OpenRouter and is text-only. The app has no
-cleanup-off user path.
+Cleanup is text-only and runs through OpenRouter while the **Clean Up
+Dictation** setting is on (the default). With the setting off — or with no
+OpenRouter key stored, which is the same effective off mode — the cleanup path
+is never taken: the whole dictation stays on-device with zero network requests
+and the raw final transcript is pasted once at key-up.
 
 A dictation held with Control is translated in the same request, so translation
 adds no new category of data leaving the Mac: it carries the same transcript

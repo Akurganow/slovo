@@ -4,9 +4,10 @@ Slovo is a private, on-device push-to-talk dictation app for macOS. Hold your
 push-to-talk key — the `fn` / Globe key by default — speak, release, and Slovo
 inserts the cleaned-up text into the focused field.
 
-The privacy boundary is deliberately narrow: raw audio stays on the Mac.
-Cleanup is always attempted through OpenRouter; only the already-transcribed
-text is sent for model-routed text cleanup.
+The privacy boundary is deliberately narrow: raw audio stays on the Mac. While
+the **Clean Up Dictation** setting is on (the default), only the
+already-transcribed text is sent to OpenRouter for model-routed text cleanup;
+with it off, nothing leaves the machine at all.
 
 [![Swift CI](https://github.com/Akurganow/slovo/actions/workflows/swift.yml/badge.svg)](https://github.com/Akurganow/slovo/actions/workflows/swift.yml)
 [![Release](https://img.shields.io/github/v/release/Akurganow/slovo)](https://github.com/Akurganow/slovo/releases/latest)
@@ -30,9 +31,9 @@ tuned.
   OpenRouter model ids.
 - A **Clean Up Dictation** toggle (menu bar and Settings, on by default). Turn
   it off — or run without an OpenRouter key — for the explicit raw-transcript
-  mode: zero network requests, and stabilized words are typed straight into the
-  focused field live during the hold, reconciled to the final transcript at
-  key-up. Translation is unavailable while cleanup is off.
+  mode: zero network requests, and the raw final transcript lands in the
+  focused field once at key-up, near-instantly. Translation is unavailable
+  while cleanup is off.
 - Optional per-dictation translation: hold Control together with the
   push-to-talk key to translate that dictation into a target language as part
   of the same cleanup step; a plain hold is unchanged.
@@ -43,15 +44,16 @@ tuned.
   nudge the model toward the right words. Slovo gathers them on your Mac, then
   sends them to OpenRouter with the transcript as advisory context.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
-  runs.
+  runs; a **Remove Key…** button in **Settings → Cleanup** deletes it (cleanup
+  then turns off until you add a key again).
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
 - Local SQLite personalization store for vocabulary hints — add and remove
   terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary…**
   quick action — to protect your own terms during cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
-  processing states, plus a monochrome app icon that follows the system
-  theme.
+  processing states — the recording glyph names the mode: `Ⱍ` clean, `Ⰳ` raw,
+  `Ⱂ` translate — plus a monochrome app icon that follows the system theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
   push-to-talk key, recognition language, launch at login, cleanup model and
   style, translation target language, API key, and vocabulary.
@@ -66,7 +68,8 @@ tuned.
 - Microphone and Accessibility permissions. Input Monitoring may be
   requested only as a targeted hotkey recovery step if the event tap
   cannot start.
-- An OpenRouter API key for cleanup.
+- An OpenRouter API key for cleanup (optional — without one, Slovo still
+  dictates, inserting the raw transcript).
 
 On first use, WhisperKit downloads the speech model once over the network;
 after that, transcription runs fully on-device.
@@ -92,21 +95,25 @@ after that, transcription runs fully on-device.
    so the transcript is already ready (or nearly ready) the moment you
    release.
 3. Release `fn` / Globe. Cleanup runs immediately through OpenRouter, then
-   the cleaned text is inserted into the focused field.
+   the cleaned text is inserted into the focused field. With **Clean Up
+   Dictation** off (or no key saved), the raw transcript is inserted instead,
+   near-instantly and with no network request.
 4. If you held the key but only silence was captured, nothing is inserted and
    the menu-bar icon briefly shows the red failure glyph `Ⱁ` — no alert and no
    persistent notice, so it never distracts you.
 5. If cleanup itself fails (unavailable, refused, misconfigured, or a
-   provider/network error — never because a setting disabled cleanup), the
-   raw transcript is inserted instead and the menu-bar icon briefly shows
-   the error glyph `Ⱁ`.
+   provider/network error), the raw transcript is inserted instead and the
+   menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off by
+   choice is not a failure — raw mode inserts silently, with no error glyph.
 
 To translate a dictation, hold Control at any moment while the push-to-talk key
 is down: that dictation is cleaned and translated into your target language in
 the same single step, then inserted. A plain hold (no Control) is unchanged.
 While a translate hold is active, the menu-bar recording glyph is the Glagolitic
-letter Pokoji `Ⱂ` instead of the plain recording glyph, switching the moment
-Control latches so the mode is visible at a glance.
+letter Pokoji `Ⱂ` instead of the clean-mode recording glyph `Ⱍ`, switching the
+moment Control latches so the mode is visible at a glance. Translation requires
+cleanup: while **Clean Up Dictation** is off, Control has no effect and the
+recording glyph stays the raw-mode `Ⰳ`.
 Choose the target — the Recognition Language list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation
@@ -130,9 +137,13 @@ Slovo has two different data paths:
   Translation, when used, adds no new data category: the same transcript text,
   plus the target-language name in the request. Raw audio still never leaves.
   With **Clean Up Dictation** off (or no key configured) this path is not
-  taken at all: the entire dictation stays on-device with no network requests,
-  and the live-typed text is inserted by synthesized keystrokes — it never
-  transits the clipboard.
+  taken at all: the entire dictation stays on-device with zero network
+  requests, and the raw final transcript is inserted once at key-up.
+
+In both modes the final text is inserted with a clipboard-based paste: Slovo
+snapshots the clipboard, writes the text with conceal markers that ask
+clipboard managers not to record it, pastes, and restores the previous
+clipboard contents afterward.
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. Local personalization databases, seed files,

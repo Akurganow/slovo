@@ -14,8 +14,10 @@ key up   -> stop capture -> finalize unfinished tail -> clean -> inject
 ```
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
-(Whisper large-v3 turbo). Cleanup is always attempted through OpenRouter and
-sends only transcript text for the selected routed model id.
+(Whisper large-v3 turbo). While the cleanup setting is on, cleanup is attempted
+through OpenRouter and sends only transcript text for the selected routed model
+id; while cleanup is effectively off (toggled off, or no OpenRouter key), the
+raw final transcript is pasted once at key-up with zero network requests.
 
 ## Core Components
 
@@ -34,6 +36,13 @@ sends only transcript text for the selected routed model id.
   addition only when the final decode is the exact normalized live result plus
   an anomalous suffix timestamped strictly beyond the recorded audio. The model
   remains resident between dictations.
+- `WhisperKitTranscriptText.compose` guarantees the token-clean text domain in
+  two layers: the compose-site sanitizer is the authoritative guarantor — every
+  `finish()` outcome routes through it, stripping ASR special tokens
+  (`<|...|>`) by surface form, independent of the WhisperKit version — and the
+  decoder's `skipSpecialTokens` option is the first-line, token-ID-exact
+  optimization. Neither the cleaner nor the paste path ever sees a special
+  token.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
   succeeds.
 - `Injector` inserts the final text into the focused field with an atomic paste.
@@ -41,16 +50,10 @@ sends only transcript text for the selected routed model id.
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
   key). The menu, Settings, the recording glyph, and the orchestrator push all
   read this one derivation (`preference && keyPresent`), so the state is never
-  re-derived divergently.
-- `AgreementPrefixPolicy` is the pure live-typing text policy used when cleanup
-  is off: a LocalAgreement-2 word-boundary fold over the hypothesis stream that
-  emits only agreed word prefixes during the hold, plus the key-up reconciliation
-  math (already-exact / type-remainder / backspace-and-retype) bounded by what
-  was actually typed.
-- `TypingInjector` types the agreed deltas into the focused field via synthesized
-  keystrokes and never touches the pasteboard. Its CGEvents carry a self-tag so
-  the hotkey tap tells Slovo's own keystrokes from the user's and never treats
-  live typing as an interrupt-cancel.
+  re-derived divergently. `CleanupAvailabilityModel` is its observed app-layer
+  projection: the push funnel (`pushEffectiveCleanupConfig`) is the single
+  writer, and the Settings pane observes the model instead of snapshotting at
+  init, so every surface reflects an availability mutation within one runloop.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
@@ -83,34 +86,17 @@ is chosen in the menu bar (**Translate to: …**) or Settings; the offered
 languages are the recognition-language list without **Auto**, since a translate
 target must be concrete.
 
-Cleanup is sad-to-fail. If OpenRouter is missing, unavailable, misconfigured,
-refuses the request, rate-limits, or returns an unusable response, Slovo inserts
-the direct transcript — untranslated on a translate hold — and briefly shows the
+Cleanup is sad-to-fail. If OpenRouter is unavailable, misconfigured, refuses
+the request, rate-limits, or returns an unusable response, Slovo inserts the
+direct transcript — untranslated on a translate hold — and briefly shows the
 `Ⱁ` error glyph instead of cancelling the dictation.
 
-## Live Typing (cleanup off)
-
-When cleanup is effectively off — the user turned **Clean Up Dictation** off, or
-no OpenRouter key is configured — the dictation stays entirely on-device and the
-orchestrator types stabilized words into the focused field during the hold
-instead of pasting once at key-up. Nothing but synthesized keystrokes reaches the
-field, and the text never transits the clipboard. A single reconciliation pass at
-key-up makes the field match the final transcript; a cancel or a failed
-transcription deletes exactly what was typed (nothing is left inserted).
-
-```mermaid
-flowchart TD
-    hold["Push-to-talk hold"] --> avail{"CleanupAvailability<br/>effectively on?"}
-    avail -->|on| cleaned["OpenRouter cleanup -> atomic paste at key-up"]
-    avail -->|off| snap["Transcriber.hypotheses()<br/>one snapshot per decode pass"]
-    snap --> fold["AgreementPrefixPolicy.step<br/>LocalAgreement-2 word-boundary fold"]
-    fold -->|agreed delta| type["TypingInjector.type<br/>self-tagged CGEvents"]
-    type --> field["Focused field, live during the hold"]
-    keyup["Key up: final transcript"] --> reconcile["AgreementPrefixPolicy.reconcile"]
-    reconcile -->|type remainder / backspace + retype| field
-    cancel["Cancel or transcription failure"] --> wipe["Delete exactly what was typed"]
-    wipe --> field
-```
+When cleanup is effectively off — the user turned **Clean Up Dictation** off,
+or no OpenRouter key is configured — the cleaner is never called and no
+failure is surfaced: the dictation stays entirely on-device and the raw final
+transcript rides the same single atomic paste at key-up. A missing key is the
+same effective off mode, not a cleanup failure. Translation requires cleanup,
+so a Control latch has no effect while cleanup is off.
 
 ## Storage
 
