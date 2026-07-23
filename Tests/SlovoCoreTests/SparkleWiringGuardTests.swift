@@ -8,23 +8,25 @@ import Testing
 // pin documents a deliberate coupling.
 @Suite("Sparkle wiring guards")
 struct SparkleWiringGuardTests {
-    /// One SPUUpdater, constructed directly: no SPUStandardUpdaterController
-    /// (its stock UI could surface windows), no legacy 1.x SUUpdater, and no
-    /// manual `.checkForUpdates(` path in v1 — checks are scheduler-driven
-    /// only. The legacy scan is word-anchored so SPUUpdater itself never
-    /// matches.
-    /// Stated sensitivity: build via the standard controller, the legacy
-    /// class, or add a manual check call → the matching pin → RED. The three
-    /// forbidden-token pins are born green (absence already holds) — flagged
-    /// for the mutation demonstration; the `SPUUpdater(` presence pin is RED
-    /// until the wiring lands.
+    /// One SPUUpdater, constructed directly: no SPUStandardUpdaterController (its
+    /// stock UI could surface windows), no legacy 1.x SUUpdater, and no ALERT-showing
+    /// `updater.checkForUpdates(` path — the always-visible "Check for Updates…" row
+    /// runs the SILENT `checkForUpdatesInBackground()`, so no Sparkle progress window
+    /// or "you're up to date" alert can steal focus (menu-bar-only rule). The legacy
+    /// scan is word-anchored so SPUUpdater itself never matches.
+    /// Stated sensitivity: build via the standard controller, the legacy class, or
+    /// call the alert-showing `updater.checkForUpdates()` for the manual check → the
+    /// matching pin → RED. (Supersedes the v1 "no manual path at all" invariant now
+    /// that the owner's always-visible actionable row exists — the manual check stays
+    /// silent, which is the invariant that matters.)
     @Test
-    func updaterIsConstructedDirectlyWithoutLegacyOrManualPaths() throws {
+    func updaterIsConstructedDirectlyWithoutLegacyOrAlertingCheck() throws {
         let combined = try Self.combinedAppSource()
         #expect(combined.contains("SPUUpdater("))
         #expect(!combined.contains("SPUStandardUpdaterController"))
         #expect(Self.firstMatch(in: combined, pattern: #"\bSUUpdater"#) == nil)
-        #expect(!combined.contains(".checkForUpdates("))
+        #expect(!combined.contains("updater.checkForUpdates("),
+                "the manual check must use the silent checkForUpdatesInBackground(), never the alert-showing updater.checkForUpdates()")
     }
 
     /// The stored preference is applied BEFORE the updater starts, so an OFF

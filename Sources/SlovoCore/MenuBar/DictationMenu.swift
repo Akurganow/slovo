@@ -116,14 +116,16 @@ public enum DictationMenu {
         }
     }
 
-    /// The single header line, if any, rendering the update state directly below
-    /// the hotkey hint: `hidden` adds nothing, while `downloading` and `ready` each
-    /// map to their one pinned item. The map is intentionally near-identity — the
-    /// lifecycle's real state is `UpdateIndication`, whose `hidden` has no rendered
-    /// form and so stays out of `DictationMenuItem`.
+    /// The single header line, if any, rendering the update state directly below the
+    /// hotkey hint. `idle`/`checking` add nothing HERE: the always-visible update row
+    /// is the app-target's persistent, in-place-mutated item (see AppDelegate+UpdateMenu),
+    /// which owns the actionable "Check for Updates…"/"Checking…"/hybrid-Restart forms;
+    /// this pure model only spells the disabled `downloading`/`ready` status text that
+    /// the exact-sequence tests pin. (The two representations are documented-spec vs
+    /// runtime; see the follow-ups ledger.)
     private static func updateHeaderLine(for update: UpdateIndication) -> [DictationMenuItem] {
         switch update {
-        case .hidden:
+        case .idle, .checking:
             return []
         case .downloading(let version):
             return [.updateDownloading(version: version)]

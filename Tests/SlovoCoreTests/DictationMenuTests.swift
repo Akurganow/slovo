@@ -9,7 +9,7 @@ struct DictationMenuTests {
     private func items(
         availability: CleanupAvailability,
         mute: Bool = true,
-        update: UpdateIndication = .hidden,
+        update: UpdateIndication = .idle,
         model: String = "m",
         translate: String = "en",
         trigger: HotkeyTrigger = .fn
@@ -221,7 +221,7 @@ struct DictationMenuTests {
     /// them, or leave Settings/About in an old slot → the suffix mismatches → RED.
     @Test
     func bottomSectionIsSeparatorSettingsAboutQuitInAllStates() {
-        let updates: [UpdateIndication] = [.hidden, .downloading(version: "0.14.0"), .ready(version: "0.14.0")]
+        let updates: [UpdateIndication] = [.idle, .downloading(version: "0.14.0"), .ready(version: "0.14.0")]
         for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
             for update in updates {
                 let list = items(availability: availability, update: update)

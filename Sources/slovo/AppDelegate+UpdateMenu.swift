@@ -22,18 +22,40 @@ extension AppDelegate {
         updaterCoordinator?.installDownloadedUpdateAndRelaunch()
     }
 
+    /// The manual "Check for Updates…" action from the idle update row → the
+    /// coordinator's silent background check (never the alert-showing user-driver check).
+    @objc
+    func checkForUpdatesManually() {
+        updaterCoordinator?.checkForUpdates()
+    }
+
     /// Mutates the ONE persistent update row in place from the indication — title
     /// and visibility only, never a rebuild, so the highlight callbacks survive a
     /// transition that happens while the dropdown is tracking.
     func renderUpdateIndication(_ indication: UpdateIndication) {
         guard let item = updateMenuItem else { return }
         switch indication {
-        case .hidden:
-            item.isHidden = true
-            item.isEnabled = false
-            item.action = nil
+        case .idle:
+            // Always visible and actionable now: an idle row offers a manual check.
+            // Plain actionable style (not the grey status attributedTitle) — this is an
+            // action the user takes, so it reads like every other actionable row.
+            item.isHidden = false
+            item.isEnabled = true
+            item.target = self
+            item.action = #selector(checkForUpdatesManually)
+            item.title = "Check for Updates…"
+            item.attributedTitle = nil
             // A ready-state label must not outlive the state: VoiceOver would keep
             // announcing "activate to restart" on a row that no longer restarts.
+            item.setAccessibilityLabel(nil)
+        case .checking:
+            // Transient feedback while any check (scheduled or manual) is in flight;
+            // grey status style, not actionable until the check finishes.
+            item.isHidden = false
+            item.isEnabled = false
+            item.action = nil
+            item.title = "Checking…"
+            item.attributedTitle = Self.updateStatusTitle("Checking…")
             item.setAccessibilityLabel(nil)
         case .downloading(let version):
             item.isHidden = false

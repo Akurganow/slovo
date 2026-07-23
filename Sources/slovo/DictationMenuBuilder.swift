@@ -39,7 +39,7 @@ struct DictationMenuBuilder {
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
             translationLanguage: translationLanguage,
             cleanupAvailability: cleanupAvailability,
-            update: .hidden
+            update: .idle
         ) {
             switch item {
             case .status(let word):

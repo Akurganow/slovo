@@ -27,7 +27,7 @@ final class UpdaterCoordinator: NSObject {
     }()
 
     /// The current indication, folded from delegate events via `applying(_:)`.
-    private(set) var currentIndication: UpdateIndication = .hidden
+    private(set) var currentIndication: UpdateIndication = .idle
 
     /// Sparkle's stored install-on-quit handler. The Restart click is its only
     /// invoker, keeping the never-self-restart guarantee to a single call site.
@@ -73,6 +73,23 @@ final class UpdaterCoordinator: NSObject {
         immediateInstallationBlock()
     }
 
+    /// The manual "Check for Updates…" action. Uses `checkForUpdatesInBackground()`,
+    /// NOT `checkForUpdates()`: the latter drives the standard user driver's progress
+    /// window and "you're up to date" alert, which the silent, menu-bar-only pipeline
+    /// must never show. The background call routes any found update through the same
+    /// gentle-reminder path as a scheduled check, so it surfaces only in our menu row.
+    /// Guarded on `canCheckForUpdates` so we never show "Checking…" for a check that
+    /// cannot start; the optimistic `.checkStarted` gives immediate feedback, and the
+    /// `mayPerformUpdateCheck` gate reaches the same state for scheduled checks too.
+    /// (Sparkle warns direct calls can interfere with its scheduler — acceptable for a
+    /// user-initiated check; the guaranteed `didFinishUpdateCycle` terminal un-sticks
+    /// `checking` regardless.)
+    func checkForUpdates() {
+        guard updater.canCheckForUpdates else { return }
+        reduce(.checkStarted)
+        updater.checkForUpdatesInBackground()
+    }
+
     private func reduce(_ event: UpdaterEvent) {
         currentIndication = currentIndication.applying(event)
         onIndicationChange(currentIndication)
@@ -92,6 +109,14 @@ final class UpdaterCoordinator: NSObject {
 }
 
 extension UpdaterCoordinator: SPUUpdaterDelegate {
+    /// The permission gate Sparkle calls before EVERY check (scheduled OR
+    /// user-initiated). We always allow — the toggle is the single authority, so this
+    /// never throws — and use this one hook, which fires for every check start, to show
+    /// "Checking…" for scheduled checks too, not only the manual button.
+    func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
+        reduce(.checkStarted)
+    }
+
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         reduce(.found)
     }
@@ -120,6 +145,19 @@ extension UpdaterCoordinator: SPUUpdaterDelegate {
 
     func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
         handleAbort()
+    }
+
+    /// A check finished finding no newer version: return the row from "Checking…" to
+    /// the idle "Check for Updates…" line.
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
+        reduce(.notFound)
+    }
+
+    /// Sparkle's GUARANTEED terminal, fired at the end of every check cycle regardless
+    /// of outcome — the backstop that keeps "Checking…" from sticking even when a check
+    /// found an update it did not download, or ended in a way no other callback reports.
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+        reduce(.checkFinished)
     }
 
     /// Never prompt for permission to check: the toggle is the single authority, and

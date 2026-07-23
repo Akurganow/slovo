@@ -2,138 +2,184 @@ import Testing
 
 import SlovoCore
 
-// The pure updater-event → indication-state reducer
-// (`UpdateIndication.applying(_:)`), pinned as a transition table of lossless
-// no-ops (house idiom: DictationFsm):
-//
-//   state \ event  | found          | downloadStarted(v) | downloaded(v)     | aborted
-//   hidden         | hidden         | downloading(v)     | ready(v) [resume] | hidden
-//   downloading(u) | downloading(u) | downloading(v)     | ready(v)          | hidden
-//   ready(u)       | ready(u)       | downloading(v)     | ready(v)          | ready(u)
+// The pure updater-event → indication-state reducer (`UpdateIndication.applying(_:)`),
+// pinned as a transition table of lossless no-ops (house idiom: DictationFsm). The
+// row is always visible now: `idle` ("Check for Updates…") and `checking`
+// ("Checking…") are live states, and a staged download/ready update never regresses.
 @Suite("Update indication reducer")
 struct UpdateIndicationTests {
-    /// An update merely FOUND shows nothing — indication starts only when the
-    /// download starts, so a found-but-not-yet-downloading update keeps the
-    /// dropdown exactly today's.
-    /// Stated sensitivity: map `found` to `.downloading` (indication on
-    /// found) → ≠ `.hidden` → RED.
+    // MARK: check started (scheduled OR manual)
+
+    /// A check beginning turns the idle row into "Checking…".
+    /// Stated sensitivity: map `checkStarted` to identity (stays `.idle`) → the row
+    /// never shows a check is running → RED.
     @Test
-    func foundFromHiddenStaysSilent() {
-        #expect(UpdateIndication.hidden.applying(.found) == .hidden)
+    func checkStartedFromIdleShowsChecking() {
+        #expect(UpdateIndication.idle.applying(.checkStarted) == .checking)
     }
 
-    /// A re-check firing mid-download is a no-op: the downloading line keeps
-    /// its version until the updater reports actual progress.
-    /// Stated sensitivity: map `found` → `.hidden` uniformly → the downloading
-    /// row vanishes on the next re-check → RED.
-    @Test
-    func foundFromDownloadingKeepsDownloading() {
-        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.found) == .downloading(version: "0.14.0"))
-    }
-
-    /// A re-check finding an update while one is already downloaded changes
-    /// nothing: ready survives `found` — the spec's "events after ready don't
-    /// regress it".
-    /// Stated sensitivity: map `found` → `.hidden` uniformly → the ready row
+    /// A background re-check starting while an update is already staged must NOT hide
+    /// the Restart row.
+    /// Stated sensitivity: map `checkStarted` → `.checking` uniformly → the ready row
     /// (and its Restart action) vanishes on the next hourly re-check → RED.
+    @Test
+    func checkStartedFromReadyKeepsReady() {
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.checkStarted) == .ready(version: "0.14.0"))
+    }
+
+    /// A re-check firing mid-download does not regress the downloading line.
+    /// Stated sensitivity: map `checkStarted` → `.checking` uniformly → the download
+    /// row vanishes → RED.
+    @Test
+    func checkStartedFromDownloadingKeepsDownloading() {
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.checkStarted) == .downloading(version: "0.14.0"))
+    }
+
+    // MARK: found (during a check)
+
+    /// An update merely FOUND stays "Checking…" — indication advances only when the
+    /// download actually starts.
+    /// Stated sensitivity: map `found` to `.downloading` → ≠ `.checking` → RED.
+    @Test
+    func foundFromCheckingStaysChecking() {
+        #expect(UpdateIndication.checking.applying(.found) == .checking)
+    }
+
+    /// A re-check finding an update while one is already downloaded changes nothing:
+    /// ready survives `found` (the "events after ready don't regress it" rule).
+    /// Stated sensitivity: map `found` → non-ready uniformly → the Restart row vanishes
+    /// on the next hourly re-check → RED.
     @Test
     func foundFromReadyKeepsReady() {
         #expect(UpdateIndication.ready(version: "0.14.0").applying(.found) == .ready(version: "0.14.0"))
     }
 
-    /// The download starting is what turns indication on: hidden → downloading,
-    /// carrying the event's version.
-    /// Stated sensitivity: keep the identity mapping (stays `.hidden`) or drop
-    /// the version payload → ≠ `.downloading(version: "0.14.0")` → RED.
+    // MARK: download lifecycle
+
+    /// The download starting turns indication on: checking → downloading, carrying the
+    /// event's version.
+    /// Stated sensitivity: keep the identity mapping (stays `.checking`) or drop the
+    /// version payload → ≠ `.downloading(version: "0.14.0")` → RED.
     @Test
-    func downloadStartedFromHiddenShowsDownloading() {
-        let next = UpdateIndication.hidden.applying(.downloadStarted(version: "0.14.0"))
-        #expect(next == .downloading(version: "0.14.0"))
+    func downloadStartedFromCheckingShowsDownloading() {
+        #expect(UpdateIndication.checking.applying(.downloadStarted(version: "0.14.0")) == .downloading(version: "0.14.0"))
     }
 
-    /// A superseding download starting mid-download retargets the line to the
-    /// EVENT's version — the newest reported download wins (table cell:
-    /// downloading(u) + downloadStarted(v) → downloading(v)).
+    /// A superseding download starting mid-download retargets the line to the EVENT's
+    /// version — the newest reported download wins.
     /// Stated sensitivity: keep the stale state version →
     /// `.downloading(version: "0.14.0")` ≠ `.downloading(version: "0.15.0")` → RED.
     @Test
     func downloadStartedFromDownloadingRetargetsToEventVersion() {
-        let next = UpdateIndication.downloading(version: "0.14.0").applying(.downloadStarted(version: "0.15.0"))
-        #expect(next == .downloading(version: "0.15.0"))
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.downloadStarted(version: "0.15.0")) == .downloading(version: "0.15.0"))
     }
 
-    /// A validated download flips the header slot from downloading to ready,
-    /// carrying the EVENT's version — the event, not the stale state payload,
-    /// names what was actually downloaded (table cell: downloading(u) +
-    /// downloaded(v) → ready(v)).
-    /// Stated sensitivity: identity mapping stays `.downloading` → RED; copy
-    /// the state's version instead of the event's → `.ready(version: "0.14.0")`
-    /// ≠ `.ready(version: "0.15.0")` → RED.
+    /// A validated download flips downloading → ready, carrying the EVENT's version.
+    /// Stated sensitivity: identity mapping stays `.downloading` → RED; copy the
+    /// state's version → `.ready(version: "0.14.0")` ≠ `.ready(version: "0.15.0")` → RED.
     @Test
     func downloadedFromDownloadingBecomesReady() {
-        let next = UpdateIndication.downloading(version: "0.14.0").applying(.downloaded(version: "0.15.0"))
-        #expect(next == .ready(version: "0.15.0"))
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.downloaded(version: "0.15.0")) == .ready(version: "0.15.0"))
     }
 
-    /// A newer download completing while an older one is already ready
-    /// replaces the ready version with the EVENT's — the indication always
-    /// names what the updater validated last (table cell: ready(u) +
-    /// downloaded(v) → ready(v)).
-    /// Stated sensitivity: freeze `ready` against `downloaded` (keep ready(u))
-    /// → `.ready(version: "0.14.0")` ≠ `.ready(version: "0.15.0")` → RED.
+    /// A newer download completing while an older one is already ready replaces the
+    /// ready version with the EVENT's.
+    /// Stated sensitivity: freeze `ready` against `downloaded` →
+    /// `.ready(version: "0.14.0")` ≠ `.ready(version: "0.15.0")` → RED.
     @Test
     func downloadedFromReadyCarriesEventVersion() {
-        let next = UpdateIndication.ready(version: "0.14.0").applying(.downloaded(version: "0.15.0"))
-        #expect(next == .ready(version: "0.15.0"))
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.downloaded(version: "0.15.0")) == .ready(version: "0.15.0"))
     }
 
-    /// Launch-resume: the updater can report an ALREADY-downloaded update with
-    /// no `downloadStarted` seen this run — hidden jumps straight to ready.
-    /// Stated sensitivity: gate the ready mapping on a prior `.downloading`
-    /// state (or keep the identity mapping) → stays `.hidden` → RED.
+    /// Launch-resume: an ALREADY-downloaded update reported with no `downloadStarted`
+    /// seen this run — idle jumps straight to ready.
+    /// Stated sensitivity: gate the ready mapping on a prior `.downloading` (or keep the
+    /// identity mapping) → stays `.idle` → RED.
     @Test
-    func downloadedFromHiddenResumesAsReady() {
-        let next = UpdateIndication.hidden.applying(.downloaded(version: "0.14.0"))
-        #expect(next == .ready(version: "0.14.0"))
+    func downloadedFromIdleResumesAsReady() {
+        #expect(UpdateIndication.idle.applying(.downloaded(version: "0.14.0")) == .ready(version: "0.14.0"))
     }
 
-    /// A failed or aborted download resets indication silently: downloading →
-    /// hidden — the spec's "failed check/download shows nothing".
-    /// Stated sensitivity: drop the abort→hidden transition (the identity
-    /// mapping keeps `.downloading`) → the silent-failure reset is lost → RED.
+    /// A fresh cycle supersedes a ready update: a NEW download starting from ready shows
+    /// downloading with the NEW version — the one event that moves the state off ready.
+    /// Stated sensitivity: freeze `ready` against all events or keep the old version →
+    /// ≠ `.downloading(version: "0.15.0")` → RED.
     @Test
-    func abortedFromDownloadingHidesSilently() {
-        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.aborted) == .hidden)
+    func downloadStartedFromReadyBeginsFreshCycle() {
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.downloadStarted(version: "0.15.0")) == .downloading(version: "0.15.0"))
     }
 
-    /// A failed immediate install must NEVER regress a downloaded update:
-    /// ready survives `aborted`, keeping the Restart row available for another
-    /// try (spec: "retry stays available").
-    /// Stated sensitivity: map `aborted` uniformly to `.hidden` (the tempting
-    /// abort-resets-everything mutation) → the ready row vanishes → RED.
+    // MARK: terminal transitions — the stuck-`checking` guard
+
+    /// A check finding no update returns Checking… → the idle "Check for Updates…" row.
+    /// Stated sensitivity: drop the `notFound → .idle` arm (identity keeps `.checking`)
+    /// → the row sticks on "Checking…" after an empty check → RED.
+    @Test
+    func notFoundFromCheckingReturnsToIdle() {
+        #expect(UpdateIndication.checking.applying(.notFound) == .idle)
+    }
+
+    /// `notFound` on a hourly re-check while an update is already staged must NOT hide
+    /// the Restart row.
+    /// Stated sensitivity: map `notFound` → `.idle` uniformly → the ready row vanishes
+    /// on the next empty re-check → RED.
+    @Test
+    func notFoundFromReadyKeepsReady() {
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.notFound) == .ready(version: "0.14.0"))
+    }
+
+    /// The GUARANTEED terminal: Sparkle's `didFinishUpdateCycle` fires at the end of
+    /// EVERY check, so a Checking… state can never stick — even on the
+    /// found-but-download-didn't-start path where `notFound` never fires.
+    /// Stated sensitivity: drop the `checkFinished → .idle` arm (identity keeps
+    /// `.checking`) → Checking… sticks forever after such a check → RED (the stuck-state
+    /// mutant).
+    @Test
+    func checkFinishedFromCheckingReturnsToIdle() {
+        #expect(UpdateIndication.checking.applying(.checkFinished) == .idle)
+    }
+
+    /// The finished CHECK must not disturb a mid-download or staged update.
+    /// Stated sensitivity: map `checkFinished` → `.idle` uniformly → the download/ready
+    /// row vanishes when the check cycle reports finished → RED.
+    @Test
+    func checkFinishedDoesNotRegressDownloadingOrReady() {
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.checkFinished) == .downloading(version: "0.14.0"))
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.checkFinished) == .ready(version: "0.14.0"))
+    }
+
+    /// A failed/aborted check returns Checking… → idle silently.
+    /// Stated sensitivity: drop the `aborted → .idle` arm (identity keeps `.checking`)
+    /// → a failed check sticks on "Checking…" → RED.
+    @Test
+    func abortedFromCheckingReturnsToIdle() {
+        #expect(UpdateIndication.checking.applying(.aborted) == .idle)
+    }
+
+    /// A failed download returns to the idle check row silently.
+    /// Stated sensitivity: drop the `aborted → .idle` reset (identity keeps
+    /// `.downloading`) → the silent-failure reset is lost → RED.
+    @Test
+    func abortedFromDownloadingReturnsToIdle() {
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.aborted) == .idle)
+    }
+
+    /// A failed immediate install must NEVER regress a downloaded update: ready survives
+    /// `aborted`, keeping the Restart row for another try.
+    /// Stated sensitivity: map `aborted` uniformly to `.idle` → the ready row vanishes → RED.
     @Test
     func abortedFromReadyKeepsReady() {
         #expect(UpdateIndication.ready(version: "0.14.0").applying(.aborted) == .ready(version: "0.14.0"))
     }
 
-    /// A fresh cycle supersedes a ready update: a NEW download starting from
-    /// ready shows downloading with the NEW version — the one event that may
-    /// move the state off `ready`.
-    /// Stated sensitivity: freeze `ready` against all events (overshooting the
-    /// never-regress rule) or keep the old version → ≠
-    /// `.downloading(version: "0.15.0")` → RED.
+    /// Totality: terminal events with nothing in flight are lossless no-ops — idle
+    /// stays idle, never a crash, never a spurious line.
+    /// Stated sensitivity: make an idle terminal cell surface anything → ≠ `.idle` → RED.
     @Test
-    func downloadStartedFromReadyBeginsFreshCycle() {
-        let next = UpdateIndication.ready(version: "0.14.0").applying(.downloadStarted(version: "0.15.0"))
-        #expect(next == .downloading(version: "0.15.0"))
-    }
-
-    /// Totality: `aborted` with nothing in flight is a lossless no-op — hidden
-    /// stays hidden, never a crash, never a spurious line.
-    /// Stated sensitivity: make the hidden+aborted cell surface anything →
-    /// ≠ `.hidden` → RED.
-    @Test
-    func abortedFromHiddenStaysHidden() {
-        #expect(UpdateIndication.hidden.applying(.aborted) == .hidden)
+    func terminalEventsFromIdleStayIdle() {
+        #expect(UpdateIndication.idle.applying(.aborted) == .idle)
+        #expect(UpdateIndication.idle.applying(.notFound) == .idle)
+        #expect(UpdateIndication.idle.applying(.checkFinished) == .idle)
+        #expect(UpdateIndication.idle.applying(.found) == .idle)
     }
 }
