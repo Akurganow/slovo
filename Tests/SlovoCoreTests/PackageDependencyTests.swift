@@ -152,7 +152,10 @@ struct PackageDependencyTests {
         }
     }
 
-    private static func swiftPmTargetBlocks(in source: String) -> [String] {
+    /// Shared manifest-grammar helper — internal (not private) so
+    /// ThirdPartyNoticesTests can walk the shipped target graph without a
+    /// second parser of the same target-block syntax.
+    static func swiftPmTargetBlocks(in source: String) -> [String] {
         let targetMarkers = [".target(", ".executableTarget(", ".testTarget("]
         var blocks: [String] = []
         var searchStart = source.startIndex

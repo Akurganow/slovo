@@ -60,6 +60,33 @@ struct ThirdPartyNoticesTests {
         #expect(notices.contains("swift-argument-parser"))
     }
 
+    /// The credited roster is DERIVED from the shipped dependency graph, so a
+    /// NEW dependency cannot land uncredited: every external product package
+    /// reachable from the `slovo` executable target must own a `## ` section
+    /// heading in the notices artifact. The manifest's target graph — not
+    /// Package.resolved — is the source, so tooling-only packages
+    /// (SwiftLintPlugins, its transitive swift-argument-parser) stay exempt
+    /// exactly as the artifact discloses. The verbatim-copyright test above
+    /// remains the second layer, pinning each credited block's exact content.
+    /// Catches: adding `.product(name:package:)` to `slovo` or any target it
+    /// links (e.g. SlovoCore) without a notices section naming the package →
+    /// no `## ` heading matches → RED. A parser regression cannot pass
+    /// silently either: the derived set must still cover today's packages.
+    @Test
+    func everyShippedProductPackageHasNoticesSection() throws {
+        let packages = try Self.shippedProductPackages()
+        #expect(packages.isSuperset(of: Self.shippedPackagesFloor),
+                "manifest parsing lost known shipped packages; derived \(packages.sorted())")
+
+        let headings = try Self.noticesText()
+            .split(separator: "\n")
+            .filter { $0.hasPrefix("## ") }
+        for package in packages.sorted() {
+            #expect(headings.contains { $0.contains(package) },
+                    "shipped package \(package) has no `## ` section in THIRD-PARTY-NOTICES.md — add its license block")
+        }
+    }
+
     /// The release `app` phase must install the notices artifact into
     /// Contents/Resources, and it must do so BEFORE the app bundle is sealed by
     /// codesign — a resource added after signing would break the seal.
@@ -95,6 +122,76 @@ struct ThirdPartyNoticesTests {
 
         #expect(stage.contains("THIRD-PARTY-NOTICES.md"), Comment(rawValue: stage))
         #expect(stage.contains("Resources/THIRD-PARTY-NOTICES.md"), Comment(rawValue: stage))
+    }
+
+    // MARK: - Shipped-graph derivation
+
+    /// Today's shipped graph; the derivation must never report less, so a
+    /// manifest-style change that breaks parsing reddens loudly instead of
+    /// silently exempting every future dependency.
+    private static let shippedPackagesFloor: Set<String> = [
+        "GRDB.swift", "LaunchAtLogin-Modern", "Settings", "Sparkle", "argmax-oss-swift",
+    ]
+
+    /// External packages linked into the shipped app: a walk of Package.swift's
+    /// target graph from the `slovo` executable, collecting `.product` package
+    /// names (with or without trailing arguments such as `condition:`) through
+    /// local target dependencies spelled as bare strings or `.target(name:)`.
+    /// Test targets, plugins, and the benchmark CLI never enter the walk, so
+    /// tooling stays exempt by construction; a dependency spelling outside
+    /// these forms is not walked and would surface through the floor guard.
+    private static func shippedProductPackages() throws -> Set<String> {
+        let manifest = AppRuntimeSourceGuardTests.strippingComments(from: try Self.source("Package.swift"))
+        var pending: Set<String> = ["slovo"]
+        var visited: Set<String> = []
+        var packages: Set<String> = []
+        while let target = pending.popFirst() {
+            guard visited.insert(target).inserted,
+                  let dependencies = Self.dependenciesArray(ofTarget: target, in: manifest)
+            else { continue }
+            packages.formUnion(Self.matches(
+                in: dependencies,
+                pattern: #"\.product\(\s*name:\s*"[^"]+"\s*,\s*package:\s*"([^"]+)"\s*[),]"#
+            ))
+            pending.formUnion(Self.matches(in: dependencies, pattern: #"(?:\[|,)\s*"([^"]+)"(?=\s*[,\]])"#))
+            pending.formUnion(Self.matches(in: dependencies, pattern: #"\.target\(\s*name:\s*"([^"]+)"\s*[),]"#))
+        }
+        return packages
+    }
+
+    /// The `dependencies: [...]` literal of the named target, brackets included.
+    /// Target-block extraction is shared with PackageDependencyTests — one
+    /// parser of the manifest's target-block grammar; only the array slice
+    /// (bracket-balanced, so nested literals like a `condition:` platform list
+    /// stay inside) lives here.
+    private static func dependenciesArray(ofTarget name: String, in manifest: String) -> String? {
+        guard let block = PackageDependencyTests.swiftPmTargetBlocks(in: manifest)
+            .first(where: { $0.contains("name: \"\(name)\"") }),
+            let open = block.range(of: "dependencies: [")
+        else { return nil }
+        let openBracket = block.index(before: open.upperBound)
+        var depth = 0
+        var index = openBracket
+        while index < block.endIndex {
+            if block[index] == "[" {
+                depth += 1
+            } else if block[index] == "]" {
+                depth -= 1
+                if depth == 0 { return String(block[openBracket...index]) }
+            }
+            index = block.index(after: index)
+        }
+        return nil
+    }
+
+    /// The first capture group of every match of `pattern` in `text`.
+    private static func matches(in text: String, pattern: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.matches(in: text, range: range).compactMap { match in
+            guard match.numberOfRanges > 1, let captured = Range(match.range(at: 1), in: text) else { return nil }
+            return String(text[captured])
+        }
     }
 
     // MARK: - Helpers (copies of the AppShellPackagingTests / SparklePackagingGuardTests helpers)

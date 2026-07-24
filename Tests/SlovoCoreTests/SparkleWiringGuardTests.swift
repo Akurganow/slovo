@@ -109,13 +109,17 @@ struct SparkleWiringGuardTests {
     /// The update row is ONE persistent item mutated in place: the
     /// indication-transition renderer touches title/visibility only and never
     /// constructs menu items (rebuilding would break highlight callbacks
-    /// mid-tracking); the delegate re-syncs the row on every open; the hybrid
-    /// row exposes a stable accessibility label independent of the
-    /// highlight-driven title swap. The renderer's whole FILE must stay free
-    /// of `NSMenuItem(` — construction belongs to the builder.
-    /// Stated sensitivity: rebuild the item on transition, drop the
-    /// menuWillOpen re-sync, or lose the accessibility label → the matching
-    /// pin → RED.
+    /// mid-tracking); the delegate re-syncs the row on every open; the ready
+    /// state exposes a stable NON-nil accessibility label independent of the
+    /// highlight-driven title swap. The title/visibility/label pins are scoped
+    /// to the indication switch itself: elsewhere in the renderer's file the
+    /// failure-flash `button.title` and the reset `setAccessibilityLabel(nil)`
+    /// calls keep the bare tokens alive, so a whole-file scan stays green even
+    /// with the renderer gutted. The renderer's whole FILE must stay free of
+    /// `NSMenuItem(` — construction belongs to the builder.
+    /// Catches: rebuilding the item on transition, dropping retitle/visibility
+    /// from the switch, dropping the menuWillOpen re-sync, or deleting,
+    /// nil-ing, or blanking the ready-state label → the matching pin → RED.
     @Test
     func updateRowIsPersistentInPlaceAndAccessible() throws {
         let sources = try Self.appSources()
@@ -123,13 +127,27 @@ struct SparkleWiringGuardTests {
         let renderers = sources.filter { $0.source.contains("case .downloading(") }
         #expect(!renderers.isEmpty, "an app-target renderer must switch over the update indication")
         for renderer in renderers {
-            #expect(renderer.source.contains(".title"), "\(renderer.path) must retitle the persistent row")
-            #expect(renderer.source.contains(".isHidden"), "\(renderer.path) must show/hide the persistent row")
+            let indicationSwitch = try #require(
+                Self.enclosingBlock(around: "case .downloading(", in: renderer.source),
+                Comment(rawValue: renderer.path)
+            )
+            #expect(indicationSwitch.contains(".title"), "\(renderer.path) must retitle the persistent row")
+            #expect(indicationSwitch.contains(".isHidden"), "\(renderer.path) must show/hide the persistent row")
+            let readyRange = try #require(indicationSwitch.range(of: "case .ready"),
+                                          "\(renderer.path) must render the ready indication")
+            // The arm ends at the next `case ` label (or the switch end), so the
+            // pin holds wherever .ready sits in the case order.
+            let armEnd = indicationSwitch
+                .range(of: "case .", range: readyRange.upperBound..<indicationSwitch.endIndex)?
+                .lowerBound ?? indicationSwitch.endIndex
+            let readyArm = String(indicationSwitch[readyRange.lowerBound..<armEnd])
+            // `nil` and a blank label are equally broken for VoiceOver: reject both.
+            #expect(Self.firstMatch(in: readyArm, pattern: #"setAccessibilityLabel\(\s*(?!nil\b|"\s*")"#) != nil,
+                    "\(renderer.path) must give the ready row a non-nil, non-blank accessibility label")
             #expect(!renderer.source.contains("NSMenuItem("),
                     "\(renderer.path) must mutate the persistent row, not rebuild it")
         }
         #expect(combined.contains("menuWillOpen"))
-        #expect(combined.contains("AccessibilityLabel"))
     }
 
     /// Settings → General gains the "Automatically install updates" switch,
@@ -207,22 +225,46 @@ struct SparkleWiringGuardTests {
     /// its signature token.
     private static func slice(fromToken token: String, in sources: [AppSource]) -> String? {
         for file in sources {
-            guard let tokenRange = file.source.range(of: token) else { continue }
-            guard let openBrace = file.source[tokenRange.upperBound...].firstIndex(of: "{") else { continue }
-            var depth = 0
-            var index = openBrace
-            while index < file.source.endIndex {
-                let character = file.source[index]
-                if character == "{" {
-                    depth += 1
-                } else if character == "}" {
-                    depth -= 1
-                    if depth == 0 {
-                        return String(file.source[tokenRange.lowerBound...index])
-                    }
-                }
-                index = file.source.index(after: index)
+            guard let tokenRange = file.source.range(of: token),
+                  let openBrace = file.source[tokenRange.upperBound...].firstIndex(of: "{"),
+                  let block = balancedBlock(openingAt: openBrace, in: file.source)
+            else { continue }
+            return file.source[tokenRange.lowerBound..<openBrace] + block
+        }
+        return nil
+    }
+
+    /// The innermost `{…}` block containing `token`: brace balance walked
+    /// backward to the opening brace, then forward to its balanced close. Scopes
+    /// a pin to the block that owns the token (e.g. the renderer's indication
+    /// switch), where a whole-file scan could green off unrelated token uses.
+    private static func enclosingBlock(around token: String, in source: String) -> String? {
+        guard let tokenRange = source.range(of: token) else { return nil }
+        var depth = 0
+        var index = tokenRange.lowerBound
+        while index > source.startIndex {
+            index = source.index(before: index)
+            if source[index] == "}" {
+                depth += 1
+            } else if source[index] == "{" {
+                if depth == 0 { return balancedBlock(openingAt: index, in: source) }
+                depth -= 1
             }
+        }
+        return nil
+    }
+
+    private static func balancedBlock(openingAt openBrace: String.Index, in source: String) -> String? {
+        var depth = 0
+        var index = openBrace
+        while index < source.endIndex {
+            if source[index] == "{" {
+                depth += 1
+            } else if source[index] == "}" {
+                depth -= 1
+                if depth == 0 { return String(source[openBrace...index]) }
+            }
+            index = source.index(after: index)
         }
         return nil
     }

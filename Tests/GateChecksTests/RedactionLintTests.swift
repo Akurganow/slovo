@@ -120,12 +120,43 @@ struct RedactionLintTests {
                 "a leak preceding a real trailing // comment must still be flagged")
     }
 
+    /// A payload on a CONTINUATION line of a multi-line `.info(` call must be
+    /// flagged even though the opener and the leak never share a line, while the
+    /// `.count` reduction on the sibling continuation line stays allowed.
+    /// Catches: a scanner that pairs the logging call and its payload per line —
+    /// it finds nothing in this fixture and the non-empty assertion fails.
+    @Test
+    func multilineContinuationLeakIsFlaggedAndCountAllowed() {
+        let fixture = GateTestPaths.fixture("Redaction/MultilineLogCall.swifttext")
+        let violations = GateChecks.redactionViolations(inFileAt: fixture)
+        #expect(violations.contains { $0.rule == Self.ruleId && $0.detail.contains("`transcript`") },
+                "a leak on a continuation line of a multi-line logging call must be flagged")
+        #expect(violations.count == 1,
+                "the `.count` reduction on the sibling line must stay allowed: \(violations)")
+    }
+
+    /// A CALL-expression payload rendered `.public` is still the payload.
+    /// Catches: a bare-identifier payload matcher — the call parens stop it from
+    /// matching, the fixture yields nothing, and the assertion fails.
+    @Test
+    func callExpressionPayloadLeakIsFlagged() {
+        let fixture = GateTestPaths.fixture("Redaction/CallPayloadLeak.swifttext")
+        let violations = GateChecks.redactionViolations(inFileAt: fixture)
+        #expect(violations.contains { $0.rule == Self.ruleId && $0.detail.contains("transcript.trimmed()") },
+                "an expression payload marked .public must be flagged")
+    }
+
     /// The real `Sources/` tree must contain no redaction violations.
     @Test
     func realSourceTreeIsClean() throws {
         // Guard vacuity: a wrong root would walk nothing.
         try #require(FileManager.default.fileExists(atPath: GateTestPaths.sourcesRoot),
                      "sources root missing: \(GateTestPaths.sourcesRoot)")
+        // Guard vacuity: an empty (or wrong-suffix) walk would green with the
+        // scanner never reading a single real source.
+        let scanned = GateChecks.sourceFiles(under: GateTestPaths.sourcesRoot)
+        #expect(scanned.contains { $0.hasSuffix("/Orchestrator.swift") },
+                "the walk must visit known real sources; visited \(scanned.count) files")
         let violations = GateChecks.redactionViolations(inSourceTreeAt: GateTestPaths.sourcesRoot)
         #expect(violations.isEmpty, "Sources/ has redaction violations: \(violations)")
     }

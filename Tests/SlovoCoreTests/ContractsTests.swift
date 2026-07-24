@@ -51,13 +51,22 @@ struct ContractsTests {
         #expect(context.vocabulary.count == 1)
     }
 
-    /// Every Language / WritingStyle case exists.
+    /// The Language convenience members carry their exact wire codes.
+    /// `Language` is an open raw-value STRUCT — no exhaustive switch exists to
+    /// pin member addition — so the pin is on the raw values stored configs
+    /// persist. WritingStyle case coverage is pinned by the default-less
+    /// `describe` switch below, exactly like the error enums; that switch pins
+    /// CASE MEMBERSHIP (compile-time exhaustiveness) only — WritingStyle's raw
+    /// values are not asserted here (`describe`'s literals are case names, not
+    /// wire codes: `veryCasual`'s raw value is "very-casual").
+    /// Stated sensitivity: change a member's wire code (e.g. `.ru` →
+    /// "russian") → the raw-value pin → RED; add a WritingStyle case → the
+    /// describe switch stops compiling → RED.
     @Test
     func enumCasesMatchSpec() {
-        let langs: [Language] = [.auto, .ru, .en]
-        let styles: [WritingStyle] = [.formal, .casual, .veryCasual]
-        #expect(langs.count == 3)
-        #expect(styles.count == 3)
+        #expect([Language.auto, .ru, .en].map(\.rawValue) == ["auto", "ru", "en"])
+        #expect(describe(WritingStyle.formal) == "formal")
+        #expect(describe(WritingStyle.veryCasual) == "veryCasual")
     }
 
     /// Each error case (incl. associated values + labels) is constructible
@@ -117,6 +126,14 @@ struct ContractsTests {
         case .accessibilityDenied: return "accessibilityDenied"
         case .secureInputActive: return "secureInputActive"
         case .pasteFailed: return "pasteFailed"
+        }
+    }
+
+    private func describe(_ style: WritingStyle) -> String {
+        switch style {
+        case .formal: return "formal"
+        case .casual: return "casual"
+        case .veryCasual: return "veryCasual"
         }
     }
 

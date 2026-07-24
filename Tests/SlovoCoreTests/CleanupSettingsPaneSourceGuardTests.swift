@@ -10,11 +10,15 @@ struct CleanupSettingsPaneSourceGuardTests {
     private static let packageRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
+    /// Comment-stripped like every sibling source guard (the shared
+    /// `AppRuntimeSourceGuardTests.strippingComments`): a commented-out
+    /// `.disabled(!availability.isOn)` must not inflate the dependent-section
+    /// count below, and a token in documentation must not satisfy any pin.
     private static func paneSource() throws -> String {
-        try String(
+        AppRuntimeSourceGuardTests.strippingComments(from: try String(
             contentsOf: packageRoot.appending(path: "Sources/slovo/Settings/CleanupSettingsPane.swift"),
             encoding: .utf8
-        )
+        ))
     }
 
     /// Stated sensitivity: gate the toggle on `isOn` instead of

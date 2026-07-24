@@ -1,0 +1,16 @@
+// FIXTURE (not compiled): a multi-line logging statement — the `.info(` opener,
+// the payload, and the closing paren all live on DIFFERENT lines, so a scanner
+// that pairs the logging call and the payload per line misses the leak. The lint
+// must flag `transcript` and must NOT flag the `.count` reduction beside it.
+import os
+
+func logMultiline(transcript: String) {
+    let logger = Logger(subsystem: "com.slovo.app", category: "multiline")
+
+    logger.info(
+        """
+        transcription.done chars=\(transcript.count, privacy: .public)
+        transcription.done text=\(transcript, privacy: .public)
+        """
+    )
+}

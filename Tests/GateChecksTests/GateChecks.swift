@@ -72,27 +72,35 @@ enum GateChecks {
 
     /// Flags every logging interpolation that leaks a payload value.
     ///
-    /// A leak is an interpolation using `privacy: .public` or `String(describing:)`
-    /// in a logging call, regardless of the receiver name. The check is
-    /// per-payload-type: it names each leaked variable independently, so a leak of
-    /// any payload type is caught — not only a single hard-coded name. Lines
-    /// reduced to a length, a hash, or a `.private` interpolation pass, and a leak
-    /// that lives inside a line comment (documentation, not code) is ignored.
+    /// Two leak shapes are matched on comment-stripped code:
+    /// - `\(EXPR, privacy: .public)` — anywhere in the file. The `privacy:`
+    ///   argument exists only inside log-message interpolations, so no
+    ///   logging-call anchor is needed, and a payload on a continuation line of a
+    ///   multi-line call is caught like any single-line one. Any expression is a
+    ///   payload — a bare variable, an accessor chain, or a call — except a
+    ///   dotted length reduction (`value.count`), the one allowed public
+    ///   rendering.
+    /// - `\(String(describing: VAR))` — only on a logging-call line
+    ///   (`.log(`/`.info(`/… through any receiver name): `String(describing:)`
+    ///   is ordinary Swift everywhere else, but in a log message it renders the
+    ///   raw value.
     static func redactionViolations(inFileAt path: String) -> [GateViolation] {
         guard let source = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
+        let code = source
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { strippingLineComment(from: String($0)) }
 
-        var violations: [GateViolation] = []
-        for line in source.split(separator: "\n", omittingEmptySubsequences: false) {
-            let code = strippingLineComment(from: String(line))
-            for leaked in leakedPayloads(in: code) {
-                violations.append(GateViolation(
-                    file: path,
-                    rule: Rule.redactionLint.rawValue,
-                    detail: "payload `\(leaked)` reaches the log raw (use .private / length / hash)"
-                ))
-            }
+        var leaked = publicPayloads(in: code.joined(separator: "\n"))
+        for line in code where isLoggingCall(line) {
+            leaked += describedPayloads(in: line)
         }
-        return violations
+        return leaked.map { payload in
+            GateViolation(
+                file: path,
+                rule: Rule.redactionLint.rawValue,
+                detail: "payload `\(payload)` reaches the log raw (use .private / length / hash)"
+            )
+        }
     }
 
     /// Recursively scans every source under `root` for redaction violations.
@@ -179,26 +187,20 @@ enum GateChecks {
 
     // MARK: - Redaction helpers
 
-    /// Names every payload variable leaked on a single line of code. A line may
-    /// carry more than one leak; each is reported independently (per-payload-type).
-    /// The caller passes comment-stripped code, so a leak inside a `//` comment is
-    /// never seen here.
-    private static func leakedPayloads(in line: String) -> [String] {
-        guard isLoggingCall(line) else { return [] }
+    /// Every `\(EXPR, privacy: .public)` payload expression in the given code,
+    /// reported verbatim. The one exemption is a dotted length (`value.count`),
+    /// the allowed public rendering; a BARE `count` variable is not exempt — it
+    /// can alias arbitrary payload. Residual: a `.count` accessor returning
+    /// sensitive non-length data cannot be distinguished by a syntactic lint.
+    private static func publicPayloads(in code: String) -> [String] {
+        matches(in: code, pattern: #"\\\(\s*([^\\\n]+?)\s*,\s*privacy:\s*\.public\s*\)"#)
+            .filter { firstMatch(in: $0, pattern: #"[A-Za-z_][A-Za-z0-9_]*\.count$"#) == nil }
+    }
 
-        var leaked: [String] = []
-        // `\(<var>, privacy: .public)` — a variable interpolated as public.
-        leaked.append(contentsOf: matches(
-            in: line,
-            pattern: #"\\\(\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,\s*privacy:\s*\.public\s*\)"#
-        ))
-        // `\(String(describing: <var>))` — describing always renders the value.
-        leaked.append(contentsOf: matches(
-            in: line,
-            pattern: #"\\\(\s*String\(describing:\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\)\s*\)"#
-        ))
-        // A leaked accessor like `term.value` is reported by its root variable.
-        return leaked.map { $0.split(separator: ".").first.map(String.init) ?? $0 }
+    /// Every `\(String(describing: <var>))` payload on one logging-call line —
+    /// describing always renders the raw value into the message.
+    private static func describedPayloads(in line: String) -> [String] {
+        matches(in: line, pattern: #"\\\(\s*String\(describing:\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\)\s*\)"#)
     }
 
     /// True if the line is a logging call (`.log(`/`.info(`/…) through ANY
@@ -234,12 +236,20 @@ enum GateChecks {
         return line
     }
 
-    private static func sourceFiles(under root: String) -> [String] {
+    /// Sources Package.swift excludes from every build target (retained on disk
+    /// pending deletion approval). Dead code cannot log or import at runtime, so
+    /// the gates skip it; keep in sync with the manifest's target `exclude:` lists.
+    private static let buildExcludedSources = ["Sources/SlovoCore/ASR/SystemSpeechTranscriber.swift"]
+
+    /// The scanned set — internal (not private) so gate tests can assert the
+    /// walk actually visits real sources instead of greening on an empty walk.
+    static func sourceFiles(under root: String) -> [String] {
         guard let enumerator = FileManager.default.enumerator(atPath: root) else { return [] }
         return enumerator.compactMap { element in
             guard let relative = element as? String else { return nil }
             guard relative.hasSuffix(".swift") || relative.hasSuffix(".swifttext") else { return nil }
-            return URL(fileURLWithPath: root).appendingPathComponent(relative).path
+            let path = URL(fileURLWithPath: root).appendingPathComponent(relative).path
+            return buildExcludedSources.contains(where: path.hasSuffix) ? nil : path
         }
     }
 
