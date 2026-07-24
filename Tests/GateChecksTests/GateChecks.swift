@@ -77,9 +77,9 @@ enum GateChecks {
     ///   argument exists only inside log-message interpolations, so no
     ///   logging-call anchor is needed, and a payload on a continuation line of a
     ///   multi-line call is caught like any single-line one. Any expression is a
-    ///   payload — a bare variable, an accessor chain, or a call — except a
-    ///   dotted length reduction (`value.count`), the one allowed public
-    ///   rendering.
+    ///   payload — a bare variable, an accessor chain, or a call — unless it is
+    ///   a dotted length reduction (`value.count`) or an exact entry in the
+    ///   metric allowlist (`allowedMetricPayloads`).
     /// - `\(String(describing: VAR))` — only on a logging-call line
     ///   (`.log(`/`.info(`/… through any receiver name): `String(describing:)`
     ///   is ordinary Swift everywhere else, but in a log message it renders the
@@ -187,14 +187,33 @@ enum GateChecks {
 
     // MARK: - Redaction helpers
 
+    /// The runbook's latency-attribution marks: metric expressions deliberately
+    /// logged `.public` — never payload text — matched EXACTLY as captured, so
+    /// any new `.public` payload (even a lookalike name) must be added here, a
+    /// deliberate review step, before the gate passes it.
+    /// Entries: `decodeMs`/`drainMs`/`requestMs` are millisecond durations;
+    /// `planCase` is a decode-plan case NAME (associated values dropped at the
+    /// call site); `confirmedEndSeconds` is a stream-position offset in seconds.
+    private static let allowedMetricPayloads: Set<String> = [
+        "decodeMs",
+        "drainMs",
+        "planCase",
+        "requestMs",
+        "streamState.confirmedEndSeconds, format: .fixed(precision: 2)",
+    ]
+
     /// Every `\(EXPR, privacy: .public)` payload expression in the given code,
-    /// reported verbatim. The one exemption is a dotted length (`value.count`),
-    /// the allowed public rendering; a BARE `count` variable is not exempt — it
-    /// can alias arbitrary payload. Residual: a `.count` accessor returning
-    /// sensitive non-length data cannot be distinguished by a syntactic lint.
+    /// reported verbatim. Exactly two exemptions: a dotted length
+    /// (`value.count`) and the exact-match metric allowlist above. A BARE
+    /// `count` variable is not exempt — it can alias arbitrary payload.
+    /// Residual: a `.count` accessor returning sensitive non-length data — or an
+    /// allowlisted metric name reused for sensitive content — cannot be
+    /// distinguished by a syntactic lint; the allowlist is not a guarantee that
+    /// those names are always safe.
     private static func publicPayloads(in code: String) -> [String] {
         matches(in: code, pattern: #"\\\(\s*([^\\\n]+?)\s*,\s*privacy:\s*\.public\s*\)"#)
             .filter { firstMatch(in: $0, pattern: #"[A-Za-z_][A-Za-z0-9_]*\.count$"#) == nil }
+            .filter { !allowedMetricPayloads.contains($0) }
     }
 
     /// Every `\(String(describing: <var>))` payload on one logging-call line —
