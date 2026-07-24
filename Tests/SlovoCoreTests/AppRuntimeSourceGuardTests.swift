@@ -222,7 +222,7 @@ struct AppRuntimeSourceGuardTests {
         #expect(Self.containsInOrder([
             "setStatusGlyph(status",
             "Task { @MainActor",
-            "try? await Task.sleep(for: .seconds(5))",
+            "try? await Task.sleep(for: .seconds(1))",
             "setStatusGlyph(.idle",
         ], in: flashBriefStatusGlyphBody))
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)

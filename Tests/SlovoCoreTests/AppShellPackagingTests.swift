@@ -76,7 +76,7 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("statusReporter"))
         #expect(delegate.contains("showStatus"))
         #expect(delegate.contains("setStatusGlyph(status"))
-        #expect(delegate.contains("Task.sleep(for: .seconds(5))"))
+        #expect(delegate.contains("Task.sleep(for: .seconds(1))"))
         #expect(delegate.contains("didShowPipelineStatus"))
         #expect(Self.statementCount(#"self\?\.didShowPipelineStatus\s*=\s*false"#, in: startPipelineBody) == 1,
                 "pipeline status may reset at operation start, but key-up must preserve any start-failure status")

@@ -276,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setStatusGlyph(status: status, on: statusItem?.button)
         briefStatusResetTask?.cancel()
         briefStatusResetTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(1))
             self?.isShowingBriefStatus = false
             self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
             if self?.isPipelineActive == false {
