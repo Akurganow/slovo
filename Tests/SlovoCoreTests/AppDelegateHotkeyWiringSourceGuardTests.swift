@@ -36,8 +36,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// a parallel rebuild, so the re-entrancy guard has to be checked BEFORE the
     /// rebuild Task. Killing mutation: remove the guard (the current state) and a
     /// concurrent retrySetup spawns a second consumer -> RED.
-    /// Pinned shape (coordinated with the implementer): an early `guard ... return`
-    /// precedes the teardown+rebuild `Task`; the exact flag naming is free.
+    /// Pinned shape: an early `guard ... return` precedes the teardown+rebuild
+    /// `Task`; the exact flag naming is free.
     @Test
     func retrySetupGuardsAgainstConcurrentRebuild() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")

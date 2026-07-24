@@ -7,9 +7,7 @@ import SlovoCore
 // Dedup on (term, category), top-N by weight, and seed idempotency (corrections
 // inert).
 //
-// Contract under test (implementer builds `Sources/SlovoCore/Storage/`;
-// CURRENTLY the `_RedScaffold_Storage.swift` stub — UNIQUE(term), unordered
-// source, no-INSERT-OR-IGNORE seed — so these go RED).
+// Contract under test lives in `Sources/SlovoCore/Storage/`.
 //
 // ON-DISK temp DB. Every term is a synthetic neutral public anchor.
 @Suite("Vocabulary store")
@@ -24,8 +22,7 @@ struct VocabularyStoreTests {
     /// The same `term` under two DIFFERENT categories both survive; the same
     /// `term` + same `category` dedups to one.
     /// Stated sensitivity: declare `UNIQUE(term)` (drop `category`) → the
-    /// two-category case collapses to 1 → RED. (The scaffold uses
-    /// `UNIQUE(term)` → RED now.)
+    /// two-category case collapses to 1 → RED.
     @Test
     func dedupIsPerTermAndCategory() throws {
         let (pool, teardown) = try Self.openStore()
@@ -49,7 +46,7 @@ struct VocabularyStoreTests {
     /// `vocabulary(limit:)` returns the highest-weight N terms in descending
     /// order. Expected `[w9, w7, w5]` from the FIXTURE weights, not the source.
     /// Stated sensitivity: drop/reverse the `.order(weight.desc)` → wrong set/order
-    /// → RED. (The scaffold is unordered → RED now.)
+    /// → RED.
     @Test
     func vocabularyReturnsTopNByWeightInOrder() throws {
         let (pool, teardown) = try Self.openStore()
@@ -73,10 +70,7 @@ struct VocabularyStoreTests {
     /// `corrections` empty throughout (the real seed file is NEVER read in CI).
     /// Stated sensitivity: import without `INSERT OR IGNORE` → the re-apply either
     /// duplicates (no unique key) or throws SQLite-19 (unique key) → RED; write to
-    /// `corrections` during import → count > 0 → RED. GREEN on the
-    /// correct-IGNORE scaffold; the no-`.ignore` RED is proven OUT-OF-BAND (it
-    /// can't coexist in-tree with the clean UNIQUE(term) count-mismatch — a
-    /// plain INSERT throws on conflict rather than yielding a clean count).
+    /// `corrections` during import → count > 0 → RED.
     @Test
     func seedReapplyIsIdempotentAndLeavesCorrectionsUntouched() throws {
         let (pool, teardown) = try Self.openStore()

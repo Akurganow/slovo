@@ -134,7 +134,6 @@ struct HotkeyDecisionCoreTests {
 
     /// L2 — Control pressed MID-hold latches translate: fn down, then a control key
     /// goes down while fn is still held, then fn up ⇒ `.stop(mode: .translate)`.
-    /// RED now (the baseline always emits `.plain`).
     /// Stated sensitivity: never observe control during the hold → the stop stays
     /// `.plain` → RED.
     @Test
@@ -208,7 +207,7 @@ struct HotkeyDecisionCoreTests {
 
     /// L5(b) — a SECOND, foreign control (left control, key code 59) while the Right
     /// ⌃ trigger is held DOES latch translate. The flags carry a single `.control`
-    /// bit either way, so only the foreign key code distinguishes it. RED now.
+    /// bit either way, so only the foreign key code distinguishes it.
     /// Stated sensitivity: fail to latch on the foreign kc59 control → the stop stays
     /// `.plain` → RED.
     @Test
@@ -243,8 +242,7 @@ struct HotkeyDecisionCoreTests {
     }
 
     /// L7 — reconfiguring the trigger clears any latched translate, so a fresh plain
-    /// session on the new trigger stops `.plain`. The pre-reconfigure latch assert is
-    /// RED now.
+    /// session on the new trigger stops `.plain`.
     /// Stated sensitivity: keep the latch across `reconfigure` → the post-reconfigure
     /// plain session stops `.translate` → the second assert reddens.
     @Test
@@ -267,9 +265,7 @@ struct HotkeyDecisionCoreTests {
     /// start edge into `.translate`. The start event's own key code is the
     /// trigger's (62) and the single `.control` class bit cannot name the side, so
     /// only a bit tracked from the earlier kc59 press can carry the knowledge to
-    /// the start edge. RED now: the pre-session kc59 press is discarded
-    /// (`isTriggerHeld` is false) and the start-edge latch sees only kc62 → the
-    /// session starts and stops `.plain`.
+    /// the start edge.
     /// Stated sensitivity: drop the tracked-bit consult in the start-edge latch →
     /// the start reads `.plain` → RED.
     @Test

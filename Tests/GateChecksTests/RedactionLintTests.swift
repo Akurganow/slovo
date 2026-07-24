@@ -61,10 +61,10 @@ struct RedactionLintTests {
     /// A leaky-looking call inside a LINE COMMENT is documentation, not code; it
     /// never reaches the log and must NOT be flagged.
     ///
-    /// Stated sensitivity: RED on the current comment-blind scanner, which matches
-    /// the `.public` interpolation inside `// … logger.log("\(secret, privacy:
-    /// .public)")` and reports a violation → this assertion fails. It greens only
-    /// once the scanner strips line comments before matching.
+    /// Stated sensitivity: make the scanner comment-blind (skip stripping line
+    /// comments) → it matches the `.public` interpolation inside `// …
+    /// logger.log("\(secret, privacy: .public)")` and reports a violation → this
+    /// assertion fails.
     @Test
     func commentedLogCallIsNotFlagged() throws {
         let fixture = GateTestPaths.fixture("Redaction/CommentedExample.swifttext")
@@ -77,11 +77,9 @@ struct RedactionLintTests {
     /// A leak through a logger whose receiver is NOT named `logger` (here `log`)
     /// must still be flagged — a leak is a leak regardless of the variable name.
     ///
-    /// Stated sensitivity: RED on the current scanner, which keys on the literal
-    /// receiver `logger.` and so misses `log.error("\(secret, privacy: .public)")`
-    /// → zero violations → this assertion fails. It greens only once the scanner
-    /// matches any `.log(`/`.info(`/`.error(`/`.debug(`/`.notice(`/`.fault(` call
-    /// regardless of receiver name.
+    /// Stated sensitivity: narrow the scanner to key on the literal receiver
+    /// `logger.` → it misses `log.error("\(secret, privacy: .public)")` → zero
+    /// violations → this assertion fails.
     @Test
     func anyReceiverLeakIsFlagged() {
         let fixture = GateTestPaths.fixture("Redaction/AnyReceiverLeak.swifttext")
@@ -94,11 +92,9 @@ struct RedactionLintTests {
     /// LEFT of the `.public` interpolation must still be flagged — the `//` is
     /// inside the quoted string, not a comment.
     ///
-    /// Stated sensitivity: RED on the current comment-strip, which cuts at the
-    /// FIRST `//` and so truncates the line before the `.public` interpolation,
-    /// silently dropping the leak → zero violations → this assertion fails. It
-    /// greens only once `strippingLineComment` is literal-aware (an unquoted `//`
-    /// begins a comment; a `//` inside a `"…"` span does not).
+    /// Stated sensitivity: revert `strippingLineComment` to a naive cut at the
+    /// FIRST `//` → it truncates the line before the `.public` interpolation,
+    /// silently dropping the leak → zero violations → this assertion fails.
     @Test
     func leakAfterUrlInStringLiteralIsFlagged() {
         let fixture = GateTestPaths.fixture("Redaction/UrlInStringLeak.swifttext")

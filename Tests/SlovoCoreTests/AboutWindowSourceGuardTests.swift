@@ -83,7 +83,7 @@ struct AboutWindowSourceGuardTests {
     /// Stated sensitivity: drop the "Acknowledgements" label, stop resolving the
     /// bundled THIRD-PARTY-NOTICES resource, or drop the `NSWorkspace.shared.open`
     /// call → the matching `#expect` goes RED (a comment mention cannot satisfy it —
-    /// the scan strips comments). RED today: the affordance does not yet exist.
+    /// the scan strips comments).
     @Test
     func aboutViewOffersAcknowledgementsOpeningBundledNotices() throws {
         let view = try Self.strippedCode("Sources/slovo/About/AboutView.swift")

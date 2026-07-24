@@ -7,11 +7,8 @@ import SlovoTestSupport
 // Restore targets the EXACT pinned device, and wasAlreadyMuted ⇒ restore is a
 // no-op.
 //
-// Contract under test (implementer builds the seam in
-// `Sources/SlovoCore/Audio/` and the fake in `Sources/SlovoTestSupport/`;
-// CURRENTLY supplied by the WRONG-ON-PURPOSE
-// `_RedScaffold_AudioPermSeams.swift` stub — restore targets device 99 and
-// always writes — so these tests go RED on behavior).
+// Contract under test (the seam lives in `Sources/SlovoCore/Audio/`, the fake in
+// `Sources/SlovoTestSupport/`):
 //
 //     struct PriorAudioState { deviceID; method; wasAlreadyMuted; priorVolumeScalar }
 //     protocol SystemAudioController {
@@ -24,7 +21,7 @@ struct SystemAudioControllerTests {
     /// AirPods-connect-mid-dictation: restore must target the device
     /// PINNED at mute time (`state.deviceID`), never the then-current default.
     /// Stated sensitivity: make restore target the current default (id 99) → the
-    /// recorded device ≠ 42 → RED. (The scaffold targets 99 → RED now.)
+    /// recorded device ≠ 42 → RED.
     @Test
     func restoreTargetsThePinnedDevice() throws {
         let pinned = PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
@@ -41,7 +38,7 @@ struct SystemAudioControllerTests {
     /// ALREADY muted at mute time, restore performs NO device write.
     /// Stated sensitivity: make restore always un-mute regardless of
     /// `wasAlreadyMuted` → a device write is recorded for the already-muted case
-    /// → RED. (The scaffold always writes → RED now.)
+    /// → RED.
     @Test
     func restoreIsNoOpWhenWasAlreadyMuted() throws {
         let alreadyMuted = PriorAudioState(deviceID: 7, method: .mute, wasAlreadyMuted: true, priorVolumeScalar: nil)

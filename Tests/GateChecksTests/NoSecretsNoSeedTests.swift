@@ -3,20 +3,18 @@ import Testing
 
 // No-secrets / no-seed-in-VCS gate.
 //
-// Two complementary RED tests:
+// Two complementary checks:
 //
 //  1. `scriptEnforcesGlobOnIsolatedRepo`: invokes the checked-in helper
 //     `Scripts/check-no-seed-in-vcs.sh`. The helper must exit 0 only when EVERY
 //     required glob (`data/seed*.sql`, `data/slovo.db*`, key material) is ignored
-//     in a repo carrying slovo's `.gitignore`. RED today because the script is
-//     absent (the implementer creates it).
+//     in a repo carrying slovo's `.gitignore`.
 //
 //  2. `realGitignoreIgnoresGlobMatch`: a direct `git check-ignore` probe in an
 //     ISOLATED temp repo seeded with the REAL `.gitignore`. It uses glob-matching
-//     probe names the OLD literal list MISSED (`data/seed.dev.sql`,
+//     probe names the literal list MISSES (`data/seed.dev.sql`,
 //     `data/slovo.db.x`) — never one of the two literal filenames, or it would be
-//     false-green against the regression. RED today because the un-hardened
-//     `.gitignore` lists exact filenames, so the glob match is NOT ignored.
+//     false-green against the regression.
 //
 // Stated sensitivity: revert `.gitignore` to the exact-filename
 // form → `data/seed.dev.sql` becomes committable → both tests go RED. That is the

@@ -3,11 +3,10 @@ import Foundation
 // Shared support for the L1 prevention-gate tests.
 //
 // The gate scanners walk real on-disk source trees, so the tests must resolve
-// two roots without depending on a SwiftPM `resources:` declaration (owned by
-// the implementer, not the test author): the package root and this target's
-// Fixtures directory. Both are derived from `#filePath` — the absolute path of
-// this source file in the real checkout — so they stay correct regardless of the
-// working directory the runner is launched from.
+// two roots without depending on a SwiftPM `resources:` declaration: the package
+// root and this target's Fixtures directory. Both are derived from `#filePath` —
+// the absolute path of this source file in the real checkout — so they stay
+// correct regardless of the working directory the runner is launched from.
 enum GateTestPaths {
     /// Absolute path to this file: `<pkg>/Tests/GateChecksTests/TestSupport.swift`.
     static func selfFilePath(_ path: StaticString = #filePath) -> String {

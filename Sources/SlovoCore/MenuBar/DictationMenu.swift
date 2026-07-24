@@ -7,13 +7,6 @@ public enum DictationMenuItem: Equatable, Sendable {
     case status(String)
     /// The dynamic "Hold <key> to talk" hint, derived from the current trigger.
     case hotkeyHint(String)
-    /// The disabled status line shown while a newer version downloads silently in
-    /// the background; the argument is the version being fetched.
-    case updateDownloading(version: String)
-    /// The hybrid line shown once a downloaded update is validated — reads as a
-    /// status line but becomes an actionable Restart under highlight; the argument
-    /// is the ready version.
-    case updateReady(version: String)
     case separator
     /// The Cleanup Model submenu; `selectedModelId` is the currently selected model
     /// id so the builder can check the right catalog row. `enabled` is false whenever
@@ -54,25 +47,23 @@ public enum DictationMenuItem: Equatable, Sendable {
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
-    /// reads where it is expected: the header (status, hotkey hint, and — while an
-    /// update is downloading or ready — one update line directly below the hint and
-    /// above the first separator), then the untitled cleanup block (see
-    /// `cleanupBlock`), the vocabulary block (Add Vocabulary with the
-    /// availability-independent mute switch adjacent to it), and the bottom section
-    /// holding Settings, then About, then Quit — each group fenced by a separator. The
-    /// hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk").
+    /// reads where it is expected: the header (status and hotkey hint), then the
+    /// untitled cleanup block (see `cleanupBlock`), the vocabulary block (Add
+    /// Vocabulary with the availability-independent mute switch adjacent to it), and
+    /// the bottom section holding Settings, then About, then Quit — each group fenced
+    /// by a separator. The hint reads "Hold <displayName> to talk" (e.g. "Hold Right
+    /// ⌘ to talk").
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
         mutesSystemAudioWhileDictating: Bool,
         translationLanguage: String,
-        cleanupAvailability: CleanupAvailability,
-        update: UpdateIndication
+        cleanupAvailability: CleanupAvailability
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
             .status("Idle"),
             .hotkeyHint("Hold \(trigger.displayName) to talk"),
-        ] + updateHeaderLine(for: update)
+        ]
         let rest: [DictationMenuItem] = [
             .separator,
         ] + cleanupBlock(
@@ -113,24 +104,6 @@ public enum DictationMenu {
                 .cleanupModel(selectedModelId: selectedModelId, enabled: availability.isOn),
                 .translationLanguage(selected: translationLanguage, enabled: availability.isOn),
             ]
-        }
-    }
-
-    /// The single header line, if any, rendering the update state directly below the
-    /// hotkey hint. `idle`/`checking` add nothing HERE: the always-visible update row
-    /// is the app-target's persistent, in-place-mutated item (see AppDelegate+UpdateMenu),
-    /// which owns the actionable "Check for Updates…"/"Checking…"/hybrid-Restart forms;
-    /// this pure model only spells the disabled `downloading`/`ready` status text that
-    /// the exact-sequence tests pin. (The two representations are documented-spec vs
-    /// runtime; see the follow-ups ledger.)
-    private static func updateHeaderLine(for update: UpdateIndication) -> [DictationMenuItem] {
-        switch update {
-        case .idle, .checking:
-            return []
-        case .downloading(let version):
-            return [.updateDownloading(version: version)]
-        case .ready(let version):
-            return [.updateReady(version: version)]
         }
     }
 }

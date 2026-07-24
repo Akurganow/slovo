@@ -25,8 +25,8 @@ public struct CompositionSummary: Sendable, Equatable {
 
 /// The composition root: assembles the single configured pipeline.
 ///
-/// EXACTLY ONE injected `Transcriber` (the system Speech runtime — no runtime
-/// multi-backend switch), a fallback cleaner chain, one injector, one
+/// EXACTLY ONE injected `Transcriber` (the one configured WhisperKit transcriber —
+/// no runtime multi-backend switch), a fallback cleaner chain, one injector, one
 /// personalization source. Cleanup always wraps the configured upstream cleaner
 /// before `PassThrough`.
 public enum PipelineFactory {

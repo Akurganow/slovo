@@ -7,10 +7,8 @@ import SlovoCore
 // Pure downmix + sample-rate conversion to 16 kHz mono Float, and the SOURCE
 // format is READ, not hardcoded.
 //
-// Contract under test (implementer builds the pure conversion in
-// `Sources/SlovoCore/Audio/AudioFormatConversion.swift`; CURRENTLY
-// supplied by the WRONG-ON-PURPOSE `_RedScaffold_AudioCapture.swift` stub that
-// returns the input unchanged — so these tests go RED on rate/channels/frames).
+// Contract under test — the pure conversion lives in
+// `Sources/SlovoCore/Audio/AudioFormatConversion.swift`:
 //
 //     enum AudioFormatConversion {
 //         static func toSixteenKilohertzMono(_ source: AVAudioPCMBuffer) -> AVAudioPCMBuffer
@@ -47,7 +45,6 @@ struct AudioFormatConversionTests {
     /// Stated sensitivity: `convert(to:from:)` (no SRC) → output stays 48 kHz /
     /// wrong frames → RED; channel-0-only (skip downmix) → mono ≈ +1.0 not ≈0 →
     /// RED. The L/R-cancel fixture makes channel-0-only ≠ downmix (non-tautological).
-    /// The scaffold returns the input unchanged (48 kHz, 2ch) → RED on rate+channels.
     @Test
     func stereo48kConvertsToMono16kDownmix() {
         let frames: AVAudioFrameCount = 4_800  // 0.1 s at 48 kHz
@@ -79,8 +76,7 @@ struct AudioFormatConversionTests {
     ///
     /// Stated sensitivity: hardcode the source to 48 kHz inside the conversion →
     /// the 24 kHz input produces the wrong frame count (off by 2×) → RED. A
-    /// single-format test could not catch a hardcoded source. The scaffold
-    /// returns the input unchanged (24 kHz) → RED on rate.
+    /// single-format test could not catch a hardcoded source.
     @Test
     func differentSourceFormatStillConvertsTo16kMono() {
         let frames: AVAudioFrameCount = 2_400  // 0.1 s at 24 kHz

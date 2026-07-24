@@ -5,11 +5,7 @@ import SlovoCore
 
 // The pure, deterministic dictation transition, including single-flight.
 //
-// Contract under test (implementer builds the pure transition in
-// `Sources/SlovoCore/FSM/`; the symbols are CURRENTLY supplied by
-// the WRONG-ON-PURPOSE `_RedScaffold_FSM.swift` stub — `transition` returns
-// `(.idle, [])` for every input — so these tests go RED on the VALUE while the
-// call sites type-check).
+// Contract under test — the pure transition lives in `Sources/SlovoCore/FSM/`:
 //
 //     DictationFsm.transition(_ state: DictationState, on event: DictationEvent)
 //         -> (DictationState, [DictationEffect])   // non-async, non-throwing
@@ -59,8 +55,7 @@ struct FsmTests {
     /// (state unchanged) AND a single-flight log effect is emitted.
     /// Stated sensitivity: let startRequested restart processing
     /// (`.recording`/`[.beginCapture]`) → state changes → RED; OR drop the log
-    /// effect → the "ignored (logged)" rule fails → RED. The scaffold returns
-    /// `(.idle, [])`, failing BOTH halves.
+    /// effect → the "ignored (logged)" rule fails → RED.
     @Test
     func processingStartRequestedIsSingleFlightIgnored() {
         let (state, effects) = DictationFsm.transition(.processing, on: .startRequested)
@@ -73,8 +68,7 @@ struct FsmTests {
     /// no-op: unchanged state + `[log(.unexpectedEvent)]`, never a crash, never a
     /// silent drop. Pinned here for an unpinned pair (`idle + stopRequested`).
     /// Stated sensitivity: make the unhandled pair crash, change state, or emit []
-    /// → RED. The scaffold returns `(.idle, [])` (empty effects) → RED on the
-    /// effect assertion.
+    /// → RED.
     @Test
     func unhandledPairIsLoggedNoOp() {
         let (state, effects) = DictationFsm.transition(.idle, on: .stopRequested(.plain))
@@ -88,7 +82,7 @@ struct FsmTests {
     /// returns to idle. Effects carrying an `Error` compare by
     /// CASE (an `Error` is not `Equatable`), so this asserts the exact effect SEQUENCE.
     /// Stated sensitivity: reorder the effects, drop one, or fail to return to
-    /// idle → RED. The scaffold returns `(.idle, [])` → RED on the effect order.
+    /// idle → RED.
     @Test
     func failureTransitionEmitsNotifyThenLogThenReturnToIdleInOrder() {
         let failure = StageFailure.injection(.accessibilityDenied)
@@ -105,8 +99,7 @@ struct FsmTests {
     /// `processing + transcriptReady(t)` must emit `clean(transcript: t)` carrying
     /// the EXACT transcript payload (not a dropped/altered string).
     /// Stated sensitivity: emit `.clean(transcript: "WRONG")` (or drop the payload)
-    /// → RED. (GREEN on current correct code; the payload mutation is demonstrated
-    /// out-of-band.)
+    /// → RED.
     @Test
     func processingTranscriptReadyEmitsCleanWithSamePayload() {
         let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady("hi"))
@@ -204,10 +197,10 @@ struct FsmTests {
     /// `StageFailure` equality must distinguish DIFFERENT wrapped errors, not
     /// collapse every `.injection(_)` to equal. Distinct injection failures are
     /// UNEQUAL; the same case is EQUAL.
-    /// Stated sensitivity: RED now — the current by-CASE `==` returns TRUE for
-    /// `.injection(.secureInputActive) == .injection(.pasteFailed)`. It greens
-    /// only once `InjectionError` is Equatable and `StageFailure ==` compares the
-    /// wrapped value (synthesized).
+    /// Stated sensitivity: revert `StageFailure ==` to a by-CASE comparison (drop
+    /// `InjectionError: Equatable` / the synthesized wrapped-value compare) →
+    /// `.injection(.secureInputActive) == .injection(.pasteFailed)` returns TRUE →
+    /// this inequality assertion fails → RED.
     @Test
     func stageFailureDistinguishesDistinctInjectionErrors() {
         #expect(StageFailure.injection(.secureInputActive) != .injection(.pasteFailed),
@@ -223,20 +216,15 @@ struct FsmTests {
 // MARK: - Honest StatusMessage map
 //
 // The failure transition must surface a TRUTHFUL status per failure stage, not
-// collapse everything to `.accessibilityDenied`. The honest cases + mapping
-// (exact names the implementer must add to `StatusMessage`):
+// collapse everything to `.accessibilityDenied`. The honest mapping:
 //   transcription(*)               -> .transcriptionFailed
-//   injection(.accessibilityDenied)-> .accessibilityDenied   (already correct)
+//   injection(.accessibilityDenied)-> .accessibilityDenied
 //   injection(.secureInputActive)  -> .secureFieldActive
 //   injection(.pasteFailed)        -> .injectionFailed
 //   cleanup                        -> .cleanupFailed
 //
-// RED now in TWO ways for the dishonest cases:
-//   (a) COMPILE: `.transcriptionFailed` / `.secureFieldActive` / `.injectionFailed`
-//       do not exist on `StatusMessage` yet → the references below won't compile.
-//   (b) VALUE: current `statusMessage(for:)` maps all three to `.accessibilityDenied`.
-// Documented RED = the compile failure; once
-// the cases exist and the map is honest, these go GREEN.
+// Stated sensitivity: collapse any of these back to `.accessibilityDenied` (the
+// dishonest mapping) → the corresponding test below reddens.
 @Suite("Honest StatusMessage mapping")
 struct HonestStatusMappingTests {
     /// Helper: the single `notify` status the failure transition emits.

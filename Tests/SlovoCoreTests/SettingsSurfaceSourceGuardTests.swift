@@ -2,8 +2,8 @@ import Foundation
 import Testing
 
 // App-target Settings surfaces are not unit-importable, so this guard scans their
-// source: each pane must drive the SettingsActions seam, the Phase-3 checkbox must
-// NOT exist yet, and the panes must be package-agnostic SwiftUI.
+// source: each pane must drive the SettingsActions seam and stay package-agnostic
+// SwiftUI.
 @Suite("Settings surface source guards")
 struct SettingsSurfaceSourceGuardTests {
     /// Stated sensitivity: drop a pane's call to its setter (e.g. delete

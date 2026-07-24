@@ -38,8 +38,7 @@ struct DictationMenuBuilder {
             selectedModelId: selectedModelId,
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
             translationLanguage: translationLanguage,
-            cleanupAvailability: cleanupAvailability,
-            update: .idle
+            cleanupAvailability: cleanupAvailability
         ) {
             switch item {
             case .status(let word):
@@ -49,14 +48,6 @@ struct DictationMenuBuilder {
             case .hotkeyHint(let text):
                 menu.addItem(disabled(text))
                 menu.addItem(makeUpdateItem())
-            // This static build renders only the textual form of the update line;
-            // the live hybrid "Update ready"/"Restart" behavior and in-place
-            // mutation are owned by the app-target renderer, per the auto-update
-            // design.
-            case .updateDownloading(let version):
-                menu.addItem(disabled("Downloading v\(version)"))
-            case .updateReady(let version):
-                menu.addItem(disabled("Update ready — v\(version)"))
             case .separator:
                 menu.addItem(.separator())
             case .cleanupModel(let modelId, let enabled):
@@ -123,8 +114,7 @@ struct DictationMenuBuilder {
 
     /// The one persistent update-line item, handed to the target so the update
     /// renderer mutates it in place. Hidden until the coordinator reports activity;
-    /// the model's update cases stay unreached because this renderer-owned item is
-    /// the runtime path.
+    /// this renderer-owned item is the single runtime path for the update line.
     private func makeUpdateItem() -> NSMenuItem {
         let item = NSMenuItem()
         item.isHidden = true

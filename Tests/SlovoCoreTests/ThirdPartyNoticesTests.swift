@@ -17,7 +17,6 @@ struct ThirdPartyNoticesTests {
     /// headers and source URLs rather than the (shared) copyright line.
     /// Stated sensitivity: delete any component's block (or its Sparkle sub-notice)
     /// → its distinctive copyright line vanishes → the matching `#expect` goes RED.
-    /// RED today: the file does not yet exist, so every assertion fails.
     @Test
     func noticesFileReproducesEveryBundledComponent() throws {
         let notices = try Self.noticesText()
@@ -66,8 +65,6 @@ struct ThirdPartyNoticesTests {
     /// Stated sensitivity: drop the install step → the dest path is absent → RED;
     /// move the install after the app codesign → the ordered-needle scan (notices
     /// install before the slovo.entitlements codesign) → RED.
-    /// RED today: the script does not install the notices file, so neither the
-    /// presence nor the ordering assertion holds.
     @Test
     func releaseAppPhaseInstallsNoticesIntoResourcesBeforeSigning() throws {
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunNotices-\(UUID().uuidString)", notary: true)
@@ -86,7 +83,6 @@ struct ThirdPartyNoticesTests {
     /// signature is applied.
     /// Stated sensitivity: drop the copy from `stage_bundle` → the body scan for the
     /// notices file into Resources → RED.
-    /// RED today: `stage_bundle` does not copy the notices file.
     @Test
     func devLauncherStagesNoticesIntoResources() throws {
         let launcher = try Self.source("Scripts/build_and_run.sh")

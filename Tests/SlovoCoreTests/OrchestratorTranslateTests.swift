@@ -68,7 +68,7 @@ struct OrchestratorTranslateTests {
 
     /// M3 — in translate mode the persisted target language reaches the cleaner
     /// alongside the translate flag. The target flows Config→CleanupConfig in both
-    /// modes (green now); the `translate == true` is RED now.
+    /// modes.
     /// Stated sensitivity: drop the stashed-mode mapping → `translate` stays false →
     /// RED; drop the target from the clean config → `translationTargetLanguage` is
     /// not `.ru` → RED.

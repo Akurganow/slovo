@@ -5,12 +5,6 @@ import Testing
 // material. Same engine: `git check-ignore` against an ISOLATED temp
 // repo seeded with the REAL `.gitignore` (touches nothing real).
 //
-// RED today: the un-hardened `.gitignore` lists exact filenames, so the glob
-// matches (`data/seed*.sql`, `data/slovo.db*`) and the key-material pattern are
-// NOT ignored. Build-artifact patterns ARE already present, so those sub-checks
-// would pass — the RED comes specifically from the seed/db globs + key material,
-// which is the intended hardening signal.
-//
 // Stated sensitivity: drop ANY required pattern from `.gitignore` → that probe is
 // no longer ignored → RED. Reverting the glob to the literal list re-breaks the
 // `data/seed.dev.sql` / `data/slovo.db.x` probes specifically.
@@ -25,9 +19,9 @@ struct GitignoreHardeningTests {
         "data/seed.dev.sql",     // glob data/seed*.sql, missed by the literal list
         "data/slovo.db.x",       // glob data/slovo.db*, missed by the literal list
         "secrets/anthropic.key",  // key material must be ignored
-        // Env files and credential bundles — currently TRACKABLE (RED). The
-        // hardened `.gitignore` must cover dotenv files, PKCS#12 / PEM-8 signing
-        // keys, opaque token files, dropped credential JSON, and SSH private keys.
+        // Env files and credential bundles: the `.gitignore` must cover dotenv
+        // files, PKCS#12 / PEM-8 signing keys, opaque token files, dropped
+        // credential JSON, and SSH private keys.
         ".env",
         ".env.local",
         "config.p12",

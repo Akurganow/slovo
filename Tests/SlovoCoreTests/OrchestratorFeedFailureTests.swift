@@ -26,18 +26,16 @@ struct OrchestratorFeedFailureTests {
     /// finalizes empty, so the orchestrator must route .failed(.transcription) — the
     /// menu-bar .transcriptionFailed status — instead of .transcriptReady("").
     ///
-    /// This test was RED before implementation (the pump's `try?` swallow discarded
-    /// every feed error, so finish "" looked like silence — nothing surfaced and the
-    /// empty transcript flowed on to clean/inject). GREEN is now in the tree, so it
-    /// lands green here.
+    /// This guards a real regression: a `try?` swallow in the pump would discard
+    /// every feed error so finish "" looked like silence — nothing surfaced and the
+    /// empty transcript flowed on to clean/inject.
     ///
     /// Routed-error-kind assertion: the fed chunks fail with a NON-default error
     /// (.engineFailure), and the orchestrator logs the routed kind as
-    /// `transcription.totalFeedFailure.engineFailure`. Killing mutation: an
-    /// implementer hardcoding `.audioFormatUnsupported` instead of routing the
-    /// captured feed error would emit `...totalFeedFailure.audioFormatUnsupported`
-    /// -> RED. Its sensitivity is proven by the independent mutation audit (GREEN is
-    /// already present here, so this assertion cannot be RED-demonstrated now).
+    /// `transcription.totalFeedFailure.engineFailure`. Killing mutation: hardcoding
+    /// `.audioFormatUnsupported` instead of routing the captured feed error would
+    /// emit `...totalFeedFailure.audioFormatUnsupported` -> RED (its sensitivity is
+    /// covered by the independent mutation audit).
     @Test
     func totalFeedFailureSurfacesTranscriptionFailedNotSilentEmpty() async {
         let reported = Mutex<[StatusMessage]>([])
@@ -74,11 +72,10 @@ struct OrchestratorFeedFailureTests {
     }
 
     /// Per-chunk tolerance: some feed errors alongside at least one success must
-    /// still transcribe normally (a few dropped chunks are not a failure). GREEN.
+    /// still transcribe normally (a few dropped chunks are not a failure).
     /// Documented sensitivity: because finish is NON-empty here, this pins the
-    /// tolerance boundary but is only weakly sensitive to the implementer dropping
-    /// the "zero successful feeds" clause — the independent mutation audit
-    /// strengthens that.
+    /// tolerance boundary but is only weakly sensitive to a mutation dropping the
+    /// "zero successful feeds" clause — an independent mutation audit covers that.
     @Test
     func partialFeedFailureWithSomeSuccessTranscribesNormally() async {
         let reported = Mutex<[StatusMessage]>([])
@@ -108,9 +105,9 @@ struct OrchestratorFeedFailureTests {
     /// Legitimate silence must stay silent, never a failure. Every chunk is accepted
     /// and the session simply finalizes empty (the user held the key over silence),
     /// so the orchestrator must NOT surface .transcriptionFailed — protecting the
-    /// future empty-result path. GREEN. Documented sensitivity: an implementer that
-    /// broadens the rule to "finish empty => failure" (ignoring the zero-successful-
-    /// feeds clause) would surface .transcriptionFailed here -> RED.
+    /// empty-result path. Documented sensitivity: broadening the rule to
+    /// "finish empty => failure" (ignoring the zero-successful-feeds clause) would
+    /// surface .transcriptionFailed here -> RED.
     @Test
     func emptyDecodeWithSuccessfulFeedsStaysSilentNotFailed() async {
         let reported = Mutex<[StatusMessage]>([])

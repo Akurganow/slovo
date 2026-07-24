@@ -6,9 +6,7 @@ import SlovoTestSupport
 
 // The persisted translate target must default to "en" when absent, round-trip a
 // supported code, and fail the WHOLE config closed for "auto" or an unsupported
-// code — exactly like the recognition-language guard. The fail-closed cases are RED
-// now: the pre-scaffolding decoder accepts any translationTargetLanguage without
-// validation.
+// code — exactly like the recognition-language guard.
 @Suite("ConfigStore translation target language")
 struct ConfigStoreTranslationLanguageTests {
     /// C1 — an absent translationTargetLanguage decodes to "en", and the rest of the
@@ -61,7 +59,6 @@ struct ConfigStoreTranslationLanguageTests {
 
     /// C4 — an unsupported translate target code fails the whole config closed,
     /// exactly like an unsupported recognition language.
-    /// RED now: no target validation, so the blob loads non-default.
     /// Stated sensitivity: drop the `isSupported` target guard in `validated()` → RED.
     @Test
     func unsupportedTranslationTargetRejectsWholeConfig() throws {

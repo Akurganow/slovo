@@ -272,7 +272,7 @@ struct ConfigStoreTests {
     /// "speechtranscriber" + model "system-dictation". Those legacy values MIGRATE
     /// to the WhisperKit turbo runtime on load (a mapping, NOT whole-config
     /// rejection): the single-case `AsrBackend`'s synthesized Codable cannot even
-    /// represent "speechtranscriber", so the implementer must map the legacy string
+    /// represent "speechtranscriber", so the loader maps the legacy string
     /// BEFORE raw-value matching. keepWarmSeconds RESETS to resident (nil) for any
     /// legacy value (legacy keepWarm meant Apple retention, not an idle window).
     /// Unrelated cleanup/style fields survive untouched.

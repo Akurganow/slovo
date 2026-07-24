@@ -7,11 +7,8 @@ import SlovoTestSupport
 // Preflight checks ALL THREE permissions independently and degrades if ANY is
 // missing — not just Accessibility.
 //
-// Contract under test (implementer builds the seam in
-// `Sources/SlovoCore/Permissions/` and the fake in `Sources/SlovoTestSupport/`;
-// CURRENTLY supplied by the WRONG-ON-PURPOSE
-// `_RedScaffold_AudioPermSeams.swift` stub — preflight checks only
-// Accessibility and forces IM + mic true — so this test goes RED on behavior).
+// Contract under test (the seam lives in `Sources/SlovoCore/Permissions/`, the
+// fake in `Sources/SlovoTestSupport/`):
 //
 //     struct PermissionStatus { accessibility; inputMonitoring; microphone; allGranted }
 //     protocol PermissionPreflighter { func preflight() -> PermissionStatus }
@@ -21,8 +18,7 @@ struct PermissionPreflightTests {
     /// With Input Monitoring DENIED (others granted), preflight must report
     /// `allGranted == false` AND surface `.inputMonitoring == false` specifically.
     /// Stated sensitivity: a preflighter that checks only Accessibility (forcing
-    /// IM/mic true) wrongly reports allGranted and loses the IM bit → RED. (The
-    /// scaffold forces IM true → RED now.)
+    /// IM/mic true) wrongly reports allGranted and loses the IM bit → RED.
     @Test
     func denyingInputMonitoringIsReportedAndBlocksAllGranted() {
         let preflighter = FakePermissionPreflighter(

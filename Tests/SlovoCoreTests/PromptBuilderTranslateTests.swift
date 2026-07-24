@@ -3,10 +3,8 @@ import Testing
 import SlovoCore
 
 // Translate mode SWAPS the plain "never translate" contract for a translation
-// directive in the SAME single request. These substrings are the contract (authored
-// independently in the lead's prompt spec, section 2). RED now: the pre-scaffolding
-// builder ignores `translate`, so it still emits the PLAIN block — which contains
-// "Never translate" and the plain examples and none of the translate directives.
+// directive in the SAME single request. These substrings are the contract, authored
+// independently from the builder so they pin drift, not a tautology.
 @Suite("Cleanup prompt translate mode")
 struct PromptBuilderTranslateTests {
     private static func translateBlock(style: WritingStyle, target: Language = .ru) -> String {
@@ -61,14 +59,14 @@ struct PromptBuilderTranslateTests {
     /// appear and must differ across styles.
     /// Stated sensitivity: if translate ignores WritingStyle (hardcodes one register
     /// word), the formal block would still contain "casual" (or omit "formal") → RED.
-    /// The `Translate it into Russian` anchor makes this RED now (the plain baseline
-    /// block never contains it).
+    /// The `Translate it into Russian` anchor confirms these are genuine translate
+    /// blocks (the plain baseline block never contains it).
     @Test
     func translateRegisterFollowsWritingStyle() {
         let formal = Self.translateBlock(style: .formal)
         let casual = Self.translateBlock(style: .casual)
 
-        // RED-now anchor: both are genuine translate blocks, absent in the baseline.
+        // Anchor: both are genuine translate blocks, absent in the baseline.
         #expect(formal.contains("Translate it into Russian"))
         #expect(casual.contains("Translate it into Russian"))
 

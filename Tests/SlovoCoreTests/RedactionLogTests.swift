@@ -6,7 +6,7 @@ import Testing
 // Behavioral test of the redaction-safe logging
 // wrapper. Runtime complement to the static redaction lint.
 //
-// Contract under test (implementer builds in `SlovoCore`):
+// Contract under test — `RedactionSafeLog` in `SlovoCore`:
 //
 //     public struct RedactionSafeLog {
 //         /// `sink` defaults to writing through `os.Logger`; tests inject a
