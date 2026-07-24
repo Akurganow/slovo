@@ -3,9 +3,7 @@ import Testing
 
 // App-target menu/settings wiring is not unit-importable, so these guards scan its
 // source (comment-stripped, so a token surviving only in a comment cannot satisfy an
-// assert). They pin the Round-2 translate-mode wiring named in the lead's wiring
-// spec. All RED now: the wiring text is absent (and `AppDelegate+TranslateMenu.swift`
-// does not exist yet, so its guard reads as empty and its positive asserts fail).
+// assert). They pin the translate-mode wiring.
 @Suite("Translate mode wiring source guards")
 struct TranslateModeWiringSourceGuardTests {
 

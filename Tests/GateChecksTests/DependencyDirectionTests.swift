@@ -3,7 +3,7 @@ import Testing
 
 // Dependency-direction gate.
 //
-// Contract under test (the implementer must build this in `SlovoCore`):
+// Contract under test (`GateChecks`, in `SlovoCore`):
 //
 //     enum GateChecks {
 //         /// A role-tagged source file (Cleaner/Transcriber/Injector) must not
@@ -19,9 +19,8 @@ import Testing
 //         let detail: String   // human-readable specifics
 //     }
 //
-// The tests below are RED today because `GateChecks` does not exist. They are
-// behavior-specific, not "package doesn't compile": each asserts the SHAPE of the
-// result the production scanner must return.
+// Each test asserts the SHAPE of the result the production scanner returns —
+// behavior-specific, not a "does the package compile" smoke test.
 @Suite("Dependency direction")
 struct DependencyDirectionTests {
     // Rule id via the symbol, so a rename is a compile error, not a silent miss.
@@ -60,11 +59,10 @@ struct DependencyDirectionTests {
     /// source under a role DIRECTORY (`Cleaners/Orchestrator.swifttext`) whose name
     /// lacks the "Cleaner" substring must still be flagged for importing GRDB.
     ///
-    /// Stated sensitivity: this is RED on the current filename-only detector (it
-    /// keys off `name.contains("Cleaner"/"Transcriber"/"Injector")`, so
-    /// `Orchestrator.swifttext` is not seen as a role module and its `import GRDB`
-    /// is missed → zero violations → this assertion fails). It greens only once
-    /// detection policies by directory/path.
+    /// Stated sensitivity: revert detection to a filename-only detector keying off
+    /// `name.contains("Cleaner"/"Transcriber"/"Injector")` → `Orchestrator.swifttext`
+    /// is not seen as a role module and its `import GRDB` is missed → zero
+    /// violations → this assertion fails.
     @Test
     func roleSourceInRoleDirectoryIsFlaggedDespiteName() {
         let fixture = GateTestPaths.fixture("DependencyDirection/Cleaners/Orchestrator.swifttext")
@@ -77,10 +75,9 @@ struct DependencyDirectionTests {
     /// merely contains "Cleaner" because it tests a Cleaner. A test importing GRDB
     /// is legitimate and must NOT be flagged.
     ///
-    /// Stated sensitivity: this is RED on the current detector, which substring-
-    /// matches "Cleaner" and so false-positives this test file (it reports a GRDB
-    /// violation) → this assertion fails. It greens only once detection uses
-    /// location plus a word-boundary fallback that excludes `*Tests`/`Mock*`.
+    /// Stated sensitivity: revert detection to substring-matching "Cleaner" → this
+    /// test file is false-positived (reported as a GRDB violation) → this assertion
+    /// fails.
     @Test
     func testShapedNameIsNotFalsePositive() throws {
         let fixture = GateTestPaths.fixture("DependencyDirection/CleanerTests.swifttext")

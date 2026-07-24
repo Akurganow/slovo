@@ -6,9 +6,9 @@ import SlovoCore
 // The fn key must deliver its edges through ONE ordered, single-consumer
 // channel so a slow key-down handler cannot be overtaken by the following key-up
 // (the stuck-mute race). These tests pin the channel's externally visible
-// contract; the AppDelegate wiring onto it is a GREEN-phase concern.
+// contract; the AppDelegate wiring onto it is covered separately.
 //
-// Contract under test (implementer builds HotkeyEdgeSequencer to satisfy it):
+// Contract under test — `HotkeyEdgeSequencer`'s externally visible surface:
 //   - init(sink: @escaping @Sendable (HotkeyPhase) async -> Void)
 //   - func send(_ phase: HotkeyPhase)   // synchronous, thread-safe, non-isolated
 //                                        // (called from the CGEventTap run-loop thread)

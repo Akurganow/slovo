@@ -14,9 +14,8 @@ import Testing
 // failure), it would itself be false-green and is rejected. The armed run is
 // captured as run-evidence, not left permanently RED.
 //
-// NOTE: this probe is self-contained (env-gated assertion). The OTHER
-// behavioral checks are RED today because the production API
-// they assert against is absent — that is their intended RED reason.
+// NOTE: this probe is self-contained — an env-gated assertion that produces its
+// own RED, independent of any production API.
 @Suite("Gate integrity")
 struct GateIntegrityTests {
     private static var isArmed: Bool {

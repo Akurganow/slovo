@@ -7,12 +7,8 @@ import SlovoTestSupport
 // Idle-release after keepWarm and immediate release at keepWarm == 0,
 // plus supersede-pending-release and release idempotency.
 //
-// Contract under test: the implementer restores the production `ModelLifecycle`
-// plus the `ModelLoading`/`Clock` seams in
-// `Sources/SlovoCore/ASR/ModelLifecycle.swift` (deleted by the abandoned
-// Apple-Speech migration). RED mode now is a COMPILE failure — `ModelLifecycle`
-// (and the model/live-session seams the `FakeSpeechEngine` conforms
-// to) do not exist in the working tree yet.
+// Contract under test: the production `ModelLifecycle` plus the
+// `ModelLoading`/`Clock` seams in `Sources/SlovoCore/ASR/ModelLifecycle.swift`.
 @Suite("Model lifecycle")
 struct ModelLifecycleTests {
 

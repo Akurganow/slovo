@@ -9,7 +9,6 @@ struct DictationMenuTests {
     private func items(
         availability: CleanupAvailability,
         mute: Bool = true,
-        update: UpdateIndication = .idle,
         model: String = "m",
         translate: String = "en",
         trigger: HotkeyTrigger = .fn
@@ -19,8 +18,7 @@ struct DictationMenuTests {
             selectedModelId: model,
             mutesSystemAudioWhileDictating: mute,
             translationLanguage: translate,
-            cleanupAvailability: availability,
-            update: update
+            cleanupAvailability: availability
         )
     }
 
@@ -216,17 +214,14 @@ struct DictationMenuTests {
 
     /// The bottom section is exactly `[separator, Settings, About, Quit]` — Settings
     /// above About, About directly above Quit, all under one separator, Quit last — in
-    /// EVERY availability and update state.
+    /// EVERY availability state.
     /// Stated sensitivity: reorder Settings/About/Quit, insert a separator between
     /// them, or leave Settings/About in an old slot → the suffix mismatches → RED.
     @Test
     func bottomSectionIsSeparatorSettingsAboutQuitInAllStates() {
-        let updates: [UpdateIndication] = [.idle, .downloading(version: "0.14.0"), .ready(version: "0.14.0")]
         for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
-            for update in updates {
-                let list = items(availability: availability, update: update)
-                #expect(Array(list.suffix(4)) == [.separator, .settings, .about, .quit], "\(availability)/\(update): \(list)")
-            }
+            let list = items(availability: availability)
+            #expect(Array(list.suffix(4)) == [.separator, .settings, .about, .quit], "\(availability): \(list)")
         }
     }
 
@@ -266,54 +261,5 @@ struct DictationMenuTests {
     func cleanupModelItemCarriesSelectedId() {
         #expect(items(availability: .on, model: "anthropic/claude-haiku-4.5")
             .contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-4.5", enabled: true)))
-    }
-
-    /// While an update downloads, the status header gains EXACTLY ONE extra disabled
-    /// line — `.updateDownloading` — at index 2, directly after the hint and before
-    /// the first separator, no separator of its own; everything else stays put.
-    /// Stated sensitivity: ignore the `update` argument, render the wrong case, place
-    /// the line at any other index, or fence it with a separator → RED.
-    @Test
-    func downloadingUpdateInsertsOneHeaderLine() {
-        #expect(items(availability: .on, update: .downloading(version: "0.14.0")) == [
-            .status("Idle"),
-            .hotkeyHint("Hold fn to talk"),
-            .updateDownloading(version: "0.14.0"),
-            .separator,
-            .cleanupToggle(isOn: true),
-            .cleanupModel(selectedModelId: "m", enabled: true),
-            .translationLanguage(selected: "en", enabled: true),
-            .separator,
-            .addVocabulary,
-            .muteWhileDictating(isOn: true),
-            .separator,
-            .settings,
-            .about,
-            .quit,
-        ])
-    }
-
-    /// Once validated, the same header slot (index 2) holds the hybrid `.updateReady`
-    /// row instead — again exactly one extra element, no extra separator.
-    /// Stated sensitivity: keep showing `.updateDownloading`, move the row out of the
-    /// header slot, or add a separator around it → RED.
-    @Test
-    func readyUpdateHoldsTheSameHeaderSlot() {
-        #expect(items(availability: .on, update: .ready(version: "0.14.0")) == [
-            .status("Idle"),
-            .hotkeyHint("Hold fn to talk"),
-            .updateReady(version: "0.14.0"),
-            .separator,
-            .cleanupToggle(isOn: true),
-            .cleanupModel(selectedModelId: "m", enabled: true),
-            .translationLanguage(selected: "en", enabled: true),
-            .separator,
-            .addVocabulary,
-            .muteWhileDictating(isOn: true),
-            .separator,
-            .settings,
-            .about,
-            .quit,
-        ])
     }
 }

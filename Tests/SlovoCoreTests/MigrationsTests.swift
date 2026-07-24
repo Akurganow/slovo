@@ -6,10 +6,8 @@ import SlovoCore
 
 // Create-or-get (missing DB ⇒ migrator creates it empty) and idempotent re-run.
 //
-// Contract under test (implementer builds `Sources/SlovoCore/Storage/Database.swift`
-// + `Migrations.swift`; CURRENTLY the `_RedScaffold_Storage.swift`
-// stub. Both are GREEN on the correct create-or-get scaffold; their RED
-// (file-exists-branch / unconditional-create) is proven OUT-OF-BAND).
+// Contract under test lives in `Sources/SlovoCore/Storage/Database.swift` +
+// `Migrations.swift`.
 //
 // ON-DISK temp DB only (in-memory masks create-or-get). SEED-LEAK RULE:
 // synthetic public anchors only.
@@ -20,7 +18,6 @@ struct MigrationsTests {
     /// `vocabulary`; `vocabulary(limit:)` returns `[]` without crashing.
     /// Stated sensitivity: branch on file-exists and skip the migrator when the
     /// file is missing → the table doesn't exist → the query crashes/errors → RED.
-    /// (GREEN on the create-or-get scaffold; RED proven out-of-band.)
     @Test
     func openCreatesEmptyDatabaseWhenMissing() throws {
         let path = TempDatabase.freshPath()
@@ -40,8 +37,7 @@ struct MigrationsTests {
     /// Migrating an already-up-to-date DB is a no-op (idempotent).
     /// Stated sensitivity: re-run a migration body unconditionally (e.g. a raw
     /// `CREATE TABLE` without `IF NOT EXISTS`/migrator tracking) → the second
-    /// migrate throws "table exists" → RED. (GREEN on the migrator scaffold;
-    /// RED proven out-of-band.)
+    /// migrate throws "table exists" → RED.
     @Test
     func migratingTwiceIsIdempotent() throws {
         let (pool, _, teardown) = try TempDatabase.freshPool()

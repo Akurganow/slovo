@@ -12,14 +12,7 @@ import SlovoCore
 // session, on LEAVING `recording` (via stopRequested OR via failed), and NEVER
 // in processing.
 //
-// New `DictationEffect` cases the implementer must add (no associated values;
-// keep `DictationEffect` Equatable): `.muteSystemOutput`, `.restoreSystemOutput`.
-//
-// RED today: those two cases do not exist on `DictationEffect`, so the
-// references below DO NOT COMPILE (the documented RED). Once
-// the cases exist and the override table is implemented, these go GREEN.
-//
-// Override transition table (authoritative for this epic):
+// Override transition table (authoritative):
 //   idle       + startRequested        -> recording  + [muteSystemOutput, beginCapture]
 //   recording  + stopRequested         -> processing + [endCaptureAndFinalizeTranscript, restoreSystemOutput]
 //   recording  + failed(f)             -> idle       + [restoreSystemOutput, notify(s), log(.stageFailed), returnToIdle]

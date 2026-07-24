@@ -4,7 +4,7 @@ import Testing
 // Wiring guards for the app target's Sparkle integration (design spec:
 // docs/superpowers/specs/2026-07-18-auto-update-design.md). Comment-stripped,
 // slice-scoped scans over Sources/slovo pin behavioral tokens and relative
-// order; file layout inside the target stays the implementer's choice unless a
+// order; file layout inside the target is free unless a
 // pin documents a deliberate coupling.
 @Suite("Sparkle wiring guards")
 struct SparkleWiringGuardTests {

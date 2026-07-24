@@ -7,16 +7,9 @@ import SlovoCore
 // `(.recording, .failed)` recording-failure row, restoring system audio first
 // (it was muted at key-down), then surfacing the honest microphone status.
 //
-// Contract under test (implementer extends `Sources/SlovoCore/FSM/DictationFsm.swift`):
-// add `StageFailure.capture(AudioCaptureError)`, a new
-// `StatusMessage.microphoneUnavailable`, and ONE `statusMessage(for:)` branch
-// mapping all capture cases → `.microphoneUnavailable`. NO transition-row changes.
-//
-// RED today: `StageFailure.capture` and `StatusMessage.microphoneUnavailable`
-// do not exist yet, so the references below DO NOT COMPILE — that is the
-// documented initial RED for the FSM half. Once the cases exist and the branch
-// maps capture → `.microphoneUnavailable`, this goes GREEN; mapping `.capture`
-// to a WRONG status then fails the sequence assertion (value RED).
+// The capture path adds `StageFailure.capture(AudioCaptureError)` and
+// `StatusMessage.microphoneUnavailable`, with ONE `statusMessage(for:)` branch
+// mapping every capture case → `.microphoneUnavailable`; no transition-row changes.
 @Suite("FSM capture failure")
 struct DictationFsmCaptureFailureTests {
 

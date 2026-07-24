@@ -7,11 +7,7 @@ import SlovoTestSupport
 // A fake honors the seam contract, and the port returns terms unchanged;
 // the consumer stays GRDB-free.
 //
-// Contract under test (implementer builds the REAL fakes in a new
-// `Sources/SlovoTestSupport/` target; the symbols are CURRENTLY
-// supplied by the WRONG-ON-PURPOSE `_RedScaffold_Fakes.swift` stub —
-// `FakeCleaner` swallows the programmed failure and records nothing,
-// `FakePersonalizationSource` drops its terms — so these tests go RED).
+// Contract under test — the fakes live in the `Sources/SlovoTestSupport/` target:
 //
 //     final class FakeCleaner: Cleaner {
 //         enum Outcome { case success(String); case failure(CleanupError) }
@@ -29,8 +25,7 @@ struct FakesContractTests {
     /// Stated sensitivity: the fake SWALLOWS the error (returns a string) → the
     /// "did not throw" branch records an issue → RED. The fake throws a DIFFERENT
     /// case (`.missingKey`) → the `switch` "wrong case" branch records → RED. So
-    /// the test pins the EXACT programmed case, not merely "some error". (The
-    /// scaffold swallows, so it REDs the first branch now.)
+    /// the test pins the EXACT programmed case, not merely "some error".
     @Test
     func fakeCleanerThrowsExactProgrammedCase() async {
         let fake = FakeCleaner(outcome: .failure(.offline))
@@ -70,10 +65,10 @@ struct FakesContractTests {
 
     // MARK: - Port returns the terms unchanged (order + values)
 
-    /// Stated sensitivity: the fake drops / reorders / mutates the terms (the
-    /// scaffold returns []) → the order-and-values comparison fails → RED. The
-    /// consumer holds only the protocol type, so it needs no GRDB import (the
-    /// dependency-direction gate stays green; no new `import GRDB`).
+    /// Stated sensitivity: the fake drops / reorders / mutates the terms → the
+    /// order-and-values comparison fails → RED. The consumer holds only the
+    /// protocol type, so it needs no GRDB import (the dependency-direction gate
+    /// stays green; no new `import GRDB`).
     @Test
     func portReturnsTermsUnchanged() {
         let t1 = Term(term: "alpha", expansion: nil, lang: .en, weight: 1)

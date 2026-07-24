@@ -1,12 +1,18 @@
-# Apple Speech (SpeechAnalyzer / SpeechTranscriber)
+# Apple Speech (SpeechAnalyzer / SpeechTranscriber) (superseded ASR research)
+
+> **IMPORTANT — not the runtime path:** Slovo's runtime ASR engine is WhisperKit
+> (Whisper large-v3 turbo); see [asr-whisperkit.md](asr-whisperkit.md) and the
+> decision record [asr-engine-selection.md](asr-engine-selection.md). This document
+> is retained as a decision record of the evaluated Apple Speech APIs.
 
 ## Purpose
 
 `SpeechAnalyzer` + `SpeechTranscriber` are the new on-device speech-to-text APIs Apple
-introduced at WWDC25 (macOS 26 "Tahoe" generation, all platforms are `26.0+`). This is
-slovo's **only runtime ASR backend**: a native Swift, fully on-device transcription
-engine for Apple Silicon, the same technology that powers system Notes / Voice Memos /
-Journal / Call Summarization.
+introduced at WWDC25 (macOS 26 "Tahoe" generation, all platforms are `26.0+`): a native
+Swift, fully on-device transcription engine for Apple Silicon, the same technology that
+powers system Notes / Voice Memos / Journal / Call Summarization. They were evaluated as
+a candidate ASR backend for slovo but are **not** the runtime path — WhisperKit
+(Whisper large-v3 turbo) is (see [asr-engine-selection.md](asr-engine-selection.md)).
 
 The design splits three responsibilities:
 

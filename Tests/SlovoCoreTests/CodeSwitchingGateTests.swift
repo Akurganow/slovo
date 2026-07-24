@@ -7,10 +7,8 @@ import SlovoCore
 // every required Latin anchor survive; a collapsed one-alphabet transcript
 // FAILS. Aggregate bar is ≥M-of-N passing clips.
 //
-// Contract under test: the implementer restores the production gate in
-// `Sources/SlovoCore/ASR/CodeSwitchingGate.swift` (deleted by the abandoned
-// Apple-Speech migration). RED mode now is a COMPILE failure — `CodeSwitchingGate`,
-// `ClipExpectation`, `ClipScore`, and `PassBar` do not exist in the working tree.
+// Contract under test: the production gate in
+// `Sources/SlovoCore/ASR/CodeSwitchingGate.swift`.
 //
 // FIXTURE ANCHOR RULE: the Latin anchors are neutral public tech terms.
 @Suite("Code-switching gate")

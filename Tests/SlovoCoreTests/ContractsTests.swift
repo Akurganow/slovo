@@ -7,17 +7,11 @@ import SlovoCore
 // Contracts exist with their exact shapes, and each error enum is exhaustively
 // switchable with NO `default`.
 //
-// Contract under test (implementer builds VERBATIM in
-// `Sources/SlovoCore/Contracts/`; the symbols are CURRENTLY supplied by the
-// `_RedScaffold_Contracts.swift` stub so this target compiles — the implementer
-// deletes the scaffold and these tests bind to the real `import SlovoCore`).
+// Contract under test lives in `Sources/SlovoCore/Contracts/`.
 //
-// These are COMPILE-TIME guarantees: the assertions below pin the exact
-// public surface. They are GREEN against the correct scaffold; their RED is the
-// MUTATION "rename/drop a member or change a label" or "add/remove an
-// enum case" → the file no longer compiles. That mutation RED is
-// demonstrated out-of-band (see the RED-evidence report) because a wrong shape
-// breaks the whole target's compilation rather than a single test.
+// These are COMPILE-TIME guarantees: the assertions below pin the exact public
+// surface. Stated sensitivity: rename/drop a member, change an init label, or
+// add/remove an enum case → this target no longer compiles → RED.
 @Suite("Contracts")
 struct ContractsTests {
 

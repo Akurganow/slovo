@@ -3,14 +3,9 @@ import Testing
 import SlovoCore
 
 // The byte-exact hardened PLAIN cleanup instruction block (systemBlocks[0]).
-// The golden literal is authored independently in the lead's prompt spec, NOT
-// copied from the builder's own output, so it pins drift and mutation rather than
-// tautologically mirroring the implementation under test.
-//
-// RED now: the pre-scaffolding plain text is un-hardened (the single "Output
-// language must match ..." line has not yet been replaced by the four hardening
-// lines, and the "потом переключились на English" example is absent), so it
-// mismatches this golden until the deliberate hardening lands.
+// The golden literal is authored independently, NOT copied from the builder's own
+// output, so it pins drift and mutation rather than tautologically mirroring the
+// implementation under test.
 @Suite("Cleanup prompt plain golden")
 struct PromptBuilderPlainGoldenTests {
     private static func plainBlock() -> String {
