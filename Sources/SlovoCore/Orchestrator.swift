@@ -158,6 +158,13 @@ public actor Orchestrator {
                     transcription.success chars=\(text.count, privacy: .public)
                     """
                 )
+                // A SEPARATE fixed-string marker, deliberately NOT folded into the
+                // `transcription.success` line above: the runbook predicate matches
+                // eventMessage EXACTLY, so a line carrying a variable payload
+                // (`chars=N`) cannot serve as an equality anchor. This is the
+                // transcript-ready boundary between recognition finalization and
+                // cleanup, pairing with dictation.stopRequested / injection.pasted.
+                Self.diagnosticLog.log("dictation.transcriptReady")
                 await handle(.transcriptReady(text))
             }
         } catch let error as TranscriptionError {

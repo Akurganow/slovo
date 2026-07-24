@@ -1,6 +1,7 @@
 @preconcurrency import AVFoundation
 import CoreML
 import Foundation
+import os
 @preconcurrency import WhisperKit
 
 /// Supplies Slovo's converted samples to WhisperKit without opening another mic.
@@ -236,6 +237,11 @@ final class WhisperKitStreamStatus: @unchecked Sendable {
 }
 
 actor WhisperKitLiveSession: SpeechStreamingSession {
+    // Latency marks share the orchestrator's subsystem/category so one `log show`
+    // predicate spans the whole key-up → inserted timeline. Counts, durations and
+    // case names only — never transcript text.
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
+
     private let engine: WhisperKit
     private let decodingOptions: DecodingOptions
     private let streamInput: WhisperKitStreamInput
@@ -313,7 +319,17 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             totalSampleCount: samples.count,
             state: streamState
         )
-        return try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds in
+        // Latency mark: attribute the key-up tail-finalization step — the case name
+        // alone (never the transcript carried by `.reuse`/`.decode`) and the decode
+        // wall time, timed around the existing `resolve` await.
+        let planCase: String
+        switch plan {
+        case .noAudio: planCase = "noAudio"
+        case .reuse: planCase = "reuse"
+        case .decode: planCase = "decode"
+        }
+        let decodeStartUptime = ProcessInfo.processInfo.systemUptime
+        let finalText = try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds in
             var finalOptions = decodingOptions
             finalOptions.clipTimestamps = [fromSeconds]
             if shouldGuardTerminalHallucination {
@@ -343,6 +359,16 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
                 audioDurationSeconds: Float(samples.count) / Float(WhisperKit.sampleRate)
             )
         }
+        let decodeMs = Int((ProcessInfo.processInfo.systemUptime - decodeStartUptime) * 1_000)
+        Self.diagnosticLog.info(
+            """
+            asr.tailFinalization plan=\(planCase, privacy: .public) \
+            confirmedEndSeconds=\(streamState.confirmedEndSeconds, format: .fixed(precision: 2), privacy: .public) \
+            samples=\(samples.count, privacy: .public) \
+            decodeMs=\(decodeMs, privacy: .public)
+            """
+        )
+        return finalText
     }
 
     func cancel() async {
@@ -351,8 +377,17 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
 
     private func stopStream() async throws {
         await streamTranscriber.stopStreamTranscription()
+        // Latency mark: how long key-up waits for the in-flight streaming-decode
+        // task to drain, timed around the existing task await.
+        let drainStartUptime = ProcessInfo.processInfo.systemUptime
         await streamTask?.value
+        let drainMs = Int((ProcessInfo.processInfo.systemUptime - drainStartUptime) * 1_000)
         streamTask = nil
+        Self.diagnosticLog.info(
+            """
+            asr.streamDrain ms=\(drainMs, privacy: .public)
+            """
+        )
         try streamStatus.throwIfUnexpectedExit()
     }
 }

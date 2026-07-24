@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Rewrites a transcript through OpenRouter's OpenAI-compatible Chat
 /// Completions API.
@@ -7,6 +8,12 @@ public struct OpenRouterCleaner: Cleaner {
     private let keyProvider: OpenRouterKeyProvider
     private let promptBuilder: PromptBuilder
     private let log: RedactionSafeLog
+
+    // Latency mark sink for the post-key-up cleanup step, on the same
+    // subsystem/category as the orchestrator and paste injector so one `log show`
+    // predicate spans the whole key-up → inserted timeline. Distinct from `log`
+    // (redaction-safe cleanup outcomes) by role; carries a duration only.
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
     private static let maxCleanupTokens = 1_024
@@ -69,12 +76,22 @@ public struct OpenRouterCleaner: Cleaner {
 
         let data: Data
         let response: URLResponse
+        // Latency mark: the OpenRouter round-trip — the network portion of the
+        // post-key-up cleanup step, timed around the existing `data` await and
+        // emitted once the request completes.
+        let requestStartUptime = ProcessInfo.processInfo.systemUptime
         do {
             (data, response) = try await session.data(for: urlRequest)
         } catch is URLError {
             log.event("cleanup failed: offline")
             throw CleanupError.offline
         }
+        let requestMs = Int((ProcessInfo.processInfo.systemUptime - requestStartUptime) * 1_000)
+        Self.diagnosticLog.info(
+            """
+            cleanup.request ms=\(requestMs, privacy: .public)
+            """
+        )
 
         guard let http = response as? HTTPURLResponse else {
             log.event("cleanup failed: offline")
