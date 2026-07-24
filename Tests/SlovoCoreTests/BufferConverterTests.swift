@@ -34,10 +34,20 @@ struct BufferConverterTests {
         #expect(converted.format.commonFormat == .pcmFormatInt16)
         #expect(converted.format.sampleRate == targetFormat.sampleRate)
         #expect(converted.format.channelCount == targetFormat.channelCount)
-        #expect(converted.frameLength > 0)
+
+        // Equal rates (16 kHz → 16 kHz) mean no resampling: the four source frames map
+        // one-to-one to the full-scale Int16 encoding of [-1, -0.5, 0.5, 1] — pinning
+        // both the frame count and per-sample scaling (a dropped or miscaled frame reddens).
+        #expect(converted.frameLength == 4)
 
         let output = try #require(converted.int16ChannelData?.pointee)
-        let nonZeroSamples = (0..<Int(converted.frameLength)).contains { output[$0] != 0 }
-        #expect(nonZeroSamples)
+        let produced = (0..<Int(converted.frameLength)).map { output[$0] }
+        let expected: [Int16] = [-32_768, -16_384, 16_384, 32_767]
+        let tolerance = 2
+        #expect(produced.count == expected.count)
+        for (sample, target) in zip(produced, expected) {
+            #expect(abs(Int(sample) - Int(target)) <= tolerance,
+                    "Int16 sample \(sample) must be within \(tolerance) of \(target); produced \(produced)")
+        }
     }
 }

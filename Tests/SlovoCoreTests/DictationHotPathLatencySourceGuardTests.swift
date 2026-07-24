@@ -20,14 +20,14 @@ import Testing
 //
 // Scope is the ORCHESTRATION source, not two literal paths, so extracting a hot
 // helper (e.g. `cleanAndContinue`) into a new file cannot smuggle a wait past the
-// guard: the SlovoCore top level (where `AxContext.swift` was already split out of the
-// actor) plus the `FSM/` subtree are scanned recursively. Adapter subtrees (`ASR/`,
+// guard: the SlovoCore top level (any sibling an actor helper could be split into)
+// plus the `FSM/` subtree are scanned recursively. Adapter subtrees (`ASR/`,
 // `Audio/`, `Injection/`, `Cleaner/`) are deliberately out of scope — they sit behind
 // the fakes and their timing is legitimate; a blocking wait there is not an
 // orchestration-latency regression.
 //
 // Residual gaps, stated not hidden: (1) an orchestration helper extracted into a NEW
-// SlovoCore SUBDIRECTORY (rather than a top-level file, the AxContext precedent) would
+// SlovoCore SUBDIRECTORY (rather than a top-level sibling file) would
 // escape the scope — the anchors below cannot detect that. (2) This catches a
 // wait/sleep/timer primitive, not a stall from arbitrary slow synchronous computation,
 // which no load-immune check can catch without reintroducing the wall-clock flakiness

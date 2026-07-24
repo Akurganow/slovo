@@ -12,8 +12,6 @@ public struct Dependencies: Sendable {
     public var recorder: any AudioRecorder
     public var log: RedactionSafeLog
     public var statusReporter: @Sendable (StatusMessage) -> Void
-    /// Optional AX context the actor would surface on its status path (v1: unused).
-    public var axContext: AxContext?
     /// Optional on-device hint seams (Workstream 3). Nil in composition/tests that
     /// do not gather hints, in which case the cleaner receives empty `CleanupHints`.
     public var inputSourceLanguage: (any InputSourceLanguageReading)?
@@ -29,7 +27,6 @@ public struct Dependencies: Sendable {
         recorder: any AudioRecorder,
         log: RedactionSafeLog,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
-        axContext: AxContext? = nil,
         inputSourceLanguage: (any InputSourceLanguageReading)? = nil,
         spellCheckHints: (any SpellCheckHintProviding)? = nil
     ) {
@@ -41,7 +38,6 @@ public struct Dependencies: Sendable {
         self.recorder = recorder
         self.log = log
         self.statusReporter = statusReporter
-        self.axContext = axContext
         self.inputSourceLanguage = inputSourceLanguage
         self.spellCheckHints = spellCheckHints
     }
@@ -414,16 +410,13 @@ public actor Orchestrator {
     }
 
     private func logName(for event: FsmLogEvent) -> String {
-        let base: String
         switch event {
         case .singleFlightIgnored:
-            base = "fsm.singleFlightIgnored"
+            return "fsm.singleFlightIgnored"
         case .unexpectedEvent:
-            base = "fsm.unexpectedEvent"
+            return "fsm.unexpectedEvent"
         case .stageFailed:
-            base = "fsm.stageFailed"
+            return "fsm.stageFailed"
         }
-        guard deps.axContext != nil else { return base }
-        return "\(base) ax-context-present"
     }
 }

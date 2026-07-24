@@ -20,6 +20,11 @@ public enum RecordingGlyphMode: Equatable, Sendable {
 }
 
 public enum MenuBarGlyph {
+    /// Onu Ⱁ (U+2C11), the red failure glyph — shown for a genuine cleanup failure,
+    /// an empty (no-speech) hold, and a user-initiated update-install failure. One
+    /// source of truth so every failure surface flashes the same letter.
+    public static let failureGlyph: Character = "\u{2C11}"
+
     public static func forState(_ state: DictationState) -> Character {
         switch state {
         case .recording:
@@ -65,12 +70,10 @@ public enum MenuBarGlyph {
     public static func forStatus(_ status: StatusMessage) -> Character? {
         switch status {
         case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
-            return "\u{2C11}"
+            return failureGlyph
         case .preparingSpeechModel:
             return "\u{2C06}"
-        case .cleanupDeclinedInsertedAsSpoken,
-             .accessibilityDenied,
-             .missingKey,
+        case .accessibilityDenied,
              .transcriptionFailed,
              .secureFieldActive,
              .injectionFailed,
@@ -85,9 +88,7 @@ public enum MenuBarGlyph {
         case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
             return .error
         case .preparingSpeechModel,
-             .cleanupDeclinedInsertedAsSpoken,
              .accessibilityDenied,
-             .missingKey,
              .transcriptionFailed,
              .secureFieldActive,
              .injectionFailed,
@@ -95,26 +96,5 @@ public enum MenuBarGlyph {
              .cleanupFailed:
             return .normal
         }
-    }
-}
-
-public final class DictationHistory {
-    private let capacity: Int
-    private var storedEntries: [String] = []
-
-    public init(capacity: Int) {
-        self.capacity = max(0, capacity)
-    }
-
-    public func record(_ text: String) {
-        guard capacity > 0 else { return }
-        storedEntries.insert(text, at: 0)
-        if storedEntries.count > capacity {
-            storedEntries.removeLast(storedEntries.count - capacity)
-        }
-    }
-
-    public var entries: [String] {
-        storedEntries
     }
 }
