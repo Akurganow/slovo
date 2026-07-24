@@ -1,0 +1,10 @@
+// FIXTURE (not compiled): the payload reaches the log through a CALL expression
+// — `\(transcript.trimmed(), privacy: .public)` renders the same raw text as the
+// bare variable would. A bare-identifier payload matcher misses it; the lint
+// must flag the whole expression.
+import os
+
+func logCallPayload(transcript: String) {
+    let logger = Logger(subsystem: "com.slovo.app", category: "call")
+    logger.log("cleaned=\(transcript.trimmed(), privacy: .public)")
+}

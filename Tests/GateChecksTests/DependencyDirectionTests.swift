@@ -96,6 +96,11 @@ struct DependencyDirectionTests {
         // Guard vacuity: a wrong root would walk nothing.
         try #require(FileManager.default.fileExists(atPath: GateTestPaths.sourcesRoot),
                      "sources root missing: \(GateTestPaths.sourcesRoot)")
+        // Guard vacuity: an empty (or wrong-suffix) walk would green with the
+        // scanner never reading a single real source.
+        let scanned = GateChecks.sourceFiles(under: GateTestPaths.sourcesRoot)
+        #expect(scanned.contains { $0.hasSuffix("/Orchestrator.swift") },
+                "the walk must visit known real sources; visited \(scanned.count) files")
         let violations = GateChecks.dependencyViolations(inSourceTreeAt: GateTestPaths.sourcesRoot)
         #expect(violations.isEmpty, "Sources/ has dependency-direction violations: \(violations)")
     }
