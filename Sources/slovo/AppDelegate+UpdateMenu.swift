@@ -107,7 +107,7 @@ extension AppDelegate {
         guard let button = statusItem?.button else { return }
         button.title = ""
         button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: "\u{2C11}", tint: .error)
+        button.image = MenuBarGlyph.image(for: MenuBarGlyph.failureGlyph, tint: .error)
             ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
         // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
         // scheduling anew, and skip the reset if superseded or if a dictation started

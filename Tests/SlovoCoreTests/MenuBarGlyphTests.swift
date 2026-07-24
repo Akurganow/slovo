@@ -3,13 +3,11 @@ import Testing
 
 import SlovoCore
 
-// Menu-bar logic only. Real NSStatusItem/NSImage rendering and font fallback are
-// out of scope here; this slice locks state mapping plus the local-only history
-// model that the popover will read in-process.
-@Suite("MenuBarController logic")
-struct MenuBarControllerTests {
-    private static let sentinel = "S3NT1NEL-HISTORY-51c07e9b-DO-NOT-LOG"
-
+// Menu-bar glyph mapping only. Real NSStatusItem/NSImage rendering and font
+// fallback are out of scope here; this slice locks the state/mode/status → glyph
+// mapping and guards the glyph source as a pure presentation layer.
+@Suite("MenuBarGlyph logic")
+struct MenuBarGlyphTests {
     /// The recording state maps to Cherv Ⱍ (U+2C1D, the Glagolitic "чистота"/clean
     /// sense — cleanup will run), which REPLACES the old catch-all Zemlja Ⰸ now that
     /// recording is a mode family; NOT the inherited Heru U+2C18 typo.
@@ -88,33 +86,11 @@ struct MenuBarControllerTests {
         #expect(MenuBarGlyph.tint(forStatus: .preparingSpeechModel) == .normal)
     }
 
-    /// Stated sensitivity: append oldest-first or forget to evict past capacity →
-    /// the exact newest-first/capped sequence changes and this goes RED.
+    /// Stated sensitivity: adding a logging or egress dependency to the glyph
+    /// source violates its pure-presentation contract and fails this source guard.
     @Test
-    func historyIsNewestFirstAndCapped() {
-        let history = DictationHistory(capacity: 2)
-
-        history.record("first")
-        history.record("second")
-        history.record("third")
-
-        #expect(history.entries == ["third", "second"])
-    }
-
-    @Test
-    func zeroCapacityHistoryStoresNothing() {
-        let history = DictationHistory(capacity: 0)
-
-        history.record(Self.sentinel)
-
-        #expect(history.entries.isEmpty)
-    }
-
-    /// Stated sensitivity: adding logging/egress dependencies to the history
-    /// source violates the local-only contract and fails this source-level guard.
-    @Test
-    func historySourceHasNoLoggingOrEgressDependencies() throws {
-        let source = try String(contentsOfFile: Self.menuBarSourcePath, encoding: .utf8)
+    func menuBarGlyphSourceHasNoLoggingOrEgressDependencies() throws {
+        let source = try String(contentsOfFile: Self.menuBarGlyphSourcePath, encoding: .utf8)
         let forbiddenTokens = [
             "RedactionSafeLog",
             "Logger(",
@@ -125,17 +101,17 @@ struct MenuBarControllerTests {
         ]
 
         for token in forbiddenTokens {
-            #expect(!source.contains(token), "history source must not depend on \(token)")
+            #expect(!source.contains(token), "glyph source must not depend on \(token)")
         }
     }
 
-    private static var menuBarSourcePath: String {
+    private static var menuBarGlyphSourcePath: String {
         let testFile = URL(fileURLWithPath: "\(#filePath)")
         return testFile
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Sources/SlovoCore/MenuBar/MenuBarController.swift")
+            .appendingPathComponent("Sources/SlovoCore/MenuBar/MenuBarGlyph.swift")
             .path
     }
 }

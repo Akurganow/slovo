@@ -330,7 +330,7 @@ Verdict: **PASS (with 2 device-only gaps)**
 
 Maintenance note (2026-07-23): the glyph codepoints quoted in this reference
 cannot be pinned by tests; on any glyph change, re-check every codepoint here
-against `Sources/SlovoCore/MenuBar/MenuBarController.swift` (the mnemonic
+against `Sources/SlovoCore/MenuBar/MenuBarGlyph.swift` (the mnemonic
 authority) by hand.
 
 Independent live-source validation of every load-bearing claim. Apple symbol pages

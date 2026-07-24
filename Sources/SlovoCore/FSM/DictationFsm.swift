@@ -36,10 +36,8 @@ public enum FsmLogEvent: Equatable, Sendable {
 /// the actual stage so the surface stays truthful.
 public enum StatusMessage: Equatable, Sendable {
     case preparingSpeechModel
-    case cleanupDeclinedInsertedAsSpoken
     case cleanupUnavailableInsertedAsSpoken
     case accessibilityDenied
-    case missingKey
     case transcriptionFailed
     case secureFieldActive
     case injectionFailed
@@ -53,9 +51,7 @@ public enum StatusMessage: Equatable, Sendable {
         switch self {
         case .preparingSpeechModel, .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
             return false
-        case .cleanupDeclinedInsertedAsSpoken,
-             .accessibilityDenied,
-             .missingKey,
+        case .accessibilityDenied,
              .transcriptionFailed,
              .secureFieldActive,
              .injectionFailed,

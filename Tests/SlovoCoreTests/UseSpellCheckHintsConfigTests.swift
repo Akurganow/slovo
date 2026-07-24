@@ -18,18 +18,6 @@ struct UseSpellCheckHintsConfigTests {
         #expect(ConfigStore.load(from: defaults).useSpellCheckHints == false)
     }
 
-    /// Companion to the False case. NOTE: this one is tautological — the default is
-    /// `true`, so a never-persisting implementation still passes; it cannot prove the
-    /// wire path (that is `useSpellCheckHintsRoundTripsFalse`'s job). It only guards
-    /// against an encode that corrupts an explicit `true` into a non-bool.
-    @Test
-    func useSpellCheckHintsRoundTripsTrue() throws {
-        let defaults = FakeUserDefaults()
-        try ConfigStore.save(Config(useSpellCheckHints: true), to: defaults)
-
-        #expect(ConfigStore.load(from: defaults).useSpellCheckHints == true)
-    }
-
     /// Stated sensitivity: defaulting an absent wire field to `false` breaks
     /// backward compatibility for existing installs — this turns red.
     @Test
