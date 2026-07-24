@@ -273,7 +273,14 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             textDecoder: textDecoder,
             tokenizer: tokenizer,
             audioProcessor: streamInput,
-            decodingOptions: decodingOptions
+            decodingOptions: decodingOptions,
+            // One is the confirmation floor: a segment freezes only once the model
+            // closes it by starting a successor; the SDK default (2) left typical
+            // dictations entirely unconfirmed, forcing a full re-decode at key-up.
+            // Accepted cost (owner, 2026-07-24): .auto re-detects language per
+            // clipped pass, so a frozen pass can carry a language flip — cleanup
+            // normalizes it, and no soft hint exists (turbo prompt bug, #24).
+            requiredSegmentsForConfirmation: 1
         ) { _, newState in
             streamStatus.update(newState)
         }
@@ -304,19 +311,23 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
         try await stopStream()
         let samples = Array(streamInput.audioSamples)
         let streamState = streamStatus.state
-        let liveText = WhisperKitTranscriptText.compose([
-            streamState.confirmedText,
-            streamState.unconfirmedText,
-        ])
+        let tailSpan = streamState.tailSpan(
+            totalSampleCount: samples.count,
+            sampleRate: WhisperKit.sampleRate
+        )
         let modelWindowSamples = engine.featureExtractor.windowSamples ?? Constants.defaultWindowSamples
         let shouldGuardTerminalHallucination = WhisperKitTerminalHallucinationGuard.shouldInspect(
-            sampleCount: samples.count,
+            tailSampleCount: tailSpan.sampleCount,
             modelWindowSampleCount: modelWindowSamples,
-            confirmedEndSeconds: streamState.confirmedEndSeconds,
-            liveText: liveText
+            liveTailText: tailSpan.liveText
         )
         let plan = WhisperKitTailFinalization.plan(
             totalSampleCount: samples.count,
+            tailSampleCount: tailSpan.sampleCount,
+            // Mirrors TranscribeTask's window-loop bound: a tail at or below
+            // windowClipTime opens zero decode windows, so its empty decode is
+            // structural, not a verdict that nothing was spoken.
+            minimumDecodableTailSampleCount: Int(decodingOptions.windowClipTime * Float(WhisperKit.sampleRate)),
             state: streamState
         )
         // Latency mark: attribute the key-up tail-finalization step — the case name
@@ -341,22 +352,11 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             )
             let decodedText = WhisperKitTranscriptText.compose(results.map(\.text))
             guard shouldGuardTerminalHallucination else { return decodedText }
-            let words = results
-                .flatMap(\.segments)
-                .flatMap { $0.words ?? [] }
-                .map {
-                    WhisperKitDecodedWord(
-                        text: $0.word,
-                        probability: $0.probability,
-                        startSeconds: $0.start,
-                        endSeconds: $0.end
-                    )
-                }
-            return WhisperKitTerminalHallucinationGuard.resolve(
-                liveText: liveText,
+            return guardedTailText(
                 decodedText: decodedText,
-                words: words,
-                audioDurationSeconds: Float(samples.count) / Float(WhisperKit.sampleRate)
+                results: results,
+                liveTailText: tailSpan.liveText,
+                totalSampleCount: samples.count
             )
         }
         let decodeMs = Int((ProcessInfo.processInfo.systemUptime - decodeStartUptime) * 1_000)
@@ -369,6 +369,38 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             """
         )
         return finalText
+    }
+
+    /// Applies the terminal-hallucination guard to a finished tail decode. The
+    /// attribution mark separates a guard trim from decoder-level loss of a
+    /// truncated trailing word — only the former is Slovo's own decision.
+    private func guardedTailText(
+        decodedText: String,
+        results: [TranscriptionResult],
+        liveTailText: String,
+        totalSampleCount: Int
+    ) -> String {
+        let words = results
+            .flatMap(\.segments)
+            .flatMap { $0.words ?? [] }
+            .map {
+                WhisperKitDecodedWord(
+                    text: $0.word,
+                    probability: $0.probability,
+                    startSeconds: $0.start,
+                    endSeconds: $0.end
+                )
+            }
+        let guardedText = WhisperKitTerminalHallucinationGuard.resolve(
+            liveText: liveTailText,
+            decodedText: decodedText,
+            words: words,
+            audioDurationSeconds: Float(totalSampleCount) / Float(WhisperKit.sampleRate)
+        )
+        if guardedText != decodedText {
+            Self.diagnosticLog.info("asr.terminalGuard trimmedTerminalSuffix")
+        }
+        return guardedText
     }
 
     func cancel() async {

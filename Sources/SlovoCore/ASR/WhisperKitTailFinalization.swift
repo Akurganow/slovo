@@ -7,6 +7,25 @@ struct WhisperKitStreamState: Equatable, Sendable {
     var confirmedEndSeconds: Float = 0
 }
 
+/// The post-boundary span the key-up decode covers: the samples after the
+/// confirmed boundary, paired with the live text for that SAME span so the
+/// hallucination guard always compares aligned material.
+struct WhisperKitTailSpan: Equatable, Sendable {
+    let sampleCount: Int
+    let liveText: String
+}
+
+extension WhisperKitStreamState {
+    /// Derived, not stored: the span is a projection of one atomic state
+    /// snapshot, so the sample arithmetic and the text can never disagree.
+    func tailSpan(totalSampleCount: Int, sampleRate: Int) -> WhisperKitTailSpan {
+        WhisperKitTailSpan(
+            sampleCount: totalSampleCount - Int(confirmedEndSeconds * Float(sampleRate)),
+            liveText: unconfirmedText
+        )
+    }
+}
+
 enum WhisperKitTranscriptText {
     // The single compose chokepoint every WhisperKit `finish()` outcome routes
     // through, so sanitizing here is the AUTHORITATIVE token-domain guarantee
@@ -81,15 +100,16 @@ enum WhisperKitTerminalHallucinationGuard {
     private static let shortWordPenalty: Float = 15
     private static let longWordDuration: Float = 2
 
+    /// The key-up decode covers only the post-boundary tail, and Whisper can
+    /// hallucinate past the end of audio whenever that tail is shorter than one
+    /// model window (the decode pads it with silence) — so eligibility is a
+    /// property of the tail, not of the whole recording.
     static func shouldInspect(
-        sampleCount: Int,
+        tailSampleCount: Int,
         modelWindowSampleCount: Int,
-        confirmedEndSeconds: Float,
-        liveText: String
+        liveTailText: String
     ) -> Bool {
-        sampleCount < modelWindowSampleCount
-            && confirmedEndSeconds == 0
-            && !liveText.isEmpty
+        tailSampleCount < modelWindowSampleCount && !liveTailText.isEmpty
     }
 
     static func resolve(
@@ -182,11 +202,13 @@ enum WhisperKitTailFinalization {
     enum Plan: Equatable, Sendable {
         case noAudio
         case reuse(String)
-        case decode(confirmedPrefix: String, fromSeconds: Float)
+        case decode(confirmedPrefix: String, liveTail: String, fromSeconds: Float)
     }
 
     static func plan(
         totalSampleCount: Int,
+        tailSampleCount: Int,
+        minimumDecodableTailSampleCount: Int,
         state: WhisperKitStreamState
     ) -> Plan {
         guard totalSampleCount > 0 else { return .noAudio }
@@ -198,6 +220,13 @@ enum WhisperKitTailFinalization {
         }
         return .decode(
             confirmedPrefix: state.confirmedText,
+            // An empty decode of a DECODABLE tail is the decoder's verdict —
+            // nothing spoken there — and must stay empty (the empty-result
+            // invariant). Only a tail too short to open one decode window
+            // cannot testify, so only then does live unconfirmed text stand in.
+            liveTail: tailSampleCount <= minimumDecodableTailSampleCount
+                ? state.unconfirmedText
+                : "",
             fromSeconds: state.confirmedEndSeconds
         )
     }
@@ -211,9 +240,15 @@ enum WhisperKitTailFinalization {
             return ""
         case .reuse(let text):
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .decode(let confirmedPrefix, let fromSeconds):
+        case .decode(let confirmedPrefix, let liveTail, let fromSeconds):
             let tail = try await decode(fromSeconds)
-            return WhisperKitTranscriptText.compose([confirmedPrefix, tail])
+            // WhisperKit decodes zero windows for a sub-second tail and returns
+            // nothing; the live unconfirmed text is then the only record of the
+            // final words, so an empty decode must not erase them.
+            return WhisperKitTranscriptText.compose([
+                confirmedPrefix,
+                tail.isEmpty ? liveTail : tail,
+            ])
         }
     }
 }

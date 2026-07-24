@@ -5,33 +5,33 @@ import Testing
 
 @Suite("WhisperKit terminal hallucination guard")
 struct WhisperKitHallucinationGuardTests {
-    /// Sensitivity: replacing all eligibility requirements with alternatives makes
-    /// each negative case inspect evidence from an unsupported transcription path.
+    /// Sensitivity: gating on the whole recording (or a hardcoded false) re-disables
+    /// the guard exactly where segment confirmation now fires — a sub-window tail
+    /// behind a nonzero boundary; the negative cases pin the full-window and
+    /// empty-live-tail exclusions.
     @Test
-    func inspectionRequiresShortUnconfirmedAudioAndLiveText() {
+    func inspectionCoversTheSubWindowTailBehindTheConfirmedBoundary() {
         #expect(WhisperKitTerminalHallucinationGuard.shouldInspect(
-            sampleCount: 479_999,
+            tailSampleCount: 479_999,
             modelWindowSampleCount: 480_000,
-            confirmedEndSeconds: 0,
-            liveText: "hello"
+            liveTailText: "hello"
+        ))
+        // A 40 s dictation confirmed up to 35 s: the 5 s tail must stay guarded
+        // even though the whole recording exceeds one model window.
+        #expect(WhisperKitTerminalHallucinationGuard.shouldInspect(
+            tailSampleCount: 80_000,
+            modelWindowSampleCount: 480_000,
+            liveTailText: "hello"
         ))
         #expect(!WhisperKitTerminalHallucinationGuard.shouldInspect(
-            sampleCount: 480_000,
+            tailSampleCount: 480_000,
             modelWindowSampleCount: 480_000,
-            confirmedEndSeconds: 0,
-            liveText: "hello"
+            liveTailText: "hello"
         ))
         #expect(!WhisperKitTerminalHallucinationGuard.shouldInspect(
-            sampleCount: 479_999,
+            tailSampleCount: 479_999,
             modelWindowSampleCount: 480_000,
-            confirmedEndSeconds: 0.1,
-            liveText: "hello"
-        ))
-        #expect(!WhisperKitTerminalHallucinationGuard.shouldInspect(
-            sampleCount: 479_999,
-            modelWindowSampleCount: 480_000,
-            confirmedEndSeconds: 0,
-            liveText: ""
+            liveTailText: ""
         ))
     }
 
