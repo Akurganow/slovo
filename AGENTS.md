@@ -27,6 +27,11 @@ have to be repeated. Every agent and contributor follows them without being aske
    data and derive views/effects as projections of it (reducers/selectors idiom:
    view = f(state), a single mutation path, effects as data). An attractor, not a
    straitjacket — but when several designs fit, pick the one that moves this way.
+5. **Milliseconds never justify complexity; reliability does.** A mechanism whose
+   only benefit is shaving time off an edge case is not worth building. A
+   mechanism that makes the app safer or more reliable earns its keep — but the
+   more moving parts, the likelier the failure, so always prefer the smallest
+   mechanism that delivers the reliability.
 
 ## Product intent — how the app must work
 
