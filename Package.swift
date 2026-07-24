@@ -53,9 +53,6 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
-            // The abandoned Apple-Speech transcriber is retained on disk but left
-            // out of the build until its deletion is approved.
-            exclude: ["ASR/SystemSpeechTranscriber.swift"],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

@@ -3,11 +3,9 @@ import Testing
 
 @testable import SlovoCore
 
-// The hand-rolled `SystemSpeechTranscriber.convert` was replaced by the single
-// reused `BufferConverter` (one `AVAudioConverter` handling sample format, channel
-// count, interleaving, and sample rate). This preserves the original conversion
-// intent — a Float32 source becomes a valid non-silent Int16 target — against the
-// new type.
+// The single reused `BufferConverter` (one `AVAudioConverter`) owns sample format,
+// channel count, interleaving, and sample rate; a Float32 source must become a
+// valid non-silent Int16 target.
 @Suite("BufferConverter audio conversion")
 struct BufferConverterTests {
     @Test

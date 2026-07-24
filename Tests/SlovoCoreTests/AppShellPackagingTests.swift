@@ -42,10 +42,8 @@ struct AppShellPackagingTests {
         let delegate = try Self.strippingComments(from: Self.source("Sources/slovo/AppDelegate.swift"))
 
         #expect(composition.contains("ConfigStore.load(from: defaults)"))
-        // Stated sensitivity: leave production ASR on the abandoned Apple-Speech
-        // migration (`SystemSpeechTranscriber(configuration:`) instead of building
-        // the restored `WhisperKitTranscriber` → both assertions go RED.
-        #expect(!composition.contains("SystemSpeechTranscriber(configuration:"))
+        // Stated sensitivity: swap the production ASR off `WhisperKitTranscriber`
+        // in the composition → the assertion goes RED.
         #expect(composition.contains("WhisperKitTranscriber("))
         #expect(composition.contains("OpenRouterCleaner("))
         #expect(composition.contains("ClipboardPasteInjector("))
