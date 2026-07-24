@@ -7,6 +7,27 @@ workflow (setup, tests, packaging, the pull-request checklist) see
 [CONTRIBUTING.md](CONTRIBUTING.md); for the licensing terms see
 [LICENSE](LICENSE).
 
+## Standing owner directives
+
+Non-negotiable working rules from the project owner, recorded here so they never
+have to be repeated. Every agent and contributor follows them without being asked.
+
+1. **Refactoring bar.** A refactoring must shrink the code OR shrink cognitive
+   load; the two must never both grow in one change. At least one strictly
+   decreases.
+2. **Legacy dies in the same commit that makes it legacy.** Never park removed or
+   superseded code "on disk pending deletion approval" — no build-excluded
+   corpses, no "delete later" comments. The change that makes something legacy
+   deletes it.
+3. **The owner manually verifies every deliverable.** After independent audit,
+   integrate the verified work into local main and produce the dev build via the
+   approved launcher (see below), then hand it to the owner for a manual check.
+   Work is not done until the owner has a runnable dev build.
+4. **Design attractor: data-driven.** Prefer directions that centralize state as
+   data and derive views/effects as projections of it (reducers/selectors idiom:
+   view = f(state), a single mutation path, effects as data). An attractor, not a
+   straitjacket — but when several designs fit, pick the one that moves this way.
+
 ## Product intent — how the app must work
 
 Slovo is a private, on-device push-to-talk dictation app for macOS. One dictation:
