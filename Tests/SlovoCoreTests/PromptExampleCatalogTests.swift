@@ -27,7 +27,7 @@ struct PromptExampleCatalogTests {
     @Test
     func cleanupSetCarriesTheVerifiedExamples() {
         let cleanup = PromptExampleCatalog.bundled.cleanup
-        #expect(cleanup.count == 26)
+        #expect(cleanup.count == 28)
         #expect(cleanup.first?.transcript == "1 2 3 проверяем 1 2 3")
         #expect(cleanup.contains(PromptExample(
             transcript: "отправь отчёт в пятницу нет стой лучше в четверг",
@@ -41,6 +41,14 @@ struct PromptExampleCatalogTests {
             transcript: "созвон перенесли на пятнадцать тридцать",
             output: "Созвон перенесли на 15:30."
         )), "the number-normalization exemplar must survive")
+        #expect(cleanup.contains(PromptExample(
+            transcript: "запиши формулу x равно y в квадрате плюс 1",
+            output: "Запиши формулу: x = y² + 1."
+        )), "the formula-notation exemplar must survive")
+        #expect(cleanup.contains(PromptExample(
+            transcript: "c equals a squared plus b squared",
+            output: "c = a² + b²"
+        )), "the bare-formula exemplar (no terminal period, no capitalization) must survive")
         // The tail examples are load-bearing via recency bias (the XML declares
         // them traps), so their ORDER is pinned, not just membership: a silent
         // mid-list shuffle that demotes a trap from the recency window reddens.

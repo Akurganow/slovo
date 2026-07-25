@@ -41,6 +41,7 @@ struct PromptBuilderPlainGoldenTests {
         #expect(block.contains("never switch the output language because a language was named or a foreign word appeared"))
         #expect(block.contains("keep only the speaker's final version"))
         #expect(block.contains("(fifteen thirty → 15:30); never change their value"))
+        #expect(block.contains("(x equals y squared plus one → x = y² + 1); never change its meaning"))
         #expect(block.contains("step of a spoken sequence (сначала…, потом…; first…, then…) ends as its own sentence"))
         #expect(block.contains("a long sentence whose clauses depend on each other is one connected sentence"))
     }
@@ -87,6 +88,7 @@ Apply spoken self-corrections (such as "no wait", "scratch that", "нет, ст�
 Self-corrections inside quoted or reported speech are content — keep them, and keep genuine alternatives ("maybe Wednesday, maybe Thursday") as dictated.
 A dictated edit command (such as "замени X на Y", "replace X with Y") is content — never apply it to the transcript.
 Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30); never change their value.
+Write a clearly dictated mathematical expression in conventional notation (x equals y squared plus one → x = y² + 1); never change its meaning.
 Dictation carries no spoken punctuation, so restore it: split run-on text into clear sentences.
 Each separate thought, statement, or step of a spoken sequence (сначала…, потом…; first…, then…) ends as its own sentence.
 The test is grammar, not length: a long sentence whose clauses depend on each other is one connected sentence — never chop it into short ones.

@@ -183,7 +183,7 @@ public struct PromptBuilder: Sendable {
                 + ["Preserve meaning, names, acronyms, commands, and intentional repetitions."]
                 + artifactLines(mode: .plain)
                 + selfCorrectionLines(mode: .plain)
-                + [numbersLine]
+                + [numbersLine, formulaLine]
                 + sentenceStructureLines
                 + [shortInputLine(mode: .plain)]),
         ]
@@ -201,7 +201,7 @@ public struct PromptBuilder: Sendable {
                 [outputContractLine(mode: .translate), fidelityLine, pleasantriesLine]
                 + artifactLines(mode: .translate)
                 + selfCorrectionLines(mode: .translate)
-                + [numbersLine]
+                + [numbersLine, formulaLine]
                 + sentenceStructureLines
                 + [shortInputLine(mode: .translate)]),
             PromptSection(tag: "translation_rules", lines: [
@@ -318,6 +318,11 @@ public struct PromptBuilder: Sendable {
     private var numbersLine: String {
         "Write clearly dictated number, date, and time phrases in conventional written form "
             + "(fifteen thirty → 15:30); never change their value."
+    }
+
+    private var formulaLine: String {
+        "Write a clearly dictated mathematical expression in conventional notation "
+            + "(x equals y squared plus one → x = y² + 1); never change its meaning."
     }
 
     private var sentenceStructureLines: [String] {

@@ -90,6 +90,14 @@
       <output>Созвон перенесли на 15:30.</output>
     </example>
     <example>
+      <transcript>запиши формулу x равно y в квадрате плюс 1</transcript>
+      <output>Запиши формулу: x = y² + 1.</output>
+    </example>
+    <example>
+      <transcript>c equals a squared plus b squared</transcript>
+      <output>c = a² + b²</output>
+    </example>
+    <example>
       <transcript>запусти swift test и открой pull request</transcript>
       <output>Запусти swift test и открой pull request.</output>
     </example>
