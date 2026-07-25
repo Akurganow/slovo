@@ -53,6 +53,9 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
+            // Few-shot prompt examples: the XML in the repo is the source of
+            // truth, imported into the app at build time as a bundled resource.
+            resources: [.copy("Resources/PromptExamples.xml")],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

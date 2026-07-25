@@ -47,7 +47,7 @@ enum AppComposition {
         let cleaner = OpenRouterCleaner(
             session: .shared,
             keyProvider: openRouterKeyProvider,
-            promptBuilder: PromptBuilder(maxVocabularyTerms: vocabularyLimit),
+            promptBuilder: PromptBuilder(maxVocabularyTerms: vocabularyLimit, examples: .bundled),
             log: log
         )
         let injector = ClipboardPasteInjector(

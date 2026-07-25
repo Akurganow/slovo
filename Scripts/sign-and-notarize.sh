@@ -133,6 +133,12 @@ build_app() {
     run install "$BINARY_PATH" "$CONTENTS_PATH/MacOS/slovo"
     run install -m 0644 "$ROOT/Resources/Info.plist" "$CONTENTS_PATH/Info.plist"
 
+    # SwiftPM resource bundle for SlovoCore (bundled prompt examples).
+    # PromptExampleCatalog resolves it from Contents/Resources; a missing bundle
+    # degrades every prompt to example-free, so staging it is part of the
+    # product. Staged before signing so the seal covers it.
+    run ditto "$ROOT/.build/$CONFIGURATION/slovo_SlovoCore.bundle" "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle"
+
     # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
     local icon_build="$DIST_DIR/icon"
     run install -d "$icon_build"

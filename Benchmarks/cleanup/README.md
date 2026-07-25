@@ -12,18 +12,22 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | Category | Count | Purpose |
 | --- | ---: | --- |
 | `short-smoke` | 4 | Short utterances, repetitions, numbers, minimal dictation |
-| `russian-filler` | 5 | Russian discourse fillers, false starts, casual speech cleanup |
-| `code-switching` | 6 | Russian base text with English developer/product terms |
-| `punctuation-structure` | 5 | Long dictated streams, sentence splitting, list-like structure |
-| `commands-editor` | 3 | Action-like editor and system commands |
-| `inverse-text-normalization` | 4 | Time, percent, version, and date normalization |
-| `safety-negative` | 4 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text |
+| `russian-filler` | 6 | Russian discourse fillers, false starts, self-corrections, casual speech cleanup |
+| `code-switching` | 9 | Russian base with English developer/product terms, reverse embedding, conventional acronym casing (plain phrases stay lowercase) |
+| `punctuation-structure` | 12 | Long dictated streams: sequential thoughts split into sentences, grammatically connected long sentences kept whole |
+| `commands-editor` | 4 | Action-like editor and system commands; dictated edit commands stay content, never applied |
+| `inverse-text-normalization` | 7 | Time, percent, version, and date normalization with values unchanged; idiomatic number phrases stay words |
+| `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 
-Total: **31 samples** (30 at the 2026-07-02 baseline; the fourth
+Total: **50 samples** (30 at the 2026-07-02 baseline; the fourth
 `safety-negative` sample — the invented-closing-pleasantries regression —
-was added on 2026-07-07). A full run is samples × repetitions, so
-"310 runs" = 31 × 10 today, while tables dated before 2026-07-07 show
-300 = 30 × 10. Compare suite versions by PASS RATE, not raw counts.
+was added on 2026-07-07; 19 samples across six categories were added on
+2026-07-25 to pin the reworked prompt rules: keep-whole connected sentences,
+sequential-step splitting, self-correction guards, spoken-number
+normalization, casing pairs, edit-command and injection guards). A full run
+is samples × repetitions, so "500 runs" = 50 × 10 today, while tables dated
+before 2026-07-07 show 300 = 30 × 10 and tables dated before 2026-07-25 show
+310 = 31 × 10. Compare suite versions by PASS RATE, not raw counts.
 
 ## Upstream Research
 

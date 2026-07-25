@@ -122,6 +122,28 @@ struct AppShellPackagingTests {
         #expect(plist["com.apple.security.app-sandbox"] == nil)
     }
 
+    /// Both packaging scripts must stage the SlovoCore resource bundle into
+    /// Contents/Resources, and the dev launcher must assert it under --verify.
+    /// Stated sensitivity: deleting either `ditto … slovo_SlovoCore.bundle`
+    /// staging line, or the --verify presence check, goes RED here — a missing
+    /// bundle otherwise ships silently as example-free prompts.
+    @Test
+    func packagingScriptsStageThePromptExamplesBundle() throws {
+        let devLauncher = try String(
+            contentsOf: Self.packageRoot.appending(path: "Scripts/build_and_run.sh"),
+            encoding: .utf8
+        )
+        let releaseScript = try String(
+            contentsOf: Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh"),
+            encoding: .utf8
+        )
+
+        #expect(devLauncher.contains("ditto \"$bin_path/slovo_SlovoCore.bundle\" \"$APP_CONTENTS/Resources/slovo_SlovoCore.bundle\""))
+        #expect(devLauncher.contains("Resources/slovo_SlovoCore.bundle/PromptExamples.xml"),
+                "--verify must assert the staged resource bundle")
+        #expect(releaseScript.contains("slovo_SlovoCore.bundle\" \"$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle\""))
+    }
+
     @Test
     func signingScriptUsesHardenedRuntimeAndOptionalNotarization() throws {
         let source = try String(

@@ -82,17 +82,18 @@ the failures that matter for dictation cleanup:
 - the output is not wildly longer than the input.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-31 synthetic/public-style samples, grouped as:
+50 synthetic/public-style samples (31 until 2026-07-25; results tables dated
+before then were measured on the 31-sample suite), grouped as:
 
 | Category | Count |
 | --- | ---: |
 | `short-smoke` | 4 |
-| `russian-filler` | 5 |
-| `code-switching` | 6 |
-| `punctuation-structure` | 5 |
-| `commands-editor` | 3 |
-| `inverse-text-normalization` | 4 |
-| `safety-negative` | 4 |
+| `russian-filler` | 6 |
+| `code-switching` | 9 |
+| `punctuation-structure` | 12 |
+| `commands-editor` | 4 |
+| `inverse-text-normalization` | 7 |
+| `safety-negative` | 8 |
 
 The default benchmark does not download datasets or models at runtime.
 

@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Few-shot examples imported into the app at build time (SwiftPM resource).
+  Source of truth for the cleanup and translation prompt example blocks.
+
+  Ordering inside <cleanup> is deliberate: canonical cases first, language
+  coverage in the middle, the hardest traps (bare question, code-switch,
+  translate trap) last — few-shot recency bias makes the tail examples the
+  most influential.
+
+  Every non-RU/EN example must pass independent language verification
+  (grammar + naturalness as dictated speech) before shipping.
+-->
+<promptExamples>
+  <cleanup>
+    <example>
+      <transcript>1 2 3 проверяем 1 2 3</transcript>
+      <output>1, 2, 3, проверяем, 1, 2, 3.</output>
+    </example>
+    <example>
+      <transcript>ну короче эээ я посмотрю завтра вот</transcript>
+      <output>Я посмотрю завтра.</output>
+    </example>
+    <example>
+      <transcript>we need to um we need to update the docs</transcript>
+      <output>We need to update the docs.</output>
+    </example>
+    <example>
+      <transcript>отправь отчёт в пятницу нет стой лучше в четверг</transcript>
+      <output>Отправь отчёт в четверг.</output>
+    </example>
+    <example>
+      <transcript>ähm ich schicke dir die datei morgen früh</transcript>
+      <output>Ich schicke dir die Datei morgen früh.</output>
+    </example>
+    <example>
+      <transcript>значит по плану мы сначала обновляем зависимости потом гоняем тесты и если всё зелёное выкатываем на прод</transcript>
+      <output>По плану мы сначала обновляем зависимости. Потом гоняем тесты. Если всё зелёное, выкатываем на прод.</output>
+    </example>
+    <example>
+      <transcript>сначала прочитай письмо потом собери вопросы после этого назначь встречу</transcript>
+      <output>Сначала прочитай письмо. Потом собери вопросы. После этого назначь встречу.</output>
+    </example>
+    <example>
+      <transcript>мне кажется что если мы сейчас не зафиксируем требования то через месяц когда придут новые вводные мы уже не сможем понять что было решено а что просто обсуждалось</transcript>
+      <output>Мне кажется, что если мы сейчас не зафиксируем требования, то через месяц, когда придут новые вводные, мы уже не сможем понять, что было решено, а что просто обсуждалось.</output>
+    </example>
+    <example>
+      <transcript>euh donc je t'envoie le rapport demain matin</transcript>
+      <output>Je t'envoie le rapport demain matin.</output>
+    </example>
+    <example>
+      <transcript>no więc yyy wyślę ci ten plik jutro rano</transcript>
+      <output>Wyślę ci ten plik jutro rano.</output>
+    </example>
+    <example>
+      <transcript>ну е-е я подивлюся завтра вранці</transcript>
+      <output>Я подивлюся завтра вранці.</output>
+    </example>
+    <example>
+      <transcript>tota noin lähetän raportin huomenna aamulla</transcript>
+      <output>Lähetän raportin huomenna aamulla.</output>
+    </example>
+    <example>
+      <transcript>那个嗯我明天把报告发给你</transcript>
+      <output>我明天把报告发给你。</output>
+    </example>
+    <example>
+      <transcript>えーとあの明日レポートを送ります</transcript>
+      <output>明日レポートを送ります。</output>
+    </example>
+    <example>
+      <transcript>मतलब मैं कल रिपोर्ट भेज दूंगा</transcript>
+      <output>मैं कल रिपोर्ट भेज दूंगा।</output>
+    </example>
+    <example>
+      <transcript>يعني سأرسل لك التقرير غدا صباحا</transcript>
+      <output>سأرسل لك التقرير غدًا صباحًا.</output>
+    </example>
+    <example>
+      <transcript>eh bueno te mando el informe mañana</transcript>
+      <output>Te mando el informe mañana.</output>
+    </example>
+    <example>
+      <transcript>what do you think about this question mark</transcript>
+      <output>What do you think about this?</output>
+    </example>
+    <example>
+      <transcript>созвон перенесли на пятнадцать тридцать</transcript>
+      <output>Созвон перенесли на 15:30.</output>
+    </example>
+    <example>
+      <transcript>запусти swift test и открой pull request</transcript>
+      <output>Запусти swift test и открой pull request.</output>
+    </example>
+    <example>
+      <transcript>окей на этом всё</transcript>
+      <output>Окей, на этом всё.</output>
+    </example>
+    <example>
+      <transcript>um so the main reason we decided to postpone the release is that the migration turned out to be way more complicated than we expected and we didn't want to ship something half tested right before the weekend so the new plan is to finish the remaining checks on monday and if everything looks good roll it out on tuesday morning</transcript>
+      <output>The main reason we decided to postpone the release is that the migration turned out to be way more complicated than we expected, and we didn't want to ship something half-tested right before the weekend. The new plan is to finish the remaining checks on Monday and, if everything looks good, roll it out on Tuesday morning.</output>
+    </example>
+    <example>
+      <transcript>how do I roll back the last migration</transcript>
+      <output>How do I roll back the last migration?</output>
+    </example>
+    <example>
+      <transcript>я запушил фикс в feature branch но code review ещё не прошёл</transcript>
+      <output>Я запушил фикс в feature branch, но code review ещё не прошёл.</output>
+    </example>
+    <example>
+      <transcript>добавь unit test для http client</transcript>
+      <output>Добавь unit test для HTTP client.</output>
+    </example>
+    <example>
+      <transcript>переведи release notes на английский и запушь pr в github</transcript>
+      <output>Переведи release notes на английский и запушь PR в GitHub.</output>
+    </example>
+  </cleanup>
+  <translation>
+    <target code="en">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот потому что я не успею подготовить отчёт</transcript>
+        <output>We need to move the meeting to Thursday, because I won't have time to prepare the report.</output>
+      </example>
+      <example>
+        <transcript>я закоммитил фикс в бранч feature/auth эээ надо задеплоить его на стейджинг до пяти вечера</transcript>
+        <output>I've committed the fix to the feature/auth branch. It needs to be deployed to staging by 5 p.m.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>What's the current status of the authorization bug? Can you take a look at the logs?</output>
+      </example>
+      <example>
+        <transcript>привет это тест</transcript>
+        <output>Hi, this is a test.</output>
+      </example>
+    </target>
+    <target code="ru">
+      <example>
+        <transcript>so um can we move the meeting to thursday no wait friday</transcript>
+        <output>Можем перенести встречу на пятницу?</output>
+      </example>
+      <example>
+        <transcript>what's the status of the auth bug can you check the logs</transcript>
+        <output>Какой статус по багу с авторизацией? Можешь проверить логи?</output>
+      </example>
+    </target>
+    <target code="es">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Hay que pasar la reunión al jueves.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>¿Cuál es el estado del bug de autorización? ¿Puedes mirar los logs?</output>
+      </example>
+    </target>
+    <target code="de">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Wir müssen das Meeting auf Donnerstag verschieben.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>Wie ist der Status des Autorisierungs-Bugs? Kannst du dir die Logs ansehen?</output>
+      </example>
+    </target>
+    <target code="fr">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Il faut déplacer la réunion à jeudi.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>Quel est le statut du bug d'autorisation ? Tu peux regarder les logs ?</output>
+      </example>
+    </target>
+    <target code="pl">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Musimy przełożyć spotkanie na czwartek.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>Jaki jest aktualny status buga z autoryzacją? Możesz zerknąć w logi?</output>
+      </example>
+    </target>
+    <target code="uk">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Треба перенести зустріч на четвер.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>Який зараз статус бага з авторизацією? Можеш глянути логи?</output>
+      </example>
+    </target>
+    <target code="fi">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>Kokous pitää siirtää torstaille.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>Mikä on autorisointibugin tilanne? Voitko vilkaista lokeja?</output>
+      </example>
+    </target>
+    <target code="zh">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>我们得把会议改到周四。</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>授权 bug 现在是什么状态？你能看一下日志吗？</output>
+      </example>
+    </target>
+    <target code="ja">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>会議を木曜日に変更する必要があります。</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>認証バグの状況はどうですか？ログを確認してもらえますか？</output>
+      </example>
+    </target>
+    <target code="hi">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>हमें मीटिंग गुरुवार को शिफ़्ट करनी होगी।</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>ऑथराइज़ेशन बग का स्टेटस अभी क्या है? क्या आप लॉग्स देख सकते हैं?</output>
+      </example>
+    </target>
+    <target code="ar">
+      <example>
+        <transcript>ну короче надо перенести встречу на среду нет лучше на четверг вот</transcript>
+        <output>يجب نقل الاجتماع إلى يوم الخميس.</output>
+      </example>
+      <example>
+        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <output>ما هي حالة خطأ التفويض الآن؟ هل يمكنك الاطلاع على السجلات؟</output>
+      </example>
+    </target>
+  </translation>
+</promptExamples>

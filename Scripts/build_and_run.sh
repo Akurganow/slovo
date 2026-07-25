@@ -44,19 +44,25 @@ sparkle_framework_path() {
 }
 
 stage_bundle() {
-  local build_binary
-  build_binary="$(swift build \
+  local bin_path build_binary
+  bin_path="$(swift build \
     --cache-path "$BUILD_CACHE_DIR" \
     --config-path "$BUILD_CONFIG_DIR" \
     --security-path "$BUILD_SECURITY_DIR" \
     --disable-automatic-resolution \
-    --show-bin-path)/$PROCESS_NAME"
+    --show-bin-path)"
+  build_binary="$bin_path/$PROCESS_NAME"
 
   rm -rf "$APP_BUNDLE"
   mkdir -p "$APP_MACOS" "$APP_CONTENTS/Resources"
   cp "$build_binary" "$APP_BINARY"
   chmod +x "$APP_BINARY"
   cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+
+  # SwiftPM resource bundle for SlovoCore (bundled prompt examples).
+  # PromptExampleCatalog resolves it from Contents/Resources; a missing bundle
+  # degrades every prompt to example-free, so staging it is part of the product.
+  ditto "$bin_path/slovo_SlovoCore.bundle" "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle"
 
   # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
   local icon_build="$RUN_DIR/icon"
@@ -144,6 +150,12 @@ open_app() {
 }
 
 verify_app() {
+  # A missing resource bundle degrades every prompt to example-free at runtime
+  # (PromptExampleCatalog logs but keeps working), so staging is asserted here.
+  if [[ ! -f "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/PromptExamples.xml" ]]; then
+    echo "prompt examples resource bundle is not staged in $APP_CONTENTS/Resources" >&2
+    return 1
+  fi
   local attempts=20
   while (( attempts > 0 )); do
     if pgrep -x "$PROCESS_NAME" >/dev/null; then

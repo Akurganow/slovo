@@ -62,14 +62,15 @@ struct PromptBuilderTests {
 
         #expect(prompt.input == raw)
         #expect(systemText.contains("Return only the cleaned transcript"))
-        #expect(systemText.contains("Do not ask for context"))
+        #expect(systemText.contains("do not ask for more context"))
         #expect(systemText.contains("If the transcript is a short test phrase"))
         #expect(systemText.contains("<output>1, 2, 3, проверяем, 1, 2, 3.</output>"))
         #expect(!systemText.contains("<output>\(raw)</output>"))
     }
 
-    /// Stated sensitivity: removing Russian filler examples or run-on splitting
-    /// guidance makes the benchmark regress on the most common dictation cleanup.
+    /// Stated sensitivity: removing the filler rule, the run-on guidance, the
+    /// anti-compression example, or the translate-trap example makes the benchmark
+    /// regress on the most common dictation cleanup.
     @Test
     func promptTeachesRussianFillerRemovalAndRunOnSplitting() {
         let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
@@ -81,11 +82,12 @@ struct PromptBuilderTests {
 
         #expect(systemText.contains("Never translate"))
         #expect(systemText.contains("Output language must match the transcript language"))
-        #expect(systemText.contains("Remove discourse fillers such as"))
+        #expect(systemText.contains("Remove discourse fillers (such as"))
         #expect(systemText.contains("ну, вот, короче"))
-        #expect(systemText.contains("Split run-on dictated text into clear sentences"))
-        #expect(systemText.contains("<output>Запушь PR в GitHub, пожалуйста.</output>"))
-        #expect(systemText.contains("<output>Сейчас попробую поговорить подольше. Проверю, как работает cleanup.</output>"))
+        #expect(systemText.contains("split run-on text into clear sentences"))
+        #expect(systemText.contains("<output>Переведи release notes на английский и запушь PR в GitHub.</output>"))
+        // The anti-compression exemplar: a long complex sentence preserved whole.
+        #expect(systemText.contains("что было решено, а что просто обсуждалось.</output>"))
     }
 
     /// Stated sensitivity: dropping the advisory append (so hints never reach the
@@ -112,8 +114,9 @@ struct PromptBuilderTests {
         #expect(systemText.contains("recieve → receive, relieve"))
         #expect(systemText.contains("teh → the"))
         #expect(systemText.contains("keep it unchanged"))
-        // The advisory is supplementary context: it is the LAST system block.
-        #expect(prompt.systemBlocks.last?.hasPrefix("Advisory context (may be wrong") == true)
+        // The advisory is supplementary context: it is the LAST system block,
+        // wrapped in its provenance tag.
+        #expect(prompt.systemBlocks.last?.hasPrefix("<advisory>\nAdvisory context (may be wrong") == true)
     }
 
     /// Stated sensitivity: appending the advisory block unconditionally makes this
