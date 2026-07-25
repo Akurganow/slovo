@@ -123,8 +123,8 @@ The curated OpenRouter shortlist currently mirrors the app menu:
 ## Latest Live Snapshot
 
 Live benchmark of the full curated shortlist plus the no-cleanup baseline,
-measured on 2026-07-23 (run window 23:45–00:27 local) with 10 repetitions over
-the 31-sample suite and the exact request the app sends (temperature 0,
+measured on 2026-07-25 (run window 23:57–01:04 local) with 10 repetitions over
+the 50-sample suite and the exact request the app sends (temperature 0,
 `max_tokens` 1024, reasoning disabled via `reasoning: {effort: "none"}`).
 Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
@@ -134,27 +134,27 @@ by pass RATE (passed/runs), never by raw passed counts.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `openrouter:mistralai/mistral-small-2603` | 310 | 231 | 0 | 426.5 ms | 803.6 ms |
-| `openrouter:anthropic/claude-haiku-4.5` | 310 | 230 | 0 | 1157.0 ms | 1769.3 ms |
-| `openrouter:google/gemini-3.1-flash-lite` | 310 | 230 | 0 | 732.2 ms | 1154.0 ms |
-| `openrouter:openai/gpt-5.6-luna` | 310 | 229 | 0 | 735.7 ms | 2391.0 ms |
-| `openrouter:deepseek/deepseek-v4-flash` | 310 | 220 | 0 | 1385.5 ms | 7142.7 ms |
-| `openrouter:minimax/minimax-m3` | 310 | 213 | 5 | 1464.8 ms | 4318.2 ms |
-| `openrouter:qwen/qwen3.6-flash` | 310 | 212 | 1 | 693.4 ms | 948.4 ms |
-| `passthrough:none` (raw mode) | 310 | 0 | 0 | 0.0 ms | 0.0 ms |
+| `openrouter:openai/gpt-5.6-luna` | 500 | 412 | 2 | 776.2 ms | 1354.3 ms |
+| `openrouter:google/gemini-3.1-flash-lite` | 500 | 411 | 0 | 717.8 ms | 1680.3 ms |
+| `openrouter:deepseek/deepseek-v4-flash` | 500 | 394 | 1 | 1404.7 ms | 4815.8 ms |
+| `openrouter:anthropic/claude-haiku-4.5` | 500 | 380 | 0 | 1146.4 ms | 2069.0 ms |
+| `openrouter:qwen/qwen3.6-flash` | 500 | 375 | 2 | 837.6 ms | 1074.3 ms |
+| `openrouter:mistralai/mistral-small-2603` | 500 | 370 | 0 | 446.4 ms | 817.2 ms |
+| `openrouter:minimax/minimax-m3` | 500 | 370 | 2 | 1367.0 ms | 3656.3 ms |
+| `passthrough:none` (raw mode) | 500 | 0 | 0 | 0.0 ms | 0.0 ms |
 
 ### No-cleanup (raw) baseline
 
 Raw mode (cleanup toggled off) short-circuits the whole cleaner stage — the
 orchestrator skips hint-gathering and the cleaner, not just the network call;
 `passthrough`, a no-op cleaner, is the closest harness-measurable proxy for
-that skipped stage's ~0 ms cost. Measured in the same 2026-07-23 live run as
-the snapshot above (10 repetitions over the 31-sample suite; the passthrough
+that skipped stage's ~0 ms cost. Measured in the same 2026-07-25 live run as
+the snapshot above (10 repetitions over the 50-sample suite; the passthrough
 candidate itself needs no API key and no network):
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `passthrough:none` (raw mode) | 310 | 0 | 0 | 0.0 ms | 0.0 ms |
+| `passthrough:none` (raw mode) | 500 | 0 | 0 | 0.0 ms | 0.0 ms |
 
 > What this number covers (noted 2026-07-23): cleaner-stage time only — the
 > in-process call the harness times for every candidate. The harness does NOT
@@ -223,7 +223,7 @@ samples.
 
 ## Verification
 
-PASS — refreshed on 2026-07-23 with a live 10-repetition run of the full
-curated shortlist plus passthrough over the 31-sample suite, using the current
+PASS — refreshed on 2026-07-26 with a live 10-repetition run of the full
+curated shortlist plus passthrough over the 50-sample suite, using the current
 cleanup request; the Latest Live Snapshot table and the no-cleanup (raw)
 baseline row both come from that single run.
