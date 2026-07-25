@@ -27,7 +27,7 @@ struct PromptExampleCatalogTests {
     @Test
     func cleanupSetCarriesTheVerifiedExamples() {
         let cleanup = PromptExampleCatalog.bundled.cleanup
-        #expect(cleanup.count == 28)
+        #expect(cleanup.count == 27)
         #expect(cleanup.first?.transcript == "1 2 3 проверяем 1 2 3")
         #expect(cleanup.contains(PromptExample(
             transcript: "отправь отчёт в пятницу нет стой лучше в четверг",
@@ -44,11 +44,7 @@ struct PromptExampleCatalogTests {
         #expect(cleanup.contains(PromptExample(
             transcript: "запиши формулу x равно y в квадрате плюс 1",
             output: "Запиши формулу: x = y² + 1."
-        )), "the formula-notation exemplar must survive")
-        #expect(cleanup.contains(PromptExample(
-            transcript: "c equals a squared plus b squared",
-            output: "c = a² + b²"
-        )), "the bare-formula exemplar (no terminal period, no capitalization) must survive")
+        )), "the formula-with-lead-in exemplar must survive")
         // The tail examples are load-bearing via recency bias (the XML declares
         // them traps), so their ORDER is pinned, not just membership: a silent
         // mid-list shuffle that demotes a trap from the recency window reddens.
@@ -59,6 +55,32 @@ struct PromptExampleCatalogTests {
             "Добавь unit test для HTTP client.",
             "Переведи release notes на английский и запушь PR в GitHub.",
         ], "tail order drifted")
+    }
+
+    /// The shared set is language-neutral notation rendered in both modes for
+    /// every target. Stated sensitivity: dropping the section, an example, or
+    /// mutating an output (e.g. adding a terminal period to a bare formula,
+    /// capitalizing a variable) reddens on the exact-pair pins.
+    @Test
+    func sharedSetCarriesTheLanguageNeutralFormulaExemplars() {
+        let shared = PromptExampleCatalog.bundled.shared
+        #expect(shared.count == 4)
+        #expect(shared.contains(PromptExample(
+            transcript: "c equals a squared plus b squared",
+            output: "c = a² + b²"
+        )), "the bare-formula exemplar (no terminal period, no capitalization) must survive")
+        #expect(shared.contains(PromptExample(
+            transcript: "логарифм по основанию 2 от 3",
+            output: "log₂(3)"
+        )), "the logarithm-base exemplar must survive")
+        #expect(shared.contains(PromptExample(
+            transcript: "2x в квадрате равно y в квадрате минус y факториал",
+            output: "2x² = y² − y!"
+        )), "the factorial/power exemplar must survive")
+        #expect(shared.contains(PromptExample(
+            transcript: "y равно квадратный корень из x",
+            output: "y = √x"
+        )), "the square-root exemplar must survive")
     }
 
     /// The verified language core: every code here shipped only after independent

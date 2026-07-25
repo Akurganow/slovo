@@ -135,18 +135,20 @@ public struct PromptBuilder: Sendable {
     }
 
     /// The instruction block for the active mode, with the mode's example set.
+    /// Shared (language-neutral) examples render first in both modes so each
+    /// mode's own hardest examples keep the few-shot recency slots.
     private func instructions(for config: CleanupConfig) -> String {
         let style = styleDescription(for: config.writingStyle)
         guard config.translate else {
-            return assemble(sections: plainSections(style: style), examples: examples.cleanup)
+            return assemble(sections: plainSections(style: style), examples: examples.shared + examples.cleanup)
         }
         let target = RecognitionLanguageCatalog.displayName(for: config.translationTargetLanguage.rawValue)
             ?? config.translationTargetLanguage.rawValue
-        // Per-target examples are gated on the language CODE: only targets whose
-        // pairs passed independent language verification carry a block; every
-        // other target keeps the example-free prompt.
+        // Per-target LANGUAGE examples are gated on the language CODE: only
+        // targets whose pairs passed independent language verification carry
+        // them; every target still gets the language-neutral shared examples.
         let targetExamples = examples.translation[config.translationTargetLanguage.rawValue] ?? []
-        return assemble(sections: translateSections(style: style, target: target), examples: targetExamples)
+        return assemble(sections: translateSections(style: style, target: target), examples: examples.shared + targetExamples)
     }
 
     /// The written-prose register word, shared by both modes so the style governs the

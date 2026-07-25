@@ -117,9 +117,12 @@ struct PromptBuilderTranslateTests {
         #expect(english.contains("<examples>"), "the verified en target must carry its examples block")
         #expect(english.contains("feature/auth"), "the en block must carry the code-switch commit example")
 
+        // A target outside the verified core carries ONLY the language-neutral
+        // shared examples (math notation) — never another language's pairs.
         let swahili = Self.translateBlock(style: .casual, target: Language(rawValue: "sw"))
-        #expect(!swahili.contains("<examples>"),
-                "a target outside the verified core must keep the example-free prompt")
-        #expect(!swahili.contains("<example>"))
+        #expect(swahili.contains("<output>log₂(3)</output>"),
+                "every target must carry the shared formula examples")
+        #expect(!swahili.contains("feature/auth"),
+                "a target outside the verified core must not inherit another language's pairs")
     }
 }

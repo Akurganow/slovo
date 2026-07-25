@@ -19,13 +19,18 @@ public struct PromptExample: Equatable, Sendable {
 /// without examples — and the test suite pins the bundled resource's content,
 /// so breakage surfaces in CI, not as a runtime failure while the user dictates.
 public struct PromptExampleCatalog: Sendable {
+    /// Language-neutral examples (mathematical notation) rendered in BOTH
+    /// modes and for every translation target: their outputs carry no prose
+    /// in a fixed language, so they need no per-language verification.
+    public let shared: [PromptExample]
     public let cleanup: [PromptExample]
     /// Per-target translation examples keyed by recognition language CODE
     /// ("en", "es", …), never by display name — codes are the stable wire
     /// values, display names are presentation.
     public let translation: [String: [PromptExample]]
 
-    public init(cleanup: [PromptExample], translation: [String: [PromptExample]]) {
+    public init(cleanup: [PromptExample], translation: [String: [PromptExample]], shared: [PromptExample] = []) {
+        self.shared = shared
         self.cleanup = cleanup
         self.translation = translation
     }
@@ -73,6 +78,7 @@ public struct PromptExampleCatalog: Sendable {
             diagnosticLog.error("prompt examples resource missing or unreadable; prompts run example-free")
             return PromptExampleCatalog(cleanup: [], translation: [:])
         }
+        let shared = root.elements(forName: "shared").first.map(examples(in:)) ?? []
         let cleanup = root.elements(forName: "cleanup").first.map(examples(in:)) ?? []
         var translation: [String: [PromptExample]] = [:]
         let targets = root.elements(forName: "translation").first?.elements(forName: "target") ?? []
@@ -83,7 +89,7 @@ public struct PromptExampleCatalog: Sendable {
                 translation[code] = pairs
             }
         }
-        return PromptExampleCatalog(cleanup: cleanup, translation: translation)
+        return PromptExampleCatalog(cleanup: cleanup, translation: translation, shared: shared)
     }
 
     private static func examples(in element: XMLElement) -> [PromptExample] {

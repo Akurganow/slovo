@@ -3,15 +3,38 @@
   Few-shot examples imported into the app at build time (SwiftPM resource).
   Source of truth for the cleanup and translation prompt example blocks.
 
+  <shared> examples render in BOTH modes and for EVERY translation target:
+  their outputs are language-neutral notation (math), so they need no
+  per-language verification and must never contain prose in a fixed language.
+
   Ordering inside <cleanup> is deliberate: canonical cases first, language
   coverage in the middle, the hardest traps (bare question, code-switch,
   translate trap) last — few-shot recency bias makes the tail examples the
-  most influential.
+  most influential. Shared examples render BEFORE the mode's own set so the
+  tail traps keep the recency slots.
 
   Every non-RU/EN example must pass independent language verification
   (grammar + naturalness as dictated speech) before shipping.
 -->
 <promptExamples>
+  <shared>
+    <example>
+      <transcript>c equals a squared plus b squared</transcript>
+      <output>c = a² + b²</output>
+    </example>
+    <example>
+      <transcript>логарифм по основанию 2 от 3</transcript>
+      <output>log₂(3)</output>
+    </example>
+    <example>
+      <transcript>2x в квадрате равно y в квадрате минус y факториал</transcript>
+      <output>2x² = y² − y!</output>
+    </example>
+    <example>
+      <transcript>y равно квадратный корень из x</transcript>
+      <output>y = √x</output>
+    </example>
+  </shared>
   <cleanup>
     <example>
       <transcript>1 2 3 проверяем 1 2 3</transcript>
@@ -92,10 +115,6 @@
     <example>
       <transcript>запиши формулу x равно y в квадрате плюс 1</transcript>
       <output>Запиши формулу: x = y² + 1.</output>
-    </example>
-    <example>
-      <transcript>c equals a squared plus b squared</transcript>
-      <output>c = a² + b²</output>
     </example>
     <example>
       <transcript>запусти swift test и открой pull request</transcript>
