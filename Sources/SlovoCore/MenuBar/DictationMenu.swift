@@ -29,9 +29,9 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// unrepresentable by construction: without a key there is nothing to switch on.
     case cleanupToggle(isOn: Bool)
     /// Replaces the entire cleanup block in the no-key state: an action that opens
-    /// Settings → Cleanup so the user can add an OpenRouter key. With no key there is
-    /// nothing to configure, so the switch, translate, and model items are omitted
-    /// and this single affordance takes their separator-delimited slot.
+    /// a dedicated key-entry window so the user can add an OpenRouter key. With no
+    /// key there is nothing to configure, so the switch, translate, and model items
+    /// are omitted and this single affordance takes their separator-delimited slot.
     case addOpenRouterKey
     case addVocabulary
     /// The mute-while-dictating switch; the argument is the current setting so the

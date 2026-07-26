@@ -47,8 +47,8 @@ Run the full local gate before committing or opening a pull request:
 Scripts/diagnose.sh
 ```
 
-The gate runs build, tests, and strict lint as separate stages. This keeps one
-failure from hiding another.
+The gate runs build, tests, a cleanup-benchmark CLI smoke check, and strict
+lint as separate stages. This keeps one failure from hiding another.
 
 ## Lint And Static Checks
 
@@ -76,16 +76,22 @@ This command is expected to fail. It proves the gate can go red when armed.
 
 ## Cleanup Benchmark
 
-Compare cleanup candidates with the non-product benchmark executable:
+Compare cleanup candidates with the non-product benchmark executable. A full
+shortlist run takes a long time, so the preferred way to launch it is the
+detached runner, which survives the terminal and the IDE:
 
 ```sh
-swift run --disable-automatic-resolution slovo-cleanup-benchmark \
-  --env-file .env \
-  --providers openrouter:openai/gpt-5.6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.6-flash,openrouter:deepseek/deepseek-v4-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
-  --repetitions 10 \
-  --failure-breakdown \
-  --category-breakdown
+Scripts/run-cleanup-benchmark.sh                 # full shortlist, 10 repetitions
+REPETITIONS=3 Scripts/run-cleanup-benchmark.sh   # cheaper run
+PROVIDERS=passthrough Scripts/run-cleanup-benchmark.sh   # zero-network smoke
 ```
+
+All state lands in `.build/benchmark-runs/<stamp>/` (`status`, `run.log` with a
+heartbeat, `report.csv` at the end, `benchmark.pid` to abort). The CLI prints
+its report only when the whole run completes, so an empty `report.csv` while
+`status` is `RUNNING` is normal — watch `run.log`. For a one-off custom run,
+invoke `swift run slovo-cleanup-benchmark` with the same `--providers` /
+`--repetitions` flags directly.
 
 The benchmark reads API keys from environment variables or the optional env file,
 not from Keychain. It prints aggregate latency, quality counts, and optional

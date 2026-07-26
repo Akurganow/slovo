@@ -12,8 +12,8 @@
 > the `v0.15.4` tag (`Sources/FluidAudio/ASR/Parakeet/SlidingWindow/TDT/`), which
 > is authoritative. Where the docs and source disagree, the source wins.
 >
-> Slovo's shipped runtime does not link FluidAudio; runtime ASR is Apple system
-> Speech only. This document is historical comparison material.
+> Slovo's shipped runtime does not link FluidAudio; runtime ASR is WhisperKit
+> (Whisper large-v3 turbo). This document is historical comparison material.
 
 ## Purpose
 

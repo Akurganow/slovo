@@ -1,7 +1,10 @@
 # Architecture
 
 Slovo is a native Swift menu-bar app with a small composition root and testable
-core seams.
+core seams. The normative behavior contract (the dictation lifecycle, cleanup
+on/off semantics, translate hold, empty-result and error handling, the glyph
+family) lives in `AGENTS.md` → "Product intent"; this document describes the
+structure and mechanisms that implement it and does not repeat that contract.
 
 ## Pipeline
 
@@ -14,13 +17,8 @@ key up   -> stop capture -> finalize unfinished tail -> clean -> inject
 ```
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
-(Whisper large-v3 turbo). While the cleanup setting is on, cleanup is attempted
-through OpenRouter and sends only transcript text for the selected routed model
-id; while cleanup is effectively off (toggled off, or no OpenRouter key), the
-raw final transcript is pasted once at key-up with zero network requests. An
-empty or whitespace-only final transcript never reaches cleanup or injection in
-either mode: nothing is inserted, and the menu bar briefly shows the failure
-glyph.
+(Whisper large-v3 turbo); only transcript text ever leaves the machine, and only
+for the OpenRouter cleanup attempt.
 
 ## Core Components
 
@@ -29,8 +27,7 @@ glyph.
   unit-tested policy that turns key events into start / stop (plain or
   translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
-  the "Mute Audio While Dictating" menu setting is on (the default); with it off,
-  Slovo neither mutes nor restores.
+  the "Mute Audio While Dictating" menu setting is on (the default).
 - `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
   samples.
 - `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and
@@ -47,7 +44,7 @@ glyph.
   optimization. Neither the cleaner nor the paste path ever sees a special
   token.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
-  succeeds.
+  succeeds; `FallbackCleaner` degrades a failed attempt to `PassThrough`.
 - `Injector` inserts the final text into the focused field with an atomic paste.
 - `CleanupAvailability` is the app layer's single source of truth for whether
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
@@ -61,53 +58,42 @@ glyph.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
   suggestions — as advisory context for the cleanup prompt.
-- `Orchestrator` serializes the pipeline and owns the runtime state transitions.
+- `Orchestrator` serializes the pipeline and owns the runtime state transitions
+  (`DictationFsm`).
 
 The app target owns OS-specific adapters and production composition. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
 injection behavior.
 
-## Cleanup
+## Cleanup Mechanism
 
-Cleanup has one runtime provider:
+Cleanup has one runtime provider: the OpenRouter Chat Completions API. The app
+stores one OpenRouter key in Keychain and exposes model selection as curated
+OpenRouter model ids and a custom id entry. Selecting a model changes only the
+model id. The key is read lazily when cleanup runs. Before each cleanup, Slovo
+adds advisory on-device hints to the prompt — the active keyboard language and,
+when enabled, system spell-check suggestions — which the model may use but never
+must; these hints travel to OpenRouter in the prompt alongside the transcript,
+and only the raw audio never leaves the Mac.
 
-- OpenRouter Chat Completions API.
+Both prompts (cleanup and translate) are built by `PromptBuilder` around a
+bundled few-shot example catalog: `PromptExampleCatalog` loads
+`Resources/PromptExamples.xml` (a SwiftPM resource of `SlovoCore`) and selects
+exemplars for the active language pair, including a shared language-neutral set
+that teaches the model to write dictated math expressions in conventional
+notation. The XML in the repository is the single source of truth for the
+examples; no prompt text is assembled from string literals scattered in code.
 
-The app stores one OpenRouter key in Keychain and exposes model selection as
-curated OpenRouter model ids and a custom id entry. Selecting a model changes
-only the model id. The key is read lazily when cleanup runs. Before each
-cleanup, Slovo adds advisory on-device hints to the prompt — the active keyboard
-language and, when enabled, system spell-check suggestions — which the model may
-use but never must; these hints travel to OpenRouter in the prompt alongside the
-transcript, and only the raw audio never leaves the Mac.
-
-Holding Control together with the push-to-talk key at any moment during the hold
-marks that dictation for translation: the same single cleanup request also
-translates the result into the configured target language, instead of running a
-second pass. A plain hold stays untranslated. The target defaults to English and
-is chosen in the menu bar (**Translate to: …**) or Settings; the offered
-languages are the recognition-language list without **Auto**, since a translate
-target must be concrete.
-
-Cleanup is sad-to-fail. If OpenRouter is unavailable, misconfigured, refuses
-the request, rate-limits, or returns an unusable response, Slovo inserts the
-direct transcript — untranslated on a translate hold — and briefly shows the
-`Ⱁ` error glyph instead of cancelling the dictation.
-
-When cleanup is effectively off — the user turned **Clean Up Dictation** off,
-or no OpenRouter key is configured — the cleaner is never called and no
-failure is surfaced: the dictation stays entirely on-device and the raw final
-transcript rides the same single atomic paste at key-up. A missing key is the
-same effective off mode, not a cleanup failure. Translation requires cleanup,
-so a Control latch has no effect while cleanup is off.
+A translate hold reuses the same single cleanup request (it also translates into
+the configured target language) — there is no second pass.
 
 ## Storage
 
 Slovo uses SQLite through GRDB for local personalization data:
 
 - `vocabulary` stores spelling anchors and term weights.
-- `corrections` is reserved for future correction memory.
-- `profile` stores small local context facts.
+- `corrections` and `profile` exist for migration stability; no current code
+  reads or writes them.
 
 The repository tracks only schema and migrations. Local databases and seed files
 are never committed.
@@ -115,22 +101,22 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app with no Dock icon. Its
-`NSStatusItem` dropdown holds the live status and hotkey hint plus an
-always-visible update row — **Check for Updates…** when idle (a manual silent
-check), **Checking…** during any check, then silent download progress and the
-hybrid **Update ready — v… / Restart** line, rendering the pure
-`UpdateIndication` state folded from the silent Sparkle pipeline. Below it sits
-the cleanup block: the **Clean Up Dictation** switch, cleanup model selection,
-and the translate-to target language; while no OpenRouter key is saved the whole
-block collapses to a single **Add OpenRouter Key…** item that opens a dedicated
-key-entry window. Then come vocabulary quick-add with the mute-while-dictating
-switch, and a bottom section with **Settings…**, **About**, and quit; first-run
-setup actions replace the dropdown until permissions are granted. The
-**Settings…** window covers the push-to-talk key, recognition language, launch
-at login, automatic updates, cleanup model and style, translation target,
-OpenRouter key, and vocabulary; the **About** window carries a quick guide and
-the running version. All configuration is native windows — there are no modal
-alerts.
+`NSStatusItem` shows the mode glyph (see `AGENTS.md` for the glyph family) and
+its dropdown holds the live status and hotkey hint plus an always-visible update
+row — **Check for Updates…** when idle (a manual silent check), **Checking…**
+during any check, then silent download progress and the hybrid **Update ready —
+v… / Restart** line, rendering the pure `UpdateIndication` state folded from the
+silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up
+Dictation** switch, cleanup model selection, and the translate-to target
+language; while no OpenRouter key is saved the whole block collapses to a single
+**Add OpenRouter Key…** item that opens a dedicated key-entry window. Then come
+vocabulary quick-add with the mute-while-dictating switch, and a bottom section
+with **Settings…**, **About**, and quit; first-run setup actions replace the
+dropdown until permissions are granted. The **Settings…** window covers the
+push-to-talk key, recognition language, launch at login, automatic updates,
+cleanup model and style, translation target, OpenRouter key, and vocabulary; the
+**About** window carries a quick guide and the running version. All
+configuration is native windows — there are no modal alerts.
 
 ## Build Boundaries
 

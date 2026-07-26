@@ -13,15 +13,8 @@ let swiftLintPlugins: [Target.PluginUsage] = [
     .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
 ]
 
-// Foundation shell for slovo. Production dictation runs on WhisperKit (argmax
-// oss-swift); each heavy dependency is added by the epic that first uses it, so
-// the foundation resolves only what is actually consumed. GRDB enters here
-// (Epic 08) as the persistence library for the personalization store.
 let package = Package(
     name: "slovo",
-    // macOS-only app. The macOS 26 floor is driven by Apple's on-device
-    // SpeechTranscriber / SpeechAnalyzer APIs (macOS 26+), which the dictation
-    // pipeline depends on; earlier minimums would not resolve them.
     platforms: [.macOS(.v26)],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),

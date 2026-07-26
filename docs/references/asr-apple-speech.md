@@ -2,8 +2,10 @@
 
 > **IMPORTANT — not the runtime path:** Slovo's runtime ASR engine is WhisperKit
 > (Whisper large-v3 turbo); see [asr-whisperkit.md](asr-whisperkit.md) and the
-> decision record [asr-engine-selection.md](asr-engine-selection.md). This document
-> is retained as a decision record of the evaluated Apple Speech APIs.
+> decision record [asr-engine-selection.md](asr-engine-selection.md). The Apple
+> Speech transcriber integration was deleted from the codebase on 2026-07-24.
+> This document is retained as a decision record of the evaluated Apple Speech
+> APIs.
 
 ## Purpose
 
@@ -287,17 +289,13 @@ func transcribeRussian() async throws -> String {
   the request's `progress` to the user. First run for a new language downloads hundreds of
   MB; budget for it.
 - **Use Apple-managed retention.** `SpeechAnalyzer.Options.ModelRetention` controls
-  whether analyzer resources linger across sessions. Slovo maps positive
-  `keepWarmSeconds` values to `.lingering` and zero to `.whileInUse`; it does not
-  own a manual ASR model lifecycle or unload timer. `AssetInventory.reserve(locale:)`
-  remains available for locale reservation when the runtime needs the OS to keep a
+  whether analyzer resources linger across sessions. `AssetInventory.reserve(locale:)`
+  is available for locale reservation when the runtime needs the OS to keep a
   language model resident, subject to `maximumReservedLocales`.
 - **OS version gate.** Every type here is `macOS 26.0+` (confirmed on each type's
   developer.apple.com page; `DictationTranscriber` omits tvOS, all others list iOS / iPadOS
-  / Mac Catalyst / macOS / tvOS / visionOS 26.0+). Guard all usage with
-  `if #available(macOS 26.0, *)` / `@available(macOS 26.0, *)` and keep a fallback path
-  (older `SFSpeechRecognizer`, or an alternate backend) for pre-Tahoe Macs — slovo targets
-  Apple Silicon but not necessarily only macOS 26.
+  / Mac Catalyst / macOS / tvOS / visionOS 26.0+). slovo's deployment floor is macOS 26,
+  so no availability guard or fallback path is needed.
 - **Hardware gate is runtime, not just OS.** Apple does not publish a minimum-chip
   requirement; instead `SpeechTranscriber.isAvailable` (`static var isAvailable: Bool`) is
   the canonical runtime check for whether the device's hardware/capabilities can run the

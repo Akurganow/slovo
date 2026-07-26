@@ -15,8 +15,9 @@ Run the full local gate:
 Scripts/diagnose.sh
 ```
 
-The gate must pass build, tests, strict lint, and analyzer checks. Also verify the
-gate can fail intentionally:
+The gate must pass build, tests, the cleanup-benchmark CLI smoke check, and
+strict lint (including analyzer checks). Also verify the gate can fail
+intentionally:
 
 ```sh
 SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution
@@ -85,7 +86,7 @@ xcrun stapler validate .build/dist/Slovo.app
 xcrun stapler validate .build/dist/Slovo.dmg
 ```
 
-## Manual L4 checks
+## Manual behavior checks
 
 - first launch shows setup only when required permissions are missing.
 - Microphone and Accessibility prompts or deep links lead to the correct System

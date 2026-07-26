@@ -1,8 +1,12 @@
 # ASR Engine Selection — Research & Decision Record
 
 Date: 2026-07-01
-Status: Research complete (multi-agent, adversarially verified). Decision pending
-on-device acceptance test. NOT yet committed to code.
+Status: Research complete (multi-agent, adversarially verified).
+**Outcome (2026-07-26): the decision landed — WhisperKit large-v3 turbo
+(`large-v3-v20240930_turbo_632MB`) is the shipped runtime default and the
+legacy Apple-Speech transcriber was deleted from the codebase.** The full
+large-v3 upgrade and the Qwen3 hedge below remain untried candidates, not open
+work; revisit them only with fresh evidence per the acceptance protocol.
 
 Cycle 1 (code): restores WhisperKit turbo ("large-v3-v20240930_turbo_632MB") as the
 incumbent, user-proven runtime baseline behind the streaming `Transcriber` seam. Full

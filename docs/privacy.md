@@ -13,6 +13,7 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
+| App settings (hotkey, models, toggles) | `UserDefaults` | Never sent |
 | Clipboard snapshot | Local pasteboard restore path | Never sent |
 
 ## Keychain
@@ -35,13 +36,14 @@ app-owned storage. It must not download the model into the user's Documents or
 the WhisperKit SDK's default home Hugging Face cache; `WhisperKitEngine` pins the
 download base to Application Support for exactly this reason.
 
-These files are intentionally not tracked:
+The `.gitignore` rules make these categories uncommittable, whether or not a
+matching file exists on disk today:
 
-- `data/slovo.db*`
-- `data/seed*.sql`
-- `.env*`
-- signing keys and certificate bundles
-- credential JSON or token files
+- `data/*.db*` — any local database and its sidecars
+- `data/seed*.sql` — any seed variant
+- `.env*` — dotenv files
+- `secrets/`, `*.key`, `*.pem`, `*.p12`, `*.p8` — key and certificate material
+- `*.token`, `credentials*.json`, `id_rsa*` — tokens, credential JSON, SSH keys
 
 The checked-in schema is safe; user data and seed content are not.
 

@@ -1,10 +1,9 @@
-# Menu-bar status icon (Glagolitic) + popover UI
+# Menu-bar status icon (Glagolitic)
 
 ## Purpose
 
-slovo shows ONE menu-bar status item whose icon switches by dictation state, and
-a popover (on click) carrying the recent-dictation **history** plus the current
-**status**. The user chose **Glagolitic** glyphs for the two primary states:
+slovo shows ONE menu-bar status item whose icon switches by dictation state.
+The user chose **Glagolitic** glyphs for the two primary states:
 
 - recording → a semantic Glagolitic family, one letter per mode: **Ⱍ** (CHRIVI,
   `U+2C1D`, the "Cherv"/«чистота» clean glyph — cleanup will run) is the default
@@ -12,9 +11,15 @@ a popover (on click) carrying the recent-dictation **history** plus the current
   raw mode, and **Ⱂ** (POKOJI, `U+2C12`) marks a translate hold;
 - idle → Glagolitic **Ⱄ** (SLOVO, `U+2C14`, for Cyrillic «С»).
 
-This reference answers the make-or-break question first — *can those glyphs even
-render in the macOS menu bar?* — then collects the verified AppKit / SwiftUI APIs
-for the status item, the popover, the history model, and the agent-app context.
+This reference answers the make-or-break question — *can those glyphs even
+render in the macOS menu bar?* — and collects the verified AppKit facts for the
+status item and the agent-app context.
+
+> **Status (2026-07-26):** the shipped app uses a plain `NSStatusItem` dropdown
+> menu; there is no popover and no dictation-history feature. This reference
+> once also carried `NSPopover`/`MenuBarExtra` and history-model research for
+> such a feature; it was never implemented, is not planned work, and was
+> removed from this doc (recoverable from git history if ever revived).
 
 It **builds on** `menubar-packaging.md` (which already carries the canonical
 `NSStatusItem` / `NSStatusBar` / `LSUIElement` / `.accessory` / codesign facts)
@@ -128,164 +133,14 @@ statusItem.button?.image = isRecording ? recordingIcon : idleIcon
 
 ---
 
-## Q3 — Popover from the status item
+## Q3 — Works from a menu-bar agent (`LSUIElement` / `.accessory`)
 
-Two routes. For slovo (existing non-sandboxed AppKit `.accessory` agent — spec §9,
-`menubar-packaging.md`), the **AppKit `NSStatusItem` + `NSPopover`** route is the
-recommended fit; `MenuBarExtra` is the SwiftUI-native alternative.
-
-### Route A (recommended for slovo): `NSPopover` anchored to the status-item button
-
-`NSPopover` is a concrete AppKit class — "A means to display additional content
-related to existing content on the screen." Anchor it to the status-item button:
-
-```swift
-final class StatusController {
-    private var statusItem: NSStatusItem!         // strong ref (see menubar-packaging.md)
-    private let popover = NSPopover()
-
-    func install() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = idleIcon
-        statusItem.button?.target = self
-        statusItem.button?.action = #selector(togglePopover)
-
-        popover.behavior = .transient                       // closes on outside interaction
-        popover.contentViewController = HistoryViewController() // AppKit or SwiftUI via NSHostingController
-    }
-
-    @objc private func togglePopover() {
-        guard let button = statusItem.button else { return }
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        }
-    }
-}
-```
-
-- **`show(relativeTo:of:preferredEdge:)`** — "Shows the popover anchored to the
-  specified view." Anchor to `button.bounds` / `of: button`, edge `.minY` (below the
-  bar). Confirmed against Apple docs.
-- **`behavior`** (`NSPopover.Behavior`) — confirmed cases:
-  - `.transient` — "closed in response to most user interactions"; closes when the
-    user clicks anywhere outside. **Recommended for slovo** (click icon → toggle).
-  - `.semitransient` — "closed when the user interacts with the window containing
-    the popover's positioning view."
-  - `.applicationDefined` — you manage closing explicitly.
-- **`contentViewController`** (`NSViewController?`) — "manages the content of the
-  popover." Put slovo's history view here. For SwiftUI content, wrap it in
-  `NSHostingController(rootView:)` — that's an `NSViewController` and slots straight
-  in, so the history list / status line can be a SwiftUI view inside an AppKit shell.
-- **`contentSize`** (`NSSize`) — set it before showing or the popover may
-  mis-size/mis-position (community-reported; set it for a scrollable history list).
-- **Toggle from the button:** wire `button.target`/`button.action` (as above). Note
-  the `menu`-vs-action precedence caveat from `menubar-packaging.md`: do **not** also
-  assign `statusItem.menu`, or the click opens the menu instead of firing the action.
-- **`NSPopover` vs `NSMenu`:** a plain `NSMenu` only renders menu items (text rows),
-  which can't host a scrollable history list + a live status line. slovo needs custom
-  content → `NSPopover` (or `MenuBarExtra(.window)`), not `NSMenu`.
-
-### Route B (SwiftUI-native alternative): `MenuBarExtra` with `.window` style
-
-`MenuBarExtra` is a SwiftUI **Scene** ("renders itself as a persistent control in
-the system menu bar"), **macOS 13.0+**. With `.menuBarExtraStyle(.window)` it
-"renders its contents in a popover-like window" — i.e. a built-in popover whose
-body is any SwiftUI view (perfect for a history list + status line):
-
-```swift
-@main
-struct SlovoApp: App {
-    var body: some Scene {
-        MenuBarExtra {
-            HistoryView()              // SwiftUI: scrollable history + status line
-        } label: {
-            Image(nsImage: idleIcon)   // the Glagolitic template image from Q2
-        }
-        .menuBarExtraStyle(.window)
-    }
-}
-```
-
-- `menuBarExtraStyle(_:)` is a `Scene` modifier; `MenuBarExtraStyle` has `.window`
-  (popover-like), `.menu` (dropdown), `.automatic` (`.menu` not visible in the JSON
-  extract pulled — treat the exact `.menu`/`.automatic` names as TO-VERIFY on the
-  SDK; `.window` is confirmed and is the one slovo needs).
-- The custom label still needs the Glagolitic glyph as a Noto-rendered `NSImage`
-  (`Image(nsImage:)`) — the Q2 verdict applies unchanged.
-
-### Recommended choice for slovo: **Route A (AppKit `NSStatusItem` + `NSPopover`).**
-
-Reasons, in slovo's actual context:
-- slovo is already an AppKit `NSApplication` + `AppDelegate` agent (spec §9 sample,
-  `menubar-packaging.md`), driven by `CGEventTap`, codesign, TCC preflight — all
-  AppKit/CoreGraphics. Staying in AppKit keeps one consistent app model.
-- `NSPopover` gives explicit control over toggle, anchoring edge, behavior, and
-  content size — matching slovo's "click icon → toggle history" interaction exactly.
-- `MenuBarExtra` is lower-friction *if the whole app is SwiftUI*, but slovo is not;
-  bridging `MenuBarExtra`'s status-item internals (e.g. to coordinate icon swaps with
-  the FSM, or programmatically open/close) historically needs workarounds. SwiftUI
-  history content is still available to Route A via `NSHostingController`, so Route A
-  loses nothing on the view layer.
-
----
-
-## Q4 — The dictation-history model (PRIVACY-SENSITIVE)
-
-This is a **slovo privacy/design question, not an Apple-API question.** The history
-is a small local list of recent dictations; each entry:
-
-- `timestamp` — when the dictation happened;
-- `text` — the dictated text (RECOGNIZED USER SPEECH — sensitive);
-- `outcome` — a status enum: cleaned / inserted-as-spoken / refused / failed.
-
-**Privacy constraints slovo MUST honor (these are invariants, cross-ref spec §11
-"Logging redaction" and §13):**
-
-- **Local only. Never egress.** The history holds the user's actual words. It must
-  **never** be sent to telemetry or any unrelated third party. Cleanup text egress
-  is the OpenRouter cleanup attempt; insertion falls back to the direct transcript
-  only when cleanup is unavailable, refused, or misconfigured. The history store is
-  a separate surface and must not become a second egress path.
-- **Never logged.** Spec §11 forbids any transcript/cleaned text reaching an
-  `os.Logger` sink; the history entry's `text` is exactly that text. The §12 RED
-  redaction test (a fake log sink fails if transcript text appears in a log line)
-  guards this — the history feature must not introduce a logging regression.
-- **Capped.** Keep a bounded number of recent entries (e.g. last N, or a time
-  window) so the sensitive text doesn't accumulate unbounded. A cap also keeps the
-  popover list small/fast.
-- **Clearable.** Give the user an explicit "Clear history" action in the popover;
-  clearing must actually drop the entries (and, if persisted, delete the rows).
-- **In-memory by default; persist only deliberately.** A capped in-memory ring is
-  the lowest-risk choice (gone on quit, never on disk). If history must survive
-  restarts, persist it **locally only** — reuse the existing GRDB/SQLite store
-  (`storage-grdb.md`), in the same user-private DB, never synced/exported, and keep
-  it out of VCS (spec §13 already `.gitignore`s the DB). Persisting recognized text
-  to disk raises the stakes — prefer in-memory unless the user explicitly wants
-  persistence.
-
-There is no Apple API to cite here beyond the storage option (`storage-grdb.md`) and
-the redaction discipline (spec §11/§12). The load-bearing statement is the privacy
-contract above.
-
----
-
-## Q5 — Works from a menu-bar agent (`LSUIElement` / `.accessory`)
-
-**Yes.** A status item + popover is the canonical UI for exactly this kind of agent.
+**Yes.** A status item is the canonical UI for exactly this kind of agent.
 `menubar-packaging.md` (verified PASS) establishes that slovo runs as `LSUIElement
 = true` with activation policy `.accessory` (no Dock icon, no main window) — and the
 *entire reason* a status item exists is to give such a background agent its only
-persistent UI affordance. `NSPopover` is presented relative to the status-item
-button, so it needs no app main window and no Dock presence; it appears anchored to
-the menu bar. slovo's decisions D4/D26 (non-sandboxed, `.accessory`) are unchanged by
-this feature. (Spec §9; cross-ref `menubar-packaging.md` → `LSUIElement` /
-`NSApplication.ActivationPolicy.accessory`.)
-
-One caveat already noted in `menubar-packaging.md`: a pure background `.accessory`
-app may need `NSApp.activate(...)` to bring focus to the popover's window if it hosts
-text fields; for a read-only history list this is typically unnecessary.
+persistent UI affordance. Its dropdown is a plain `NSMenu`, which needs no app
+main window and no Dock presence.
 
 ---
 
@@ -302,14 +157,7 @@ Glagolitic / fonts:
 - Noto Sans Glagolitic — Google Fonts (specimen + OFL) — https://fonts.google.com/noto/specimen/Noto+Sans+Glagolitic
 - SIL Open Font License 1.1 — https://openfontlicense.org/
 
-AppKit / SwiftUI APIs:
-- NSPopover — https://developer.apple.com/documentation/appkit/nspopover
-- NSPopover.show(relativeTo:of:preferredEdge:) — https://developer.apple.com/documentation/appkit/nspopover/show(relativeto:of:preferrededge:)
-- NSPopover.Behavior — https://developer.apple.com/documentation/appkit/nspopover/behavior
-- NSPopover.Behavior.transient — https://developer.apple.com/documentation/appkit/nspopover.behavior/transient
-- NSHostingController (SwiftUI-in-AppKit) — https://developer.apple.com/documentation/swiftui/nshostingcontroller
-- MenuBarExtra — https://developer.apple.com/documentation/SwiftUI/MenuBarExtra
-- menuBarExtraStyle(_:) — https://developer.apple.com/documentation/swiftui/scene/menubarextrastyle(_:)
+AppKit APIs:
 - NSImage lockFocus/unlockFocus (image drawing) — https://developer.apple.com/documentation/appkit/nsimage
 - NSAttributedString.draw(at:) — https://developer.apple.com/documentation/foundation/nsattributedstring
 - CTFontManagerRegisterFontsForURL (bundle-a-font fallback) — https://developer.apple.com/documentation/coretext/1499468-ctfontmanagerregisterfontsforurl
@@ -317,9 +165,6 @@ AppKit / SwiftUI APIs:
 Cross-references (do not duplicate):
 - `menubar-packaging.md` — NSStatusItem / NSStatusBar / squareLength / button /
   isTemplate / LSUIElement / .accessory / codesign / TCC (all verified PASS).
-- `storage-grdb.md` — local SQLite store if history is persisted.
-- Spec `2026-06-27-slovo-local-dictation-design.md` §9 (packaging, D4/D26), §11
-  (logging-redaction invariant), §12 (RED redaction test), §13 (egress boundary).
 
 ---
 
@@ -357,23 +202,12 @@ corroborating sources.
 - **Noto Sans Glagolitic license = OFL 1.1**, Copyright 2017 Google Inc.; OFL
   permits bundling/embedding/redistribution with software (Google Fonts specimen +
   OFL text). ✓
-- **NSPopover:** concrete class; `show(relativeTo:of:preferredEdge:)`
-  ("Shows the popover anchored to the specified view"); `behavior: NSPopover.Behavior`
-  with `.transient` / `.semitransient` / `.applicationDefined`;
-  `contentViewController: NSViewController?`; `contentSize: NSSize`. ✓
-- **MenuBarExtra:** SwiftUI `Scene`, macOS 13.0+ ("renders itself as a persistent
-  control in the system menu bar"); `menuBarExtraStyle(_:)` Scene modifier;
-  `MenuBarExtraStyle.window` ("renders its contents in a popover-like window"). ✓
-- **Agent context:** status item + popover is the canonical UI for an
+- **Agent context:** a status item is the canonical UI for an
   `LSUIElement`/`.accessory` agent; no Dock icon / main window needed (built on the
   verified `menubar-packaging.md`). ✓
 
 ### URLs validated (HTTP 200)
 
-- developer.apple.com `.../appkit/nspopover.json` (class + show + behavior +
-  contentViewController + contentSize). ✓
-- developer.apple.com `.../swiftui/menubarextra.json` (Scene, macOS 13+,
-  menuBarExtraStyle, `.window`). ✓
 - support.apple.com/en-us/122869 (Tahoe fonts) and /120414 (Sequoia fonts) —
   reachable; the Noto Sans Glagolitic entry confirmed via the search index over
   these pages (the live HTML truncates in fetch; see gap below). ✓ (reachable)
@@ -393,11 +227,9 @@ corroborating sources.
    confirmed via the search index over the official Apple pages, but a byte-for-byte
    quote from the rendered page should be re-confirmed in a browser (or by checking
    `/System/Library/Fonts/Supplemental` on device — the authoritative ground truth).
-3. **`MenuBarExtraStyle.menu` / `.automatic` names** were not in the JSON extract
-   pulled (only `.window` was). Marked TO-VERIFY; immaterial to slovo, which uses
-   Route A (NSPopover) or `.window`.
 
 No FAIL items. The make-or-break verdict (Glagolitic renders out-of-the-box via the
 bundled Noto Sans Glagolitic, pinned explicitly to avoid LastResort tofu) stands on
 the Apple bundled-font lists; gap (1)/(2) are device confirmations of the *exact
-name*, not of feasibility.
+name*, not of feasibility. (2026-07-26: the NSPopover/MenuBarExtra verification
+bullets were removed together with the unimplemented popover research they covered.)

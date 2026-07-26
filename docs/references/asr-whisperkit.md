@@ -187,7 +187,7 @@ import WhisperKit
 
 // Build once, reuse across dictations.
 let config = WhisperKitConfig(
-    model: "large-v3-v20240930_626MB",
+    model: "large-v3-v20240930_turbo_632MB",
     computeOptions: ModelComputeOptions(
         audioEncoderCompute: .cpuAndNeuralEngine,
         textDecoderCompute: .cpuAndNeuralEngine
