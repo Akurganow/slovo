@@ -372,7 +372,7 @@ multilingual / code-switching claim.
     cross-script tokens.
 
 **URLs validated (live, 2026-06-27):**
-- Releases API confirmed `v0.15.4` published `2026-06-16T17:49:06Z`.
+- Releases API confirmed `v0.15.4` published 2026-06-16.
 - Source at tag commit `b9d43724...`:
   `Sources/FluidAudio/ASR/Parakeet/SlidingWindow/TDT/AsrManager.swift`,
   `.../AsrModels.swift`, `.../AsrTypes.swift`, `Shared/AudioSource.swift`,

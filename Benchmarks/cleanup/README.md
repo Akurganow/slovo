@@ -19,15 +19,8 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `inverse-text-normalization` | 7 | Time, percent, version, and date normalization with values unchanged; idiomatic number phrases stay words |
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 
-Total: **50 samples** (30 at the 2026-07-02 baseline; the fourth
-`safety-negative` sample — the invented-closing-pleasantries regression —
-was added on 2026-07-07; 19 samples across six categories were added on
-2026-07-25 to pin the reworked prompt rules: keep-whole connected sentences,
-sequential-step splitting, self-correction guards, spoken-number
-normalization, casing pairs, edit-command and injection guards). A full run
-is samples × repetitions, so "500 runs" = 50 × 10 today, while tables dated
-before 2026-07-07 show 300 = 30 × 10 and tables dated before 2026-07-25 show
-310 = 31 × 10. Compare suite versions by PASS RATE, not raw counts.
+Total: **50 samples**. A full run is samples × repetitions, so "500 runs" =
+50 × 10. Compare runs by PASS RATE, not raw counts.
 
 ## Upstream Research
 

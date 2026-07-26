@@ -82,8 +82,7 @@ the failures that matter for dictation cleanup:
 - the output is not wildly longer than the input.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-50 synthetic/public-style samples (31 until 2026-07-25; results tables dated
-before then were measured on the 31-sample suite), grouped as:
+50 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
@@ -123,14 +122,14 @@ The curated OpenRouter shortlist currently mirrors the app menu:
 ## Latest Live Snapshot
 
 Live benchmark of the full curated shortlist plus the no-cleanup baseline,
-measured on 2026-07-25 (run window 23:57–01:04 local) with 10 repetitions over
+measured on 2026-07-25 with 10 repetitions over
 the 50-sample suite and the exact request the app sends (temperature 0,
 `max_tokens` 1024, reasoning disabled via `reasoning: {effort: "none"}`).
 Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
-gathered hint carries the active input locale. Compare across suite versions
-by pass RATE (passed/runs), never by raw passed counts.
+gathered hint carries the active input locale. Compare runs by pass RATE
+(passed/runs), never by raw passed counts.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
