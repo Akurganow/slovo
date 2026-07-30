@@ -251,12 +251,12 @@ struct AppRuntimeSourceGuardTests {
         ], in: cancelArm),
         "a silent cancel must cancel, drain the pipeline, then settle to idle — in that order")
         // Presence-only for the two independent if-guards (their relative order and
-        // negation spelling are free). Sensitivity: set the idle glyph or the Idle
+        // negation spelling are free). Sensitivity: set the idle glyph or the idle
         // title unconditionally (drop either guard) → its flag vanishes → RED.
         #expect(Self.containsInOrder(["if", "isShowingBriefStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
                 "the idle glyph must stay guarded by the brief-status flag")
-        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", #"title = "Idle""#], in: settleToIdleBody),
-                "the Idle title must stay guarded by the shown-pipeline-status flag")
+        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "title = idleStatusTitle"], in: settleToIdleBody),
+                "the idle title must stay guarded by the shown-pipeline-status flag")
     }
 
     /// The live status line renders the bare state word: the "Status:" prefix was

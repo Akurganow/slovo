@@ -47,12 +47,10 @@ struct DictationMenuBuilder {
             isFnKeySystemAssigned: isFnKeySystemAssigned
         ) {
             switch item {
-            case .status(let word):
-                let entry = disabled(word)
+            case .status(let title):
+                let entry = disabled(title)
                 statusItem = entry
                 menu.addItem(entry)
-            case .hotkeyHint(let text):
-                menu.addItem(disabled(text))
                 if trigger == .fn {
                     menu.addItem(makeFnConflictItem())
                 }

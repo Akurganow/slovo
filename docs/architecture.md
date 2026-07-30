@@ -102,8 +102,9 @@ are never committed.
 
 The app is packaged as an `LSUIElement` menu-bar app with no Dock icon. Its
 `NSStatusItem` shows the mode glyph (see `AGENTS.md` for the glyph family) and
-its dropdown holds the live status and hotkey hint plus an always-visible update
-row — **Check for Updates…** when idle (a manual silent check), **Checking…**
+its dropdown holds a single live status line (carrying the hold-to-talk hint
+when idle) plus an always-visible update row — **Check for Updates…** when idle
+(a manual silent check), **Checking…**
 during any check, then silent download progress and the hybrid **Update ready —
 v… / Restart** line, rendering the pure `UpdateIndication` state folded from the
 silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up

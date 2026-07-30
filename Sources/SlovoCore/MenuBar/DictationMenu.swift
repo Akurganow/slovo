@@ -1,12 +1,12 @@
 /// One top-level entry in the status-menu dropdown, AppKit-free so the item order
-/// and the dynamic hotkey hint are unit-testable. The app target renders each case
+/// and the dynamic status line are unit-testable. The app target renders each case
 /// into an `NSMenuItem`.
 public enum DictationMenuItem: Equatable, Sendable {
-    /// The disabled live status line; the argument is the state word, rendered on
-    /// its own (e.g. "Idle") so it reads without a redundant label.
+    /// The disabled live status line. When idle it carries the push-to-talk hint
+    /// ("Hold <key> to talk") — the hint IS the idle status, so a separate "Idle"
+    /// row would add nothing; non-idle states retitle the same row at runtime
+    /// (e.g. "Recording").
     case status(String)
-    /// The dynamic "Hold <key> to talk" hint, derived from the current trigger.
-    case hotkeyHint(String)
     /// A disabled informational line warning that macOS also claims the fn key, so
     /// the user can see why an fn hold misbehaves; the argument is the remedy text.
     case fnConflictNotice(String)
@@ -50,12 +50,12 @@ public enum DictationMenuItem: Equatable, Sendable {
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
-    /// reads where it is expected: the header (status, hotkey hint, and the fn
-    /// conflict notice when it applies), then the untitled cleanup block (see
+    /// reads where it is expected: the header (the status line, and the fn conflict
+    /// notice when it applies), then the untitled cleanup block (see
     /// `cleanupBlock`), the vocabulary block (Add Vocabulary with the
     /// availability-independent mute switch adjacent to it), and the bottom section
     /// holding Settings, then About, then Quit — each group fenced by a separator.
-    /// The hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk").
+    /// The status line is seeded with `idleStatusLine(trigger:)`.
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
@@ -65,8 +65,7 @@ public enum DictationMenu {
         isFnKeySystemAssigned: Bool
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
-            .status("Idle"),
-            .hotkeyHint("Hold \(trigger.displayName) to talk"),
+            .status(idleStatusLine(trigger: trigger)),
         ] + fnConflictNotice(trigger: trigger, isFnKeySystemAssigned: isFnKeySystemAssigned)
         let rest: [DictationMenuItem] = [
             .separator,
@@ -84,6 +83,14 @@ public enum DictationMenu {
             .quit,
         ]
         return header + rest
+    }
+
+    /// The idle status line — the push-to-talk hint doubling as the "ready" word.
+    /// Public because the app delegate restores this exact text whenever a session
+    /// settles back to idle (model-owned copy consumed by the renderer, mirroring
+    /// `fnConflictRemedy`).
+    public static func idleStatusLine(trigger: HotkeyTrigger) -> String {
+        "Hold \(trigger.displayName) to talk"
     }
 
     /// Names the collision and the one setting that resolves it, so the user can act

@@ -21,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     lazy var cleanupAvailabilityModel = CleanupAvailabilityModel(availability: currentCleanupAvailability())
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
+    // The status line's idle text — the hold-to-talk hint (the hint IS the idle
+    // status). Cached at menu build; the only trigger-mutation path rebuilds the
+    // menu, so it can never go stale relative to the installed dropdown.
+    var idleStatusTitle = ""
     var composition: AppComposition.Live?
     var settingsWindowController: SettingsWindowController?
     // Internal (not private) so the AppDelegate+About extension in its own file can
@@ -91,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned
         )
         statusTextItem = built.statusItem
+        idleStatusTitle = DictationMenu.idleStatusLine(trigger: config.trigger)
         // Sync the freshly built update row to the current state, so a rebuild while
         // an update is downloading or ready shows the right line immediately.
         if let indication = updaterCoordinator?.currentIndication {
@@ -177,16 +182,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setStatusGlyph(recording: glyphMode, on: statusItem?.button)
     }
 
-    /// Return the menu-bar glyph and status text to Idle when a session settles
-    /// (normal stop or a silent cancel), leaving a sad-to-fail notice or an
-    /// already-shown pipeline status untouched.
+    /// Return the menu-bar glyph and status line to idle — the hold-to-talk hint —
+    /// when a session settles (normal stop or a silent cancel), leaving a
+    /// sad-to-fail notice or an already-shown pipeline status untouched.
     private func settleToIdle() {
         isPipelineActive = false
         if !isShowingBriefStatus {
             setStatusGlyph(.idle, on: statusItem?.button)
         }
         if !didShowPipelineStatus {
-            statusTextItem?.title = "Idle"
+            statusTextItem?.title = idleStatusTitle
         }
     }
 
@@ -269,9 +274,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         // The empty result flashes the red glyph ONLY: no status-line text and no
-        // didShowPipelineStatus latch, so settleToIdle still returns the line to
-        // "Idle" while the brief glyph rides out its window — the spec wants the flash
-        // without a lingering notice ("do not distract the user").
+        // didShowPipelineStatus latch, so settleToIdle still returns the line to the
+        // idle hint while the brief glyph rides out its window — the spec wants the
+        // flash without a lingering notice ("do not distract the user").
         if status.isNoSpeechNotice {
             flashBriefStatusGlyph(status)
             return
@@ -295,10 +300,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         briefStatusResetTask?.cancel()
         briefStatusResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            self?.isShowingBriefStatus = false
-            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
-            if self?.isPipelineActive == false {
-                self?.statusTextItem?.title = "Idle"
+            guard let self else { return }
+            self.isShowingBriefStatus = false
+            self.setStatusGlyph(.idle, on: self.statusItem?.button)
+            if !self.isPipelineActive {
+                self.statusTextItem?.title = self.idleStatusTitle
             }
         }
     }
@@ -393,7 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Rebuilds and reinstalls the status-bar dropdown, re-capturing the live
     /// status item. Called after a settings change that alters a menu-visible value
-    /// (the hotkey hint or the selected cleanup model).
+    /// (the idle hold-to-talk line or the selected cleanup model).
     func installStatusMenu() {
         statusItem?.menu = makeMenu()
     }

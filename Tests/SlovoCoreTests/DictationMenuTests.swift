@@ -2,8 +2,9 @@ import Testing
 
 import SlovoCore
 
-// The dropdown's ordered top-level items, its dynamic "Hold <key> to talk" hint,
-// and the availability-driven cleanup block, verified without a running status bar.
+// The dropdown's ordered top-level items, its single status line carrying the
+// dynamic "Hold <key> to talk" hint when idle, and the availability-driven cleanup
+// block, verified without a running status bar.
 @Suite("Dictation menu model")
 struct DictationMenuTests {
     /// The exact remedy copy the conflict notice must carry, pinned verbatim.
@@ -45,16 +46,16 @@ struct DictationMenuTests {
     }
 
     /// With a key and cleanup on, the dropdown appears in the fixed order: header
-    /// (status, hint), separator, the cleanup block (switch, translate, model — all
-    /// active), separator, the vocabulary block (Add Vocabulary + the mute switch),
-    /// separator, and the bottom section holding Settings, About, then Quit.
+    /// (the status line carrying the hold-to-talk hint), separator, the cleanup
+    /// block (switch, translate, model — all active), separator, the vocabulary
+    /// block (Add Vocabulary + the mute switch), separator, and the bottom section
+    /// holding Settings, About, then Quit.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore the
     /// `mutesSystemAudioWhileDictating` arg — → the exact sequence mismatches → RED.
     @Test
     func onStateAppearsInSpecOrder() {
         #expect(items(availability: .on, model: "openai/gpt-5.6-luna") == [
-            .status("Idle"),
-            .hotkeyHint("Hold fn to talk"),
+            .status("Hold fn to talk"),
             .separator,
             .cleanupToggle(isOn: true),
             .cleanupModel(selectedModelId: "openai/gpt-5.6-luna", enabled: true),
@@ -77,8 +78,7 @@ struct DictationMenuTests {
     @Test
     func offByChoiceKeepsTheThreeItemBlockWithTranslateAndModelDisabled() {
         #expect(items(availability: .offByChoice, model: "x") == [
-            .status("Idle"),
-            .hotkeyHint("Hold fn to talk"),
+            .status("Hold fn to talk"),
             .separator,
             .cleanupToggle(isOn: false),
             .cleanupModel(selectedModelId: "x", enabled: false),
@@ -102,8 +102,7 @@ struct DictationMenuTests {
     @Test
     func offNoKeyReplacesTheWholeBlockWithAddKey() {
         #expect(items(availability: .offNoKey) == [
-            .status("Idle"),
-            .hotkeyHint("Hold fn to talk"),
+            .status("Hold fn to talk"),
             .separator,
             .addOpenRouterKey,
             .separator,
@@ -264,18 +263,18 @@ struct DictationMenuTests {
     // with a macOS system assignment of the fn key — and only then.
 
     /// With the fn trigger and fn assigned to a macOS action, the notice appears
-    /// EXACTLY once, directly after the hotkey hint, carrying the exact remedy copy.
+    /// EXACTLY once, directly after the status line, carrying the exact remedy copy.
     /// Stated sensitivity: drop the emission, change the copy, emit it twice, or
-    /// move it out of the after-hint slot → RED.
+    /// move it out of the after-status slot → RED.
     @Test
-    func fnConflictNoticeAppearsOnceDirectlyAfterHotkeyHint() {
+    func fnConflictNoticeAppearsOnceDirectlyAfterStatusLine() {
         let list = items(availability: .on, fnAssigned: true)
         #expect(fnConflictNoticeCount(list) == 1)
-        guard let hintIndex = list.firstIndex(of: .hotkeyHint("Hold fn to talk")) else {
-            Issue.record("hotkey hint missing: \(list)")
+        guard let statusIndex = list.firstIndex(of: .status("Hold fn to talk")) else {
+            Issue.record("status line missing: \(list)")
             return
         }
-        #expect(list[hintIndex + 1] == .fnConflictNotice(fnConflictCopy))
+        #expect(list[statusIndex + 1] == .fnConflictNotice(fnConflictCopy))
     }
 
     /// With fn NOT system-assigned the notice is absent — the menu never warns
@@ -296,13 +295,18 @@ struct DictationMenuTests {
         #expect(fnConflictNoticeCount(items(availability: .on, trigger: .option, fnAssigned: true)) == 0)
     }
 
-    /// The hint uses the trigger's display name, not its wire value.
-    /// Stated sensitivity: build the hint from `trigger.rawValue` (or a fixed "fn")
-    /// → "Hold right-command to talk" ≠ "Hold Right ⌘ to talk" → RED.
+    /// The idle status line IS the hold-to-talk hint, built from the trigger's
+    /// display name (not its wire value), and the model owns the copy:
+    /// `idleStatusLine(trigger:)` is the single source for both the seeded item
+    /// and the app delegate's idle restores.
+    /// Stated sensitivity: build the line from `trigger.rawValue` (or a fixed "fn")
+    /// → "Hold right-command to talk" ≠ "Hold Right ⌘ to talk" → RED; desync the
+    /// helper from the seeded item → the contains/equality pair mismatches → RED.
     @Test
-    func hotkeyHintUsesTriggerDisplayName() {
-        #expect(items(availability: .on, trigger: .rightCommand).contains(.hotkeyHint("Hold Right ⌘ to talk")))
-        #expect(items(availability: .on, trigger: .option).contains(.hotkeyHint("Hold ⌥ Option to talk")))
+    func statusLineUsesTriggerDisplayName() {
+        #expect(items(availability: .on, trigger: .rightCommand).contains(.status("Hold Right ⌘ to talk")))
+        #expect(items(availability: .on, trigger: .option).contains(.status("Hold ⌥ Option to talk")))
+        #expect(DictationMenu.idleStatusLine(trigger: .rightCommand) == "Hold Right ⌘ to talk")
     }
 
     /// The cleanup-model item carries the selected id so the builder checks the right
