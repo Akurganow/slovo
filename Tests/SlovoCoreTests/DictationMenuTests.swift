@@ -286,13 +286,13 @@ struct DictationMenuTests {
         #expect(fnConflictNoticeCount(items(availability: .on, fnAssigned: false)) == 0)
     }
 
-    /// The notice is fn-trigger-ONLY: with the `.option` trigger the fn key's
+    /// The notice is fn-trigger-ONLY: with the `.rightOption` trigger the fn key's
     /// system assignment is irrelevant, even when assigned.
     /// Stated sensitivity: drop the trigger gate (warn on the assigned flag alone)
     /// → RED.
     @Test
     func fnConflictNoticeAbsentForNonFnTrigger() {
-        #expect(fnConflictNoticeCount(items(availability: .on, trigger: .option, fnAssigned: true)) == 0)
+        #expect(fnConflictNoticeCount(items(availability: .on, trigger: .rightOption, fnAssigned: true)) == 0)
     }
 
     /// The idle status line IS the hold-to-talk hint, built from the trigger's
@@ -305,7 +305,8 @@ struct DictationMenuTests {
     @Test
     func statusLineUsesTriggerDisplayName() {
         #expect(items(availability: .on, trigger: .rightCommand).contains(.status("Hold Right ⌘ to talk")))
-        #expect(items(availability: .on, trigger: .option).contains(.status("Hold ⌥ Option to talk")))
+        #expect(items(availability: .on, trigger: .rightOption).contains(.status("Hold Right ⌥ to talk")))
+        #expect(items(availability: .on, trigger: .leftOption).contains(.status("Hold Left ⌥ to talk")))
         #expect(DictationMenu.idleStatusLine(trigger: .rightCommand) == "Hold Right ⌘ to talk")
     }
 

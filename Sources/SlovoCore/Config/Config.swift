@@ -1,26 +1,32 @@
 /// The push-to-talk trigger key. `fn` is the default (existing installs are
-/// untouched); ⌘, ⌃ and ⇧ bind the RIGHT side only, because a side-specific
-/// modifier is rarely pressed alone and so collides minimally with normal typing.
-/// ⌥ is the exception by owner decision — it matches either side, and the
-/// interrupt-cancel path (any key pressed mid-hold cancels silently) keeps the
-/// wider match from disturbing normal typing.
+/// untouched); every other choice names ONE physical key — the left or the right
+/// ⌘, ⌥ or ⇧. A single side is rarely pressed alone, so it collides minimally with
+/// normal typing, and binding the whole modifier class instead would make the
+/// opposite side's ordinary shortcuts start dictating. Control is deliberately not
+/// offered: it is the translate add-on to any hold, and most Mac laptop keyboards
+/// have no right Control key at all. Declaration order is picker order.
 public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
     case fn = "fn"
+    case leftCommand = "left-command"
     case rightCommand = "right-command"
-    // Wire compatibility: the stored string predates the either-side widening and
-    // must never change — older builds fail the whole config closed on an unknown
-    // trigger value, so a rename here would reset a downgraded install's settings.
-    case option = "right-option"
-    case rightControl = "right-control"
+    case leftOption = "left-option"
+    // Wire compatibility: these bytes predate the side split and keep their
+    // original right-only meaning, so an install that stored them still loads.
+    // Older builds fail the whole config closed on an unknown trigger, so the
+    // stored string must never change.
+    case rightOption = "right-option"
+    case leftShift = "left-shift"
     case rightShift = "right-shift"
 
-    /// Human-readable name for the menu hint and the Settings picker.
+    /// Human-readable name for the status line and the Settings picker.
     public var displayName: String {
         switch self {
         case .fn: return "fn"
+        case .leftCommand: return "Left ⌘"
         case .rightCommand: return "Right ⌘"
-        case .option: return "⌥ Option"
-        case .rightControl: return "Right ⌃"
+        case .leftOption: return "Left ⌥"
+        case .rightOption: return "Right ⌥"
+        case .leftShift: return "Left ⇧"
         case .rightShift: return "Right ⇧"
         }
     }

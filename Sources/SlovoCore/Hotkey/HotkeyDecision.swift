@@ -53,8 +53,8 @@ public enum HotkeyDecision: Equatable, Sendable {
 public struct HotkeyDecisionCore {
     public private(set) var isTriggerHeld = false
     private var trigger: HotkeyTrigger
-    /// Latches translate intent for the current session: while held, ANY Control
-    /// latches, so the stop carries `.translate`. Full lifecycle, so a reader need
+    /// Latches translate intent for the current session: any Control during the
+    /// hold latches, so the stop carries `.translate`. Full lifecycle, so a reader need
     /// not reconstruct it from the scattered mutation sites:
     /// - reset at each session START edge, so a stale latch never carries over;
     /// - observed on every held `flagsChanged` before the key-code passthrough guard
@@ -64,11 +64,6 @@ public struct HotkeyDecisionCore {
     /// A value left by an abnormal end (`.keyDown` interrupt-cancel or `.tapDisabled`,
     /// which do not clear it) is harmless: the next start's reset discards it first.
     private var isControlLatched = false
-    /// The LEFT Control key code, distinct from the Right ⌃ trigger's own key code
-    /// (62): a Right ⌃ hold must not self-latch, but a SECOND, foreign Control still
-    /// latches translate. The flags carry a single `.control` bit either way, so
-    /// only the key code tells the two apart.
-    private static let leftControlKeyCode: Int64 = 59
     /// The canonical fn virtual key code. An fn-bit-free event carrying it always
     /// ends the session, so even a session that started on a junk code can be
     /// released by the real key — no stuck hot mic.
@@ -81,14 +76,6 @@ public struct HotkeyDecisionCore {
     /// value left behind by a stop or an abnormal end can never be read; the
     /// `reconfigure` reset is belt-and-suspenders after a live trigger change.
     private var fnSessionStartKeyCode: Int64 = HotkeyDecisionCore.fnKeyCode
-    /// Whether the LEFT Control key is physically down, tracked on EVERY
-    /// `flagsChanged` (session or not). The Right ⌃ start event carries the
-    /// trigger's own key code and the sideless `.control` class bit, so only this
-    /// bit lets a Control pre-held BEFORE key-down latch translate at the start
-    /// edge. Reset on `reconfigure` and `.tapDisabled` — after a config change or
-    /// a tap gap the bit may be stale, and a conservative drop can only miss a
-    /// latch, never invent one.
-    private var isLeftControlDown = false
 
     public init(trigger: HotkeyTrigger) {
         self.trigger = trigger
@@ -100,7 +87,6 @@ public struct HotkeyDecisionCore {
         self.trigger = trigger
         isTriggerHeld = false
         isControlLatched = false
-        isLeftControlDown = false
         fnSessionStartKeyCode = Self.fnKeyCode
     }
 
@@ -121,14 +107,11 @@ public struct HotkeyDecisionCore {
         case .tapDisabled:
             let wasHeld = isTriggerHeld
             isTriggerHeld = false
-            isLeftControlDown = false
             return .resync(synthesizeUp: wasHeld)
         }
     }
 
     private mutating func handleFlagsChanged(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
-        // Must run before any latch decision below reads the bit for this event.
-        trackLeftControl(keyCode: keyCode, flags: flags)
         // The start edge (and its own latch observation) lives in `edge`; only a
         // held session observes the latch here — before the key-code passthrough
         // guard below, so a non-trigger Control key still latches even though its
@@ -137,7 +120,7 @@ public struct HotkeyDecisionCore {
             return decisionForFlags(keyCode: keyCode, flags: flags)
         }
         let wasLatched = isControlLatched
-        observeControlLatch(keyCode: keyCode, flags: flags)
+        observeControlLatch(flags: flags)
         let decision = decisionForFlags(keyCode: keyCode, flags: flags)
         // A fresh mid-hold latch only ever coincides with a passthrough event (the
         // trigger bit is still engaged, so this is neither a start nor a stop);
@@ -162,53 +145,37 @@ public struct HotkeyDecisionCore {
             if isTriggerHeld, !engaged, keyCode != fnSessionStartKeyCode, keyCode != Self.fnKeyCode {
                 return .passThrough
             }
-            return edge(engaged: engaged, suppress: true, keyCode: keyCode, flags: flags)
+            return edge(engaged: engaged, suppress: true, flags: flags)
         case .passthroughModifier:
             // The flags carry the modifier class but not the side, so the key code
-            // is what selects the side(s) this trigger accepts; any other key is
+            // is what names the one key this trigger accepts; any other key is
             // not ours.
-            guard trigger.matchingKeyCodes.contains(keyCode) else { return .passThrough }
-            return edge(engaged: flags.contains(trigger.modifierFlag), suppress: false, keyCode: keyCode, flags: flags)
+            guard keyCode == trigger.virtualKeyCode else { return .passThrough }
+            // While the trigger is held, its own key code IS the release: the class
+            // bit cannot say which side moved while both same-class keys are down,
+            // and flagsChanged has no key repeat, so a physically-down key's next
+            // own event can only be its way up. A START still demands the class bit,
+            // so an idle release echo never opens a phantom session.
+            let engaged = !isTriggerHeld && flags.contains(trigger.modifierFlag)
+            return edge(engaged: engaged, suppress: false, flags: flags)
         }
     }
 
-    /// Latches translate when Control engages during the hold. A Right ⌃ trigger
-    /// must not self-latch, so when the trigger IS Control only the LEFT (second)
-    /// Control latches — either this very event is the kc59 key, or the tracked
-    /// bit says left Control was already down when the start edge fired (the start
-    /// event's own key code is the trigger's, so the bit is the only carrier
-    /// there). For every other trigger the `.control` bit suffices.
+    /// Latches translate when Control engages during the hold. Control is never a
+    /// trigger, so the class bit alone proves it — there is no side to disambiguate.
     /// One-way: once latched it stays latched until the session's start/stop resets.
-    private mutating func observeControlLatch(keyCode: Int64, flags: HotkeyModifierFlags) {
+    private mutating func observeControlLatch(flags: HotkeyModifierFlags) {
         guard !isControlLatched else { return }
-        if trigger.modifierFlag == .control {
-            isControlLatched = keyCode == Self.leftControlKeyCode || isLeftControlDown
-        } else {
-            isControlLatched = flags.contains(.control)
-        }
+        isControlLatched = flags.contains(.control)
     }
 
-    /// Keeps `isLeftControlDown` current from the raw event stream. A kc59 event
-    /// follows the `.control` class bit (its release still carries the bit while
-    /// the right side holds it — a brief stale-true window); any control-free
-    /// event proves BOTH sides are up and heals the bit, and the trigger's own
-    /// control-free release edge always precedes the next start, so a stale bit
-    /// can never reach a start-edge latch.
-    private mutating func trackLeftControl(keyCode: Int64, flags: HotkeyModifierFlags) {
-        if keyCode == Self.leftControlKeyCode {
-            isLeftControlDown = flags.contains(.control)
-        } else if !flags.contains(.control) {
-            isLeftControlDown = false
-        }
-    }
-
-    private mutating func edge(engaged: Bool, suppress: Bool, keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
+    private mutating func edge(engaged: Bool, suppress: Bool, flags: HotkeyModifierFlags) -> HotkeyDecision {
         if engaged, !isTriggerHeld {
             isTriggerHeld = true
             // Fresh session: clear any prior latch, then let Control-already-held at
             // key-down latch this session so the start already carries `.translate`.
             isControlLatched = false
-            observeControlLatch(keyCode: keyCode, flags: flags)
+            observeControlLatch(flags: flags)
             return .start(suppress: suppress, mode: isControlLatched ? .translate : .plain)
         }
         if !engaged, isTriggerHeld {
@@ -234,27 +201,30 @@ extension HotkeyTrigger {
         self == .fn ? .suppressedFn : .passthroughModifier
     }
 
-    /// The virtual key codes that count as this trigger. ⌘, ⌃ and ⇧ accept only
-    /// their right-hand key; ⌥ accepts both sides, so a left-handed hold works too.
-    /// fn is recognized by its modifier flag instead, so its code is informational.
-    var matchingKeyCodes: Set<Int64> {
+    /// The one virtual key code that counts as this trigger — a single physical key
+    /// each, which is what lets a hold be told apart from the same modifier on the
+    /// other side. fn is recognized by its modifier flag instead, so its code is
+    /// informational.
+    var virtualKeyCode: Int64 {
         switch self {
-        case .fn: return [HotkeyDecisionCore.fnKeyCode]
-        case .rightCommand: return [54]
-        case .option: return [58, 61]
-        case .rightControl: return [62]
-        case .rightShift: return [60]
+        case .fn: return HotkeyDecisionCore.fnKeyCode
+        case .leftCommand: return 55
+        case .rightCommand: return 54
+        case .leftOption: return 58
+        case .rightOption: return 61
+        case .leftShift: return 56
+        case .rightShift: return 60
         }
     }
 
-    /// The modifier bit whose engage/release edge drives this trigger.
+    /// The modifier bit whose engage edge starts this trigger. Both sides of a pair
+    /// share one bit — the flags name the class, never the side.
     var modifierFlag: HotkeyModifierFlags {
         switch self {
         case .fn: return .secondaryFn
-        case .rightCommand: return .command
-        case .option: return .option
-        case .rightControl: return .control
-        case .rightShift: return .shift
+        case .leftCommand, .rightCommand: return .command
+        case .leftOption, .rightOption: return .option
+        case .leftShift, .rightShift: return .shift
         }
     }
 }

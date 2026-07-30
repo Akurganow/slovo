@@ -142,11 +142,15 @@ tap, verify on a real keyboard:
 - **fn release on an external keyboard:** hold fn, press and release other
   modifiers mid-hold, then release fn — the session ends on the fn release and
   never earlier, and never stays stuck recording.
-- **Right ⌘, ⌃, ⇧:** select one in Settings → General, then hold it alone to
-  dictate; the modifier still works normally system-wide (it is not suppressed),
-  and its left-hand twin must NOT dictate.
-- **⌥ Option (either side):** select it, then dictate once with LEFT Option and
-  once with Right Option — both start and stop a session.
+- **Each side of ⌘, ⌥, ⇧ (six choices):** select one in Settings → General, then
+  hold that exact key alone to dictate; the modifier still works normally
+  system-wide (it is not suppressed), and the SAME modifier on the other side must
+  NOT dictate. Control is not offered — it is the translate add-on below.
+- **Cross-side release:** with (say) Right ⌥ selected, hold Right ⌥, tap and hold
+  Left ⌥ mid-hold, then release Right ⌥ — the session must END on that release
+  even though Left ⌥ still holds the ⌥ bit, and must never stay stuck recording.
+- **Retired Right ⌃:** an install that had Right ⌃ selected resets to defaults on
+  first launch of this build, so the trigger reads fn.
 - **Interrupt:** hold the selected modifier and press another key mid-hold
   (e.g. Right ⌘ then C) — dictation is cancelled silently (nothing inserted, no
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
