@@ -13,6 +13,11 @@ import Foundation
 /// `Sendable` so the `actor Orchestrator` can hold it across suspension points
 /// without a data race.
 public protocol Transcriber: Sendable {
+    /// Whether `begin` would find the model already loaded, so it has no real
+    /// preparation work to do — the honesty gate for the "Preparing Speech Model"
+    /// notice.
+    var isModelResident: Bool { get async }
+
     /// Opens a recognition session biased toward `biasTerms`. Throws if the
     /// backend, locale assets, or engine cannot be brought up.
     func begin(biasTerms: [Term]) async throws

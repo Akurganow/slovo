@@ -17,9 +17,14 @@ public actor BlockingTranscriber: Transcriber {
     private var released = false
     private var finishEntered = false
     private let outcome: Outcome
+    /// The residency answer the orchestrator's honest-status gate reads. The
+    /// `false` default keeps every pre-probe test on today's behavior, where a
+    /// session may report model preparation.
+    public let isModelResident: Bool
 
-    public init(outcome: Outcome) {
+    public init(outcome: Outcome, isModelResident: Bool = false) {
         self.outcome = outcome
+        self.isModelResident = isModelResident
     }
 
     /// Every `begin` call's biasTerms, in invocation order.

@@ -42,6 +42,13 @@ public final class ModelLifecycle: @unchecked Sendable {
         self.clock = clock
     }
 
+    /// Whether the model is loaded right now, so `willUse` would skip the load.
+    /// A read-only projection of the model's own state — distinct from the
+    /// keep-warm POLICY, which only decides when a loaded model is released.
+    public var isModelLoaded: Bool {
+        model.isLoaded
+    }
+
     /// Ensures the model is loaded before use.
     public func willUse() async throws {
         lock.withLock { idleSince = nil }

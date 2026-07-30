@@ -36,10 +36,15 @@ public final class FakeTranscriber: Transcriber {
     private let recorded = Mutex(Recorded())
     private let outcome: Outcome
     private let feedFailure: FeedFailurePlan?
+    /// The residency answer the orchestrator's honest-status gate reads. The
+    /// `false` default keeps every pre-probe test on today's behavior, where a
+    /// session may report model preparation.
+    public let isModelResident: Bool
 
-    public init(outcome: Outcome, feedFailure: FeedFailurePlan? = nil) {
+    public init(outcome: Outcome, feedFailure: FeedFailurePlan? = nil, isModelResident: Bool = false) {
         self.outcome = outcome
         self.feedFailure = feedFailure
+        self.isModelResident = isModelResident
     }
 
     /// Every `begin` call, in invocation order (each carrying its `biasTerms`).

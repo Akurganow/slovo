@@ -337,7 +337,14 @@ public actor Orchestrator {
         // push would otherwise split this session's key-up clean short-circuit,
         // running the cleaner on a transcript the session began without.
         sessionRunsCleaner = cleanupConfig.runsCleaner
-        deps.reportStatus(.preparingSpeechModel)
+        // Only claim preparation when `begin` really has loading to do. Reported
+        // unconditionally, it overwrote "Recording" with a lie for the whole hold
+        // of every dictation once the model was warm. It still fires where it is
+        // true: the first-run download, and a failed preload retried inside begin.
+        let isModelResident = await deps.transcriber.isModelResident
+        if !isModelResident {
+            deps.reportStatus(.preparingSpeechModel)
+        }
         do {
             try await deps.transcriber.begin(biasTerms: biasTerms)
         } catch let error as TranscriptionError {

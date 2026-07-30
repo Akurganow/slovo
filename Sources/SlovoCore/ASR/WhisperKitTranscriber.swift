@@ -66,6 +66,12 @@ public actor WhisperKitTranscriber: Transcriber {
         )
     }
 
+    /// Whether `begin` would reuse an already-loaded model. Read straight from the
+    /// lifecycle, so it cannot drift from what `begin` will actually do.
+    public var isModelResident: Bool {
+        lifecycle.isModelLoaded
+    }
+
     /// Preloads the model without opening a session, so the first dictation skips
     /// the cold load. A subsequent `begin` reuses the warm model (no reload).
     public func warmUp() async throws {

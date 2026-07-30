@@ -277,19 +277,50 @@ struct OrchestratorTests {
                 "a contained transcription failure must return the session to idle")
     }
 
-    /// A first-run ASR model download can spend seconds inside `begin`; surface
-    /// that precise stage when the streaming session opens at key-down.
-    /// Stated sensitivity: remove the pre-begin status report → the session opens
-    /// with no `.preparingSpeechModel` status recorded → RED.
-    ///
-    /// Note: streaming moved the ASR session begin (and its `.preparingSpeechModel`
-    /// notice) from key-up to key-down. This asserts the new timing (status at
-    /// key-down, reported exactly once); its RED sensitivity should be re-derived
-    /// for the streaming seam.
+    /// A session begun with the model already RESIDENT must never claim
+    /// "Preparing Speech Model": the unconditional notice was overwriting the
+    /// Recording title for the whole hold on every dictation, long after the
+    /// model was warm — the status must be a projection of the transcriber's
+    /// actual residency.
+    /// Stated sensitivity: restore the unconditional
+    /// `reportStatus(.preparingSpeechModel)` in `beginCapture` (the pre-fix
+    /// code) → the resident session reports it → RED; invert the gate polarity
+    /// (report only when resident) → same RED from this side.
+    @Test
+    func residentModelSessionNeverReportsPreparing() async {
+        let reported = Mutex<[StatusMessage]>([])
+        let transcriber = FakeTranscriber(outcome: .success("hi"), isModelResident: true)
+        let cleaner = FakeCleaner(outcome: .success("HI"))
+        let injector = FakeInjector(outcome: .success)
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            config: Self.cleanupConfig,
+            dependencies: Self.deps(
+                transcriber: transcriber,
+                cleaner: cleaner,
+                injector: injector,
+                statusReporter: { status in reported.withLock { $0.append(status) } }
+            )
+        )
+
+        await Self.runSession(orchestrator)
+
+        let statuses = reported.withLock { $0 }
+        #expect(!statuses.contains(.preparingSpeechModel),
+                "a resident model must not claim preparation; got \(statuses)")
+    }
+
+    /// The notice stays for the HONEST cases: with the model NOT resident (a
+    /// first-run download, or a failed preload retried inside `begin`), the
+    /// precise stage is surfaced exactly once when the streaming session opens
+    /// at key-down.
+    /// Stated sensitivity: delete the now-conditional emission → nothing is
+    /// reported → RED; invert the gate polarity → this non-resident session
+    /// reports nothing → RED (the resident test above reddens on the same
+    /// inversion from its side).
     @Test
     func reportsSpeechModelPreparationWhenSessionBegins() async {
         let reported = Mutex<[StatusMessage]>([])
-        let transcriber = BlockingTranscriber(outcome: .success("hi"))
+        let transcriber = BlockingTranscriber(outcome: .success("hi"), isModelResident: false)
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
