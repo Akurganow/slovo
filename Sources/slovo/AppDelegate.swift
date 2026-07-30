@@ -53,7 +53,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // AppKit resolves the stored position when the item adopts the autosave name,
+        // so the seed must already be in place before the item is created and named.
+        StatusItemPlacement.seedPreferredPositionIfAbsent(in: defaults)
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.autosaveName = StatusItemPlacement.autosaveName
         setStatusGlyph(.idle, on: item.button)
         item.menu = makeMenu()
         statusItem = item

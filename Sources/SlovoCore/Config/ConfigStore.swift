@@ -4,6 +4,9 @@ import Foundation
 /// tested without touching the process-wide defaults database.
 public protocol UserDefaultsReading {
     func data(forKey defaultName: String) -> Data?
+    /// Reads a value of any stored type, so a key holding a number can be probed
+    /// for presence — `data(forKey:)` reports one as absent.
+    func object(forKey defaultName: String) -> Any?
 }
 
 extension UserDefaults: UserDefaultsReading {}
