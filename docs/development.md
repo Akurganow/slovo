@@ -146,9 +146,11 @@ tap, verify on a real keyboard:
   hold that exact key alone to dictate; the modifier still works normally
   system-wide (it is not suppressed), and the SAME modifier on the other side must
   NOT dictate. Control is not offered — it is the translate add-on below.
-- **Cross-side release:** with (say) Right ⌥ selected, hold Right ⌥, tap and hold
-  Left ⌥ mid-hold, then release Right ⌥ — the session must END on that release
-  even though Left ⌥ still holds the ⌥ bit, and must never stay stuck recording.
+- **Cross-side release:** with (say) Right ⌥ selected, hold Right ⌥, press and
+  hold Left ⌥ mid-hold, then release Right ⌥ — the session must END on that
+  release even though Left ⌥ still holds the ⌥ bit (the recording glyph leaves
+  the recording state and the dictated text inserts), never staying stuck
+  recording.
 - **Retired Right ⌃:** an install that had Right ⌃ selected resets to defaults on
   first launch of this build, so the trigger reads fn.
 - **Interrupt:** hold the selected modifier and press another key mid-hold
