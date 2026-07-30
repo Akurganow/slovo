@@ -23,8 +23,8 @@ public enum HotkeyInputEvent: Equatable, Sendable {
 }
 
 /// What the tap adapter must do with the current event. `suppress` is true only
-/// for fn (its event is hidden from the OS); a right modifier passes through so it
-/// keeps working as a normal modifier.
+/// for fn (its event is hidden from the OS); every other trigger passes through so
+/// it keeps working as a normal modifier.
 public enum HotkeyDecision: Equatable, Sendable {
     /// Start a session; `mode` is the intent latched at the key-down edge, so
     /// Control already held at key-down starts directly in `.translate`.
@@ -35,7 +35,7 @@ public enum HotkeyDecision: Equatable, Sendable {
     /// latch engages instead of waiting for the stop edge. Fires at most once per
     /// session (the latch is one-way); the underlying event is passed through.
     case translateLatched
-    /// A non-trigger key went down while a right-modifier trigger was held: cancel
+    /// A non-trigger key went down while a passthrough-modifier trigger was held: cancel
     /// the in-flight dictation silently; the real combo passes through untouched.
     case interruptCancel
     /// The tap was disabled; re-enable it. `synthesizeUp` is true when a trigger
@@ -48,8 +48,8 @@ public enum HotkeyDecision: Equatable, Sendable {
 /// The tap-free push-to-talk decision core. Maps each reduced input event to a
 /// `HotkeyDecision` and owns the "trigger currently held" bit, so the CGEventTap
 /// adapter stays a thin translator with no policy of its own. It reads no clock
-/// and performs no I/O; its only state is the held bit, updated deterministically
-/// on every path.
+/// and performs no I/O; every piece of its state is updated deterministically on
+/// every path.
 public struct HotkeyDecisionCore {
     public private(set) var isTriggerHeld = false
     private var trigger: HotkeyTrigger
@@ -69,6 +69,18 @@ public struct HotkeyDecisionCore {
     /// latches translate. The flags carry a single `.control` bit either way, so
     /// only the key code tells the two apart.
     private static let leftControlKeyCode: Int64 = 59
+    /// The canonical fn virtual key code. An fn-bit-free event carrying it always
+    /// ends the session, so even a session that started on a junk code can be
+    /// released by the real key — no stuck hot mic.
+    fileprivate static let fnKeyCode: Int64 = 63
+    /// The key code the current fn session started on, latched at the engage edge.
+    /// External keyboards report fn under their own codes (see
+    /// docs/references/macos-fn-hotkey.md), so the start code is the only proof that
+    /// a later fn-bit-free event is THIS key going up rather than unrelated noise.
+    /// Read only while a session is held, and re-latched at every start edge, so a
+    /// value left behind by a stop or an abnormal end can never be read; the
+    /// `reconfigure` reset is belt-and-suspenders after a live trigger change.
+    private var fnSessionStartKeyCode: Int64 = HotkeyDecisionCore.fnKeyCode
     /// Whether the LEFT Control key is physically down, tracked on EVERY
     /// `flagsChanged` (session or not). The Right ⌃ start event carries the
     /// trigger's own key code and the sideless `.control` class bit, so only this
@@ -89,6 +101,7 @@ public struct HotkeyDecisionCore {
         isTriggerHeld = false
         isControlLatched = false
         isLeftControlDown = false
+        fnSessionStartKeyCode = Self.fnKeyCode
     }
 
     public mutating func handle(_ event: HotkeyInputEvent) -> HotkeyDecision {
@@ -96,11 +109,11 @@ public struct HotkeyDecisionCore {
         case let .flagsChanged(keyCode, flags):
             return handleFlagsChanged(keyCode: keyCode, flags: flags)
         case .keyDown:
-            // A key press while a right-modifier trigger is held = the user
+            // A key press while a passthrough-modifier trigger is held = the user
             // reaching for a shortcut, not dictating: cancel silently, combo
             // passes through. fn is suppressed and cannot form combos, so it has
             // no interrupt path.
-            if isTriggerHeld, trigger.behavior == .passthroughRightModifier {
+            if isTriggerHeld, trigger.behavior == .passthroughModifier {
                 isTriggerHeld = false
                 return .interruptCancel
             }
@@ -138,14 +151,23 @@ public struct HotkeyDecisionCore {
     private mutating func decisionForFlags(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
         switch trigger.behavior {
         case .suppressedFn:
-            // fn is keyed on the secondary-fn bit edge, key code ignored — exactly
-            // the pre-existing detection.
-            return edge(engaged: flags.contains(.secondaryFn), suppress: true, keyCode: keyCode, flags: flags)
-        case .passthroughRightModifier:
-            // The flags carry the modifier class but not the side, so a right
-            // modifier requires its side-specific key code; the same class on the
-            // other side (or a different key) is not ours.
-            guard keyCode == trigger.virtualKeyCode else { return .passThrough }
+            // The START edge stays keyed on the secondary-fn bit alone, key code
+            // ignored, so an odd-code keyboard still begins a session.
+            let engaged = flags.contains(.secondaryFn)
+            if engaged, !isTriggerHeld { fnSessionStartKeyCode = keyCode }
+            // Missing fn bit is NOT proof the key came up: macOS delivers junk and
+            // foreign-modifier events without it while fn is still physically down.
+            // Only an event naming the fn key ends the hold — this session's start
+            // code, or the canonical one, which heals a junk-code start.
+            if isTriggerHeld, !engaged, keyCode != fnSessionStartKeyCode, keyCode != Self.fnKeyCode {
+                return .passThrough
+            }
+            return edge(engaged: engaged, suppress: true, keyCode: keyCode, flags: flags)
+        case .passthroughModifier:
+            // The flags carry the modifier class but not the side, so the key code
+            // is what selects the side(s) this trigger accepts; any other key is
+            // not ours.
+            guard trigger.matchingKeyCodes.contains(keyCode) else { return .passThrough }
             return edge(engaged: flags.contains(trigger.modifierFlag), suppress: false, keyCode: keyCode, flags: flags)
         }
     }
@@ -201,28 +223,27 @@ public struct HotkeyDecisionCore {
 
 extension HotkeyTrigger {
     /// How the tap recognizes and treats a trigger: fn is detected by its modifier
-    /// flag alone and suppressed, with no interrupt path; a right-hand modifier is
-    /// detected by its side-specific key code, passes through, and can be
-    /// interrupted by a combo.
+    /// flag alone and suppressed, with no interrupt path; every other modifier is
+    /// detected by key code, passes through, and can be interrupted by a combo.
     enum Behavior {
         case suppressedFn
-        case passthroughRightModifier
+        case passthroughModifier
     }
 
     var behavior: Behavior {
-        self == .fn ? .suppressedFn : .passthroughRightModifier
+        self == .fn ? .suppressedFn : .passthroughModifier
     }
 
-    /// The side-specific virtual key code the tap matches for a right-hand
-    /// modifier. fn is recognized by its modifier flag instead, so its key code is
-    /// informational only.
-    var virtualKeyCode: Int64 {
+    /// The virtual key codes that count as this trigger. ⌘, ⌃ and ⇧ accept only
+    /// their right-hand key; ⌥ accepts both sides, so a left-handed hold works too.
+    /// fn is recognized by its modifier flag instead, so its code is informational.
+    var matchingKeyCodes: Set<Int64> {
         switch self {
-        case .fn: return 63
-        case .rightCommand: return 54
-        case .rightOption: return 61
-        case .rightControl: return 62
-        case .rightShift: return 60
+        case .fn: return [HotkeyDecisionCore.fnKeyCode]
+        case .rightCommand: return [54]
+        case .option: return [58, 61]
+        case .rightControl: return [62]
+        case .rightShift: return [60]
         }
     }
 
@@ -231,7 +252,7 @@ extension HotkeyTrigger {
         switch self {
         case .fn: return .secondaryFn
         case .rightCommand: return .command
-        case .rightOption: return .option
+        case .option: return .option
         case .rightControl: return .control
         case .rightShift: return .shift
         }

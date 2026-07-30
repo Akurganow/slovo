@@ -133,10 +133,21 @@ tap, verify on a real keyboard:
 
 - **fn (default):** hold fn, speak, release — text is inserted; the fn press is
   suppressed (the Globe/Emoji picker never appears).
-- **Each right modifier (⌘, ⌥, ⌃, ⇧):** select it in Settings → General, then hold it
-  alone to dictate; the modifier still works normally system-wide (it is not
-  suppressed).
-- **Interrupt:** hold the selected right modifier and press another key mid-hold
+- **fn conflict notice:** with the fn trigger selected and Slovo left running, set
+  "Press 🌐 key to" in System Settings ▸ Keyboard to anything but "Do Nothing",
+  then REOPEN the dropdown — the remedy line is there, directly under the hold
+  hint. Set it back to "Do Nothing", reopen once more, and the line is gone. No
+  relaunch and no settings change in Slovo: the notice is re-read from the system
+  on every menu open.
+- **fn release on an external keyboard:** hold fn, press and release other
+  modifiers mid-hold, then release fn — the session ends on the fn release and
+  never earlier, and never stays stuck recording.
+- **Right ⌘, ⌃, ⇧:** select one in Settings → General, then hold it alone to
+  dictate; the modifier still works normally system-wide (it is not suppressed),
+  and its left-hand twin must NOT dictate.
+- **⌥ Option (either side):** select it, then dictate once with LEFT Option and
+  once with Right Option — both start and stop a session.
+- **Interrupt:** hold the selected modifier and press another key mid-hold
   (e.g. Right ⌘ then C) — dictation is cancelled silently (nothing inserted, no
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
 - **Live change:** switch the key in Settings → General while idle — the new key works

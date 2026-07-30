@@ -144,7 +144,7 @@ public enum DictationFsm {
         case (.recording, .stopRequested):
             return (.processing, [.endCaptureAndFinalizeTranscript, .restoreSystemOutput])
 
-        // Silent interrupt-cancel (right-modifier triggers): drop the recording
+        // Silent interrupt-cancel (passthrough-modifier triggers): drop the recording
         // with nothing inserted and no error. discardCapture releases the mic and
         // tears down the ASR session, restoreSystemOutput is the leaving-recording
         // restore (exactly once), returnToIdle clears session state. No notify.

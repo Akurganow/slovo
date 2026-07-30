@@ -20,7 +20,9 @@ struct ConfigStoreTriggerTests {
         let cases: [(raw: String, expected: HotkeyTrigger)] = [
             ("fn", .fn),
             ("right-command", .rightCommand),
-            ("right-option", .rightOption),
+            // The stored wire value predates the either-side widening and must
+            // keep loading unchanged (no migration).
+            ("right-option", .option),
             ("right-control", .rightControl),
             ("right-shift", .rightShift),
         ]
@@ -68,7 +70,7 @@ struct ConfigStoreTriggerTests {
     func triggerDisplayNamesMatchTheCuratedSet() {
         #expect(HotkeyTrigger.fn.displayName == "fn")
         #expect(HotkeyTrigger.rightCommand.displayName == "Right ⌘")
-        #expect(HotkeyTrigger.rightOption.displayName == "Right ⌥")
+        #expect(HotkeyTrigger.option.displayName == "⌥ Option")
         #expect(HotkeyTrigger.rightControl.displayName == "Right ⌃")
         #expect(HotkeyTrigger.rightShift.displayName == "Right ⇧")
     }

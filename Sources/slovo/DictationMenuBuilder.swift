@@ -20,7 +20,8 @@ struct DictationMenuBuilder {
         selectedModelId: String,
         mutesSystemAudioWhileDictating: Bool,
         translationLanguage: String,
-        cleanupAvailability: CleanupAvailability
+        cleanupAvailability: CleanupAvailability,
+        isFnKeySystemAssigned: Bool
     ) -> Built {
         let menu = NSMenu()
         // Explicit enable/disable control: auto-enablement would re-enable the
@@ -29,8 +30,12 @@ struct DictationMenuBuilder {
         // The status dropdown is its own menu delegate: the hybrid update row needs
         // the willHighlight swap and the menuWillOpen re-sync.
         menu.delegate = target
+        // Each build owns its rows: drop the previous menu's notice so a trigger
+        // change away from fn cannot leave the open-time re-sync holding a row that
+        // is no longer in any menu.
+        target.fnConflictMenuItem = nil
         var statusItem = NSMenuItem()
-        // Five config arguments no longer fit the strict 160-char line, so the call
+        // The config arguments no longer fit the strict 160-char line, so the call
         // is multiline per multiline_arguments_brackets; the source guards assert the
         // call token and the threaded trigger separately.
         for item in DictationMenu.items(
@@ -38,7 +43,8 @@ struct DictationMenuBuilder {
             selectedModelId: selectedModelId,
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
             translationLanguage: translationLanguage,
-            cleanupAvailability: cleanupAvailability
+            cleanupAvailability: cleanupAvailability,
+            isFnKeySystemAssigned: isFnKeySystemAssigned
         ) {
             switch item {
             case .status(let word):
@@ -47,7 +53,15 @@ struct DictationMenuBuilder {
                 menu.addItem(entry)
             case .hotkeyHint(let text):
                 menu.addItem(disabled(text))
+                if trigger == .fn {
+                    menu.addItem(makeFnConflictItem())
+                }
                 menu.addItem(makeUpdateItem())
+            case .fnConflictNotice(let text):
+                // The model's build-time verdict seeds the row; every later open
+                // re-syncs it from the live system setting.
+                target.fnConflictMenuItem?.title = text
+                target.fnConflictMenuItem?.isHidden = false
             case .separator:
                 menu.addItem(.separator())
             case .cleanupModel(let modelId, let enabled):
@@ -109,6 +123,18 @@ struct DictationMenuBuilder {
     private func disabled(_ title: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
+        return item
+    }
+
+    /// The one persistent fn-conflict row, created only for the fn trigger — no other
+    /// trigger can collide with the system's fn assignment. Informational only: it
+    /// reads as a grey line in the dropdown, never an alert, because Slovo must not
+    /// steal focus. Starts hidden and carries its text from the outset, so the
+    /// open-time re-sync can reveal it on a build where the conflict did not yet exist.
+    private func makeFnConflictItem() -> NSMenuItem {
+        let item = disabled(DictationMenu.fnConflictRemedy)
+        item.isHidden = true
+        target.fnConflictMenuItem = item
         return item
     }
 

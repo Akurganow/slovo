@@ -2,7 +2,7 @@ import Testing
 
 import SlovoCore
 
-// The silent interrupt-cancel row: a right-modifier combo cancels the in-flight
+// The silent interrupt-cancel row: a passthrough-modifier combo cancels the in-flight
 // dictation with the recording discarded, audio restored exactly once (leaving
 // recording), and NOTHING transcribed/cleaned/inserted and NO notify — the cancel
 // is silent by contract.

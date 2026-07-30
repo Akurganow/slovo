@@ -46,7 +46,7 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
 
     public func start() throws {
         // keyDown joins flagsChanged so the tap can observe an interrupting key
-        // press and cancel a right-modifier hold.
+        // press and cancel a passthrough-modifier hold.
         let eventMask = CGEventMask(
             (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
         )

@@ -2,7 +2,7 @@
 /// the mode latched at the key-down edge, `.up` stops it while carrying the
 /// session's final `DictationMode`, `.translateLatched` reports that Control latched
 /// translate LIVE mid-hold so the recording glyph can switch before key-up, and
-/// `.cancel` silently discards an in-flight session (a right-modifier combo
+/// `.cancel` silently discards an in-flight session (a passthrough-modifier combo
 /// interrupted the hold).
 public enum HotkeyPhase: Equatable, Sendable {
     case down(DictationMode)

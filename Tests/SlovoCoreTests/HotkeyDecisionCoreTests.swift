@@ -85,6 +85,66 @@ struct HotkeyDecisionCoreTests {
         #expect(!core.isTriggerHeld)
     }
 
+    // MARK: - Option trigger: `.option` matches EITHER side (key codes 58 and 61);
+    // every other passthrough-modifier trigger stays side-specific.
+
+    /// LEFT Option (key code 58) starts and stops the `.option` trigger — the
+    /// trigger is either-side, not right-only.
+    /// Stated sensitivity: match Option on key code 61 only (the old right-only
+    /// table) → kc58 passes through and never starts → RED.
+    @Test
+    func leftOptionStartsAndStopsWithOptionTrigger() {
+        var core = HotkeyDecisionCore(trigger: .option)
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [.option])) == .start(suppress: false, mode: .plain))
+        #expect(core.isTriggerHeld)
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [])) == .stop(suppress: false, mode: .plain))
+        #expect(!core.isTriggerHeld)
+    }
+
+    /// A left-Option hold is interrupted by a combo key press like any other
+    /// passthrough-modifier hold: the in-flight dictation cancels silently.
+    /// Stated sensitivity: right-only matching (kc58 never starts, so nothing is
+    /// held at the key press) → the `.keyDown` reads `.passThrough` → RED.
+    @Test
+    func leftOptionHoldIsInterruptCancelledByAKeyPress() {
+        var core = HotkeyDecisionCore(trigger: .option)
+        _ = core.handle(.flagsChanged(keyCode: 58, flags: [.option]))
+        #expect(core.handle(.keyDown) == .interruptCancel)
+        #expect(!core.isTriggerHeld, "an interrupt releases the held trigger")
+    }
+
+    /// Both Options held: the session ends only when the LAST side releases —
+    /// this both-sides-released rule is INTENDED behavior, not a bug. The trigger
+    /// follows the `.option` CLASS bit: the starting left side's own release
+    /// (kc58 still carrying `.option`, because right holds it) is an ordinary
+    /// passthrough and the session stays held until the final release clears the
+    /// bit.
+    /// Stated sensitivity: a per-key-code matcher that latches kc58 as the
+    /// session key and treats its next event as the stop edge → the third
+    /// event's `.passThrough` and held asserts redden.
+    @Test
+    func bothOptionsHeldSessionEndsOnlyOnLastRelease() {
+        var core = HotkeyDecisionCore(trigger: .option)
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [.option])) == .start(suppress: false, mode: .plain))
+        // Right Option joins mid-hold; the class bit is already engaged.
+        #expect(core.handle(.flagsChanged(keyCode: 61, flags: [.option])) == .passThrough)
+        // LEFT (the starting side) releases first: right still holds the bit.
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [.option])) == .passThrough)
+        #expect(core.isTriggerHeld, "the session survives until the last side releases")
+        #expect(core.handle(.flagsChanged(keyCode: 61, flags: [])) == .stop(suppress: false, mode: .plain))
+    }
+
+    /// The either-side widening is Option-ONLY: left Shift (key code 56) must not
+    /// start the Right ⇧ trigger.
+    /// Green today. Stated RED target: blanket either-side extension to every
+    /// right-modifier trigger → left Shift starts dictation → RED.
+    @Test
+    func rightShiftStaysRightOnly() {
+        var core = HotkeyDecisionCore(trigger: .rightShift)
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.shift])) == .passThrough)
+        #expect(!core.isTriggerHeld)
+    }
+
     /// Tap death while a trigger is held resyncs by synthesizing an up, so
     /// push-to-talk can never stick "down" after the tap is re-enabled.
     /// Stated sensitivity: drop the synthesized up (return `.resync(synthesizeUp:
@@ -160,7 +220,7 @@ struct HotkeyDecisionCoreTests {
         let cases: [(HotkeyTrigger, Int64, HotkeyModifierFlags)] = [
             (.fn, 63, .secondaryFn),
             (.rightCommand, 54, .command),
-            (.rightOption, 61, .option),
+            (.option, 61, .option),
             (.rightShift, 60, .shift),
         ]
         for (trigger, keyCode, flag) in cases {
@@ -339,7 +399,7 @@ struct HotkeyDecisionCoreTests {
     }
 
     /// F2(b) — a latched hold that ends ABNORMALLY via a `.keyDown` interrupt-cancel
-    /// (right-modifier trigger, interrupt only fires for passthrough right modifiers)
+    /// (a `.passthroughModifier` trigger — only those have an interrupt path)
     /// must not leave a sticky translate. Passes on the correct code. The interrupt
     /// path emits `.interruptCancel`, not `.stop`, so again only the start-edge reset
     /// clears the leftover latch.

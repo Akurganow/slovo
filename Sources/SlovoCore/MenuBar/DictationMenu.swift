@@ -7,6 +7,9 @@ public enum DictationMenuItem: Equatable, Sendable {
     case status(String)
     /// The dynamic "Hold <key> to talk" hint, derived from the current trigger.
     case hotkeyHint(String)
+    /// A disabled informational line warning that macOS also claims the fn key, so
+    /// the user can see why an fn hold misbehaves; the argument is the remedy text.
+    case fnConflictNotice(String)
     case separator
     /// The Cleanup Model submenu; `selectedModelId` is the currently selected model
     /// id so the builder can check the right catalog row. `enabled` is false whenever
@@ -47,23 +50,24 @@ public enum DictationMenuItem: Equatable, Sendable {
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
-    /// reads where it is expected: the header (status and hotkey hint), then the
-    /// untitled cleanup block (see `cleanupBlock`), the vocabulary block (Add
-    /// Vocabulary with the availability-independent mute switch adjacent to it), and
-    /// the bottom section holding Settings, then About, then Quit — each group fenced
-    /// by a separator. The hint reads "Hold <displayName> to talk" (e.g. "Hold Right
-    /// ⌘ to talk").
+    /// reads where it is expected: the header (status, hotkey hint, and the fn
+    /// conflict notice when it applies), then the untitled cleanup block (see
+    /// `cleanupBlock`), the vocabulary block (Add Vocabulary with the
+    /// availability-independent mute switch adjacent to it), and the bottom section
+    /// holding Settings, then About, then Quit — each group fenced by a separator.
+    /// The hint reads "Hold <displayName> to talk" (e.g. "Hold Right ⌘ to talk").
     public static func items(
         trigger: HotkeyTrigger,
         selectedModelId: String,
         mutesSystemAudioWhileDictating: Bool,
         translationLanguage: String,
-        cleanupAvailability: CleanupAvailability
+        cleanupAvailability: CleanupAvailability,
+        isFnKeySystemAssigned: Bool
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
             .status("Idle"),
             .hotkeyHint("Hold \(trigger.displayName) to talk"),
-        ]
+        ] + fnConflictNotice(trigger: trigger, isFnKeySystemAssigned: isFnKeySystemAssigned)
         let rest: [DictationMenuItem] = [
             .separator,
         ] + cleanupBlock(
@@ -80,6 +84,23 @@ public enum DictationMenu {
             .quit,
         ]
         return header + rest
+    }
+
+    /// Names the collision and the one setting that resolves it, so the user can act
+    /// without hunting through System Settings. Public because the renderer builds
+    /// the notice row up front and re-shows it as the system setting changes, so it
+    /// needs the text even on a build where the notice starts out absent.
+    public static let fnConflictRemedy =
+        "fn also triggers a macOS action — set “Press 🌐 key to” to “Do Nothing” in System Settings ▸ Keyboard"
+
+    /// The header's conflict warning, present only when the fn trigger meets a macOS
+    /// assignment of the same key — the case where a hold fires the system action
+    /// instead of dictating. Any other trigger is unaffected by that assignment, so
+    /// the notice stays absent and the menu never warns about a conflict that the
+    /// user does not have.
+    private static func fnConflictNotice(trigger: HotkeyTrigger, isFnKeySystemAssigned: Bool) -> [DictationMenuItem] {
+        guard trigger == .fn, isFnKeySystemAssigned else { return [] }
+        return [.fnConflictNotice(fnConflictRemedy)]
     }
 
     /// The untitled, separator-delimited cleanup block. With a key present it holds

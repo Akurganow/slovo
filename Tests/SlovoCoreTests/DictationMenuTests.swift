@@ -6,20 +6,30 @@ import SlovoCore
 // and the availability-driven cleanup block, verified without a running status bar.
 @Suite("Dictation menu model")
 struct DictationMenuTests {
+    /// The exact remedy copy the conflict notice must carry, pinned verbatim.
+    private let fnConflictCopy =
+        "fn also triggers a macOS action — set “Press 🌐 key to” to “Do Nothing” in System Settings ▸ Keyboard"
+
     private func items(
         availability: CleanupAvailability,
         mute: Bool = true,
         model: String = "m",
         translate: String = "en",
-        trigger: HotkeyTrigger = .fn
+        trigger: HotkeyTrigger = .fn,
+        fnAssigned: Bool = false
     ) -> [DictationMenuItem] {
         DictationMenu.items(
             trigger: trigger,
             selectedModelId: model,
             mutesSystemAudioWhileDictating: mute,
             translationLanguage: translate,
-            cleanupAvailability: availability
+            cleanupAvailability: availability,
+            isFnKeySystemAssigned: fnAssigned
         )
+    }
+
+    private func fnConflictNoticeCount(_ list: [DictationMenuItem]) -> Int {
+        list.filter { if case .fnConflictNotice = $0 { return true }; return false }.count
     }
 
     private func hasCleanupToggle(_ list: [DictationMenuItem]) -> Bool {
@@ -233,17 +243,57 @@ struct DictationMenuTests {
     }
 
     /// No two separators are ever adjacent — none of the block moves may leave a
-    /// doubled divider or an empty section, in any availability state.
+    /// doubled divider or an empty section, in any availability state, with or
+    /// without the fn conflict notice in the header.
     /// Stated sensitivity: drop an item between two separators (leaving them adjacent)
     /// → RED.
     @Test
     func noDoubledSeparatorsInAnyState() {
         for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
-            let list = items(availability: availability)
-            for (first, second) in zip(list, list.dropFirst()) {
-                #expect(!(first == .separator && second == .separator), "doubled separator in \(availability): \(list)")
+            for fnAssigned in [false, true] {
+                let list = items(availability: availability, fnAssigned: fnAssigned)
+                for (first, second) in zip(list, list.dropFirst()) {
+                    #expect(!(first == .separator && second == .separator),
+                            "doubled separator in \(availability), fnAssigned=\(fnAssigned): \(list)")
+                }
             }
         }
+    }
+
+    // MARK: - fn conflict notice: the header warns when the fn TRIGGER collides
+    // with a macOS system assignment of the fn key — and only then.
+
+    /// With the fn trigger and fn assigned to a macOS action, the notice appears
+    /// EXACTLY once, directly after the hotkey hint, carrying the exact remedy copy.
+    /// Stated sensitivity: drop the emission, change the copy, emit it twice, or
+    /// move it out of the after-hint slot → RED.
+    @Test
+    func fnConflictNoticeAppearsOnceDirectlyAfterHotkeyHint() {
+        let list = items(availability: .on, fnAssigned: true)
+        #expect(fnConflictNoticeCount(list) == 1)
+        guard let hintIndex = list.firstIndex(of: .hotkeyHint("Hold fn to talk")) else {
+            Issue.record("hotkey hint missing: \(list)")
+            return
+        }
+        #expect(list[hintIndex + 1] == .fnConflictNotice(fnConflictCopy))
+    }
+
+    /// With fn NOT system-assigned the notice is absent — the menu never warns
+    /// about a conflict that does not exist.
+    /// Stated sensitivity: emit the notice unconditionally (ignore the assigned
+    /// flag) → RED.
+    @Test
+    func fnConflictNoticeAbsentWhenFnNotSystemAssigned() {
+        #expect(fnConflictNoticeCount(items(availability: .on, fnAssigned: false)) == 0)
+    }
+
+    /// The notice is fn-trigger-ONLY: with the `.option` trigger the fn key's
+    /// system assignment is irrelevant, even when assigned.
+    /// Stated sensitivity: drop the trigger gate (warn on the assigned flag alone)
+    /// → RED.
+    @Test
+    func fnConflictNoticeAbsentForNonFnTrigger() {
+        #expect(fnConflictNoticeCount(items(availability: .on, trigger: .option, fnAssigned: true)) == 0)
     }
 
     /// The hint uses the trigger's display name, not its wire value.
@@ -252,6 +302,7 @@ struct DictationMenuTests {
     @Test
     func hotkeyHintUsesTriggerDisplayName() {
         #expect(items(availability: .on, trigger: .rightCommand).contains(.hotkeyHint("Hold Right ⌘ to talk")))
+        #expect(items(availability: .on, trigger: .option).contains(.hotkeyHint("Hold ⌥ Option to talk")))
     }
 
     /// The cleanup-model item carries the selected id so the builder checks the right

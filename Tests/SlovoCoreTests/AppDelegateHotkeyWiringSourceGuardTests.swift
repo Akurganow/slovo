@@ -215,9 +215,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "the monitor must be constructed with the persisted trigger")
     }
 
-    /// The tap must observe keyDown so a combo can interrupt a right-modifier hold.
-    /// Killing mutation: drop keyDown from the event mask → the interrupt is never
-    /// seen → RED.
+    /// The tap must observe keyDown so a combo can interrupt a passthrough-modifier
+    /// hold. Killing mutation: drop keyDown from the event mask → the interrupt is
+    /// never seen → RED.
     @Test
     func hotkeyTapObservesKeyDownForInterrupt() throws {
         let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
@@ -259,6 +259,45 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "applyTrigger must not rebuild the pipeline")
         #expect(!applyTrigger.contains("retrySetup"),
                 "applyTrigger must not rebuild the pipeline via retrySetup")
+    }
+
+    /// The fn-conflict notice must be recomputed on every menu OPEN, not only at
+    /// menu rebuild: the user fixes the assignment in System Settings while the
+    /// app runs, and the very next open must reflect it — the update-row re-sync
+    /// precedent in the same body. Pinned: the consult's presence AND its
+    /// load-bearing ORDER — the fn re-sync must precede the update sync, whose
+    /// guard returns early when no coordinator exists; a below-placed re-sync
+    /// would silently couple the notice to updater health. HOW the notice row is
+    /// swapped stays free.
+    /// Killing mutations: revert to build-time-only evaluation (drop the live
+    /// fn-assignment consult from menuWillOpen), or move the re-sync below the
+    /// update guard's early return → RED.
+    @Test
+    func fnConflictNoticeIsRecomputedOnMenuOpen() throws {
+        let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
+        let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
+        #expect(Self.containsInOrder([
+            "fnKeyAssignmentReader.isFnKeySystemAssigned",
+            "updaterCoordinator?.currentIndication",
+        ], in: menuWillOpen),
+        "menuWillOpen must consult the live fn-assignment value BEFORE the update sync's early-return guard")
+    }
+
+    /// makeMenu must feed the builder the READER'S live value, never a literal.
+    /// Green by design. Named killing mutation (empirically survived the full
+    /// 573-test suite before this guard): hardcode the argument — e.g.
+    /// `isFnKeySystemAssigned: false` — and the launch menu silently loses the
+    /// conflict notice forever → RED.
+    @Test
+    func makeMenuPassesTheLiveFnAssignmentValue() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
+        #expect(makeMenu.contains("isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned"),
+                "makeMenu must pass the reader's live value to the menu builder")
+        #expect(!makeMenu.contains("isFnKeySystemAssigned: false"),
+                "the fn-assignment argument must never be a hardcoded false")
+        #expect(!makeMenu.contains("isFnKeySystemAssigned: true"),
+                "the fn-assignment argument must never be a hardcoded true")
     }
 
     private static func code(_ relativePath: String) throws -> String {

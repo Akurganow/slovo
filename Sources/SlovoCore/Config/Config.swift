@@ -1,10 +1,16 @@
 /// The push-to-talk trigger key. `fn` is the default (existing installs are
-/// untouched); the right-hand modifiers are rarely pressed alone, so binding one
-/// as push-to-talk collides minimally with normal typing.
+/// untouched); ⌘, ⌃ and ⇧ bind the RIGHT side only, because a side-specific
+/// modifier is rarely pressed alone and so collides minimally with normal typing.
+/// ⌥ is the exception by owner decision — it matches either side, and the
+/// interrupt-cancel path (any key pressed mid-hold cancels silently) keeps the
+/// wider match from disturbing normal typing.
 public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
     case fn = "fn"
     case rightCommand = "right-command"
-    case rightOption = "right-option"
+    // Wire compatibility: the stored string predates the either-side widening and
+    // must never change — older builds fail the whole config closed on an unknown
+    // trigger value, so a rename here would reset a downgraded install's settings.
+    case option = "right-option"
     case rightControl = "right-control"
     case rightShift = "right-shift"
 
@@ -13,7 +19,7 @@ public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
         switch self {
         case .fn: return "fn"
         case .rightCommand: return "Right ⌘"
-        case .rightOption: return "Right ⌥"
+        case .option: return "⌥ Option"
         case .rightControl: return "Right ⌃"
         case .rightShift: return "Right ⇧"
         }

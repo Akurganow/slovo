@@ -7,6 +7,10 @@ import os
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let logger: Logger
     let defaults: UserDefaults
+    /// Injected like `defaults`, with the live system reader as the default, so this
+    /// layer names the capability instead of hard-wiring a preferences call. Read
+    /// afresh on every menu open — the macOS setting changes while Slovo runs.
+    let fnKeyAssignmentReader: FnKeyAssignmentReading
     /// Key presence is an APP fact, not a pipeline fact: the app owns the provider
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
@@ -43,13 +47,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // The one persistent update-line item, built by DictationMenuBuilder and mutated
     // in place by the update renderer; never rebuilt on a transition.
     var updateMenuItem: NSMenuItem?
+    // The one persistent fn-conflict row, built by DictationMenuBuilder only for the
+    // fn trigger and shown or hidden on each open; nil for every other trigger,
+    // which cannot collide with the system's fn assignment.
+    var fnConflictMenuItem: NSMenuItem?
     // True only while the onboarding menu is shown, so the dictation dropdown's
     // shared menu delegate never triggers the onboarding refresh on open.
     private var isPresentingOnboarding = false
 
-    init(logger: Logger, defaults: UserDefaults = .standard) {
+    init(
+        logger: Logger,
+        defaults: UserDefaults = .standard,
+        fnKeyAssignmentReader: FnKeyAssignmentReading = SystemFnKeyAssignmentReader()
+    ) {
         self.logger = logger
         self.defaults = defaults
+        self.fnKeyAssignmentReader = fnKeyAssignmentReader
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -74,7 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             selectedModelId: config.openRouterModel,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
             translationLanguage: config.translationTargetLanguage.rawValue,
-            cleanupAvailability: currentCleanupAvailability()
+            cleanupAvailability: currentCleanupAvailability(),
+            isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned
         )
         statusTextItem = built.statusItem
         // Sync the freshly built update row to the current state, so a rebuild while

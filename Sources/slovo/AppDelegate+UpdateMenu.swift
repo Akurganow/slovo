@@ -77,9 +77,15 @@ extension AppDelegate {
         }
     }
 
-    /// Re-syncs the update row from the coordinator on every open, so a transition
-    /// that happened while the dropdown was closed lands no later than the next open.
+    /// Re-syncs the two rows that track state living outside the menu — the
+    /// fn-conflict notice and the update row — so a change that happened while the
+    /// dropdown was closed lands no later than the next open.
     func menuWillOpen(_ menu: NSMenu) {
+        // The user fixes the macOS fn assignment mid-session and expects the very
+        // next open to reflect it, so the notice is a projection of the LIVE
+        // setting; the build-time verdict only seeds it. Ahead of the update sync
+        // below, which returns early when no coordinator exists.
+        fnConflictMenuItem?.isHidden = !fnKeyAssignmentReader.isFnKeySystemAssigned
         guard let indication = updaterCoordinator?.currentIndication else { return }
         renderUpdateIndication(indication)
     }
