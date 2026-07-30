@@ -59,6 +59,12 @@ stage_bundle() {
   chmod +x "$APP_BINARY"
   cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
 
+  # Mark the staged copy — never the committed plist — as a dev build; the About
+  # header version line renders this as the Dobro suffix. Release packaging
+  # installs the committed plist untouched, so the marker cannot reach a shipped
+  # artifact.
+  /usr/libexec/PlistBuddy -c "Add :SlovoDevBuild bool true" "$APP_CONTENTS/Info.plist"
+
   # SwiftPM resource bundle for SlovoCore (bundled prompt examples).
   # PromptExampleCatalog resolves it from Contents/Resources; a missing bundle
   # degrades every prompt to example-free, so staging it is part of the product.

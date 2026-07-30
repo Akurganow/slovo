@@ -8,14 +8,31 @@ import SlovoCore
 // line formatter — is unit-tested directly.
 @Suite("About window source guards")
 struct AboutWindowSourceGuardTests {
-    /// The version line is composed from the bundle's marketing and build numbers.
+    /// The version line is composed from the bundle's marketing and build numbers,
+    /// and a dev build appends the space-separated Glagolitic capital Dobro "Ⰴ"
+    /// (U+2C04) while a release line stays byte-identical to the marker-free form.
     /// Stated sensitivity: drop the parentheses, the "Version " prefix, or swap the
-    /// two components in `AboutInfo.versionLine` → the expected string mismatches →
-    /// RED. This is a real unit against the importable formatter, not a source scan.
+    /// two components → RED; change or drop the Dobro suffix, or leak the marker
+    /// into the release branch → an exact-equality `#expect` mismatches → RED. This
+    /// is a real unit against the importable formatter, not a source scan.
     @Test
-    func versionLineComposesFromComponents() {
-        #expect(AboutInfo.versionLine(marketingVersion: "0.12.0", buildNumber: "89") == "Version 0.12.0 (89)")
-        #expect(AboutInfo.versionLine(marketingVersion: "1.2.3", buildNumber: "7") == "Version 1.2.3 (7)")
+    func versionLineComposesForReleaseAndDevBuilds() {
+        #expect(
+            AboutInfo.versionLine(marketingVersion: "0.12.0", buildNumber: "89", isDevBuild: false)
+                == "Version 0.12.0 (89)"
+        )
+        #expect(
+            AboutInfo.versionLine(marketingVersion: "0.12.0", buildNumber: "89", isDevBuild: true)
+                == "Version 0.12.0 (89) \u{2C04}"
+        )
+        #expect(
+            AboutInfo.versionLine(marketingVersion: "1.2.3", buildNumber: "7", isDevBuild: false)
+                == "Version 1.2.3 (7)"
+        )
+        #expect(
+            AboutInfo.versionLine(marketingVersion: "0.19.0-ci.777", buildNumber: "777", isDevBuild: false)
+                == "Version 0.19.0-ci.777 (777)"
+        )
     }
 
     /// The menu builder renders the About entry and wires it to the presenter.
@@ -30,13 +47,14 @@ struct AboutWindowSourceGuardTests {
     }
 
     /// The presenter activates the app (the `.accessory` quirk), keeps a single cached
-    /// window, and reads the live version/build/trigger to pass in — the view never
-    /// reaches into `Bundle` or the config store itself.
+    /// window, and reads the live version/dev-marker/trigger to pass in — the view
+    /// never reaches into `Bundle` or the config store itself.
     /// Stated sensitivity: drop `NSApp.activate(ignoringOtherApps: true)` → RED (the
     /// window would open behind other apps); drop the `if aboutWindow == nil` guard or
     /// the `aboutWindow = AboutWindow()` cache assignment → RED (a repeat click would
-    /// stack a new window); drop either bundle-version read or the config trigger read
-    /// → RED (a hard-coded or missing value would no longer track reality).
+    /// stack a new window); drop either bundle-version read, the `SlovoDevBuild`
+    /// read, or the config trigger read → RED (a hard-coded or missing value would
+    /// no longer track reality).
     @Test
     func aboutPresenterActivatesCachesAndReadsLiveValues() throws {
         let presenter = try Self.strippedCode("Sources/slovo/AppDelegate+About.swift")
@@ -47,6 +65,7 @@ struct AboutWindowSourceGuardTests {
         #expect(presenter.contains(".displayName"))
         #expect(presenter.contains("\"CFBundleShortVersionString\""))
         #expect(presenter.contains("\"CFBundleVersion\""))
+        #expect(presenter.contains("\"SlovoDevBuild\""))
     }
 
     /// The window controller is cached and reused so a repeated open focuses the same

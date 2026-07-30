@@ -166,6 +166,11 @@ changing it, verify by hand:
 - **Single instance:** open **About Slovo** from the menu bar, then open it again —
   the same window is focused, not a second copy. The version line and the
   push-to-talk keycap match the current build and the configured key.
+- **Dev-build marker:** on a dev build (`Scripts/build_and_run.sh`) the header
+  version line ends with the Glagolitic capital Dobro `Ⰴ` — the marker stamped as
+  the `SlovoDevBuild` Info.plist key by the launcher. A release build shows the
+  plain `Version <version> (<build>)` line with no marker; the key never exists in
+  a CI-packaged artifact.
 
 ## Manual auto-update checks (release-only)
 

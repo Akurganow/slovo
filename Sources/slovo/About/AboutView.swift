@@ -4,12 +4,14 @@ import SwiftUI
 
 /// The About window's content: brand header, a short "how it works" guide, a
 /// privacy note, and footer links. It takes its dynamic values (version, build,
-/// trigger key name) as plain parameters so it renders in previews and tests
-/// without reaching into `Bundle` or the config store — the window supplies them.
+/// dev-build marker, trigger key name) as plain parameters so it renders in
+/// previews and tests without reaching into `Bundle` or the config store — the
+/// window supplies them.
 @MainActor
 struct AboutView: View {
     let version: String
     let build: String
+    let isDevBuild: Bool
     /// The push-to-talk key's display name (e.g. `fn`, `Right ⌘`), shown as a keycap
     /// in the first guide row so the guide matches the user's actual binding.
     let triggerName: String
@@ -42,7 +44,10 @@ struct AboutView: View {
             Text("ⰔⰎⰑⰂⰑ")
                 .font(.custom("NotoSansGlagolitic-Regular", size: 24))
                 .accessibilityLabel("Slovo")
-            Text(AboutInfo.versionLine(marketingVersion: version, buildNumber: build))
+            // The dev marker's Dobro glyph renders through the same Glagolitic
+            // cascade the header glyphs above already rely on, and only on dev
+            // builds — where the wordmark proves the face is available.
+            Text(AboutInfo.versionLine(marketingVersion: version, buildNumber: build, isDevBuild: isDevBuild))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Text("Private, on-device push-to-talk dictation for macOS")

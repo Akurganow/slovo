@@ -10,8 +10,8 @@ import SwiftUI
 final class AboutWindow {
     private var windowController: NSWindowController?
 
-    func show(version: String, build: String, triggerName: String) {
-        let view = AboutView(version: version, build: build, triggerName: triggerName)
+    func show(version: String, build: String, isDevBuild: Bool, triggerName: String) {
+        let view = AboutView(version: version, build: build, isDevBuild: isDevBuild, triggerName: triggerName)
         if let windowController {
             windowController.window?.contentViewController = NSHostingController(rootView: view)
         } else {
