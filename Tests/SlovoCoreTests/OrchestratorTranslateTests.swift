@@ -27,6 +27,7 @@ struct OrchestratorTranslateTests {
                 muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
             ),
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+            cueController: FakeDictationCueController(),
             log: RedactionSafeLog(subsystem: "slovo", category: "orch-translate-test"),
             statusReporter: statusReporter
         )

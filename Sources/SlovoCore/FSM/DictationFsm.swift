@@ -17,6 +17,9 @@ public enum DictationState: Equatable, Sendable {
 /// `actor Orchestrator`'s `handle(_:)` across isolation.
 public enum DictationEvent: Sendable {
     case startRequested
+    case captureReady
+    /// The readiness cue stopped being audible, by finishing or by deadline.
+    case startCueFinished
     case stopRequested(DictationMode)
     case cancelRequested
     case transcriptReady(String)
@@ -65,6 +68,25 @@ public enum StatusMessage: Equatable, Sendable {
         self == .cleanupUnavailableInsertedAsSpoken
     }
 
+    /// Every dictation failure shares one red glyph and queues one Error cue — two
+    /// distinct failures in one dictation therefore queue two. Model preparation is
+    /// progress, not failure.
+    public var isFailureNotice: Bool {
+        switch self {
+        case .preparingSpeechModel:
+            return false
+        case .cleanupUnavailableInsertedAsSpoken,
+             .accessibilityDenied,
+             .transcriptionFailed,
+             .secureFieldActive,
+             .injectionFailed,
+             .microphoneUnavailable,
+             .cleanupFailed,
+             .noSpeechDetected:
+            return true
+        }
+    }
+
     /// The empty-result surface: a held key produced only silence. A brief glyph-only
     /// notice — no status-line text, no persistence — so a silent hold flashes the red
     /// glyph without leaving a lingering notice (spec: Empty result, "do not distract").
@@ -99,6 +121,14 @@ public enum StageFailure: Equatable, Sendable {
 /// associated value equatable.
 public enum DictationEffect: Equatable, Sendable {
     case beginCapture
+    /// Starts the readiness cue without waiting; completion returns as
+    /// `startCueFinished`.
+    case playStartCue
+    case enqueueCue(DictationCue)
+    /// Withholds captured frames across the readiness cue, so it is not transcribed.
+    /// Emitted whether or not the cue will actually be heard.
+    case suspendDelivery
+    case resumeDelivery
     case endCaptureAndFinalizeTranscript
     /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
     /// result. Distinct from `endCaptureAndFinalizeTranscript`, which finalizes the
@@ -109,10 +139,11 @@ public enum DictationEffect: Equatable, Sendable {
     case log(FsmLogEvent)
     case notify(StatusMessage)
     case returnToIdle
-    /// Silence system playback before the mic opens.
+    /// Silence system playback; runs after the readiness cue, which it would
+    /// otherwise silence.
     case muteSystemOutput
-    /// Restore system playback when recording ends.
-    /// Runs exactly once per muted session, on leaving `recording`, never later.
+    /// Restore system playback when recording ends. Emitted exactly once on leaving
+    /// `recording` and never later; it is a no-op when nothing was muted.
     case restoreSystemOutput
 }
 
@@ -121,14 +152,11 @@ public enum DictationEffect: Equatable, Sendable {
 public enum DictationFsm {
     /// The pinned (State, Event) → (State, [Effect]) transition.
     ///
-    /// Mute/restore invariant: the FSM emits `muteSystemOutput` once on key-down
-    /// (`idle + startRequested`) and `restoreSystemOutput` exactly once on leaving
-    /// `recording` — whether recording ends normally (`stopRequested`), via a
-    /// silent cancel (`cancelRequested`), or via a failure (`failed`); restore
-    /// never runs in `processing` (already restored at key-up). The executor may
-    /// skip the actual mute when the user turned it off (flag-gated), but restore
-    /// stays stash-gated, so a skipped mute has nothing to restore and the pair
-    /// still balances.
+    /// Cue invariant: audio never gates dictation — a cue completing outside
+    /// `recording` finds no transition, so its mute cannot follow the key-up restore.
+    ///
+    /// Mute/restore invariant: restore runs exactly once on leaving `recording`,
+    /// never in `processing`.
     ///
     /// An event with no pinned transition for the current state is a lossless
     /// no-op: the state is unchanged and a single `log(.unexpectedEvent)` effect
@@ -139,10 +167,24 @@ public enum DictationFsm {
     ) -> (DictationState, [DictationEffect]) {
         switch (state, event) {
         case (.idle, .startRequested):
-            return (.recording, [.muteSystemOutput, .beginCapture])
+            return (.recording, [.beginCapture])
 
+        case (.recording, .captureReady):
+            return (.recording, [.suspendDelivery, .playStartCue])
+
+        // Mute before reopening delivery, which would otherwise admit this playback.
+        case (.recording, .startCueFinished):
+            return (.recording, [.muteSystemOutput, .resumeDelivery])
+
+        // Ordinary on a hold shorter than the cue — logging it would make
+        // `unexpectedEvent` fire on the most common short dictation.
+        case (.idle, .startCueFinished), (.processing, .startCueFinished):
+            return (state, [])
+
+        // End lands with the glyph change, and after the restore: queued into muted
+        // output it would not be heard.
         case (.recording, .stopRequested):
-            return (.processing, [.endCaptureAndFinalizeTranscript, .restoreSystemOutput])
+            return (.processing, [.endCaptureAndFinalizeTranscript, .restoreSystemOutput, .enqueueCue(.end)])
 
         // Silent interrupt-cancel (passthrough-modifier triggers): drop the recording
         // with nothing inserted and no error. discardCapture releases the mic and

@@ -15,6 +15,8 @@ protocol SettingsActions: AnyObject {
     /// live — the app's push funnel is its only writer (spec D1), and no
     /// snapshot/poll accessor exists so a pane cannot hold a stale copy.
     var cleanupAvailabilityModel: CleanupAvailabilityModel { get }
+    /// The live Sound Cues preference shared by General Settings and the menu.
+    var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel { get }
     /// Whether Slovo is registered to open at login (reads the system login-item
     /// service; like `hasOpenRouterKey()`, an attributes-only system read).
     func launchAtLoginEnabled() -> Bool
@@ -26,6 +28,7 @@ protocol SettingsActions: AnyObject {
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)
     func setCleanupEnabled(_ enabled: Bool)
+    func setPlaysDictationSoundCues(_ enabled: Bool)
     func setAutomaticallyInstallsUpdates(_ enabled: Bool)
     func setLaunchAtLogin(_ enabled: Bool)
     func saveOpenRouterKey(_ key: String)

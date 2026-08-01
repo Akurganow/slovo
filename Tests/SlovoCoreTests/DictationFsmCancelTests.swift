@@ -13,7 +13,7 @@ struct DictationFsmCancelTests {
     /// idle — silently.
     /// Stated sensitivity: route cancel through the transcribe path
     /// (`.endCaptureAndFinalizeTranscript`) → the effect list differs → RED; add a notify
-    /// → RED.
+    /// → RED; enqueue End or Error for an intentional cancel → RED.
     @Test
     func cancelRequestedDiscardsSilentlyAndRestores() {
         let (state, effects) = DictationFsm.transition(.recording, on: .cancelRequested)

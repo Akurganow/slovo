@@ -27,6 +27,7 @@ struct OrchestratorCancelTests {
             muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
         )
         let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+        let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Config(),
             dependencies: Dependencies(
@@ -36,11 +37,15 @@ struct OrchestratorCancelTests {
                 personalization: FakePersonalizationSource(terms: []),
                 audio: audio,
                 recorder: recorder,
+                cueController: cues,
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-cancel-test")
             )
         )
 
         await orchestrator.handle(.startRequested)
+        // Cancel a hold that already muted and played Start, so the assertions below
+        // prove cancel UNDOES those effects rather than merely outrunning them.
+        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.cancelRequested)
         await orchestrator.awaitPipelineDrain()
 
@@ -51,6 +56,9 @@ struct OrchestratorCancelTests {
         #expect(recorder.stopCount == 1, "cancel must release the mic, got stop count \(recorder.stopCount)")
         #expect(audio.muteCount == 1 && audio.restoredDeviceIDs == [42],
                 "cancel must restore system audio exactly once, got mute \(audio.muteCount) restore \(audio.restoredDeviceIDs)")
+        // Sensitivity: routing cancel through normal stop adds End; treating it as
+        // a failure adds Error. The already-played Start is the only cue allowed.
+        #expect(cues.playedCues == [.start], "intentional cancel must add neither End nor Error; got \(cues.playedCues)")
         #expect(await orchestrator.currentState() == .idle, "cancel returns the session to idle")
     }
 }

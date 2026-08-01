@@ -19,6 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
     // Settings pane can never observe a value the funnel did not publish.
     lazy var cleanupAvailabilityModel = CleanupAvailabilityModel(availability: currentCleanupAvailability())
+    /// One observed projection feeds both Sound Cues surfaces. The apply path is
+    /// its only writer after this persisted seed.
+    lazy var dictationSoundCuePreferenceModel = DictationSoundCuePreferenceModel(
+        isEnabled: ConfigStore.load(from: defaults).playsDictationSoundCues
+    )
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     // The status line's idle text — the hold-to-talk hint (the hint IS the idle
@@ -34,8 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var openRouterKeyWindow: OpenRouterKeyWindow?
     private var didShowPipelineStatus = false
     var isPipelineActive = false
-    // A brief self-clearing status glyph is on screen (sad-to-fail degradation or the
-    // empty-result flash); settleToIdle must not stomp it back to idle mid-window.
+    // A brief self-clearing failure glyph is on screen; settleToIdle must not stomp
+    // it back to idle mid-window.
     var isShowingBriefStatus = false
     var isModelReady = false
     private var onboardingSteps: [OnboardingStep] = []
@@ -88,10 +93,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let config = ConfigStore.load(from: defaults)
         let built = DictationMenuBuilder(target: self).make(
             trigger: config.trigger,
-            selectedModelId: config.openRouterModel,
+            cleanup: DictationMenuCleanupConfiguration(
+                selectedModelId: config.openRouterModel,
+                translationLanguage: config.translationTargetLanguage.rawValue,
+                availability: currentCleanupAvailability()
+            ),
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            translationLanguage: config.translationTargetLanguage.rawValue,
-            cleanupAvailability: currentCleanupAvailability(),
+            playsDictationSoundCues: dictationSoundCuePreferenceModel.isEnabled,
             isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned
         )
         statusTextItem = built.statusItem
@@ -286,14 +294,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if status.isSadToFailNotice {
             didShowPipelineStatus = true
+        }
+        if status.isFailureNotice {
             flashBriefStatusGlyph(status)
         }
         statusTextItem?.title = Self.title(for: status)
     }
 
-    /// Flashes the brief red status glyph and schedules its self-clear. Shared by the
-    /// sad-to-fail degradation and the empty-result: both paint a red glyph that must
-    /// survive settleToIdle (via isShowingBriefStatus) and auto-reset after the window.
+    /// Flashes the unified red dictation-failure glyph and schedules its self-clear.
+    /// Persistent failures retain their status text while the glyph itself resets.
     private func flashBriefStatusGlyph(_ status: StatusMessage) {
         isShowingBriefStatus = true
         setStatusGlyph(status: status, on: statusItem?.button)
@@ -303,7 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self else { return }
             self.isShowingBriefStatus = false
             self.setStatusGlyph(.idle, on: self.statusItem?.button)
-            if !self.isPipelineActive {
+            if !self.isPipelineActive, !status.isPersistentNotice {
                 self.statusTextItem?.title = self.idleStatusTitle
             }
         }

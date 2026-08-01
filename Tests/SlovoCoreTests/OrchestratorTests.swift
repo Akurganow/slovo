@@ -47,7 +47,8 @@ struct OrchestratorTests {
         Dependencies(
             transcriber: transcriber, cleaner: cleaner, injector: injector,
             personalization: FakePersonalizationSource(terms: vocabulary),
-            audio: audio, recorder: recorder, log: log, statusReporter: statusReporter
+            audio: audio, recorder: recorder, cueController: FakeDictationCueController(),
+            log: log, statusReporter: statusReporter
         )
     }
 
@@ -237,6 +238,7 @@ struct OrchestratorTests {
                     muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
                 ),
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+                cueController: FakeDictationCueController(),
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
             )
         )
@@ -370,6 +372,7 @@ struct OrchestratorTests {
                 personalization: FakePersonalizationSource(terms: Self.vocab),
                 audio: audio,
                 recorder: recorder,
+                cueController: FakeDictationCueController(),
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
             )
         )

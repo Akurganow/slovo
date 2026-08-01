@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 import Foundation
 import SlovoObjC
 
@@ -12,11 +13,19 @@ import SlovoObjC
 /// Obj-C exception catcher (a residual mismatch becomes a recoverable
 /// `AudioCaptureError`, never a `SIGABRT`), and observes
 /// `AVAudioEngineConfigurationChange` to end capture cleanly if the hardware
-/// reconfigures mid-dictation. `stop()` ends capture and finishes the stream so
-/// consumers' `for await` terminates.
+/// reconfigures mid-dictation. Capture delivers from its first frame;
+/// `suspendDelivery()`/`resumeDelivery()` withhold the readiness cue's interval.
+/// `stop()` closes capture and finishes the stream.
 public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     private let authorizer: MicrophoneAuthorizer
     private let log: RedactionSafeLog
+
+    private final class SessionToken: @unchecked Sendable {}
+
+    private typealias Delivery = (
+        boundary: AudioCaptureBoundary,
+        continuation: AsyncStream<AudioChunk>.Continuation
+    )
 
     /// A live capture session: the engine, its configuration-change observer, and
     /// the stream continuation the audio-thread tap yields into. Bundling them
@@ -24,9 +33,11 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     /// lock, so start/stop and the notification callback never see a half-built
     /// state.
     private struct Session {
+        let token: SessionToken
         let engine: AVAudioEngine
         let observer: NSObjectProtocol
         let continuation: AsyncStream<AudioChunk>.Continuation
+        let captureBoundary: AudioCaptureBoundary
     }
 
     private let lock = NSLock()
@@ -74,13 +85,20 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         }
 
         let (stream, continuation) = AsyncStream<AudioChunk>.makeStream()
+        let sessionToken = SessionToken()
+
+        // The documented minimum of `installTap`'s supported [100, 400] ms range.
+        // While a cue plays it is narrower than the cue, so it cannot span both
+        // boundaries; with cues off both land in one callback and its pre-suspend
+        // frames are dropped — an accepted loss.
+        let tapBufferSize = AVAudioFrameCount((inputFormat.sampleRate * 0.1).rounded())
 
         // `installTap` raises an Obj-C `NSException` (uncatchable in Swift) when the
         // format still does not match the hardware; convert it to a recoverable
         // error instead of aborting the process.
         if let tapError = SlovoRunCatchingNSException({
-            inputNode.installTap(onBus: 0, bufferSize: 4_096, format: inputFormat) { [weak self] buffer, _ in
-                self?.yield(buffer)
+            inputNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: inputFormat) { [weak self] buffer, when in
+                self?.yield(buffer, capturedAt: when, sessionToken: sessionToken)
             }
         }) {
             // The reason is an AVFoundation assertion string (hardware metadata, no
@@ -98,13 +116,19 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             object: engine,
             queue: nil
         ) { [weak self] _ in
-            self?.handleConfigurationChange()
+            self?.handleConfigurationChange(sessionToken: sessionToken)
         }
 
         // Publish the whole session atomically before starting, so the tap's yield
         // sees the continuation and there is a single object to tear down on failure.
         lock.withLock {
-            self.session = Session(engine: engine, observer: observer, continuation: continuation)
+            self.session = Session(
+                token: sessionToken,
+                engine: engine,
+                observer: observer,
+                continuation: continuation,
+                captureBoundary: AudioCaptureBoundary()
+            )
         }
 
         do {
@@ -112,29 +136,43 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             // Obj-C exception), so a plain do/catch is enough here.
             try engine.start()
         } catch {
-            teardown()
+            teardown(sessionToken: sessionToken)
             throw AudioCaptureError.engineStartFailed
         }
         return stream
     }
 
+    public func suspendDelivery() {
+        lock.withLock {
+            session?.captureBoundary.suspend(atHostTime: AudioGetCurrentHostTime())
+        }
+    }
+
+    public func resumeDelivery() {
+        lock.withLock {
+            session?.captureBoundary.resume(atHostTime: AudioGetCurrentHostTime())
+        }
+    }
+
     public func stop() async {
-        teardown()
+        guard let sessionToken = lock.withLock({ session?.token }) else { return }
+        teardown(sessionToken: sessionToken)
     }
 
     /// The engine has stopped and uninitialized itself on a hardware change; tear
     /// the session down so the in-flight dictation finishes instead of hanging.
-    private func handleConfigurationChange() {
+    private func handleConfigurationChange(sessionToken: SessionToken) {
         log.event("audio engine configuration changed")
-        teardown()
+        teardown(sessionToken: sessionToken)
     }
 
     /// Clears and dismantles the live session under the lock: removes the observer
     /// and tap, stops the engine, and finishes the stream. Idempotent — a no-op
     /// when there is no session.
-    private func teardown() {
+    private func teardown(sessionToken: SessionToken) {
         let session = lock.withLock { () -> Session? in
-            let session = self.session
+            guard let session = self.session,
+                  session.token === sessionToken else { return nil }
             self.session = nil
             return session
         }
@@ -145,35 +183,23 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         session.continuation.finish()
     }
 
-    /// Copies the tapped buffer (the engine reuses its storage) and yields it.
-    private func yield(_ buffer: AVAudioPCMBuffer) {
-        guard let copy = Self.detachedCopy(of: buffer) else { return }
-        let continuation = lock.withLock { self.session?.continuation }
+    /// Applies the timestamp boundary outside the session lock so teardown never
+    /// waits for buffer copying.
+    private func yield(
+        _ buffer: AVAudioPCMBuffer,
+        capturedAt: AVAudioTime,
+        sessionToken: SessionToken
+    ) {
+        let delivery: Delivery? = lock.withLock {
+            guard let session, session.token === sessionToken else { return nil }
+            return (boundary: session.captureBoundary, continuation: session.continuation)
+        }
+        let callbackTime = capturedAt
+        let continuation = delivery?.continuation
+        let boundary = delivery?.boundary
+        guard let copy = boundary?.takeDeliverableBuffer(buffer, capturedAt: callbackTime) else {
+            return
+        }
         continuation?.yield(AudioChunk(buffer: copy))
-    }
-
-    /// A fresh, independently-owned copy of `source`, format-agnostic: the raw
-    /// audio-buffer-list bytes are memcpy'd, so no sample-format branching is
-    /// needed. This detaches the chunk from the tap buffer the engine will reuse.
-    private static func detachedCopy(of source: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard source.frameLength > 0,
-              let copy = AVAudioPCMBuffer(pcmFormat: source.format, frameCapacity: source.frameLength)
-        else {
-            return nil
-        }
-        copy.frameLength = source.frameLength
-
-        // `copy.frameLength` (set above) already fixes each destination buffer's
-        // byte size; here we only copy the source's valid bytes through the data
-        // pointers (writing through the pointer does not mutate the struct copy).
-        let sourceList = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: source.audioBufferList))
-        let destinationList = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
-        for (sourceBuffer, destinationBuffer) in zip(sourceList, destinationList) {
-            guard let sourceData = sourceBuffer.mData, let destinationData = destinationBuffer.mData else {
-                return nil
-            }
-            memcpy(destinationData, sourceData, Int(sourceBuffer.mDataByteSize))
-        }
-        return copy
     }
 }

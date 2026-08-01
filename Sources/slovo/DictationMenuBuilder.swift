@@ -17,10 +17,9 @@ struct DictationMenuBuilder {
 
     func make(
         trigger: HotkeyTrigger,
-        selectedModelId: String,
+        cleanup: DictationMenuCleanupConfiguration,
         mutesSystemAudioWhileDictating: Bool,
-        translationLanguage: String,
-        cleanupAvailability: CleanupAvailability,
+        playsDictationSoundCues: Bool,
         isFnKeySystemAssigned: Bool
     ) -> Built {
         let menu = NSMenu()
@@ -40,10 +39,9 @@ struct DictationMenuBuilder {
         // call token and the threaded trigger separately.
         for item in DictationMenu.items(
             trigger: trigger,
-            selectedModelId: selectedModelId,
+            cleanup: cleanup,
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
-            translationLanguage: translationLanguage,
-            cleanupAvailability: cleanupAvailability,
+            playsDictationSoundCues: playsDictationSoundCues,
             isFnKeySystemAssigned: isFnKeySystemAssigned
         ) {
             switch item {
@@ -95,6 +93,13 @@ struct DictationMenuBuilder {
                 let entry = target.actionItem(
                     "Mute Audio While Dictating",
                     #selector(AppDelegate.toggleMuteWhileDictating(_:))
+                )
+                entry.state = isOn ? .on : .off
+                menu.addItem(entry)
+            case .soundCues(let isOn):
+                let entry = target.actionItem(
+                    "Sound Cues",
+                    #selector(AppDelegate.toggleDictationSoundCues(_:))
                 )
                 entry.state = isOn ? .on : .off
                 menu.addItem(entry)

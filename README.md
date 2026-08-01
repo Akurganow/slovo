@@ -38,8 +38,17 @@ tuned.
   push-to-talk key to translate that dictation into a target language as part
   of the same cleanup step; a plain hold is unchanged.
 - Optional muting of system audio while dictating — a menu-bar **Mute Audio
-  While Dictating** switch (on by default) silences playback during capture and
-  restores it afterward.
+  While Dictating** switch (on by default) silences playback while speech is
+  delivered to recognition and restores it afterward.
+- **Sound Cues** for recording readiness, key-up, and failures (on by default),
+  switchable in Settings → General or beside Mute in the menu-bar dropdown. Cues
+  never hold up dictation: the microphone opens without waiting for a cue, and
+  releasing the key stops recording immediately. Only the moment Start is audible
+  is kept out of the recording, so the cue cannot be transcribed back. End marks
+  the end of recording rather than a successful transcription: it plays at key-up,
+  together with the glyph change, and never delays cleanup. Error accompanies the
+  red failure glyph. Intentional cancellation stays silent. Cue loudness follows
+  the macOS system alert volume, and Slovo has no separate volume control.
 - Cleanup hints: your active keyboard language and the system spell checker
   nudge the model toward the right words. Slovo gathers them on your Mac, then
   sends them to OpenRouter with the transcript as advisory context.
@@ -56,9 +65,9 @@ tuned.
   processing states — the recording glyph names the mode: `Ⱍ` clean, `Ⰳ` raw,
   `Ⱂ` translate — plus a monochrome app icon that follows the system theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
-  push-to-talk key, recognition language, launch at login, automatic updates,
-  cleanup model and style, translation target language, API key, and
-  vocabulary.
+  push-to-talk key, recognition language, sound cues, launch at login,
+  automatic updates, cleanup model and style, translation target language, API
+  key, and vocabulary.
 - A menu-bar **About Slovo** window with a built-in quick guide (dictate,
   cleanup, translate, vocabulary) and the running version.
 - Silent automatic updates with an always-visible menu-bar update row:
@@ -97,8 +106,10 @@ after that, transcription runs fully on-device.
 
 ## Usage
 
-1. Hold `fn` / Globe. Microphone capture and on-device transcription both
-   start immediately.
+1. Hold `fn` / Globe. Microphone capture and on-device transcription start
+   immediately. With **Sound Cues** on, Start plays once both are ready; the brief
+   moment it sounds is kept out of the recording, so speak after it. If
+   mute-while-dictating is on, playback is muted once Start is done.
 2. Speak. While the key is held, transcription keeps up with your speech,
    so the transcript is already ready (or nearly ready) the moment you
    release.
@@ -107,8 +118,9 @@ after that, transcription runs fully on-device.
    Dictation** off (or no key saved), the raw transcript is inserted instead,
    near-instantly and with no network request.
 4. If you held the key but only silence was captured, nothing is inserted and
-   the menu-bar icon briefly shows the red failure glyph `Ⱁ` — no alert and no
-   persistent notice, so it never distracts you.
+   the menu-bar icon briefly shows the red failure glyph `Ⱁ`. With Sound Cues
+   on you hear End at key-up, since recording did end, and then Error — no
+   alert dialog or persistent notice.
 5. If cleanup itself fails (unavailable, refused, misconfigured, or a
    provider/network error), the raw transcript is inserted instead and the
    menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off by
@@ -127,9 +139,9 @@ menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, 
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation
 adds no new error surface.
 
-Errors surface only through the menu-bar icon — never an alert, dialog, or
-focus-stealing notification, since Slovo types into whichever app you're
-already using.
+Failures surface through the menu-bar icon and, while **Sound Cues** is on, the
+Error cue — never a dialog or focus-stealing notification, since Slovo types
+into whichever app you're already using. Intentional cancellation is silent.
 
 ## Privacy Model
 
@@ -343,11 +355,13 @@ be released under the GPLv3.
 The shipped app bundle redistributes several third-party components, all
 under permissive licenses compatible with the GPLv3: WhisperKit
 (argmax-oss-swift, MIT — with an Apache-2.0 portion, swift-transformers),
-GRDB.swift (MIT), Settings (MIT), LaunchAtLogin-Modern (MIT), and Sparkle
+GRDB.swift (MIT), Settings (MIT), LaunchAtLogin-Modern (MIT), Sparkle
 (MIT, with four external notices for bsdiff, sais-lite, ed25519, and
-SUSignatureVerifier). Their full copyright and permission notices are
-reproduced verbatim in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md),
-which also ships inside the app (About ▸ Acknowledgements).
+SUSignatureVerifier), and the modified AbdrTar Bank Elhaz “Lower & Soft”
+sound cues (CC0 1.0). Applicable copyright and permission notices, plus the
+audio sources and transformation recipe, are in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which also ships inside the
+app (About ▸ Acknowledgements).
 
 `swift-argument-parser` (Apache-2.0) is resolved by the package graph but
 not linked into the shipped executable, and SwiftLint is a build-time lint

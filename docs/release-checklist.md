@@ -101,6 +101,24 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - Holding the configured push-to-talk key (`fn` by default) starts capture,
   releasing it stops capture, restores audio, and inserts text into a normal
   text field.
+- Nothing waits on a cue: the microphone opens without waiting for Start, and
+  releasing the key stops recording immediately rather than after the sound.
+- Speaking while the speech model is still loading ("Preparing Speech Model" on a
+  cold start) still reaches the transcript — that audio is not dropped.
+- With Sound Cues on, Start plays once capture and recognition are ready, and does
+  not appear in the transcript. Output is muted after it, not before.
+- End is queued at key-up — it marks the end of AUDIO RECORDING, not a successful
+  transcription — and lands with the glyph change rather than trailing the text.
+  It never delays cleanup or translation.
+- Sound Cues follows the macOS alert-volume setting at zero, middle, and maximum;
+  turning it off in either General Settings or the adjacent menu switch silences
+  Start, End, and Error on the next dictation.
+- A user-muted output stays muted, intentional cancellation is silent, and each
+  red dictation-failure glyph produces one Error cue. Update-install failure does
+  not use the dictation cue path.
+- Silence plays Start, End, then Error — the recording did end, so End belongs. A
+  failure DURING recording plays Start then Error alone, since no recording ended.
+  A later cleanup or insertion failure plays Start, End, then Error in FIFO order.
 - Secure-input fields fail closed without writing transcript text to the
   clipboard.
 - Offline, refused, unavailable, or misconfigured cleanup falls back to

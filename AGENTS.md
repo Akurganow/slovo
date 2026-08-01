@@ -74,14 +74,44 @@ Clarifications:
 - **Mute while dictating.** A menu-bar switch (on by default) silences system
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.
+- **Sound cues.** A switch in Settings → General and beside Mute in the menu-bar
+  dropdown is on by default.
+  - **Cues are fire-and-forget: no dictation step ever waits on audio.** A cue that
+    plays late, fails, or never reports completion must never delay the microphone,
+    the key-up, or the text pipeline — while still playing reliably itself.
+  - Once capture and recognition are ready, Start plays and captured audio is
+    withheld across it, so the cue is not transcribed. This is a software boundary,
+    not echo cancellation: the cue's acoustic tail in the room is not removed.
+  - Speech from before the cue — including while the speech model loads — still
+    reaches recognition, minus up to one capture callback around the cue. With cues
+    off that callback is the whole cost, and it is accepted rather than engineered
+    away.
+  - Output is muted once Start is done; a hold that ended first drops that mute
+    instead of silencing audio after the fact. A cue that never reports completion
+    is released by a deadline, at the price of audio staying withheld until it
+    elapses — the deliberate trade for never stranding the pipeline.
+  - **End marks the end of AUDIO RECORDING, not a successful transcription.** At
+    key-up Slovo stops capture, restores output, and queues End right there, so the
+    sound lands with the glyph change instead of trailing the transcript. It is
+    queued after the restore, since End sent into muted output would not be heard,
+    and never delays cleanup or translation.
+  - Any failure after the recording ended — silence, finalization, cleanup, or
+    insertion — adds Error behind End through the same FIFO; a failure before it
+    ended produces Error alone. Intentional cancellation is silent, with neither End
+    nor Error.
+  - The queue is per-dictation, so one dictation's remaining audio never delays the
+    next one's cue and back-to-back cues may briefly overlap — deliberately, since
+    delaying the microphone is the worse outcome.
+  - Cue loudness follows the macOS system alert volume — Slovo has no volume
+    setting.
 - **Empty result** (key held but only silence): the menu bar briefly shows the
   red failure glyph "Ⱁ" (U+2C11), nothing is inserted, and cleanup is never
   called — an empty or whitespace-only transcript must reach neither OpenRouter
-  nor the pasteboard. There is no alert and no persistent notice — do not
-  distract the user.
-- **Errors surface only through the menu-bar icon/status** — never an alert,
-  dialog, or focus-stealing notification. Slovo types into the user's current app;
-  stealing focus destroys the workflow it exists to serve.
+  nor the pasteboard. There is no alert dialog or persistent notice; when Sound
+  Cues is on, the non-focus-stealing Error cue accompanies the glyph.
+- **Errors surface through the menu-bar icon/status and the optional Error audio
+  cue** — never an alert dialog or focus-stealing notification. Slovo types into
+  the user's current app; stealing focus destroys the workflow it exists to serve.
 - Runs fully on-device for recognition (privacy). Must recognize mixed RU + English
   within a single utterance at quality at least the current Whisper large-v3 level
   (see principles).

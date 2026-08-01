@@ -12,6 +12,7 @@ enum AppComposition {
         let permissionRequester: any PermissionRequester
         let modelWarmUp: Task<Void, Never>
         let personalization: GRDBPersonalizationSource
+        let cueController: any DictationCueController
     }
 
     static func makeLive(
@@ -55,6 +56,10 @@ enum AppComposition {
             secureInput: CarbonSecureInput(),
             keystroke: CGEventPasteKeystroke()
         )
+        let cueController = AudioServicesDictationCueController(
+            isEnabled: config.playsDictationSoundCues,
+            log: log
+        )
         let dependencies = Dependencies(
             transcriber: transcriber,
             cleaner: cleaner,
@@ -62,6 +67,7 @@ enum AppComposition {
             personalization: source,
             audio: CoreAudioOutputMute(),
             recorder: AVAudioEngineRecorder(authorizer: permissionPreflighter),
+            cueController: cueController,
             log: log,
             statusReporter: statusReporter,
             inputSourceLanguage: SystemInputSourceLanguageReader(),
@@ -91,7 +97,8 @@ enum AppComposition {
             config: config,
             permissionRequester: permissionPreflighter,
             modelWarmUp: modelWarmUp,
-            personalization: source
+            personalization: source,
+            cueController: cueController
         )
     }
 

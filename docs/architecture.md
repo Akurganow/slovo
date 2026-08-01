@@ -11,9 +11,11 @@ structure and mechanisms that implement it and does not repeat that contract.
 The dictation flow is:
 
 ```text
-key down -> mute output (when enabled) -> start microphone + live recognition
-key held -> convert each audio chunk -> update live recognition
-key up   -> stop capture -> finalize unfinished tail -> clean -> inject
+key down -> start microphone + recognition; audio delivers from the first frame
+ready    -> suspend delivery -> start Start cue (nothing waits on it)
+cue done -> mute output (when enabled) -> resume delivery; dropped if the hold ended
+key held -> convert each delivered audio chunk -> update live recognition
+key up   -> stop capture -> restore output -> queue End -> finalize -> clean -> inject
 ```
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
@@ -28,8 +30,35 @@ for the OpenRouter cleanup attempt.
   translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
   the "Mute Audio While Dictating" menu setting is on (the default).
-- `AudioRecorder` captures microphone audio and converts it to 16 kHz mono float
-  samples.
+  Known limitation: a restore that the audio device rejects (for example, the
+  output device disappeared mid-dictation) is swallowed, leaving output muted with
+  nothing left to restore from — and cues queued afterwards, including Error, go
+  into that silence. Pre-existing and accepted for now; fixing it means deciding
+  what a failed restore should surface.
+- `AudioRecorder` captures native microphone buffers and delivers them from the
+  first frame. `suspendDelivery()`/`resumeDelivery()` bracket the readiness cue:
+  each records the current host time, and the straddling callback is trimmed. A cue
+  that ends almost immediately — cues off, or an asset that fails to load — still
+  costs up to one callback, which is accepted rather than engineered away. Closing
+  that gap does not need a reordering (which would let playback start before
+  suppression is armed): it needs the boundary to CANCEL suppression back to `open`
+  when the cue turns out to be inaudible, instead of ending it with a second edge.
+  This excludes the cue's directly captured sound, not later acoustic echo from the
+  speakers or room.
+- `DictationCueController` snapshots the on-by-default Sound Cues preference per
+  session and serializes Start, End, and Error through the public macOS alert-sound
+  channel. Playback is never awaited by a dictation step: the readiness cue's
+  completion returns as an ordinary `startCueFinished` event, and a playback
+  deadline keeps a cue that never reports completion from stranding the queue.
+  `OneShotAction` names the invariant that only the first caller resumes the
+  continuation, so it can be raced directly from many callers released by a spin
+  barrier — pinning that the guard is ATOMIC, which racing playback against the
+  deadline never could: that pair's timing is bounded by wake-up precision.
+  Ending a session detaches the FIFO tail, so one dictation's remaining audio never
+  delays the next one's cue. End marks the end of audio recording rather than a
+  successful transcription, so key-up queues it directly — after the restore, since
+  End sent into muted output would not be heard — and later failures append Error
+  behind it. macOS alert volume owns loudness; Slovo stores no volume value.
 - `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and
   finalizes only its unfinished tail at key-up. On a short final pass with a
   non-empty live result and no confirmed prefix, Slovo rejects a terminal
@@ -58,8 +87,9 @@ for the OpenRouter cleanup attempt.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
   suggestions — as advisory context for the cleanup prompt.
-- `Orchestrator` serializes the pipeline and owns the runtime state transitions
-  (`DictationFsm`).
+- `Orchestrator` owns the runtime state transitions (`DictationFsm`).
+  `HotkeyEdgeSequencer` orders production key edges, and per-session identity
+  prevents a resumed readiness continuation from mutating its replacement.
 
 The app target owns OS-specific adapters and production composition. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
@@ -111,11 +141,11 @@ silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up
 Dictation** switch, cleanup model selection, and the translate-to target
 language; while no OpenRouter key is saved the whole block collapses to a single
 **Add OpenRouter Key…** item that opens a dedicated key-entry window. Then come
-vocabulary quick-add with the mute-while-dictating switch, and a bottom section
+vocabulary quick-add with adjacent mute-while-dictating and Sound Cues switches, and a bottom section
 with **Settings…**, **About**, and quit; first-run setup actions replace the
 dropdown until permissions are granted. The **Settings…** window covers the
-push-to-talk key, recognition language, launch at login, automatic updates,
-cleanup model and style, translation target, OpenRouter key, and vocabulary; the
+push-to-talk key, recognition language, Sound Cues, launch at login, automatic
+updates, cleanup model and style, translation target, OpenRouter key, and vocabulary; the
 **About** window carries a quick guide and the running version. All
 configuration is native windows — there are no modal alerts.
 

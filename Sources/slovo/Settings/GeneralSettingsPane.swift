@@ -10,6 +10,7 @@ struct GeneralSettingsPane: View {
     unowned let actions: any SettingsActions
     @State private var trigger: HotkeyTrigger
     @State private var language: Language
+    @ObservedObject private var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel
     @State private var launchAtLogin: Bool
     @State private var automaticallyInstallsUpdates: Bool
 
@@ -18,6 +19,9 @@ struct GeneralSettingsPane: View {
         let config = actions.currentConfig()
         _trigger = State(initialValue: config.trigger)
         _language = State(initialValue: config.language)
+        _dictationSoundCuePreferenceModel = ObservedObject(
+            wrappedValue: actions.dictationSoundCuePreferenceModel
+        )
         _automaticallyInstallsUpdates = State(initialValue: config.automaticallyInstallsUpdates)
         // Seeded from the live login-item state, not persisted config: the system
         // service is the source of truth, and the toggle defaults off until the
@@ -27,24 +31,7 @@ struct GeneralSettingsPane: View {
 
     var body: some View {
         Form {
-            Section("Dictation") {
-                Picker("Push-to-talk key", selection: $trigger) {
-                    ForEach(HotkeyTrigger.allCases, id: \.self) { option in
-                        Text(option.displayName).tag(option)
-                    }
-                }
-                .onChange(of: trigger) { _, newValue in actions.setTrigger(newValue) }
-                Picker("Recognition language", selection: $language) {
-                    Text("Auto").tag(Language.auto)
-                    ForEach(RecognitionLanguageCatalog.options) { option in
-                        Text(option.displayName).tag(Language(rawValue: option.code))
-                    }
-                }
-                .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
-                Text("Auto handles mixed-language speech best.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            dictationSettings
             Section("Startup") {
                 Toggle("Open at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in actions.setLaunchAtLogin(newValue) }
@@ -69,6 +56,31 @@ struct GeneralSettingsPane: View {
             // so re-read the live state rather than trust the cached value.
             launchAtLogin = actions.launchAtLoginEnabled()
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
+        }
+    }
+
+    private var dictationSettings: some View {
+        Section("Dictation") {
+            Picker("Push-to-talk key", selection: $trigger) {
+                ForEach(HotkeyTrigger.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .onChange(of: trigger) { _, newValue in actions.setTrigger(newValue) }
+            Picker("Recognition language", selection: $language) {
+                Text("Auto").tag(Language.auto)
+                ForEach(RecognitionLanguageCatalog.options) { option in
+                    Text(option.displayName).tag(Language(rawValue: option.code))
+                }
+            }
+            .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
+            Text("Auto handles mixed-language speech best.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle("Sound Cues", isOn: Binding(
+                get: { dictationSoundCuePreferenceModel.isEnabled },
+                set: { actions.setPlaysDictationSoundCues($0) }
+            ))
         }
     }
 }
