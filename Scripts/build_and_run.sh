@@ -162,6 +162,17 @@ verify_app() {
     echo "prompt examples resource bundle is not staged in $APP_CONTENTS/Resources" >&2
     return 1
   fi
+  local cue_resource
+  for cue_resource in \
+    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/start.wav" \
+    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/end.wav" \
+    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/error.wav"
+  do
+    if [[ ! -f "$cue_resource" ]]; then
+      echo "dictation sound cue is not staged: $cue_resource" >&2
+      return 1
+    fi
+  done
   local attempts=20
   while (( attempts > 0 )); do
     if pgrep -x "$PROCESS_NAME" >/dev/null; then

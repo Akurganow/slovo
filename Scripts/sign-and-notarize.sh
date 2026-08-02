@@ -138,6 +138,10 @@ build_app() {
     # degrades every prompt to example-free, so staging it is part of the
     # product. Staged before signing so the seal covers it.
     run ditto "$ROOT/.build/$CONFIGURATION/slovo_SlovoCore.bundle" "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle"
+    local cue_resource
+    for cue_resource in start.wav end.wav error.wav; do
+        run test -f "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle/AudioCues/$cue_resource"
+    done
 
     # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
     local icon_build="$DIST_DIR/icon"

@@ -4,31 +4,30 @@ import Synchronization
 import SlovoCore
 import SlovoTestSupport
 
-// Genuine silence (the key held over silence) must be intercepted at the FSM
-// boundary BEFORE cleanup and injection: no OpenRouter round trip on empty input,
-// no clipboard ⌘V cycle on empty text, in EITHER mode. Only the brief no-speech
-// glyph surfaces. Driven through the REAL PipelineFactory.makeOrchestrator +
-// Orchestrator over the seam FAKES, so the interception is proven end-to-end, not
-// just in the pure transition.
+// Silence is intercepted before cleanup and injection in EITHER mode — no OpenRouter
+// round trip, no ⌘V cycle. Driven through the real PipelineFactory + Orchestrator over
+// the seam fakes, so the interception is proven end-to-end, not just in the transition.
 @Suite("Empty-result interception")
 struct OrchestratorEmptyResultTests {
-    /// Clean mode (cleanup on, the default): silence must not call the cleaner. The
-    /// cleaner is the network round trip and the model can invent text for empty
-    /// input, so a call here is the hallucinated-insertion exposure.
-    /// Stated sensitivity: the pre-fix pipeline routes `.transcriptReady("")` to
-    /// `.clean("")` → the cleaner records one call and the injector inserts the
-    /// (possibly invented) result → RED on both call-count assertions.
+    /// Clean mode: the cleaner can invent text for empty input, so a call here is the
+    /// hallucinated-insertion exposure — that is what this test exists to prove; the cue
+    /// sequence is secondary.
+    /// Sensitivity: route `""` to `.clean` → the cleaner is called and the invented text
+    /// inserted → RED. Separately, make End conditional on a non-empty transcript → RED
+    /// on the cues, since End marks the end of the RECORDING.
     @Test
     func silenceInCleanModeNeverCleansOrInjects() async {
         let reported = Mutex<[StatusMessage]>([])
         let cleaner = FakeCleaner(outcome: .success("HALLUCINATED"))
         let injector = FakeInjector(outcome: .success)
+        let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(outcome: .success("")),
                 cleaner: cleaner,
                 injector: injector,
+                cues: cues,
                 statusReporter: { status in reported.withLock { $0.append(status) } }
             )
         )
@@ -39,14 +38,14 @@ struct OrchestratorEmptyResultTests {
         #expect(injector.calls.isEmpty, "silence must never reach the injector; got \(injector.calls)")
         #expect(reported.withLock { $0 }.contains(.noSpeechDetected),
                 "silence must surface the .noSpeechDetected glyph; got \(reported.withLock { $0 })")
+        #expect(cues.playedCues == [.start, .end, .error],
+                "the recording still started and ended, so Start and End sound; only the silence adds Error; got \(cues.playedCues)")
         #expect(await orchestrator.currentState() == .idle, "silence must return the session to idle")
     }
 
-    /// Whitespace-only finish in clean mode takes the same no-speech path — bare
-    /// whitespace is silence, not speech, so it must not be cleaned or injected.
-    /// Stated sensitivity: an `isEmpty`-only guard (instead of whitespace-trimmed)
-    /// lets "  \n" through to clean/inject → RED (the empty-string test would stay
-    /// green, so this is the whitespace mutant-catcher at the orchestrator level).
+    /// Bare whitespace is silence too, and takes the same path.
+    /// Sensitivity: an `isEmpty`-only guard lets "  \n" through → RED, while the
+    /// empty-string test stays green.
     @Test
     func whitespaceOnlyInCleanModeNeverCleansOrInjects() async {
         let cleaner = FakeCleaner(outcome: .success("HALLUCINATED"))
@@ -66,12 +65,9 @@ struct OrchestratorEmptyResultTests {
         #expect(injector.calls.isEmpty, "whitespace-only silence must never reach the injector; got \(injector.calls)")
     }
 
-    /// Raw mode (cleanup off): silence must not reach the injector. Raw mode skips
-    /// the cleaner already, but the pre-fix pipeline still runs `.inject("")`, and
-    /// ⌘V on an empty pasteboard can delete an active selection — the destructive
-    /// exposure this guard removes.
-    /// Stated sensitivity: the pre-fix pipeline forwards `.cleaned("")` → `.inject("")`
-    /// → the injector records one empty insert → RED on the injector assertion.
+    /// Raw mode skips the cleaner anyway, but ⌘V on an empty pasteboard can delete an
+    /// active selection — that is the destructive exposure guarded here.
+    /// Sensitivity: forward `.cleaned("")` to `.inject("")` → RED.
     @Test
     func silenceInRawModeNeverInjects() async {
         let reported = Mutex<[StatusMessage]>([])
@@ -101,12 +97,12 @@ struct OrchestratorEmptyResultTests {
         return cleanupConfig
     }
 
-    /// Builds Dependencies with the given seam fakes (mic authorized; a pinned
-    /// PriorAudioState for mute/restore) — mirrors the sibling orchestrator suites.
+    /// Dependencies with the seam fakes, mirroring the sibling orchestrator suites.
     private static func deps(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
         injector: FakeInjector,
+        cues: FakeDictationCueController = FakeDictationCueController(),
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
@@ -116,6 +112,7 @@ struct OrchestratorEmptyResultTests {
                 muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
             ),
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+            cueController: cues,
             log: RedactionSafeLog(subsystem: "slovo", category: "empty-result-test"),
             statusReporter: statusReporter
         )

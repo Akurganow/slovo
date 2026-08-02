@@ -46,9 +46,12 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
-            // Few-shot prompt examples: the XML in the repo is the source of
-            // truth, imported into the app at build time as a bundled resource.
-            resources: [.copy("Resources/PromptExamples.xml")],
+            // Product-owned resources travel in the SlovoCore bundle: the prompt
+            // examples plus the user-approved dictation cue triplet.
+            resources: [
+                .copy("Resources/PromptExamples.xml"),
+                .copy("Resources/AudioCues"),
+            ],
             swiftSettings: strictSwiftSettings,
             plugins: swiftLintPlugins
         ),

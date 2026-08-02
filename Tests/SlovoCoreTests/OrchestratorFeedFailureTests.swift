@@ -35,12 +35,14 @@ struct OrchestratorFeedFailureTests {
     /// `transcription.totalFeedFailure.engineFailure`. Killing mutation: hardcoding
     /// `.audioFormatUnsupported` instead of routing the captured feed error would
     /// emit `...totalFeedFailure.audioFormatUnsupported` -> RED (its sensitivity is
-    /// covered by the independent mutation audit).
+    /// covered by the independent mutation audit). Eager key-up End is independently
+    /// caught by the exact Start/Error cue sequence.
     @Test
     func totalFeedFailureSurfacesTranscriptionFailedNotSilentEmpty() async {
         let reported = Mutex<[StatusMessage]>([])
         let logged = Mutex<[String]>([])
         let injector = FakeInjector(outcome: .success)
+        let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Config(),
             dependencies: Self.deps(
@@ -50,6 +52,7 @@ struct OrchestratorFeedFailureTests {
                 ),
                 cleaner: FakeCleaner(outcome: .success("HI")),
                 injector: injector,
+                cues: cues,
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { message in
                     logged.withLock { $0.append(message) }
                 },
@@ -69,6 +72,10 @@ struct OrchestratorFeedFailureTests {
                 "the logged kind must be the captured feed error, never a hardcoded .audioFormatUnsupported")
         #expect(await orchestrator.currentState() == .idle,
                 "a contained transcription failure must return the session to idle")
+        // End marks the end of recording, which did happen here; the failure surfaces
+        // behind it as Error.
+        #expect(cues.playedCues == [.start, .end, .error],
+                "a feed failure discovered after key-up appends Error behind End; got \(cues.playedCues)")
     }
 
     /// Per-chunk tolerance: some feed errors alongside at least one success must
@@ -141,19 +148,25 @@ struct OrchestratorFeedFailureTests {
             muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
         ),
         recorder: FakeAudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+        cues: FakeDictationCueController = FakeDictationCueController(),
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
             transcriber: transcriber, cleaner: cleaner, injector: injector,
             personalization: FakePersonalizationSource(terms: vocabulary),
-            audio: audio, recorder: recorder, log: log, statusReporter: statusReporter
+            audio: audio, recorder: recorder, cueController: cues,
+            log: log, statusReporter: statusReporter
         )
     }
 
     /// Runs a full Start→Stop session through the orchestrator.
+    /// A hold that outlasts the readiness cue, which is when the fake recorder starts
+    /// delivering audio — without it there is no feed at all, and the total-feed-failure
+    /// path under test is never reached.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
+        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }

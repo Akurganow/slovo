@@ -62,6 +62,9 @@ public struct Config: Equatable, Sendable {
     /// default on (today's unconditional-mute behavior). A capture-stage setting, so
     /// it is not part of `cleanupConfig`.
     public var mutesSystemAudioWhileDictating: Bool
+    /// Whether dictation boundaries and failures use audible system-alert cues.
+    /// The system alert volume owns loudness; Slovo has no separate volume value.
+    public var playsDictationSoundCues: Bool
     /// The persisted target language a translate pass renders into; read only in
     /// translate mode. Config never yields `translate = true`.
     public var translationTargetLanguage: Language
@@ -97,6 +100,7 @@ public struct Config: Equatable, Sendable {
         writingStyle: WritingStyle = .casual,
         useSpellCheckHints: Bool = true,
         mutesSystemAudioWhileDictating: Bool = true,
+        playsDictationSoundCues: Bool = true,
         translationTargetLanguage: Language = .en,
         automaticallyInstallsUpdates: Bool = true
     ) {
@@ -110,6 +114,7 @@ public struct Config: Equatable, Sendable {
         self.writingStyle = writingStyle
         self.useSpellCheckHints = useSpellCheckHints
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
+        self.playsDictationSoundCues = playsDictationSoundCues
         self.translationTargetLanguage = translationTargetLanguage
         self.automaticallyInstallsUpdates = automaticallyInstallsUpdates
     }

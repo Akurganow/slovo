@@ -38,13 +38,34 @@ public enum DictationMenuItem: Equatable, Sendable {
     case addOpenRouterKey
     case addVocabulary
     /// The mute-while-dictating switch; the argument is the current setting so the
-    /// builder renders the checkmark. Closes the live-switch group.
+    /// builder renders the checkmark.
     case muteWhileDictating(isOn: Bool)
+    /// Audible dictation boundaries and failures; adjacent to Mute because both
+    /// switches shape the session's audio behavior.
+    case soundCues(isOn: Bool)
     case settings
     case quit
     /// The About window entry; the first interactive item, in its own group
     /// directly below the status header.
     case about
+}
+
+/// The cleanup values that shape one menu build. Grouping them keeps the model's
+/// boundary data-driven as new independent audio switches are added.
+public struct DictationMenuCleanupConfiguration: Equatable, Sendable {
+    public let selectedModelId: String
+    public let translationLanguage: String
+    public let availability: CleanupAvailability
+
+    public init(
+        selectedModelId: String,
+        translationLanguage: String,
+        availability: CleanupAvailability
+    ) {
+        self.selectedModelId = selectedModelId
+        self.translationLanguage = translationLanguage
+        self.availability = availability
+    }
 }
 
 /// Builds the ordered dropdown model from the current configuration.
@@ -58,10 +79,9 @@ public enum DictationMenu {
     /// The status line is seeded with `idleStatusLine(trigger:)`.
     public static func items(
         trigger: HotkeyTrigger,
-        selectedModelId: String,
+        cleanup: DictationMenuCleanupConfiguration,
         mutesSystemAudioWhileDictating: Bool,
-        translationLanguage: String,
-        cleanupAvailability: CleanupAvailability,
+        playsDictationSoundCues: Bool,
         isFnKeySystemAssigned: Bool
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
@@ -70,13 +90,14 @@ public enum DictationMenu {
         let rest: [DictationMenuItem] = [
             .separator,
         ] + cleanupBlock(
-            selectedModelId: selectedModelId,
-            translationLanguage: translationLanguage,
-            availability: cleanupAvailability
+            selectedModelId: cleanup.selectedModelId,
+            translationLanguage: cleanup.translationLanguage,
+            availability: cleanup.availability
         ) + [
             .separator,
             .addVocabulary,
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
+            .soundCues(isOn: playsDictationSoundCues),
             .separator,
             .settings,
             .about,

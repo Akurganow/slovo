@@ -4,9 +4,10 @@ Slovo — Copyright (C) 2026 Alexander Kurganov — is licensed under the GNU Ge
 Public License v3.0 (see [LICENSE](LICENSE)).
 
 Slovo's application bundle redistributes the third-party components listed below.
-Each is provided under its own license, reproduced verbatim from the component's
-own license file. These permissive licenses are compatible with Slovo's GPLv3
-distribution.
+Each is provided under its own license. Required copyright and permission notices
+are reproduced from the component's license file; the CC0 audio sources and Slovo's
+transformations are identified explicitly. These terms are compatible with Slovo's
+GPLv3 distribution.
 
 Components bundled in the shipped app:
 
@@ -17,6 +18,7 @@ Components bundled in the shipped app:
 | Settings | MIT |
 | LaunchAtLogin-Modern | MIT |
 | Sparkle | MIT (with four external notices: bsdiff, sais-lite, ed25519, SUSignatureVerifier) |
+| AbdrTar Bank Elhaz sound cues (modified) | CC0 1.0 |
 
 Not bundled: `swift-argument-parser` (Apache-2.0) is resolved by the package graph
 but not linked into the shipped executable, and `SwiftLintPlugins` is a build-time
@@ -25,6 +27,28 @@ lint tool only — neither is redistributed, so neither is reproduced here.
 Sparkle's own license file (reproduced below) carries the four external notices for
 the code it vendors. The shipped `Sparkle.framework` binary artifact does not embed
 a copy of that license file itself, so it is reproduced here to travel with the app.
+
+---
+
+## AbdrTar Bank Elhaz sound cues
+
+Source and author/uploader: AbdrTar's Bank Elhaz pack on Freesound.
+
+- Recording Start, sound 519985: <https://freesound.org/people/AbdrTar/sounds/519985/>
+- Recording End, sound 519986: <https://freesound.org/people/AbdrTar/sounds/519986/>
+- Error, sound 558121: <https://freesound.org/people/AbdrTar/sounds/558121/>
+- Pack: <https://freesound.org/people/AbdrTar/packs/45775/>
+- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode)
+
+Slovo ships the modified "Lower & Soft" versions rather than byte-identical
+source files. Each source was converted to 48 kHz mono signed 16-bit PCM WAV and
+processed consistently with this filter chain:
+
+```text
+aresample=48000,asetrate=44160,aresample=48000,atempo=1.0869565,aformat=channel_layouts=mono,afade=t=in:st=0:d=0.014,lowpass=f=2400:p=2,loudnorm=I=-26:LRA=3:TP=-9
+```
+
+Output options: `-ar 48000 -c:a pcm_s16le`.
 
 ---
 

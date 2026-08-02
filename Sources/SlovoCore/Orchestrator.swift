@@ -10,6 +10,7 @@ public struct Dependencies: Sendable {
     public var personalization: any PersonalizationSource
     public var audio: any SystemAudioController
     public var recorder: any AudioRecorder
+    public var cueController: any DictationCueController
     public var log: RedactionSafeLog
     public var statusReporter: @Sendable (StatusMessage) -> Void
     /// Optional on-device hint seams (Workstream 3). Nil in composition/tests that
@@ -25,6 +26,7 @@ public struct Dependencies: Sendable {
         personalization: any PersonalizationSource,
         audio: any SystemAudioController,
         recorder: any AudioRecorder,
+        cueController: any DictationCueController,
         log: RedactionSafeLog,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         inputSourceLanguage: (any InputSourceLanguageReading)? = nil,
@@ -36,6 +38,7 @@ public struct Dependencies: Sendable {
         self.personalization = personalization
         self.audio = audio
         self.recorder = recorder
+        self.cueController = cueController
         self.log = log
         self.statusReporter = statusReporter
         self.inputSourceLanguage = inputSourceLanguage
@@ -43,6 +46,9 @@ public struct Dependencies: Sendable {
     }
 
     public func reportStatus(_ status: StatusMessage) {
+        if status.isFailureNotice {
+            cueController.enqueue(.error)
+        }
         statusReporter(status)
         log.event("status.\(status)")
     }
@@ -52,8 +58,9 @@ public struct Dependencies: Sendable {
 /// decides the next state + effects; this actor executes them in order, holding
 /// the session state and the stashed `PriorAudioState` for the key-up restore.
 ///
-/// Actor isolation serializes events, so a second Start while `processing` hits
-/// the FSM's single-flight rule (logged, no re-entry — no second mute/capture).
+/// Actor isolation protects state but permits re-entry at awaits. Production key
+/// edges are ordered by `HotkeyEdgeSequencer`, while the recording-session identity
+/// discards continuations that resume after their own dictation ended.
 public actor Orchestrator {
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
@@ -75,13 +82,27 @@ public actor Orchestrator {
     /// The committed feed outcome of the current session, used at finish to tell a
     /// total conversion failure apart from legitimate silence.
     private var feedHealth = FeedHealth()
+    /// A key-up arriving while recorder/ASR readiness is still in flight stays a
+    /// short dictation, applied as soon as readiness completes.
+    private var pendingStopMode: DictationMode?
+    private var isCaptureReady = false
+    /// Identity of one recording, so work resumed after it ended cannot touch its
+    /// successor. Stateless by design.
+    private final class RecordingSession: Sendable {}
+    private var activeRecordingSession: RecordingSession?
+    private var readinessCueTask: Task<Void, Never>?
 
     private let deps: Dependencies
     private var cleanupConfig: CleanupConfig
     private var mutesSystemAudioWhileDictating: Bool
     private let vocabularyLimit: Int
 
-    public init(dependencies: Dependencies, cleanupConfig: CleanupConfig, mutesSystemAudioWhileDictating: Bool = true, vocabularyLimit: Int = 50) {
+    public init(
+        dependencies: Dependencies,
+        cleanupConfig: CleanupConfig,
+        mutesSystemAudioWhileDictating: Bool = true,
+        vocabularyLimit: Int = 50
+    ) {
         self.deps = dependencies
         self.cleanupConfig = cleanupConfig
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
@@ -116,6 +137,17 @@ public actor Orchestrator {
 
     /// Drives one event through the FSM and executes the resulting effects in order.
     public func handle(_ event: DictationEvent) async {
+        if case .stopRequested(let mode) = event,
+           state == .recording,
+           !isCaptureReady {
+            pendingStopMode = mode
+            return
+        }
+        if case .startRequested = event, state == .idle {
+            isCaptureReady = false
+            pendingStopMode = nil
+            activeRecordingSession = RecordingSession()
+        }
         // Stash the mode before the transition so the FSM stays mode-agnostic.
         if case .stopRequested(let mode) = event {
             sessionMode = mode
@@ -245,6 +277,22 @@ public actor Orchestrator {
 
     private func execute(_ effect: DictationEffect) async -> DeferredEffect? {
         switch effect {
+        case .playStartCue:
+            startReadinessCue()
+            return nil
+
+        case .enqueueCue(let cue):
+            deps.cueController.enqueue(cue)
+            return nil
+
+        case .suspendDelivery:
+            deps.recorder.suspendDelivery()
+            return nil
+
+        case .resumeDelivery:
+            deps.recorder.resumeDelivery()
+            return nil
+
         case .muteSystemOutput:
             // MUTE is flag-gated but RESTORE stays stash-gated, so a mid-session toggle can't leave audio muted (skipped mute → nothing to restore).
             guard mutesSystemAudioWhileDictating else { return nil }
@@ -252,18 +300,13 @@ public actor Orchestrator {
             return nil
 
         case .beginCapture:
-            await beginCapture()
+            guard let recordingSession = activeRecordingSession else { return nil }
+            await beginCapture(for: recordingSession)
             return nil
 
         case .endCaptureAndFinalizeTranscript:
-            // Key-up: end capture and drain every remaining fed chunk (the recorder
-            // finishing the stream terminates the pump). Finalization is deferred
-            // until after the remaining effect list runs, so `.restoreSystemOutput`
-            // is not coupled to actor executor timing.
+            // Defer the pump drain so output restores immediately.
             await deps.recorder.stop()
-            if let health = await pumpTask?.value {
-                feedHealth = health
-            }
             return .finish
 
         case .discardCapture:
@@ -300,11 +343,16 @@ public actor Orchestrator {
             return nil
 
         case .returnToIdle:
+            deps.cueController.endSession()
             stashedPriorAudio = nil
             sessionVocabulary = []
             sessionMode = .plain
             sessionRunsCleaner = true
             feedHealth = FeedHealth()
+            pendingStopMode = nil
+            isCaptureReady = false
+            activeRecordingSession = nil
+            readinessCueTask = nil
             pumpTask?.cancel()
             pumpTask = nil
             pipelineTask = nil
@@ -312,20 +360,49 @@ public actor Orchestrator {
         }
     }
 
+    /// Starts the readiness cue and returns at once; its completion re-enters as
+    /// `startCueFinished`, scoped to the session that started it.
+    private func startReadinessCue() {
+        guard let recordingSession = activeRecordingSession else { return }
+        // Claimed synchronously: deferred into the task below, a key-up could queue
+        // End ahead of Start.
+        let playback = deps.cueController.beginPlayback(.start)
+        readinessCueTask = Task { [weak self] in
+            guard let self else { return }
+            await playback.awaitCompletion()
+            await self.finishReadinessCue(for: recordingSession)
+        }
+    }
+
+    private func finishReadinessCue(for recordingSession: RecordingSession) async {
+        guard activeRecordingSession === recordingSession else { return }
+        await handle(.startCueFinished)
+    }
+
+    /// Observes the readiness cue's completion. A test seam — production never waits
+    /// on audio.
+    public func awaitReadinessCue() async {
+        await readinessCueTask?.value
+    }
+
     /// Key-down: open mic capture AND the streaming ASR session, then spawn the
     /// pump that pipes each captured chunk into the session for the hold.
     /// Extracted from `execute` so that switch stays within its body-length gate.
-    private func beginCapture() async {
+    private func beginCapture(for recordingSession: RecordingSession) async {
+        deps.cueController.beginSession()
         let stream: AsyncStream<AudioChunk>
         do {
             stream = try await deps.recorder.start()
         } catch let error as AudioCaptureError {
+            guard ownsRecordingSession(recordingSession) else { return }
             await handle(.failed(.capture(error)))
             return
         } catch {
+            guard ownsRecordingSession(recordingSession) else { return }
             await handle(.failed(.capture(.engineStartFailed)))
             return
         }
+        guard ownsRecordingSession(recordingSession) else { return }
 
         // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
         // resolve the personalization vocabulary once and reuse it as the ASR
@@ -342,24 +419,44 @@ public actor Orchestrator {
         // of every dictation once the model was warm. It still fires where it is
         // true: the first-run download, and a failed preload retried inside begin.
         let isModelResident = await deps.transcriber.isModelResident
+        guard ownsRecordingSession(recordingSession) else { return }
         if !isModelResident {
             deps.reportStatus(.preparingSpeechModel)
         }
         do {
             try await deps.transcriber.begin(biasTerms: biasTerms)
         } catch let error as TranscriptionError {
+            guard ownsRecordingSession(recordingSession) else { return }
             // Release the mic first, then contain the failure.
             await deps.recorder.stop()
+            guard ownsRecordingSession(recordingSession) else { return }
             await handle(.failed(.transcription(error)))
             return
         } catch {
+            guard ownsRecordingSession(recordingSession) else { return }
             await deps.recorder.stop()
+            guard ownsRecordingSession(recordingSession) else { return }
             await handle(.failed(.transcription(.engineFailure(underlying: error))))
             return
         }
 
+        // Shared recorder/transcriber seams may already belong to a replacement;
+        // a stale continuation must leave them untouched.
+        guard ownsRecordingSession(recordingSession) else { return }
+
         feedHealth = FeedHealth()
         pumpTask = makePumpTask(draining: stream)
+        await handle(.captureReady)
+        guard ownsRecordingSession(recordingSession) else { return }
+        isCaptureReady = true
+        if let mode = pendingStopMode {
+            pendingStopMode = nil
+            await handle(.stopRequested(mode))
+        }
+    }
+
+    private func ownsRecordingSession(_ recordingSession: RecordingSession) -> Bool {
+        state == .recording && activeRecordingSession === recordingSession
     }
 
     /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
@@ -394,6 +491,9 @@ public actor Orchestrator {
     private func executeDeferred(_ effect: DeferredEffect) async {
         switch effect {
         case .finish:
+            if let health = await pumpTask?.value {
+                feedHealth = health
+            }
             pipelineTask = Task { [weak self] in
                 guard let self else { return }
                 await self.finishAndContinue()

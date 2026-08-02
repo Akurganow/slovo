@@ -3,59 +3,36 @@ import Testing
 
 import SlovoCore
 
-// The pure, deterministic dictation transition, including single-flight.
-//
-// Contract under test — the pure transition lives in `Sources/SlovoCore/FSM/`:
-//
-//     DictationFsm.transition(_ state: DictationState, on event: DictationEvent)
-//         -> (DictationState, [DictationEffect])   // non-async, non-throwing
-//
-// The pinned table this enforces:
-//   idle       + startRequested  -> recording  + [beginCapture]
-//   processing + startRequested  -> processing + [log(.singleFlightIgnored)]
+// The pure transition: same inputs, same outputs, no clock and no I/O. Cue, mute and
+// restore ordering is pinned separately in `DictationFsmMuteTests`.
 @Suite("FSM transition")
 struct FsmTests {
 
-    /// The pinned happy-path transition returns the EXACT result.
-    /// Stated sensitivity: a transition that does not move idle→recording or
-    /// emits the wrong effect → RED.
-    ///
-    /// Start now mutes BEFORE capturing, so the expected sequence is
-    /// `[.muteSystemOutput, .beginCapture]`. The mute/restore placement itself is
-    /// pinned in `DictationFsmMuteTests`.
+    /// Key-down begins capture and nothing else; delivery is open from the first frame.
+    /// Sensitivity: a wrong next state or any extra effect → RED.
     @Test
     func idleStartRequestedBeginsCapture() {
         let (state, effects) = DictationFsm.transition(.idle, on: .startRequested)
         #expect(state == .recording, "idle + startRequested must move to recording, got \(state)")
-        #expect(effects == [.muteSystemOutput, .beginCapture],
-                "must emit exactly [muteSystemOutput, beginCapture], got \(effects)")
+        #expect(effects == [.beginCapture],
+                "must emit exactly [beginCapture], got \(effects)")
     }
 
-    /// Determinism — the SAME (state, event) yields an identical result on
-    /// repeated calls (no clock, no I/O, no hidden state).
-    /// Stated sensitivity: make the transition read `Date()` / mutate shared
-    /// state so two calls diverge → RED. (The value is independently pinned by
-    /// `idleStartRequestedBeginsCapture`, so a deterministic-but-wrong stub is
-    /// still caught there.)
-    ///
-    /// The pinned value is now `[.muteSystemOutput, .beginCapture]`.
+    /// The same pair yields the same result twice, and the pinned value with it.
+    /// Sensitivity: read a clock or mutate shared state so two calls diverge → RED.
     @Test
     func transitionIsDeterministic() {
         let first = DictationFsm.transition(.idle, on: .startRequested)
         let second = DictationFsm.transition(.idle, on: .startRequested)
         #expect(first.0 == second.0, "state diverged across identical calls")
         #expect(first.1 == second.1, "effects diverged across identical calls")
-        // Pin the determined value too, so a deterministically WRONG transition
-        // cannot pass this test vacuously.
-        #expect(first == (DictationState.recording, [DictationEffect.muteSystemOutput, .beginCapture]),
-                "deterministic result must be (.recording, [.muteSystemOutput, .beginCapture]); got \(first)")
+        // Without this a deterministically WRONG transition would pass vacuously.
+        #expect(first == (DictationState.recording, [DictationEffect.beginCapture]),
+                "deterministic result must be (.recording, [.beginCapture]); got \(first)")
     }
 
-    /// Single-flight — a new startRequested while processing is IGNORED
-    /// (state unchanged) AND a single-flight log effect is emitted.
-    /// Stated sensitivity: let startRequested restart processing
-    /// (`.recording`/`[.beginCapture]`) → state changes → RED; OR drop the log
-    /// effect → the "ignored (logged)" rule fails → RED.
+    /// A Start while processing is ignored, and logged as ignored.
+    /// Sensitivity: restart processing, or drop the log → RED.
     @Test
     func processingStartRequestedIsSingleFlightIgnored() {
         let (state, effects) = DictationFsm.transition(.processing, on: .startRequested)
@@ -64,11 +41,8 @@ struct FsmTests {
                 "single-flight must emit exactly [log(.singleFlightIgnored)], got \(effects)")
     }
 
-    /// An unpinned (state, event) pair is a lossless
-    /// no-op: unchanged state + `[log(.unexpectedEvent)]`, never a crash, never a
-    /// silent drop. Pinned here for an unpinned pair (`idle + stopRequested`).
-    /// Stated sensitivity: make the unhandled pair crash, change state, or emit []
-    /// → RED.
+    /// An unpinned pair is a lossless no-op: state unchanged, one log, never a crash.
+    /// Sensitivity: crash, change state, or emit nothing → RED.
     @Test
     func unhandledPairIsLoggedNoOp() {
         let (state, effects) = DictationFsm.transition(.idle, on: .stopRequested(.plain))
@@ -77,12 +51,8 @@ struct FsmTests {
                 "an unhandled event must emit exactly [log(.unexpectedEvent)], got \(effects)")
     }
 
-    /// The failure transition's effects are emitted
-    /// in the deterministic order `notify → log → returnToIdle`, and the state
-    /// returns to idle. Effects carrying an `Error` compare by
-    /// CASE (an `Error` is not `Equatable`), so this asserts the exact effect SEQUENCE.
-    /// Stated sensitivity: reorder the effects, drop one, or fail to return to
-    /// idle → RED.
+    /// A contained failure emits notify → log → returnToIdle, in that order.
+    /// Sensitivity: reorder, drop one, or stay out of idle → RED.
     @Test
     func failureTransitionEmitsNotifyThenLogThenReturnToIdleInOrder() {
         let failure = StageFailure.injection(.accessibilityDenied)
@@ -96,24 +66,20 @@ struct FsmTests {
 
     // MARK: - The three pipeline rows, payload-sensitive
 
-    /// `processing + transcriptReady(t)` must emit `clean(transcript: t)` carrying
-    /// the EXACT transcript payload (not a dropped/altered string).
-    /// Stated sensitivity: emit `.clean(transcript: "WRONG")` (or drop the payload)
-    /// → RED.
+    /// A non-empty transcript goes straight to cleanup, announcing nothing: End already
+    /// sounded at key-up, so re-queueing it here would sound it twice.
+    /// Sensitivity: re-add `.enqueueCue(.end)`, or alter the payload → RED.
     @Test
     func processingTranscriptReadyEmitsCleanWithSamePayload() {
         let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady("hi"))
         #expect(state == .processing, "transcriptReady keeps processing, got \(state)")
         #expect(effects == [.clean(transcript: "hi")],
-                "must emit exactly [clean(transcript: \"hi\")], got \(effects)")
+                "must clean the exact payload and queue no cue; got \(effects)")
     }
 
-    /// Genuine silence — an empty transcript in processing must NEVER reach cleanup
-    /// (no network round trip) or injection (no clipboard ⌘V cycle); it returns to
-    /// idle and surfaces only the brief no-speech glyph.
-    /// Stated sensitivity: drop the empty guard so the transition emits
-    /// `.clean(transcript: "")` and stays in `.processing` (the pre-fix behavior) →
-    /// RED on the no-clean and idle assertions.
+    /// Silence reaches neither the cleaner (a network round trip) nor the injector (a
+    /// ⌘V cycle that can delete a selection); only the no-speech glyph surfaces.
+    /// Sensitivity: drop the empty guard → `.clean("")` in `.processing` → RED.
     @Test
     func processingEmptyTranscriptSkipsCleanAndInjectAndReturnsToIdle() {
         let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady(""))
@@ -122,14 +88,13 @@ struct FsmTests {
         #expect(!Self.hasInject(effects), "silence must never reach the injector; got \(effects)")
         #expect(effects.contains(.notify(.noSpeechDetected)),
                 "silence must surface the brief no-speech glyph; got \(effects)")
+        #expect(!Self.hasEnqueueCue(effects),
+                "End already sounded at key-up; the transcript row must queue no cue; got \(effects)")
     }
 
-    /// Whitespace-only counts as empty: the ASR sanitizer can finalize genuine
-    /// silence to bare whitespace, which must take the SAME no-speech path — not be
-    /// cleaned as though it were speech.
-    /// Stated sensitivity: implement the guard with `transcript.isEmpty` instead of a
-    /// whitespace-trimmed emptiness check → "  \n" is cleaned/injected → RED here
-    /// (the empty-string test above stays green, so this variant is the mutant-catcher).
+    /// Bare whitespace is silence too — the ASR sanitizer can finalize it that way.
+    /// Sensitivity: guard with `isEmpty` instead of whitespace-trimmed → RED here while
+    /// the empty-string test above stays green, which is why this variant exists.
     @Test
     func processingWhitespaceOnlyTranscriptTakesTheNoSpeechPath() {
         let (state, effects) = DictationFsm.transition(.processing, on: .transcriptReady("  \n"))
@@ -138,6 +103,8 @@ struct FsmTests {
         #expect(!Self.hasInject(effects), "whitespace-only silence must never reach the injector; got \(effects)")
         #expect(effects.contains(.notify(.noSpeechDetected)),
                 "whitespace-only silence must surface the brief no-speech glyph; got \(effects)")
+        #expect(!Self.hasEnqueueCue(effects),
+                "End already sounded at key-up; the transcript row must queue no cue; got \(effects)")
     }
 
     /// True iff any effect is a `.clean` (payload-agnostic): a silence path must emit none.
@@ -145,14 +112,19 @@ struct FsmTests {
         effects.contains { if case .clean = $0 { return true }; return false }
     }
 
+    /// True iff any effect queues a cue (payload-agnostic): the transcript rows must
+    /// queue none — the recording's End was already queued at key-up.
+    private static func hasEnqueueCue(_ effects: [DictationEffect]) -> Bool {
+        effects.contains { if case .enqueueCue = $0 { return true }; return false }
+    }
+
     /// True iff any effect is an `.inject` (payload-agnostic): a silence path must emit none.
     private static func hasInject(_ effects: [DictationEffect]) -> Bool {
         effects.contains { if case .inject = $0 { return true }; return false }
     }
 
-    /// `processing + cleaned(c)` must emit `inject(text: c)` carrying the EXACT
-    /// cleaned payload.
-    /// Stated sensitivity: emit `.inject(text: "WRONG")` (or drop the payload) → RED.
+    /// Cleaned text reaches injection with its exact payload.
+    /// Sensitivity: alter or drop the payload → RED.
     @Test
     func processingCleanedEmitsInjectWithSamePayload() {
         let (state, effects) = DictationFsm.transition(.processing, on: .cleaned("done"))
@@ -161,9 +133,8 @@ struct FsmTests {
                 "must emit exactly [inject(text: \"done\")], got \(effects)")
     }
 
-    /// `processing + injected` completes the session: state returns to idle and
-    /// emits exactly `[returnToIdle]`.
-    /// Stated sensitivity: stay in processing, or emit a different effect → RED.
+    /// Injection completes the session back to idle.
+    /// Sensitivity: stay in processing, or emit anything else → RED.
     @Test
     func processingInjectedReturnsToIdle() {
         let (state, effects) = DictationFsm.transition(.processing, on: .injected)
@@ -174,19 +145,15 @@ struct FsmTests {
 
     // MARK: - Dictation mode is inert in the pure transition
 
-    /// M1 (purity guard) — `stopRequested(.translate)` produces the EXACT same
-    /// transition as `stopRequested(.plain)`: the mode is carried for the cleanup
-    /// step (the Orchestrator stashes it), never branched on in the pure FSM.
-    /// Green now (the transition ignores the payload). Stated sensitivity: make the
-    /// FSM branch on the mode (e.g. emit a different effect or state for
-    /// `.translate`) → the translate and plain results diverge → RED.
+    /// The dictation mode is carried for the cleanup step, never branched on here.
+    /// Sensitivity: branch on `.translate` → the two results diverge → RED.
     @Test
     func stopRequestedModeDoesNotAlterThePureTransition() {
         let translate = DictationFsm.transition(.recording, on: .stopRequested(.translate))
         let plain = DictationFsm.transition(.recording, on: .stopRequested(.plain))
 
         #expect(translate.0 == .processing, "translate stop keeps the recording→processing transition")
-        #expect(translate.1 == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput],
+        #expect(translate.1 == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput, .enqueueCue(.end)],
                 "translate stop must emit exactly the pinned key-up effects, got \(translate.1)")
         #expect(translate.0 == plain.0, "the mode must not change the next state")
         #expect(translate.1 == plain.1, "the mode must not change the emitted effects")
@@ -194,13 +161,9 @@ struct FsmTests {
 
     // MARK: - StageFailure equality by value
 
-    /// `StageFailure` equality must distinguish DIFFERENT wrapped errors, not
-    /// collapse every `.injection(_)` to equal. Distinct injection failures are
-    /// UNEQUAL; the same case is EQUAL.
-    /// Stated sensitivity: revert `StageFailure ==` to a by-CASE comparison (drop
-    /// `InjectionError: Equatable` / the synthesized wrapped-value compare) →
-    /// `.injection(.secureInputActive) == .injection(.pasteFailed)` returns TRUE →
-    /// this inequality assertion fails → RED.
+    /// `StageFailure` equality distinguishes wrapped errors instead of collapsing every
+    /// `.injection(_)` to equal.
+    /// Sensitivity: compare by case only → distinct injection failures compare equal → RED.
     @Test
     func stageFailureDistinguishesDistinctInjectionErrors() {
         #expect(StageFailure.injection(.secureInputActive) != .injection(.pasteFailed),
@@ -215,19 +178,11 @@ struct FsmTests {
 
 // MARK: - Honest StatusMessage map
 //
-// The failure transition must surface a TRUTHFUL status per failure stage, not
-// collapse everything to `.accessibilityDenied`. The honest mapping:
-//   transcription(*)               -> .transcriptionFailed
-//   injection(.accessibilityDenied)-> .accessibilityDenied
-//   injection(.secureInputActive)  -> .secureFieldActive
-//   injection(.pasteFailed)        -> .injectionFailed
-//   cleanup                        -> .cleanupFailed
-//
-// Stated sensitivity: collapse any of these back to `.accessibilityDenied` (the
-// dishonest mapping) → the corresponding test below reddens.
+// Each failure stage must surface its OWN status, never a convenient stand-in.
+// Sensitivity: collapse any mapping to `.accessibilityDenied` → the matching test reddens.
 @Suite("Honest StatusMessage mapping")
 struct HonestStatusMappingTests {
-    /// Helper: the single `notify` status the failure transition emits.
+    /// The single `notify` status the failure transition emits.
     private func notifiedStatus(for failure: StageFailure) -> StatusMessage? {
         let (_, effects) = DictationFsm.transition(.processing, on: .failed(failure))
         for effect in effects {
@@ -236,39 +191,35 @@ struct HonestStatusMappingTests {
         return nil
     }
 
-    /// A transcription failure must surface the honest "transcription failed"
-    /// status — NOT `.accessibilityDenied` (a lie about the cause).
+    /// A transcription failure names transcription, not accessibility.
     @Test
     func transcriptionFailureMapsToTranscriptionFailed() {
         #expect(notifiedStatus(for: .transcription(.backendUnavailable)) == .transcriptionFailed,
                 "a transcription failure must notify .transcriptionFailed")
     }
 
-    /// Accessibility-denied keeps its honest, already-correct mapping.
+    /// Accessibility-denied keeps its own status.
     @Test
     func accessibilityDeniedMapsToAccessibilityDenied() {
         #expect(notifiedStatus(for: .injection(.accessibilityDenied)) == .accessibilityDenied,
                 "accessibility-denied must notify .accessibilityDenied")
     }
 
-    /// A secure-input-active injection failure must surface the honest
-    /// "secure field active" status, not `.accessibilityDenied`.
+    /// A secure field names the secure field.
     @Test
     func secureInputActiveMapsToSecureFieldActive() {
         #expect(notifiedStatus(for: .injection(.secureInputActive)) == .secureFieldActive,
                 "secure-input-active must notify .secureFieldActive")
     }
 
-    /// A paste-failed injection must surface the honest "injection failed"
-    /// status, not `.accessibilityDenied`.
+    /// A failed paste names insertion.
     @Test
     func pasteFailedMapsToInjectionFailed() {
         #expect(notifiedStatus(for: .injection(.pasteFailed)) == .injectionFailed,
                 "paste-failed must notify .injectionFailed")
     }
 
-    /// An unexpected cleanup failure escaped the fallback chain; it must be
-    /// contained by the FSM with an honest cleanup status.
+    /// A cleanup failure that escaped the fallback chain names cleanup.
     @Test
     func cleanupFailureMapsToCleanupFailed() {
         #expect(notifiedStatus(for: .cleanup) == .cleanupFailed,

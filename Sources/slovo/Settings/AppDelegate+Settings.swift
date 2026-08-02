@@ -17,6 +17,10 @@ extension AppDelegate: SettingsActions {
         applyCleanupEnabled(enabled)
     }
 
+    func setPlaysDictationSoundCues(_ enabled: Bool) {
+        applyPlaysDictationSoundCues(enabled)
+    }
+
     func launchAtLoginEnabled() -> Bool {
         // A system-service (SMAppService) read, like hasOpenRouterKey()'s Keychain
         // read: no pipeline rebuild, no ASR re-warm.

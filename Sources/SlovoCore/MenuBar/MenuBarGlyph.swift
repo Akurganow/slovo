@@ -20,9 +20,9 @@ public enum RecordingGlyphMode: Equatable, Sendable {
 }
 
 public enum MenuBarGlyph {
-    /// Onu Ⱁ (U+2C11), the red failure glyph — shown for a genuine cleanup failure,
-    /// an empty (no-speech) hold, and a user-initiated update-install failure. One
-    /// source of truth so every failure surface flashes the same letter.
+    /// Onu Ⱁ (U+2C11), the red glyph projected from every dictation failure
+    /// status. The updater may reuse the visual glyph, but it is not a dictation
+    /// status and therefore never enters the Error-cue path.
     public static let failureGlyph: Character = "\u{2C11}"
 
     public static func forState(_ state: DictationState) -> Character {
@@ -68,33 +68,10 @@ public enum MenuBarGlyph {
     }
 
     public static func forStatus(_ status: StatusMessage) -> Character? {
-        switch status {
-        case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
-            return failureGlyph
-        case .preparingSpeechModel:
-            return "\u{2C06}"
-        case .accessibilityDenied,
-             .transcriptionFailed,
-             .secureFieldActive,
-             .injectionFailed,
-             .microphoneUnavailable,
-             .cleanupFailed:
-            return nil
-        }
+        status.isFailureNotice ? failureGlyph : "\u{2C06}"
     }
 
     public static func tint(forStatus status: StatusMessage) -> MenuBarGlyphTint {
-        switch status {
-        case .cleanupUnavailableInsertedAsSpoken, .noSpeechDetected:
-            return .error
-        case .preparingSpeechModel,
-             .accessibilityDenied,
-             .transcriptionFailed,
-             .secureFieldActive,
-             .injectionFailed,
-             .microphoneUnavailable,
-             .cleanupFailed:
-            return .normal
-        }
+        status.isFailureNotice ? .error : .normal
     }
 }

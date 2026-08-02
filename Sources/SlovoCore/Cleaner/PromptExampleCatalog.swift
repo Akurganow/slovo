@@ -37,39 +37,11 @@ public struct PromptExampleCatalog: Sendable {
 
     public static let bundled: PromptExampleCatalog = load()
 
-    /// `Bundle.module` traps when the staged resource bundle is absent — at the
-    /// first prompt build, mid-dictation — and its SwiftPM-generated lookup never
-    /// checks Contents/Resources (it falls back to this dev machine's absolute
-    /// .build path, so a staging mistake stays invisible locally and crashes
-    /// everywhere else). Resolve the bundle by hand across the packaged-app, CLI,
-    /// and test-runner locations, and return nil so a packaging mistake degrades
-    /// to example-free prompts instead of crashing the app.
-    private static func resourceBundle() -> Bundle? {
-        let bundleName = "slovo_SlovoCore.bundle"
-        let candidates = [
-            Bundle.main.resourceURL,
-            Bundle.main.bundleURL,
-            Bundle(for: BundleLocator.self).bundleURL.deletingLastPathComponent(),
-            Bundle(for: BundleLocator.self).resourceURL,
-        ]
-        for candidate in candidates {
-            if let url = candidate?.appendingPathComponent(bundleName),
-               let bundle = Bundle(url: url) {
-                return bundle
-            }
-        }
-        return nil
-    }
-
-    /// Anchor for `Bundle(for:)` so the lookup lands in whatever binary actually
-    /// links SlovoCore (the app, a tool, or the test bundle).
-    private final class BundleLocator {}
-
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private static func load() -> PromptExampleCatalog {
         guard
-            let url = resourceBundle()?.url(forResource: "PromptExamples", withExtension: "xml"),
+            let url = SlovoCoreResourceBundle.resolve()?.url(forResource: "PromptExamples", withExtension: "xml"),
             let document = try? XMLDocument(contentsOf: url),
             let root = document.rootElement()
         else {
