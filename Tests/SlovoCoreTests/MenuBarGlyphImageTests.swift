@@ -64,6 +64,19 @@ struct MenuBarGlyphImageTests {
         #expect(image.isTemplate == true)
     }
 
+    /// The update-ready Nash must really exist in the bundled Glagolitic font and
+    /// render as a visible template image — a missing codepoint would silently
+    /// fall back to the mic symbol.
+    /// Sensitivity: a codepoint absent from the font (renderer returns nil or
+    /// zero pixels), or a non-template image → RED.
+    @Test
+    func updateReadyGlyphRendersVisibleTemplatePixels() throws {
+        let image = try #require(MenuBarGlyph.image(for: MenuBarGlyph.updateReadyGlyph, tint: .normal))
+        #expect(image.isTemplate == true)
+        let stats = try Self.pixelStats(of: image)
+        #expect(stats.opaque > 0, "Nash must draw visible pixels")
+    }
+
     private static func pixelStats(of image: NSImage) throws -> PixelStats {
         let tiff = try #require(image.tiffRepresentation, "image must be rasterizable")
         let rep = try #require(NSBitmapImageRep(data: tiff), "image must decode to a bitmap")

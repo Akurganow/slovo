@@ -223,7 +223,7 @@ struct AppRuntimeSourceGuardTests {
             "setStatusGlyph(status",
             "Task { @MainActor",
             "try? await Task.sleep(for: .seconds(1))",
-            "setStatusGlyph(.idle",
+            "paintIdleGlyph",
         ], in: flashBriefStatusGlyphBody))
         #expect(Self.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)
         #expect(Self.statementCount(#"isPipelineActive\s*=\s*false"#, in: settleToIdleBody) == 1)
@@ -253,7 +253,7 @@ struct AppRuntimeSourceGuardTests {
         // Presence-only for the two independent if-guards (their relative order and
         // negation spelling are free). Sensitivity: set the idle glyph or the idle
         // title unconditionally (drop either guard) → its flag vanishes → RED.
-        #expect(Self.containsInOrder(["if", "isShowingBriefStatus", "setStatusGlyph(.idle"], in: settleToIdleBody),
+        #expect(Self.containsInOrder(["if", "isShowingBriefStatus", "paintIdleGlyph"], in: settleToIdleBody),
                 "the idle glyph must stay guarded by the brief-status flag")
         #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "title = idleStatusTitle"], in: settleToIdleBody),
                 "the idle title must stay guarded by the shown-pipeline-status flag")

@@ -70,7 +70,9 @@ Clarifications:
   "Ⰳ" (U+2C03) while cleanup is effectively off (raw mode, either cause), and
   Pokoji "Ⱂ" (U+2C12) while a translate hold is active (Control latched at any
   moment of the hold; the glyph switches live the moment Control latches, so the
-  mode is visible at a glance). The failure glyph "Ⱁ" (U+2C11) is unchanged.
+  mode is visible at a glance). The resting idle glyph shows Slovo "Ⱄ" (U+2C14)
+  normally, swapping to Nash "Ⱀ" (U+2C10) while a downloaded update awaits
+  Restart. The failure glyph "Ⱁ" (U+2C11) is unchanged.
 - **Mute while dictating.** A menu-bar switch (on by default) silences system
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.

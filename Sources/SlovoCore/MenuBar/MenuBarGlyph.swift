@@ -25,6 +25,19 @@ public enum MenuBarGlyph {
     /// status and therefore never enters the Error-cue path.
     public static let failureGlyph: Character = "\u{2C11}"
 
+    /// Nash Ⱀ (U+2C10), the idle glyph shown while a downloaded update awaits
+    /// the user's Restart: the menu bar itself announces the staged update
+    /// without opening the dropdown.
+    public static let updateReadyGlyph: Character = "\u{2C10}"
+
+    /// The idle glyph is a projection of update state: while a downloaded update
+    /// awaits restart, idle shows Nash Ⱀ instead of the Slovo Ⱄ brand glyph.
+    /// Only resting idle varies — every live dictation state outranks the update
+    /// marker and restores it when settling.
+    public static func idleGlyph(isUpdateReady: Bool) -> Character {
+        isUpdateReady ? updateReadyGlyph : forState(.idle)
+    }
+
     public static func forState(_ state: DictationState) -> Character {
         switch state {
         case .recording:

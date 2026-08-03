@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         StatusItemPlacement.seedPreferredPositionIfAbsent(in: defaults)
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = StatusItemPlacement.autosaveName
-        setStatusGlyph(.idle, on: item.button)
+        paintIdleGlyph(on: item.button)
         item.menu = makeMenu()
         statusItem = item
 
@@ -196,7 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func settleToIdle() {
         isPipelineActive = false
         if !isShowingBriefStatus {
-            setStatusGlyph(.idle, on: statusItem?.button)
+            paintIdleGlyph(on: statusItem?.button)
         }
         if !didShowPipelineStatus {
             statusTextItem?.title = idleStatusTitle
@@ -311,7 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? await Task.sleep(for: .seconds(1))
             guard let self else { return }
             self.isShowingBriefStatus = false
-            self.setStatusGlyph(.idle, on: self.statusItem?.button)
+            self.paintIdleGlyph(on: self.statusItem?.button)
             if !self.isPipelineActive, !status.isPersistentNotice {
                 self.statusTextItem?.title = self.idleStatusTitle
             }

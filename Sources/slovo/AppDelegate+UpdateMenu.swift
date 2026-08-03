@@ -8,11 +8,23 @@ extension AppDelegate {
     /// reference the whole pipeline would deallocate immediately.
     func startUpdater() {
         let coordinator = UpdaterCoordinator(
-            onIndicationChange: { [weak self] indication in self?.renderUpdateIndication(indication) },
+            onIndicationChange: { [weak self] indication in
+                self?.renderUpdateIndication(indication)
+                self?.repaintIdleGlyphForUpdateState()
+            },
             onInstallFailedAfterRestart: { [weak self] in self?.flashUpdateInstallFailure() }
         )
         updaterCoordinator = coordinator
         coordinator.start(automaticUpdatesEnabled: ConfigStore.load(from: defaults).automaticallyInstallsUpdates)
+    }
+
+    /// The update-ready Nash rides the IDLE glyph slot, so a ready/not-ready
+    /// transition repaints it — but never over a live dictation glyph, a brief
+    /// failure flash, or the model-loading pulse; those paths re-derive the idle
+    /// glyph through paintIdleGlyph when they settle.
+    func repaintIdleGlyphForUpdateState() {
+        guard !isPipelineActive, !isShowingBriefStatus, isModelReady else { return }
+        paintIdleGlyph(on: statusItem?.button)
     }
 
     /// The user-initiated Restart: installs the downloaded update and relaunches.
@@ -122,7 +134,7 @@ extension AppDelegate {
         updateFailureResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, self?.isPipelineActive == false else { return }
-            self?.setStatusGlyph(.idle, on: self?.statusItem?.button)
+            self?.paintIdleGlyph(on: self?.statusItem?.button)
         }
     }
 

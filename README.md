@@ -62,8 +62,10 @@ tuned.
   terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary…**
   quick action — to protect your own terms during cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
-  processing states — the recording glyph names the mode: `Ⱍ` clean, `Ⰳ` raw,
-  `Ⱂ` translate — plus a monochrome app icon that follows the system theme.
+  processing states — resting idle shows `Ⱄ` normally, swapping to `Ⱀ`
+  when a downloaded update awaits restart; the recording glyph names the mode:
+  `Ⱍ` clean, `Ⰳ` raw, `Ⱂ` translate — plus a monochrome app icon that follows
+  the system theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
   push-to-talk key, recognition language, sound cues, launch at login,
   automatic updates, cleanup model and style, translation target language, API
@@ -72,8 +74,8 @@ tuned.
   cleanup, translate, vocabulary) and the running version.
 - Silent automatic updates with an always-visible menu-bar update row:
   **Check for Updates…** runs a manual silent check, **Checking…** shows while
-  any check runs, and a downloaded update offers **Update ready — v…** /
-  **Restart**. The **Automatically install updates** switch (Settings →
+  any check runs, and a downloaded update switches the status bar glyph to `Ⱀ`
+  and offers **Update ready — v…** / **Restart**. The **Automatically install updates** switch (Settings →
   General, on by default) turns scheduled checking off.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 

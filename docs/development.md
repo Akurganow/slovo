@@ -189,7 +189,8 @@ on the dev Mac:
   window it downloads silently — no window, no notification — and the dropdown's
   always-visible update row shows "Checking…" during the check, "Downloading
   v<next>", then the hybrid "Update ready — v<next>" row (grey status line;
-  "Restart" in white under highlight).
+  "Restart" in white under highlight), while the resting menu-bar glyph switches
+  to Nash "Ⱀ" (U+2C10).
 - **Both apply paths:** clicking **Restart** installs and relaunches into the new
   version; ignoring it and Quitting normally installs on the way out, so the next
   launch is the new version. The app never restarts on its own.
