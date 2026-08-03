@@ -17,7 +17,7 @@ extension AppDelegate {
             self.isModelReady = true
             self.stopModelLoadingPulse(on: self.statusItem?.button)
             guard !self.isPipelineActive, !self.isShowingBriefStatus else { return }
-            self.setStatusGlyph(.idle, on: self.statusItem?.button)
+            self.paintIdleGlyph(on: self.statusItem?.button)
             self.statusTextItem?.title = self.idleStatusTitle
         }
     }

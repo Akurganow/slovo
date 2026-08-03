@@ -131,7 +131,8 @@ are never committed.
 ## Menu-Bar App
 
 The app is packaged as an `LSUIElement` menu-bar app with no Dock icon. Its
-`NSStatusItem` shows the mode glyph (see `AGENTS.md` for the glyph family) and
+`NSStatusItem` shows the mode glyph (see `AGENTS.md` for the glyph family,
+including Nash "Ⱀ" when an update is ready) and
 its dropdown holds a single live status line (carrying the hold-to-talk hint
 when idle) plus an always-visible update row — **Check for Updates…** when idle
 (a manual silent check), **Checking…**

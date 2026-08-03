@@ -3,6 +3,24 @@ import QuartzCore
 import SlovoCore
 
 extension AppDelegate {
+    /// The single funnel for the resting menu-bar glyph: idle is a projection of
+    /// update state, so every "back to idle" path routes through here — a direct
+    /// `setStatusGlyph(.idle)` call would silently drop the update-ready Nash Ⱀ
+    /// while a downloaded update awaits Restart.
+    func paintIdleGlyph(on button: NSStatusBarButton?) {
+        guard let button else { return }
+        let isUpdateReady: Bool
+        if case .ready? = updaterCoordinator?.currentIndication {
+            isUpdateReady = true
+        } else {
+            isUpdateReady = false
+        }
+        button.title = ""
+        button.contentTintColor = nil
+        button.image = MenuBarGlyph.image(for: MenuBarGlyph.idleGlyph(isUpdateReady: isUpdateReady), tint: .normal)
+            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+    }
+
     func setStatusGlyph(_ state: DictationState, on button: NSStatusBarButton?) {
         guard let button else { return }
         button.title = ""

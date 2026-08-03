@@ -20,6 +20,28 @@ struct MenuBarGlyphTests {
         #expect(MenuBarGlyph.forState(.processing) == "\u{2C04}")
     }
 
+    /// The update-ready Nash Ⱀ (U+2C10) replaces the Slovo Ⱄ idle glyph while a
+    /// downloaded update awaits Restart — and only there; it must be distinct
+    /// from every other glyph in the family.
+    /// Stated sensitivity: wrong codepoint (e.g. reuse Ⱄ or Onu), ignoring the
+    /// flag (always Ⱄ or always Ⱀ) → RED.
+    @Test
+    func idleGlyphProjectsUpdateReadiness() {
+        #expect(MenuBarGlyph.idleGlyph(isUpdateReady: true) == "\u{2C10}")
+        #expect(MenuBarGlyph.idleGlyph(isUpdateReady: false) == "\u{2C14}")
+
+        let family: Set<Character> = [
+            MenuBarGlyph.forState(.idle),
+            MenuBarGlyph.forState(.processing),
+            MenuBarGlyph.forRecording(mode: .clean),
+            MenuBarGlyph.forRecording(mode: .raw),
+            MenuBarGlyph.forRecording(mode: .translate),
+            MenuBarGlyph.failureGlyph,
+            "\u{2C06}", // Zhivete, the model-loading glyph
+        ]
+        #expect(!family.contains(MenuBarGlyph.updateReadyGlyph), "Nash must be a distinct letter in the glyph family")
+    }
+
     /// The recording glyph is a fully semantic three-letter family varying on one
     /// dimension (the letter): Cherv Ⱍ (U+2C1D) clean, Glagoli Ⰳ (U+2C03) raw,
     /// Pokoji Ⱂ (U+2C12) translate — all distinct — and the default recording state
