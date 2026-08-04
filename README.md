@@ -325,6 +325,8 @@ serve different needs:
   dictation for everyday professional writing.
 - [superwhisper](https://superwhisper.com) — deeply customizable Mac
   dictation with local or cloud models.
+- [Spokenly](https://spokenly.app) — cross-platform dictation with local
+  Whisper models, BYOK cloud providers, and AI text processing.
 - [Talon](https://talonvoice.com) — full hands-free computer control,
   built for accessibility and voice coding.
 
