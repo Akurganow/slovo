@@ -33,8 +33,9 @@ frequently changing bundle identities can cause repeated prompts.
 
 Slovo caches the WhisperKit (Whisper) model under Application Support, in
 app-owned storage. It must not download the model into the user's Documents or
-the WhisperKit SDK's default home Hugging Face cache; `WhisperKitEngine` pins the
-download base to Application Support for exactly this reason.
+the Argmax OSS SDK's (formerly WhisperKit) default home Hugging Face cache;
+`WhisperKitEngine` pins the download base to Application Support for exactly
+this reason.
 
 The `.gitignore` rules make these categories uncommittable, whether or not a
 matching file exists on disk today:

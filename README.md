@@ -25,7 +25,8 @@ tuned.
 - Push-to-talk dictation from a configurable key — the `fn` / Globe key by
   default, or a right-hand modifier (⌘, ⌥, ⌃, ⇧), chosen in Settings.
 - Local speech capture and on-device transcription through WhisperKit
-  (Whisper large-v3 turbo), including several languages mixed within a
+  (Whisper large-v3 turbo; part of the Argmax OSS SDK, formerly the
+  standalone WhisperKit package), including several languages mixed within a
   single utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
   OpenRouter model ids.
