@@ -131,7 +131,7 @@ struct GeneralSettingsPane: View {
     private var additionalKeyRow: some View {
         Toggle(isOn: $translateKeyIsAdditional) {
             Text("Use as additional key")
-            Text("Off, it dictates on its own and always translates.")
+            Text("Off, hold it on its own to dictate with translation.")
         }
         .onChange(of: translateKeyIsAdditional) { _, newValue in
             actions.setTranslateKeyIsAdditional(newValue)
