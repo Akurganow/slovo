@@ -194,6 +194,78 @@ struct HotkeyDecisionTranslateKeyTests {
         #expect(!core.isTriggerHeld)
     }
 
+    // MARK: - A cancelled hold stays disarmed until its key is physically released
+
+    /// After an interrupt-cancel the cancelled key is STILL DOWN, and a class-detected
+    /// key is recognized by its modifier bit alone — so every later modifier press
+    /// carries that bit and would re-engage it. Reaching for ⌃⇧V after a cancelled ⌃
+    /// hold must not open a dictation the user never asked for: only releasing the key
+    /// re-arms it.
+    /// Stated sensitivity: end the interrupt-cancel by dropping the hold outright (no
+    /// disarmed state) → the ⌘ press re-opens a dictation → RED, as proven against
+    /// that code; clear the disarm on any event rather than on the key's release → the
+    /// ⌘ release re-opens it → RED.
+    @Test
+    func cancelledControlMainKeyStaysDisarmedUntilReleased() {
+        var core = HotkeyDecisionCore(
+            configuration: HotkeyConfiguration(main: .control, translate: .leftShift, translateIsAdditional: true)
+        )
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.keyDown) == .interruptCancel)
+        #expect(!core.isTriggerHeld)
+
+        // ⌘ joins and leaves while Control is still physically down.
+        #expect(core.handle(.flagsChanged(keyCode: 55, flags: [.control, .command])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 55, flags: [.control])) == .passThrough)
+        #expect(!core.isTriggerHeld)
+
+        // Control comes up: only now is the key armed again.
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .start(suppress: false, mode: .plain))
+    }
+
+    /// The same for a STANDALONE translate key, which opens dictations of its own: a
+    /// cancelled Control hold must not translate-dictate on the next modifier press.
+    /// While it waits to be released it owns the core, so the OTHER push-to-talk key
+    /// stays inert too — with the cancelled key still down, a press of it is part of a
+    /// shortcut, not a request to dictate.
+    /// Stated sensitivity: end the interrupt-cancel by dropping the hold outright → the
+    /// ⇧ press opens a translate dictation → RED, as proven against that code; disarm
+    /// only the cancelled key instead of the core → the fn press opens a plain one →
+    /// RED.
+    @Test
+    func cancelledStandaloneControlKeyStaysDisarmedUntilReleased() {
+        var core = HotkeyDecisionCore(
+            configuration: HotkeyConfiguration(main: .fn, translate: .control, translateIsAdditional: false)
+        )
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .start(suppress: false, mode: .translate))
+        #expect(core.handle(.keyDown) == .interruptCancel)
+
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.control, .shift])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.control, .secondaryFn])) == .passThrough,
+                "the other push-to-talk key must stay inert while the cancelled key is down")
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.control])) == .passThrough)
+
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .start(suppress: false, mode: .translate))
+    }
+
+    /// A live key change starts from a clean state, the disarm included: whatever the
+    /// user was holding when they changed the setting is no longer the core's business.
+    /// Stated sensitivity: carry the disarmed state across `reconfigure` → the press
+    /// after it is swallowed → RED.
+    @Test
+    func reconfigureArmsACancelledKeyAgain() {
+        let configuration = HotkeyConfiguration(main: .control, translate: .leftShift, translateIsAdditional: true)
+        var core = HotkeyDecisionCore(configuration: configuration)
+        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
+        #expect(core.handle(.keyDown) == .interruptCancel)
+
+        core.reconfigure(to: configuration)
+
+        #expect(core.handle(.flagsChanged(keyCode: 55, flags: [.control, .command])) == .start(suppress: false, mode: .plain))
+    }
+
     /// Tap death synthesizes a stop in the mode the dying hold was in — for a
     /// standalone translate dictation and for a latched one alike. The recording
     /// glyph has been showing that mode, so an emergency exit must not quietly

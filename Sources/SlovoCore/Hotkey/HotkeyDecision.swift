@@ -75,8 +75,20 @@ public struct HotkeyDecisionCore {
         }
     }
 
-    /// One push-to-talk hold. Its mode lives INSIDE it, so a latched intent without
-    /// a hold is unrepresentable: an abnormal end (interrupt-cancel, tap death)
+    /// What the core knows about the key that is physically down.
+    private enum Hold {
+        /// A live dictation.
+        case dictating(Session)
+        /// A dictation cancelled mid-hold. Its key is still down, so it keeps owning
+        /// the core until it comes up: nothing may start meanwhile. Without this, a
+        /// class-detected key — recognized by its modifier bit alone, on any key code
+        /// — re-engages on the very next modifier event of the shortcut the user was
+        /// reaching for, and records and inserts a dictation nobody asked for.
+        case cancelled(TriggerRecognizer)
+    }
+
+    /// One live dictation. Its mode lives INSIDE it, so a latched intent without a
+    /// dictation is unrepresentable: an abnormal end (interrupt-cancel, tap death)
     /// takes the intent with it.
     private struct Session {
         /// The key that opened this hold. It alone judges the release, says whether
@@ -89,21 +101,27 @@ public struct HotkeyDecisionCore {
         var mode: DictationMode
     }
 
-    /// Whether a push-to-talk hold is open.
-    public var isTriggerHeld: Bool { session != nil }
+    /// Whether a dictation is live.
+    public var isTriggerHeld: Bool { dictation != nil }
 
     private let pushToTalkKey: TriggerRecognizer
     private let translateKey: TranslateRole
-    private var session: Session?
+    private var hold: Hold?
+
+    /// The live dictation, if the key that is down is still driving one.
+    private var dictation: Session? {
+        guard case let .dictating(session) = hold else { return nil }
+        return session
+    }
 
     public init(configuration: HotkeyConfiguration) {
         pushToTalkKey = TriggerRecognizer(trigger: configuration.main)
         translateKey = TranslateRole(configuration)
     }
 
-    /// Applies a live key change. A reconfigured core is a FRESH core: both roles
-    /// are rebuilt from the new configuration and any open hold is dropped, so no
-    /// state judged against the old keys can survive.
+    /// Applies a live key change. A reconfigured core is a FRESH core: both roles are
+    /// rebuilt from the new configuration and any hold is dropped, live or cancelled,
+    /// so no state judged against the old keys can survive.
     public mutating func reconfigure(to configuration: HotkeyConfiguration) {
         self = HotkeyDecisionCore(configuration: configuration)
     }
@@ -115,40 +133,54 @@ public struct HotkeyDecisionCore {
         case .keyDown:
             // A key press while an interruptible hold is open = the user reaching for
             // a shortcut, not dictating: cancel silently, the combo passes through.
-            guard let hold = session, hold.key.isInterruptible else { return .passThrough }
-            session = nil
+            guard let session = dictation, session.key.isInterruptible else { return .passThrough }
+            // The key is still down and the shortcut it belongs to is still being
+            // typed, so the hold survives as cancelled rather than disappearing.
+            hold = .cancelled(session.key)
             return .interruptCancel
         case .tapDisabled:
             // The emergency stop keeps the hold's mode: the recording glyph has been
-            // showing it, so an abnormal end must not silently downgrade it.
-            let synthesizedStop = session?.mode
-            session = nil
+            // showing it, so an abnormal end must not silently downgrade it. Nothing
+            // is disarmed here: the blackout swallowed events, so which key is still
+            // down is a guess — and fn's release, the least reliably detected of the
+            // three, may already be among the swallowed ones, stranding the core.
+            let synthesizedStop = dictation?.mode
+            hold = nil
             return .resync(synthesizedStop: synthesizedStop)
         }
     }
 
     private mutating func handleFlagsChanged(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
-        guard let hold = session else { return openHold(keyCode: keyCode, flags: flags) }
-        // The latch is read BEFORE the hold's own key judges the event, so a foreign
-        // latch key latches even on an event that is not the hold key's; it is
-        // one-way, so only a still-plain hold can change.
-        let latchesNow = hold.mode == .plain && translateLatchEngages(keyCode: keyCode, flags: flags)
-        let mode: DictationMode = latchesNow ? .translate : hold.mode
-        session?.mode = mode
-        guard hold.key.releases(keyCode: keyCode, flags: flags) else {
-            // A fresh latch only ever coincides with an event that passes through (the
-            // hold key is still down, so this is neither a start nor a stop); surface
-            // it live so the recording glyph switches without waiting for the stop.
-            return latchesNow ? .translateLatched : .passThrough
+        switch hold {
+        case .none:
+            return openHold(keyCode: keyCode, flags: flags)
+        case let .cancelled(key):
+            // Only this key coming up re-arms the core; every other event of the
+            // shortcut in progress is none of its business.
+            if key.releases(keyCode: keyCode, flags: flags) { hold = nil }
+            return .passThrough
+        case let .dictating(session):
+            // The latch is read BEFORE the hold's own key judges the event, so a
+            // foreign latch key latches even on an event that is not the hold key's;
+            // it is one-way, so only a still-plain hold can change.
+            let latchesNow = session.mode == .plain && translateLatchEngages(keyCode: keyCode, flags: flags)
+            let mode: DictationMode = latchesNow ? .translate : session.mode
+            guard session.key.releases(keyCode: keyCode, flags: flags) else {
+                hold = .dictating(Session(key: session.key, mode: mode))
+                // A fresh latch only ever coincides with an event that passes through
+                // (the hold key is still down, so this is neither a start nor a stop);
+                // surface it live so the glyph switches without waiting for the stop.
+                return latchesNow ? .translateLatched : .passThrough
+            }
+            hold = nil
+            return .stop(suppress: session.key.suppressesEvent, mode: mode)
         }
-        session = nil
-        return .stop(suppress: hold.key.suppressesEvent, mode: mode)
     }
 
     private mutating func openHold(keyCode: Int64, flags: HotkeyModifierFlags) -> HotkeyDecision {
         guard var opening = openingHold(keyCode: keyCode, flags: flags) else { return .passThrough }
         opening.key.recordEngage(keyCode: keyCode)
-        session = opening
+        hold = .dictating(opening)
         return .start(suppress: opening.key.suppressesEvent, mode: opening.mode)
     }
 

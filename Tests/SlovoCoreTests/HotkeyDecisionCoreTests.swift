@@ -382,26 +382,6 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .plain))
     }
 
-    /// L7 — reconfiguring the trigger clears any latched translate, so a fresh plain
-    /// session on the new trigger stops `.plain`.
-    /// Stated sensitivity: keep the latch across `reconfigure` → the post-reconfigure
-    /// plain session stops `.translate` → the second assert reddens.
-    @Test
-    func reconfigureClearsTheLatch() {
-        var core = makeDecisionCore(main: .fn)
-
-        // Latch translate on fn.
-        _ = core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn]))
-        _ = core.handle(.flagsChanged(keyCode: 59, flags: [.secondaryFn, .control]))
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .translate))
-
-        core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
-
-        // A plain session on the new trigger (no control) must stay plain.
-        _ = core.handle(.flagsChanged(keyCode: 60, flags: [.shift]))
-        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [])) == .stop(suppress: false, mode: .plain))
-    }
-
     /// F2(a) — a latched hold that ends ABNORMALLY via `.tapDisabled` must not leave a
     /// sticky translate: the next fresh no-Control hold stops `.plain`. Passes on the
     /// correct code. The tap-death path emits no `.stop`, so nothing but dropping the
@@ -424,13 +404,12 @@ struct HotkeyDecisionCoreTests {
     }
 
     /// F2(b) — a latched hold that ends ABNORMALLY via a `.keyDown` interrupt-cancel
-    /// (a `.passthroughModifier` trigger — only those have an interrupt path)
-    /// must not leave a sticky translate. Passes on the correct code. The interrupt
-    /// path emits `.interruptCancel`, not `.stop`, so again only dropping the whole
-    /// session — the mode lives INSIDE it — keeps the leftover latch from bleeding
-    /// over.
-    /// Stated sensitivity: leave `session` standing on the interrupt path → the
-    /// leftover `.translate` is still held when the next hold runs → RED.
+    /// (a `.passthroughModifier` trigger — only those have an interrupt path) must not
+    /// leave a sticky translate. Passes on the correct code. The interrupt path emits
+    /// `.interruptCancel`, not `.stop`, and the cancelled hold keeps its key disarmed
+    /// until it comes up — so the next hold's mode can only come from its own edges.
+    /// Stated sensitivity: carry the cancelled hold's mode over to whatever opens
+    /// next → the second, control-free hold stops `.translate` → RED.
     @Test
     func latchDoesNotSurviveInterruptCancelAbnormalExit() {
         var core = makeDecisionCore(main: .rightCommand)
@@ -439,6 +418,8 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command, .control])) == .start(suppress: false, mode: .translate))
         // ...but a non-trigger key goes down → interrupt-cancel (no stop).
         #expect(core.handle(.keyDown) == .interruptCancel)
+        // The cancelled key comes up; only then may a new hold open.
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .passThrough)
 
         // Session 2: a fresh no-Control hold must stop plain.
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
