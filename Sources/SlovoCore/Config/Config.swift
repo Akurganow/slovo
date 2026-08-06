@@ -1,10 +1,11 @@
-/// The push-to-talk trigger key. `fn` is the default (existing installs are
-/// untouched); every other choice names ONE physical key — the left or the right
-/// ⌘, ⌥ or ⇧. A single side is rarely pressed alone, so it collides minimally with
-/// normal typing, and binding the whole modifier class instead would make the
-/// opposite side's ordinary shortcuts start dictating. Control is deliberately not
-/// offered: it is the translate add-on to any hold, and most Mac laptop keyboards
-/// have no right Control key at all. Declaration order is picker order.
+/// A key that can drive a hold — either as the push-to-talk key (`fn` by default,
+/// so existing installs are untouched) or as the translate key. The sided entries
+/// name ONE physical key: the left or the right ⌘, ⌥ or ⇧. A single side is rarely
+/// pressed alone, so it collides minimally with normal typing, and binding the
+/// whole modifier class instead would make the opposite side's ordinary shortcuts
+/// start dictating. Control is the exception, offered as a single class-level
+/// entry — either Control key matches — because most Mac laptop keyboards have no
+/// right Control key to distinguish. Declaration order is picker order.
 public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
     case fn = "fn"
     case leftCommand = "left-command"
@@ -17,6 +18,7 @@ public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
     case rightOption = "right-option"
     case leftShift = "left-shift"
     case rightShift = "right-shift"
+    case control = "control"
 
     /// Human-readable name for the status line and the Settings picker.
     public var displayName: String {
@@ -28,6 +30,8 @@ public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
         case .rightOption: return "Right ⌥"
         case .leftShift: return "Left ⇧"
         case .rightShift: return "Right ⇧"
+        // No side word: this one entry stands for both Control keys.
+        case .control: return "⌃"
         }
     }
 }
@@ -35,6 +39,7 @@ public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
 /// User-editable app configuration persisted as JSON.
 public struct Config: Equatable, Sendable {
     public static let defaultTrigger: HotkeyTrigger = .fn
+    public static let defaultTranslateTrigger: HotkeyTrigger = .control
     public static let defaultMode = "hold"
     public static let defaultAsrModel = "large-v3-v20240930_turbo_632MB"
     public static let defaultOpenRouterModel = CleanupDefaults.openRouterModel
@@ -47,6 +52,14 @@ public struct Config: Equatable, Sendable {
     /// positive value is the idle-seconds window before release.
     public var keepWarmSeconds: Int?
     public var trigger: HotkeyTrigger
+    /// The key that makes a dictation translate. Must differ from `trigger`:
+    /// `ConfigStore` is where that exclusion is enforced, failing a colliding pair
+    /// closed rather than persisting or loading it.
+    public var translateTrigger: HotkeyTrigger
+    /// Whether the translate key rides ON TOP of a `trigger` hold — the default,
+    /// and exactly what holding Control did before the key became configurable —
+    /// rather than opening a translate dictation of its own.
+    public var translateKeyIsAdditional: Bool
     public var asrBackend: AsrBackend
     public var asrModel: String
     public var openRouterModel: String
@@ -89,10 +102,22 @@ public struct Config: Equatable, Sendable {
         openRouterModel
     }
 
+    /// The Hotkey layer's view of the configured keys. The two are already known to
+    /// differ (`ConfigStore` validation), so the projection only names their roles.
+    public var hotkeyConfiguration: HotkeyConfiguration {
+        HotkeyConfiguration(
+            main: trigger,
+            translate: translateTrigger,
+            translateIsAdditional: translateKeyIsAdditional
+        )
+    }
+
     public init(
         language: Language = .auto,
         keepWarmSeconds: Int? = nil,
         trigger: HotkeyTrigger = Config.defaultTrigger,
+        translateTrigger: HotkeyTrigger = Config.defaultTranslateTrigger,
+        translateKeyIsAdditional: Bool = true,
         asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
         openRouterModel: String = Config.defaultOpenRouterModel,
@@ -107,6 +132,8 @@ public struct Config: Equatable, Sendable {
         self.language = language
         self.keepWarmSeconds = keepWarmSeconds
         self.trigger = trigger
+        self.translateTrigger = translateTrigger
+        self.translateKeyIsAdditional = translateKeyIsAdditional
         self.asrBackend = asrBackend
         self.asrModel = asrModel
         self.openRouterModel = openRouterModel

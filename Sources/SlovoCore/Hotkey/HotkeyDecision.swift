@@ -66,9 +66,9 @@ public struct HotkeyDecisionCore {
     public var isTriggerHeld: Bool { session != nil }
 
     private var pushToTalkKey: TriggerRecognizer
-    /// The key whose press latches translate. Fixed to Control's modifier class:
-    /// Control is never a trigger, so the class bit alone proves it — there is no
-    /// side to disambiguate.
+    /// The key whose press latches translate. Fixed to Control, recognized by its
+    /// modifier class alone: either Control key latches, so no side is
+    /// disambiguated.
     private let latchKey = TriggerRecognizer(.classModifier(.control))
     private var session: Session?
 

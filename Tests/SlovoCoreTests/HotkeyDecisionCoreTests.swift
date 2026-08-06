@@ -85,6 +85,23 @@ struct HotkeyDecisionCoreTests {
         #expect(!core.isTriggerHeld)
     }
 
+    /// Control is a class-level trigger: EITHER Control key opens the hold, and
+    /// clearing the class bit ends it — there is no side to name. The session's
+    /// mode is left unasserted on purpose; which mode a hold carries depends on the
+    /// configured translate key, not on the key recognition this test pins.
+    /// Stated sensitivity: recognize `.control` as any other kind (the fn bit, or a
+    /// side-specific key code) → the class-bit event opens no session → RED.
+    @Test
+    func controlTriggerHoldsOnTheModifierClassFromEitherSide() {
+        for keyCode: Int64 in [59, 62] {
+            var core = HotkeyDecisionCore(trigger: .control)
+            _ = core.handle(.flagsChanged(keyCode: keyCode, flags: [.control]))
+            #expect(core.isTriggerHeld, "Control key code \(keyCode) must open the hold")
+            _ = core.handle(.flagsChanged(keyCode: keyCode, flags: []))
+            #expect(!core.isTriggerHeld, "clearing the Control bit must end the hold")
+        }
+    }
+
     // MARK: - Per-side triggers: each ⌘⌥⇧ trigger matches exactly ONE side-specific
     // key code. While held, an event naming the trigger's OWN key code is its
     // toggle — it stops the session regardless of the class bit (the other side

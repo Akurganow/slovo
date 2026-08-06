@@ -15,7 +15,8 @@ enum ConfigFixtures {
         cleanupProvider: String? = nil,
         openRouterModel: String? = nil,
         writingStyle: String = "casual",
-        translationTargetLanguage: String? = nil
+        translationTargetLanguage: String? = nil,
+        translateTrigger: String? = nil
     ) throws -> Data {
         var cleanup: [String: Any] = [
             "enabled": legacyEnabledField,
@@ -45,6 +46,9 @@ enum ConfigFixtures {
         // (an absent target must default to "en").
         if let translationTargetLanguage {
             object["translationTargetLanguage"] = translationTargetLanguage
+        }
+        if let translateTrigger {
+            object["translateTrigger"] = translateTrigger
         }
         return try encoded(object)
     }

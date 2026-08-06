@@ -89,7 +89,8 @@ struct TriggerRecognizer {
 extension TriggerRecognizer {
     /// The one projection that knows how each configured trigger is recognized.
     /// Every side-specific modifier names exactly ONE physical key code, which is
-    /// what lets its hold be told apart from the same modifier on the other side.
+    /// what lets its hold be told apart from the same modifier on the other side;
+    /// Control names no code, because both Control keys are the same choice.
     init(trigger: HotkeyTrigger) {
         switch trigger {
         case .fn: self.init(.suppressedFn)
@@ -99,6 +100,7 @@ extension TriggerRecognizer {
         case .rightOption: self.init(.passthroughModifier(.option, keyCode: 61))
         case .leftShift: self.init(.passthroughModifier(.shift, keyCode: 56))
         case .rightShift: self.init(.passthroughModifier(.shift, keyCode: 60))
+        case .control: self.init(.classModifier(.control))
         }
     }
 }
