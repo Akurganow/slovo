@@ -205,14 +205,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "the sequencer sink must handle a .cancel edge by cancelling the in-flight dictation")
     }
 
-    /// The tap must be built with the configured trigger, not a hard-coded fn.
-    /// Killing mutation: construct `CGEventTapHotkeyMonitor(trigger: .fn)` (ignore
-    /// config) → RED.
+    /// The tap must be built with the persisted key configuration — BOTH roles, the
+    /// push-to-talk key and the translate key — not a hard-coded or hand-built value.
+    /// Killing mutation: construct the monitor from a literal configuration (e.g.
+    /// `HotkeyConfiguration(main: .fn, translate: .control, translateIsAdditional:
+    /// true)`) or from anything but `config.hotkeyConfiguration` → RED.
     @Test
     func monitorIsBuiltWithConfiguredTrigger() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger: config.trigger)"),
-                "the monitor must be constructed with the persisted trigger")
+        #expect(composition.contains("CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration)"),
+                "the monitor must be constructed with the persisted key configuration")
     }
 
     /// The tap must observe keyDown so a combo can interrupt a passthrough-modifier
@@ -223,6 +225,21 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
         #expect(monitor.contains("CGEventType.keyDown.rawValue"),
                 "the event mask must include keyDown so the interrupt is observable")
+    }
+
+    /// The stop the tap synthesizes after a tap death must carry the mode the
+    /// decision core reports for the dead hold — a standalone translate dictation, or
+    /// one the additional key latched, must not be downgraded to plain on the way
+    /// out. The tap is hardware-only, so this wire is guarded at the source.
+    /// Killing mutation: restore the hardcoded `onTrigger?(.up(.plain))` in the
+    /// resync arm → RED.
+    @Test
+    func synthesizedStopCarriesTheDeadHoldsMode() throws {
+        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        #expect(monitor.contains("onTrigger?(.up(synthesizedStop))"),
+                "the resync arm must emit the mode the decision core reported")
+        #expect(!monitor.contains(".up(.plain)"),
+                "the synthesized stop must never be hardcoded to plain")
     }
 
     /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
@@ -246,15 +263,17 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// A key change applies live via reconfigure, NOT a pipeline rebuild — no ASR
-    /// re-warm, no loading pulse (the applyCleanupModel principle). Killing
-    /// mutation: route applyTrigger through retrySetup/startPipeline (a rebuild) →
-    /// RED.
+    /// re-warm, no loading pulse (the applyCleanupModel principle) — and it hands the
+    /// tap the SAVED configuration, so what the tap watches is what was persisted.
+    /// Killing mutations: route applyTrigger through retrySetup/startPipeline (a
+    /// rebuild); or reconfigure from a hand-built configuration instead of
+    /// `config.hotkeyConfiguration`, which would drop the translate role → RED.
     @Test
     func applyTriggerReconfiguresInPlaceWithoutRebuild() throws {
         let hotkeyMenu = try Self.code("Sources/slovo/AppDelegate+HotkeyMenu.swift")
         let applyTrigger = try Self.functionBody(named: "applyTrigger", in: hotkeyMenu)
-        #expect(applyTrigger.contains("hotkeyMonitor.reconfigure(trigger:"),
-                "applyTrigger must reconfigure the live tap in place")
+        #expect(applyTrigger.contains("hotkeyMonitor.reconfigure(configuration: config.hotkeyConfiguration)"),
+                "applyTrigger must reconfigure the live tap in place from the persisted configuration")
         #expect(!applyTrigger.contains("startPipeline"),
                 "applyTrigger must not rebuild the pipeline")
         #expect(!applyTrigger.contains("retrySetup"),

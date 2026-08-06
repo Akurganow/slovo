@@ -17,7 +17,7 @@ extension AppDelegate {
             logger.error("config save failed")
             return
         }
-        composition?.hotkeyMonitor.reconfigure(trigger: trigger)
+        composition?.hotkeyMonitor.reconfigure(configuration: config.hotkeyConfiguration)
         installStatusMenu()
     }
 }

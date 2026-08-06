@@ -90,7 +90,7 @@ enum AppComposition {
                 vocabularyLimit: vocabularyLimit,
                 cleanupConfig: cleanupConfig
             ),
-            hotkeyMonitor: CGEventTapHotkeyMonitor(trigger: config.trigger),
+            hotkeyMonitor: CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight()
             ),

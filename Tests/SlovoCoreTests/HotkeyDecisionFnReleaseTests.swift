@@ -17,7 +17,7 @@ struct HotkeyDecisionFnReleaseTests {
     /// kc0 event reads `.stop` instead of `.passThrough` → RED.
     @Test
     func fnMidHoldJunkFlagsEventDoesNotStop() {
-        var core = HotkeyDecisionCore(trigger: .fn)
+        var core = makeDecisionCore(main: .fn)
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 0, flags: [])) == .passThrough)
         #expect(core.isTriggerHeld, "a junk fn-bit-free event must not release the held fn session")
@@ -31,7 +31,7 @@ struct HotkeyDecisionFnReleaseTests {
     /// kc59 event reads `.stop` instead of `.translateLatched` → RED.
     @Test
     func fnMidHoldForeignModifierMissingFnBitDoesNotStopButStillLatches() {
-        var core = HotkeyDecisionCore(trigger: .fn)
+        var core = makeDecisionCore(main: .fn)
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .translateLatched)
         #expect(core.isTriggerHeld, "a foreign-modifier fn-bit-free event must not release the held fn session")
@@ -45,7 +45,7 @@ struct HotkeyDecisionFnReleaseTests {
     /// instead of `.stop` → RED (protects the external-keyboard fallback).
     @Test
     func fnSessionStartedOnOddKeyCodeStopsOnSameKeyCode() {
-        var core = HotkeyDecisionCore(trigger: .fn)
+        var core = makeDecisionCore(main: .fn)
         #expect(core.handle(.flagsChanged(keyCode: 100, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 100, flags: [])) == .stop(suppress: true, mode: .plain))
     }
@@ -58,7 +58,7 @@ struct HotkeyDecisionFnReleaseTests {
     /// session never stops → RED.
     @Test
     func fnJunkStartHealsOnCanonicalFnRelease() {
-        var core = HotkeyDecisionCore(trigger: .fn)
+        var core = makeDecisionCore(main: .fn)
         #expect(core.handle(.flagsChanged(keyCode: 0, flags: [.secondaryFn])) == .start(suppress: true, mode: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn])) == .passThrough)
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .plain))

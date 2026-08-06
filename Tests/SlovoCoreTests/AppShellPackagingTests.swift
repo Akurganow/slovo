@@ -56,7 +56,7 @@ struct AppShellPackagingTests {
         #expect(composition.contains("warmUp()"),
                 "startup composition must preload the resident ASR engine via warmUp()")
         #expect(composition.contains("statusReporter: statusReporter"))
-        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger:"))
+        #expect(composition.contains("CGEventTapHotkeyMonitor(configuration:"))
         let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
         #expect(Self.containsStatement(#"startPipeline\(\)"#, in: launchBody),
                 "launch must invoke the production composition starter, not merely define it elsewhere")

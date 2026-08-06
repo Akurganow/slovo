@@ -1,7 +1,8 @@
 /// Which edge of the push-to-talk hotkey fired: `.down` starts a session carrying
 /// the mode latched at the key-down edge, `.up` stops it while carrying the
-/// session's final `DictationMode`, `.translateLatched` reports that Control latched
-/// translate LIVE mid-hold so the recording glyph can switch before key-up, and
+/// session's final `DictationMode`, `.translateLatched` reports that the additional
+/// translate key latched translate LIVE mid-hold so the recording glyph can switch
+/// before key-up, and
 /// `.cancel` silently discards an in-flight session (a passthrough-modifier combo
 /// interrupted the hold).
 public enum HotkeyPhase: Equatable, Sendable {

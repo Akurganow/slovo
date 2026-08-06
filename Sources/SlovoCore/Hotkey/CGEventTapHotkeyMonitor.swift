@@ -21,8 +21,8 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
     private var runLoopSource: CFRunLoopSource?
     private var decisionCore: HotkeyDecisionCore
 
-    public init(trigger: HotkeyTrigger) {
-        self.decisionCore = HotkeyDecisionCore(trigger: trigger)
+    public init(configuration: HotkeyConfiguration) {
+        self.decisionCore = HotkeyDecisionCore(configuration: configuration)
     }
 
     /// The tap holds `self` UNRETAINED via `refcon`; tear it down before the
@@ -37,11 +37,11 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
         return CGEvent.tapIsEnabled(tap: eventTap)
     }
 
-    /// Applies a live trigger change in place. The event mask is
-    /// trigger-independent, so only the decision core is swapped (held state
-    /// reset) — no tap teardown, no failure window, no pipeline rebuild.
-    public func reconfigure(trigger: HotkeyTrigger) {
-        decisionCore.reconfigure(to: trigger)
+    /// Applies a live key change in place. The event mask is key-independent, so
+    /// only the decision core is swapped (held state reset) — no tap teardown, no
+    /// failure window, no pipeline rebuild.
+    public func reconfigure(configuration: HotkeyConfiguration) {
+        decisionCore.reconfigure(to: configuration)
     }
 
     public func start() throws {
@@ -113,21 +113,21 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
             return suppress ? nil : Unmanaged.passUnretained(event)
         case .translateLatched:
             // Live mid-hold latch: report it so the glyph can switch, and pass the
-            // Control key through so it keeps working as a normal modifier.
+            // translate key through so it keeps working as a normal modifier.
             onTrigger?(.translateLatched)
             return Unmanaged.passUnretained(event)
         case .interruptCancel:
             onTrigger?(.cancel)
             // The real combo (e.g. Right ⌘ + C) must proceed untouched.
             return Unmanaged.passUnretained(event)
-        case .resync(let synthesizeUp):
+        case .resync(let synthesizedStop):
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
-            if synthesizeUp {
-                // An emergency stop after tap-disable loses the latch, so it can
-                // only be a plain stop.
-                onTrigger?(.up(.plain))
+            if let synthesizedStop {
+                // The emergency stop keeps the dead hold's mode, so a translate
+                // dictation is not silently downgraded on the way out.
+                onTrigger?(.up(synthesizedStop))
             }
             return Unmanaged.passUnretained(event)
         case .passThrough:
