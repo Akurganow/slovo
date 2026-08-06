@@ -79,11 +79,7 @@ struct GeneralSettingsPane: View {
                 seedHotkeys()
             }
             translateKeyRow
-            Toggle("Use as additional key", isOn: $translateKeyIsAdditional)
-                .onChange(of: translateKeyIsAdditional) { _, newValue in
-                    actions.setTranslateKeyIsAdditional(newValue)
-                    seedHotkeys()
-                }
+            additionalKeyRow
             Picker("Recognition language", selection: $language) {
                 Text("Auto").tag(Language.auto)
                 ForEach(RecognitionLanguageCatalog.options) { option in
@@ -122,6 +118,22 @@ struct GeneralSettingsPane: View {
         }
         .onChange(of: translateTrigger) { _, newValue in
             actions.setTranslateTrigger(newValue)
+            seedHotkeys()
+        }
+    }
+
+    /// The switch that decides how the translate key is used, with a hint naming both
+    /// states — the row above shows the additional gesture, but nothing else says what
+    /// turning it off buys. The hint is the label's SECOND Text, the documented
+    /// title-and-subtitle builder: it renders as attached secondary text inside the
+    /// same row, where a sibling Text would become a row of its own behind a divider.
+    private var additionalKeyRow: some View {
+        Toggle(isOn: $translateKeyIsAdditional) {
+            Text("Use as additional key")
+            Text("Press it with the push-to-talk key; off, it dictates on its own and always translates.")
+        }
+        .onChange(of: translateKeyIsAdditional) { _, newValue in
+            actions.setTranslateKeyIsAdditional(newValue)
             seedHotkeys()
         }
     }

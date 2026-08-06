@@ -123,7 +123,10 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(row.contains(#"Text("\(trigger.displayName) +")"#))
         #expect(!row.contains("translateTrigger.displayName"),
                 "the selected translate key must appear only inside the dropdown, never duplicated as text")
-        #expect(general.contains(#"Toggle("Use as additional key", isOn: $translateKeyIsAdditional)"#))
+        // The switch carries its hint as the label's subtitle Text, so the title is
+        // asserted inside the label builder rather than as a Toggle string argument.
+        #expect(general.contains("Toggle(isOn: $translateKeyIsAdditional)"))
+        #expect(general.contains(#"Text("Use as additional key")"#))
     }
 
     /// The Cleanup pane's translate caption must name the REAL gesture: the key is
