@@ -214,7 +214,7 @@ struct CleanupSettingsPane: View {
         Section("Language hints") {
             Toggle(isOn: $useSpellCheckHints) {
                 Text("Use system spell-check hints")
-                Text("Spell-check findings from your Mac guide cleanup toward the right words.")
+                Text("Your Mac's spell-check guides cleanup to the right words.")
             }
             .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
         }

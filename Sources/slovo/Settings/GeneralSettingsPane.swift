@@ -122,15 +122,16 @@ struct GeneralSettingsPane: View {
         }
     }
 
-    /// The switch that decides how the translate key is used, with a hint naming both
-    /// states — the row above shows the additional gesture, but nothing else says what
-    /// turning it off buys. The hint is the label's SECOND Text, the documented
+    /// The switch that decides how the translate key is used. Its hint names only the
+    /// OFF state: the row above already shows the on state as `<key> + [key]`, so
+    /// spelling that out again would cost a line and say nothing new.
+    /// The hint is the label's SECOND Text, the documented
     /// title-and-subtitle builder: it renders as attached secondary text inside the
     /// same row, where a sibling Text would become a row of its own behind a divider.
     private var additionalKeyRow: some View {
         Toggle(isOn: $translateKeyIsAdditional) {
             Text("Use as additional key")
-            Text("Press it with the push-to-talk key; off, it dictates on its own and always translates.")
+            Text("Off, it dictates on its own and always translates.")
         }
         .onChange(of: translateKeyIsAdditional) { _, newValue in
             actions.setTranslateKeyIsAdditional(newValue)
