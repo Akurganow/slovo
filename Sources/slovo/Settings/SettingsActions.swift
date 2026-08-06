@@ -22,6 +22,10 @@ protocol SettingsActions: AnyObject {
     func launchAtLoginEnabled() -> Bool
 
     func setTrigger(_ trigger: HotkeyTrigger)
+    func setTranslateTrigger(_ trigger: HotkeyTrigger)
+    /// Whether the translate key rides on top of a push-to-talk hold rather than
+    /// opening a dictation of its own.
+    func setTranslateKeyIsAdditional(_ isAdditional: Bool)
     func setRecognitionLanguage(_ language: Language)
     func setTranslationLanguage(_ language: Language)
     func setCleanupModel(_ modelId: String)

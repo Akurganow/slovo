@@ -16,6 +16,9 @@ struct CleanupSettingsPane: View {
     @State private var apiKey: String = ""
     @State private var isConfirmingKeyRemoval = false
     @State private var useSpellCheckHints: Bool
+    // The keys are edited in the General pane, so this cached window re-reads them
+    // on appear; the translate caption below the target picker names them.
+    @State private var hotkeys: HotkeyConfiguration
     // The observed model, not a value snapshot (spec D1): the subscription
     // repaints the pane on any funnel write in the same runloop — no re-fetch
     // sites, nothing to go stale.
@@ -28,6 +31,7 @@ struct CleanupSettingsPane: View {
         _writingStyle = State(initialValue: config.writingStyle)
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
+        _hotkeys = State(initialValue: config.hotkeyConfiguration)
         _availabilityModel = ObservedObject(wrappedValue: actions.cleanupAvailabilityModel)
     }
 
@@ -67,6 +71,7 @@ struct CleanupSettingsPane: View {
             writingStyle = config.writingStyle
             translationLanguage = config.translationTargetLanguage.rawValue
             useSpellCheckHints = config.useSpellCheckHints
+            hotkeys = config.hotkeyConfiguration
         }
     }
 
@@ -144,9 +149,20 @@ struct CleanupSettingsPane: View {
         .onChange(of: translationLanguage) { _, newCode in
             actions.setTranslationLanguage(Language(rawValue: newCode))
         }
-        Text("Used when you hold Control while dictating.")
+        Text(translateCaption)
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    /// Names the gesture the user actually has: the translate key is configurable,
+    /// and standing alone its hold IS the dictation rather than something added to
+    /// one. Same fork as the menu hint and the About guide, phrased for this row.
+    private var translateCaption: String {
+        let key = hotkeys.translate.displayName
+        switch hotkeys.translateGesture {
+        case .additional: return "Used when you add \(key) while dictating."
+        case .standalone: return "Used when you dictate with \(key) held."
+        }
     }
 
     private var apiKeySection: some View {

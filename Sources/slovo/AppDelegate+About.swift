@@ -4,7 +4,7 @@ import SlovoCore
 extension AppDelegate {
     /// Opens the About window, building it once and focusing the cached instance on
     /// every later click. The bundle version/build, the dev-build marker, and the
-    /// current trigger key are read here (not inside the view) and passed in; Slovo
+    /// configured keys are read here (not inside the view) and passed in; Slovo
     /// is an `.accessory` app, so it must activate before showing or the window
     /// opens behind the frontmost app (the same quirk handled for Settings and the
     /// vocabulary quick-add).
@@ -13,13 +13,12 @@ extension AppDelegate {
         if aboutWindow == nil {
             aboutWindow = AboutWindow()
         }
-        let trigger = ConfigStore.load(from: defaults).trigger
         NSApp.activate(ignoringOtherApps: true)
         aboutWindow?.show(
             version: Self.bundleString("CFBundleShortVersionString"),
             build: Self.bundleString("CFBundleVersion"),
             isDevBuild: Self.isDevBuild,
-            triggerName: trigger.displayName
+            hotkeys: ConfigStore.load(from: defaults).hotkeyConfiguration
         )
     }
 

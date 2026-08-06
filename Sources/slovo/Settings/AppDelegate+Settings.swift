@@ -27,9 +27,18 @@ extension AppDelegate: SettingsActions {
         LaunchAtLogin.isEnabled
     }
 
+    // The three key settings share one apply path: live monitor reconfigure, no
+    // pipeline rebuild (Plan 1's apply path).
     func setTrigger(_ trigger: HotkeyTrigger) {
-        // Live monitor reconfigure, no pipeline rebuild (Plan 1's apply path).
         applyTrigger(trigger)
+    }
+
+    func setTranslateTrigger(_ trigger: HotkeyTrigger) {
+        applyTranslateTrigger(trigger)
+    }
+
+    func setTranslateKeyIsAdditional(_ isAdditional: Bool) {
+        applyTranslateKeyIsAdditional(isAdditional)
     }
 
     func setRecognitionLanguage(_ language: Language) {

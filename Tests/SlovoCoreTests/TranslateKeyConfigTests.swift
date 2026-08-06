@@ -146,4 +146,20 @@ struct TranslateKeyConfigTests {
             main: .fn, translate: .control, translateIsAdditional: true
         ))
     }
+
+    /// Every surface that phrases the translate gesture — menu hint, About guide,
+    /// Cleanup caption — and the decision core's role all branch on this one
+    /// projection, so its polarity is pinned HERE, at the source, independently of
+    /// any renderer: inverting it would otherwise be caught only by the surfaces that
+    /// happen to have copy tests, and only until the next UI refactor.
+    /// Stated sensitivity: flip the ternary in `translateGesture` → RED.
+    @Test
+    func translateGestureProjectsTheAdditionalFlag() {
+        #expect(HotkeyConfiguration(
+            main: .fn, translate: .control, translateIsAdditional: true
+        ).translateGesture == .additional)
+        #expect(HotkeyConfiguration(
+            main: .fn, translate: .control, translateIsAdditional: false
+        ).translateGesture == .standalone)
+    }
 }

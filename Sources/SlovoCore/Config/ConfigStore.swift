@@ -357,10 +357,13 @@ public enum ConfigStore {
         if let keepWarmSeconds = config.keepWarmSeconds, !(0...3_600).contains(keepWarmSeconds) {
             return nil
         }
-        // The app's ONE mutual-exclusion check on the two hotkeys: one key cannot
-        // hold both roles. Guarding the whole Config (not the wire strings) covers
-        // load — where a colliding blob fails closed to defaults — and save, so a
-        // pair that would wipe the stored config at next launch is never written.
+        // The AUTHORITATIVE mutual-exclusion check on the two hotkeys: one key cannot
+        // hold both roles. The Settings pickers also make a colliding pair
+        // unselectable, but that only keeps the user away from this rule — every
+        // stored pair is decided here. Guarding the whole Config (not the wire
+        // strings) covers load — where a colliding blob fails closed to defaults —
+        // and save, so a pair that would wipe the stored config at next launch is
+        // never written.
         guard config.trigger != config.translateTrigger else {
             return nil
         }

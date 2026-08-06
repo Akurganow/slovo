@@ -68,7 +68,10 @@ public struct HotkeyDecisionCore {
 
         init(_ configuration: HotkeyConfiguration) {
             let key = TriggerRecognizer(trigger: configuration.translate)
-            self = configuration.translateIsAdditional ? .latch(key) : .source(key)
+            switch configuration.translateGesture {
+            case .additional: self = .latch(key)
+            case .standalone: self = .source(key)
+            }
         }
     }
 

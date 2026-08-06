@@ -17,6 +17,11 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(general.contains("option.displayName"))
         #expect(general.contains("actions.setTrigger("))
         #expect(general.contains("actions.setRecognitionLanguage("))
+        // Sensitivity: drop either translate-key control's `onChange` wiring → the
+        // matching `#expect` goes RED, proving the key or the additional-key switch
+        // no longer reaches the app.
+        #expect(general.contains("actions.setTranslateTrigger("))
+        #expect(general.contains("actions.setTranslateKeyIsAdditional("))
         // Sensitivity: drop the launch-at-login Toggle's `onChange` wiring
         // (`actions.setLaunchAtLogin(newValue)`) → this `#expect` goes RED,
         // proving the "Open at login" control is no longer wired to the app.
@@ -37,21 +42,29 @@ struct SettingsSurfaceSourceGuardTests {
     /// Windows are cached and reopened, not recreated, so a pane's `@State` must be
     /// re-seeded from the live config on every reappearance — otherwise a value
     /// edited elsewhere (the dropdown, or a sibling pane) shows stale until relaunch.
-    /// Stated sensitivity: delete a pane's `.onAppear` re-seed assignment (e.g.
-    /// `trigger = config.trigger` in `GeneralSettingsPane`) → the corresponding
-    /// `#expect` goes RED, since that exact assignment form appears nowhere else in
-    /// the pane (`init` uses the distinct `_trigger = State(initialValue:)` form).
+    /// The three key controls re-seed through the shared `seedHotkeys()`, so the
+    /// assertions are scoped: the `.onAppear` block must CALL it, and the helper must
+    /// assign all three — a file-wide `contains` would stay green with the call gone.
+    /// Stated sensitivity: delete a re-seed assignment (e.g. `trigger = config.trigger`)
+    /// or drop the `seedHotkeys()` call from `.onAppear` → the corresponding `#expect`
+    /// goes RED, since those exact forms appear nowhere else in the pane (`init` uses
+    /// the distinct `_trigger = State(initialValue:)` form).
     @Test
     func panesReseedFromCurrentConfigOnAppear() throws {
         let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
         #expect(general.contains(".onAppear"))
-        #expect(general.contains("trigger = config.trigger"))
-        #expect(general.contains("language = config.language"))
+        let onAppear = try Self.blockBody(after: ".onAppear", in: general)
+        #expect(onAppear.contains("seedHotkeys()"))
+        #expect(onAppear.contains("language = config.language"))
+        let seedHotkeys = try Self.blockBody(after: "func seedHotkeys()", in: general)
+        #expect(seedHotkeys.contains("trigger = config.trigger"))
+        #expect(seedHotkeys.contains("translateTrigger = config.translateTrigger"))
+        #expect(seedHotkeys.contains("translateKeyIsAdditional = config.translateKeyIsAdditional"))
         // Sensitivity: delete the `.onAppear` re-seed assignment
         // `launchAtLogin = actions.launchAtLoginEnabled()` → RED. That exact form
         // appears nowhere else (`init` uses `_launchAtLogin = State(initialValue:)`),
         // so the toggle would otherwise show a stale login-item state on reopen.
-        #expect(general.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
+        #expect(onAppear.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains(".onAppear"))
@@ -68,6 +81,84 @@ struct SettingsSurfaceSourceGuardTests {
         // only reaches 3 once the `.onAppear` re-seed call is also present.
         let reseedCount = vocabulary.components(separatedBy: "records = actions.listVocabulary()").count - 1
         #expect(reseedCount >= 3)
+    }
+
+    /// The two key pickers cannot be pointed at the same key BY CONSTRUCTION: each
+    /// renders the other's key as an unselectable row — disabled, not hidden, so the
+    /// user sees why. The store's fail-closed validation remains the authoritative
+    /// check; this is what keeps the user from ever reaching it.
+    /// Stated sensitivity: drop either `.selectionDisabled(…)` → the collision becomes
+    /// selectable and only the store would refuse it → RED; filter the pool instead
+    /// (hiding the row rather than disabling it) → the pinned modifier is gone → RED.
+    @Test
+    func keyPickersDisableEachOthersSelection() throws {
+        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        #expect(general.contains(".selectionDisabled(option == translateTrigger)"))
+        #expect(general.contains(".selectionDisabled(option == trigger)"))
+    }
+
+    /// The translate row reads `<main key> + [dropdown]` while the key is additional
+    /// and collapses to the bare dropdown when it is not. The prefix is derived from
+    /// the SAME live state the main picker binds (no second copy), and the selected
+    /// translate key appears only inside the dropdown, never duplicated as text.
+    /// Stated sensitivity: hardcode the prefix ("fn +"), drop the
+    /// `translateKeyIsAdditional` condition (the prefix would lie in standalone mode),
+    /// or restate the translate key beside the dropdown → the matching `#expect` reddens.
+    @Test
+    func translateRowPrefixesTheMainKeyOnlyWhileAdditional() throws {
+        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let row = try Self.blockBody(after: #"LabeledContent("Translate key")"#, in: general)
+        #expect(row.contains("if translateKeyIsAdditional {"))
+        #expect(row.contains(#"Text("\(trigger.displayName) +")"#))
+        #expect(!row.contains("translateTrigger.displayName"),
+                "the selected translate key must appear only inside the dropdown, never duplicated as text")
+        #expect(general.contains(#"Toggle("Use as additional key", isOn: $translateKeyIsAdditional)"#))
+    }
+
+    /// The Cleanup pane's translate caption must name the REAL gesture: the key is
+    /// configurable and, standing alone, its hold IS the dictation rather than
+    /// something added to one. So the caption is derived from the persisted keys —
+    /// re-seeded on appear, since the keys are edited in a different pane — and it
+    /// branches on the shared gesture value, never on prose.
+    /// Stated sensitivity: restore the hardcoded "Used when you hold Control while
+    /// dictating." → the negative `#expect` reddens; drop the `.onAppear` re-seed →
+    /// the caption would freeze on the keys the window was first opened with → RED;
+    /// SWAP the two branches' wording (a caption that is exactly inverted, and green
+    /// against a presence-only check) → the pairing `#expect`s redden, because each
+    /// case is pinned TOGETHER WITH the sentence it must produce.
+    @Test
+    func cleanupPaneCaptionNamesTheConfiguredTranslateGesture() throws {
+        let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
+        #expect(!cleanup.contains("hold Control while dictating"),
+                "the caption must not name a key the user may not have bound")
+        #expect(cleanup.contains("hotkeys = config.hotkeyConfiguration"))
+        let caption = try Self.blockBody(after: "var translateCaption", in: cleanup)
+        #expect(caption.contains("hotkeys.translate.displayName"))
+        #expect(caption.contains(#"case .additional: return "Used when you add"#),
+                "an additional key is ADDED to a dictation already under way")
+        #expect(caption.contains(#"case .standalone: return "Used when you dictate with"#),
+                "a standalone key's own hold IS the dictation")
+    }
+
+    /// A refused save must never leave a value on screen that the app did not accept:
+    /// each key control re-reads the persisted config right after applying, so the
+    /// controls always show what the store actually holds (it fails a colliding pair
+    /// closed). This is the pane's only failure surface — errors never open a dialog.
+    /// Stated sensitivity: drop the `seedHotkeys()` call from any of the three
+    /// `onChange` handlers → that handler's `#expect` goes RED, and a refused value
+    /// would linger in the control.
+    @Test
+    func keyControlsSnapBackToWhatTheAppPersisted() throws {
+        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        for anchor in [
+            ".onChange(of: trigger)",
+            ".onChange(of: translateTrigger)",
+            ".onChange(of: translateKeyIsAdditional)",
+        ] {
+            let handler = try Self.blockBody(after: anchor, in: general)
+            #expect(handler.contains("seedHotkeys()"),
+                    "\(anchor) must re-seed from the persisted config after applying")
+        }
     }
 
     /// Removal must be DISCOVERABLE through the native macOS editable-table idiom:
@@ -161,10 +252,10 @@ struct SettingsSurfaceSourceGuardTests {
     func menuBuilderRendersSettingsAndModelItems() throws {
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
         // Four config arguments force a multiline call (strict 160-char lines), so
-        // the call token and the threaded trigger are asserted separately; either
-        // disappearing still reddens this guard.
+        // the call token and the threaded key configuration are asserted separately;
+        // either disappearing still reddens this guard.
         #expect(builder.contains("DictationMenu.items("))
-        #expect(builder.contains("trigger: trigger,"))
+        #expect(builder.contains("hotkeys: hotkeys,"))
         #expect(builder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(builder.contains(#"entry.keyEquivalent = ",""#))
         #expect(builder.contains(#"NSImage(systemSymbolName: "gearshape""#),
@@ -197,6 +288,30 @@ struct SettingsSurfaceSourceGuardTests {
         let modelCaseBody = builder[modelCase.upperBound..<nextCase.lowerBound]
         #expect(modelCaseBody.contains("entry.isEnabled = enabled"),
                 "the model submenu must gray from the item's enabled flag, not a constant")
+    }
+
+    /// The renderer paints the translate hint as its own disabled line, and creates the
+    /// persistent fn-conflict row from the model's shared fn rule — the row must exist
+    /// whenever fn is bound in EITHER role, or the open-time re-sync has nothing to
+    /// reveal for a translate key on fn.
+    /// Stated sensitivity: empty the hint case (`case .translateHint: break` compiles
+    /// and silently drops the row) or render it actionable → RED; narrow the row's
+    /// creation back to `hotkeys.main == .fn` → RED.
+    @Test
+    func menuBuilderRendersTheTranslateHintAndTheFnRowForEitherRole() throws {
+        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        // Asserted before the scoped check below, whose guard-else would otherwise
+        // skip it whenever the hint case is the thing that broke.
+        #expect(builder.contains("if hotkeys.usesFnKey {"),
+                "the persistent fn-conflict row must follow the configuration's own rule, not a main-key-only check")
+        guard let hintCase = builder.range(of: "case .translateHint(let title):"),
+              let nextCase = builder.range(of: "case .", range: hintCase.upperBound..<builder.endIndex)
+        else {
+            Issue.record("translateHint case not found in builder")
+            return
+        }
+        #expect(builder[hintCase.upperBound..<nextCase.lowerBound].contains("menu.addItem(disabled(title))"),
+                "the translate hint must render as a disabled informational line")
     }
 
     /// The cleanup toggle renders as an always-actionable item — the type narrowing to
@@ -320,13 +435,41 @@ struct SettingsSurfaceSourceGuardTests {
 
     /// `makeMenu` must pass the REAL current config to the builder. Without this,
     /// after the builder move nothing pins that the dropdown reflects the user's
-    /// settings. Stated sensitivity: hardcode `trigger: .fn` or `selectedModelId: ""`
-    /// in `makeMenu` → the hint line and model checkmark stop tracking config → RED.
+    /// settings. Scoped to the function body: the delegate also seeds
+    /// `idleStatusTitle` from the config, which would satisfy a file-wide check even
+    /// with a hardcoded builder argument.
+    /// Stated sensitivity: hardcode `hotkeys: HotkeyConfiguration(main: .fn, …)` or
+    /// `selectedModelId: ""` in `makeMenu` → the two hint lines and the model
+    /// checkmark stop tracking config → RED.
     @Test
     func makeMenuFeedsBuilderTheRealConfig() throws {
         let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
-        #expect(delegate.contains("trigger: config.trigger"))
-        #expect(delegate.contains("selectedModelId: config.openRouterModel"))
+        let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
+        #expect(makeMenu.contains("hotkeys: config.hotkeyConfiguration"))
+        #expect(makeMenu.contains("selectedModelId: config.openRouterModel"))
+    }
+
+    /// The brace-balanced block that opens right after `anchor` — a function body or
+    /// a trailing closure. Scoping an assertion to it keeps a token found elsewhere in
+    /// the file from satisfying a check about this one block.
+    private static func blockBody(after anchor: String, in source: String) throws -> String {
+        guard let anchorRange = source.range(of: anchor),
+              let openBrace = source[anchorRange.upperBound...].firstIndex(of: "{")
+        else {
+            throw NSError(domain: "SettingsSurfaceSourceGuard", code: 1)
+        }
+        var depth = 0
+        var index = openBrace
+        while index < source.endIndex {
+            if source[index] == "{" {
+                depth += 1
+            } else if source[index] == "}" {
+                depth -= 1
+                if depth == 0 { return String(source[openBrace...index]) }
+            }
+            index = source.index(after: index)
+        }
+        throw NSError(domain: "SettingsSurfaceSourceGuard", code: 2)
     }
 
     private static func code(_ relativePath: String) throws -> String {

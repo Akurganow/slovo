@@ -9,6 +9,8 @@ struct GeneralSettingsPane: View {
     // `unowned let target: AppDelegate`.
     unowned let actions: any SettingsActions
     @State private var trigger: HotkeyTrigger
+    @State private var translateTrigger: HotkeyTrigger
+    @State private var translateKeyIsAdditional: Bool
     @State private var language: Language
     @ObservedObject private var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel
     @State private var launchAtLogin: Bool
@@ -18,6 +20,8 @@ struct GeneralSettingsPane: View {
         self.actions = actions
         let config = actions.currentConfig()
         _trigger = State(initialValue: config.trigger)
+        _translateTrigger = State(initialValue: config.translateTrigger)
+        _translateKeyIsAdditional = State(initialValue: config.translateKeyIsAdditional)
         _language = State(initialValue: config.language)
         _dictationSoundCuePreferenceModel = ObservedObject(
             wrappedValue: actions.dictationSoundCuePreferenceModel
@@ -47,10 +51,10 @@ struct GeneralSettingsPane: View {
         .frame(width: 420)
         .onAppear {
             // Windows are cached and reopened, not recreated — without this, a
-            // trigger/language change made elsewhere (e.g. the dropdown) would
-            // show stale here until the app relaunches.
+            // key/language change made elsewhere (e.g. the dropdown) would show
+            // stale here until the app relaunches.
+            seedHotkeys()
             let config = actions.currentConfig()
-            trigger = config.trigger
             language = config.language
             // The login item can be toggled off outside the app (System Settings),
             // so re-read the live state rather than trust the cached value.
@@ -64,9 +68,22 @@ struct GeneralSettingsPane: View {
             Picker("Push-to-talk key", selection: $trigger) {
                 ForEach(HotkeyTrigger.allCases, id: \.self) { option in
                     Text(option.displayName).tag(option)
+                        // One key cannot hold both roles: the other role's key stays
+                        // visible but unselectable, so the collision is unreachable
+                        // rather than merely refused when saved.
+                        .selectionDisabled(option == translateTrigger)
                 }
             }
-            .onChange(of: trigger) { _, newValue in actions.setTrigger(newValue) }
+            .onChange(of: trigger) { _, newValue in
+                actions.setTrigger(newValue)
+                seedHotkeys()
+            }
+            translateKeyRow
+            Toggle("Use as additional key", isOn: $translateKeyIsAdditional)
+                .onChange(of: translateKeyIsAdditional) { _, newValue in
+                    actions.setTranslateKeyIsAdditional(newValue)
+                    seedHotkeys()
+                }
             Picker("Recognition language", selection: $language) {
                 Text("Auto").tag(Language.auto)
                 ForEach(RecognitionLanguageCatalog.options) { option in
@@ -82,5 +99,40 @@ struct GeneralSettingsPane: View {
                 set: { actions.setPlaysDictationSoundCues($0) }
             ))
         }
+    }
+
+    /// The translate key beside the hold it joins: while the key is additional the row
+    /// reads `<main key> + [key]`, so the two-key gesture is legible without extra
+    /// copy; standalone drops the prefix and the dropdown stands alone.
+    private var translateKeyRow: some View {
+        LabeledContent("Translate key") {
+            HStack(spacing: 6) {
+                if translateKeyIsAdditional {
+                    Text("\(trigger.displayName) +")
+                }
+                Picker("Translate key", selection: $translateTrigger) {
+                    ForEach(HotkeyTrigger.allCases, id: \.self) { option in
+                        Text(option.displayName).tag(option)
+                            .selectionDisabled(option == trigger)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+        }
+        .onChange(of: translateTrigger) { _, newValue in
+            actions.setTranslateTrigger(newValue)
+            seedHotkeys()
+        }
+    }
+
+    /// Snaps the key controls back to what the app actually persisted. The store fails
+    /// a colliding pair closed, so a refused change must not linger on screen — and
+    /// errors here never open a dialog (Slovo must not steal focus).
+    private func seedHotkeys() {
+        let config = actions.currentConfig()
+        trigger = config.trigger
+        translateTrigger = config.translateTrigger
+        translateKeyIsAdditional = config.translateKeyIsAdditional
     }
 }

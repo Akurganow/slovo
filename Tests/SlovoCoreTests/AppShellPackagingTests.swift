@@ -67,9 +67,9 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
         let menuBuilder = try Self.strippingComments(from: Self.source("Sources/slovo/DictationMenuBuilder.swift"))
         // Multiline call (see SettingsSurfaceSourceGuardTests): call token and the
-        // threaded trigger asserted separately, each independently RED-able.
+        // threaded key configuration asserted separately, each independently RED-able.
         #expect(menuBuilder.contains("DictationMenu.items("))
-        #expect(menuBuilder.contains("trigger: trigger,"))
+        #expect(menuBuilder.contains("hotkeys: hotkeys,"))
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(menuBuilder.contains("#selector(AppDelegate.showVocabularyQuickAdd)"))

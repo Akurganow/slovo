@@ -1,4 +1,5 @@
 import AppKit
+import SlovoCore
 import SwiftUI
 
 /// The About window. A single cached `NSWindowController` is reused across opens so
@@ -10,8 +11,8 @@ import SwiftUI
 final class AboutWindow {
     private var windowController: NSWindowController?
 
-    func show(version: String, build: String, isDevBuild: Bool, triggerName: String) {
-        let view = AboutView(version: version, build: build, isDevBuild: isDevBuild, triggerName: triggerName)
+    func show(version: String, build: String, isDevBuild: Bool, hotkeys: HotkeyConfiguration) {
+        let view = AboutView(version: version, build: build, isDevBuild: isDevBuild, hotkeys: hotkeys)
         if let windowController {
             windowController.window?.contentViewController = NSHostingController(rootView: view)
         } else {
