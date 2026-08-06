@@ -86,10 +86,10 @@ OpenRouter key stored, which is the same effective off mode — the cleanup path
 is never taken: the whole dictation stays on-device with zero network requests
 and the raw final transcript is pasted once at key-up.
 
-A dictation held with Control is translated in the same request, so translation
-adds no new category of data leaving the Mac: it carries the same transcript
-text already sent for cleanup, plus the name of the target language. Raw audio
-still never leaves.
+A dictation set to translate by the translate key is translated in the same
+request, so translation adds no new category of data leaving the Mac: it carries
+the same transcript text already sent for cleanup, plus the name of the target
+language. Raw audio still never leaves.
 
 If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
 unusable response, Slovo falls back to the direct, untranslated transcript and

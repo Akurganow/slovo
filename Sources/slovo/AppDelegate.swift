@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func makeMenu() -> NSMenu {
         let config = ConfigStore.load(from: defaults)
         let built = DictationMenuBuilder(target: self).make(
-            trigger: config.trigger,
+            hotkeys: config.hotkeyConfiguration,
             cleanup: DictationMenuCleanupConfiguration(
                 selectedModelId: config.openRouterModel,
                 translationLanguage: config.translationTargetLanguage.rawValue,

@@ -4,7 +4,7 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// The typed push-to-talk trigger's persistence contract: the seven curated wire
+// The typed push-to-talk trigger's persistence contract: the eight curated wire
 // values round-trip, retired and unknown values both reject the whole config
 // (fail closed, no migration machinery), an absent field stays backward
 // compatible (fn), and the display names match the curated set. Split from
@@ -25,21 +25,29 @@ struct ConfigStoreTriggerTests {
             ("right-option", .rightOption),
             ("left-shift", .leftShift),
             ("right-shift", .rightShift),
+            ("control", .control),
         ]
         for testCase in cases {
+            // Control is also the DEFAULT translate key, so a Control main key needs
+            // an explicit non-colliding translate key — otherwise the mutual-exclusion
+            // guard fails the whole config closed and this row would prove nothing.
+            let translateTrigger = testCase.expected == .control ? "left-shift" : nil
             let defaults = FakeUserDefaults(dataByKey: [
-                ConfigStore.defaultKey: try ConfigFixtures.configData(trigger: testCase.raw),
+                ConfigStore.defaultKey: try ConfigFixtures.configData(
+                    trigger: testCase.raw, translateTrigger: translateTrigger
+                ),
             ])
             #expect(ConfigStore.load(from: defaults).trigger == testCase.expected,
                     "wire value \(testCase.raw) must load as \(testCase.expected)")
         }
     }
 
-    /// A RETIRED trigger value ("right-control" — the Control trigger is removed:
-    /// Control is translate-only, and most Mac laptops have no right Control) and
-    /// an unknown one ("capslock") ride the SAME fail-closed path: the whole
-    /// config resets to defaults (trigger fn) — deliberately including non-default
-    /// siblings, the owner-accepted full-reset semantics (no per-field salvage).
+    /// A RETIRED trigger value ("right-control" — per-side Control is not offered,
+    /// since most Mac laptops have no right Control key; the curated "control"
+    /// entry matches either side) and an unknown one ("capslock") ride the SAME
+    /// fail-closed path: the whole config resets to defaults (trigger fn) —
+    /// deliberately including non-default siblings, the owner-accepted full-reset
+    /// semantics (no per-field salvage).
     /// Stated sensitivity: keep "right-control" decodable, or add salvage that
     /// preserves the sibling → the loaded config differs from `.defaults` → RED.
     /// The "capslock" row guards the pre-existing unknown-value path throughout.
@@ -76,6 +84,7 @@ struct ConfigStoreTriggerTests {
     }
 
     /// Display names match the curated set exactly (menu hint + Settings picker).
+    /// Control carries no side word, because it names both Control keys at once.
     @Test
     func triggerDisplayNamesMatchTheCuratedSet() {
         #expect(HotkeyTrigger.fn.displayName == "fn")
@@ -85,5 +94,6 @@ struct ConfigStoreTriggerTests {
         #expect(HotkeyTrigger.rightOption.displayName == "Right ⌥")
         #expect(HotkeyTrigger.leftShift.displayName == "Left ⇧")
         #expect(HotkeyTrigger.rightShift.displayName == "Right ⇧")
+        #expect(HotkeyTrigger.control.displayName == "⌃")
     }
 }

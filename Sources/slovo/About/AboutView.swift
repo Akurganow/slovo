@@ -12,9 +12,9 @@ struct AboutView: View {
     let version: String
     let build: String
     let isDevBuild: Bool
-    /// The push-to-talk key's display name (e.g. `fn`, `Right ⌘`), shown as a keycap
-    /// in the first guide row so the guide matches the user's actual binding.
-    let triggerName: String
+    /// The configured keys, shown as inline keycaps so the guide states the gesture
+    /// the user actually has rather than the defaults.
+    let hotkeys: HotkeyConfiguration
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -75,7 +75,7 @@ struct AboutView: View {
         ) {
             HStack(spacing: 4) {
                 Text("Hold")
-                Keycap(label: triggerName)
+                Keycap(label: hotkeys.main.displayName)
                 Text("to dictate")
             }
         }
@@ -93,15 +93,26 @@ struct AboutView: View {
     }
 
     private var translateRow: some View {
-        GuideRow(
+        let gesture = translateGestureCopy
+        return GuideRow(
             systemImage: "globe",
-            description: "Hold Control too; your words arrive in the target language picked in the menu. Translation needs cleanup on."
+            description: gesture.lead
+                + "; your words arrive in the target language picked in the menu. Translation needs cleanup on."
         ) {
             HStack(spacing: 4) {
-                Text("Add")
-                Keycap(label: "⌃")
+                Text(gesture.verb)
+                Keycap(label: hotkeys.translate.displayName)
                 Text("to translate")
             }
+        }
+    }
+
+    /// The row's gesture-dependent words, decided in ONE place: the keycap verb and
+    /// the sentence it opens must always describe the same gesture.
+    private var translateGestureCopy: (verb: String, lead: String) {
+        switch hotkeys.translateGesture {
+        case .additional: return ("Add", "Hold it together with your dictation key")
+        case .standalone: return ("Hold", "Hold it on its own")
         }
     }
 

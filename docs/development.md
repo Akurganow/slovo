@@ -145,7 +145,7 @@ tap, verify on a real keyboard:
 - **Each side of ⌘, ⌥, ⇧ (six choices):** select one in Settings → General, then
   hold that exact key alone to dictate; the modifier still works normally
   system-wide (it is not suppressed), and the SAME modifier on the other side must
-  NOT dictate. Control is not offered — it is the translate add-on below.
+  NOT dictate. ⌃ is offered too, as a single entry standing for both Control keys.
 - **Cross-side release:** with (say) Right ⌥ selected, hold Right ⌥ and speak,
   press and hold Left ⌥ mid-hold, then release Right ⌥ — the session must END on that
   release even though Left ⌥ still holds the ⌥ bit (the recording glyph leaves
@@ -158,11 +158,24 @@ tap, verify on a real keyboard:
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
 - **Live change:** switch the key in Settings → General while idle — the new key works
   on the next dictation with no "Preparing Speech Model" pulse.
-- **Translate latch:** hold the push-to-talk key and press or hold Control at any
-  point before releasing — the dictation is translated into the configured target
-  (menu bar / Settings → Cleanup), and the menu-bar recording glyph switches live
-  to Pokoji `Ⱂ` while Control is latched; a hold without Control is not translated
-  and keeps the plain recording glyph.
+- **Translate key, additional (the default):** hold the push-to-talk key and press
+  the translate key (⌃ by default) at any point before releasing — the dictation is
+  translated into the configured target (menu bar / Settings → Cleanup), and the
+  menu-bar recording glyph switches to Pokoji `Ⱂ` live, at that moment; a hold
+  without it is not translated and keeps the plain recording glyph.
+- **Additional key already down:** with ⌃ (or fn) as the translate key, hold it
+  BEFORE the push-to-talk key and dictate — it counts, and `Ⱂ` shows from the
+  start. With a sided ⌘/⌥/⇧ as the translate key the same sequence does NOT
+  translate: only its press during the hold is visible to Slovo, which is what the
+  README and AGENTS.md say.
+- **Translate key, standalone:** turn "Use as additional key" off in Settings →
+  General, then hold the translate key alone — it dictates and always translates,
+  showing `Ⱂ` from key-down, while the push-to-talk key still dictates plainly.
+- **Two keys, one pool:** in Settings → General the key selected in one picker
+  reads greyed and unselectable in the other, so the two can never collide; the
+  translate row shows `<push-to-talk key> +` before its dropdown only while the
+  key is additional. The menu-bar dropdown's second header line tracks both
+  settings ("Add ⌃ to translate" / "Hold ⌃ to translate").
 
 ## Manual About-window check (UI-only)
 

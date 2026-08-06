@@ -205,14 +205,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "the sequencer sink must handle a .cancel edge by cancelling the in-flight dictation")
     }
 
-    /// The tap must be built with the configured trigger, not a hard-coded fn.
-    /// Killing mutation: construct `CGEventTapHotkeyMonitor(trigger: .fn)` (ignore
-    /// config) → RED.
+    /// The tap must be built with the persisted key configuration — BOTH roles, the
+    /// push-to-talk key and the translate key — not a hard-coded or hand-built value.
+    /// Killing mutation: construct the monitor from a literal configuration (e.g.
+    /// `HotkeyConfiguration(main: .fn, translate: .control, translateIsAdditional:
+    /// true)`) or from anything but `config.hotkeyConfiguration` → RED.
     @Test
     func monitorIsBuiltWithConfiguredTrigger() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger: config.trigger)"),
-                "the monitor must be constructed with the persisted trigger")
+        #expect(composition.contains("CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration)"),
+                "the monitor must be constructed with the persisted key configuration")
     }
 
     /// The tap must observe keyDown so a combo can interrupt a passthrough-modifier
@@ -223,6 +225,21 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
         #expect(monitor.contains("CGEventType.keyDown.rawValue"),
                 "the event mask must include keyDown so the interrupt is observable")
+    }
+
+    /// The stop the tap synthesizes after a tap death must carry the mode the
+    /// decision core reports for the dead hold — a standalone translate dictation, or
+    /// one the additional key latched, must not be downgraded to plain on the way
+    /// out. The tap is hardware-only, so this wire is guarded at the source.
+    /// Killing mutation: restore the hardcoded `onTrigger?(.up(.plain))` in the
+    /// resync arm → RED.
+    @Test
+    func synthesizedStopCarriesTheDeadHoldsMode() throws {
+        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        #expect(monitor.contains("onTrigger?(.up(synthesizedStop))"),
+                "the resync arm must emit the mode the decision core reported")
+        #expect(!monitor.contains(".up(.plain)"),
+                "the synthesized stop must never be hardcoded to plain")
     }
 
     /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
@@ -245,20 +262,60 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
     }
 
-    /// A key change applies live via reconfigure, NOT a pipeline rebuild — no ASR
-    /// re-warm, no loading pulse (the applyCleanupModel principle). Killing
-    /// mutation: route applyTrigger through retrySetup/startPipeline (a rebuild) →
-    /// RED.
+    /// All THREE key settings — push-to-talk key, translate key, and the
+    /// additional-key switch — apply live through ONE funnel: persist, hand the tap
+    /// the SAVED configuration, refresh the menu. Never a pipeline rebuild (no ASR
+    /// re-warm, no loading pulse — the applyCleanupModel principle), and never a
+    /// hand-built configuration, which would drop a role the user just saved.
+    /// Killing mutations: give any setter its own persist/reconfigure pair instead of
+    /// the funnel (the exactly-one-site counts catch it); route the funnel through
+    /// retrySetup/startPipeline (a rebuild); or reconfigure from anything but
+    /// `config.hotkeyConfiguration` → RED.
     @Test
-    func applyTriggerReconfiguresInPlaceWithoutRebuild() throws {
+    func everyKeySettingAppliesInPlaceWithoutRebuild() throws {
         let hotkeyMenu = try Self.code("Sources/slovo/AppDelegate+HotkeyMenu.swift")
-        let applyTrigger = try Self.functionBody(named: "applyTrigger", in: hotkeyMenu)
-        #expect(applyTrigger.contains("hotkeyMonitor.reconfigure(trigger:"),
-                "applyTrigger must reconfigure the live tap in place")
-        #expect(!applyTrigger.contains("startPipeline"),
-                "applyTrigger must not rebuild the pipeline")
-        #expect(!applyTrigger.contains("retrySetup"),
-                "applyTrigger must not rebuild the pipeline via retrySetup")
+        let funnel = try Self.functionBody(named: "applyHotkeyChange", in: hotkeyMenu)
+        #expect(funnel.contains("hotkeyMonitor.reconfigure(configuration: config.hotkeyConfiguration)"),
+                "the funnel must reconfigure the live tap in place from the persisted configuration")
+        #expect(funnel.contains("installStatusMenu()"),
+                "the funnel must refresh the menu so both header hints track the new keys")
+        for setter in ["applyTrigger", "applyTranslateTrigger", "applyTranslateKeyIsAdditional"] {
+            let body = try Self.functionBody(named: setter, in: hotkeyMenu)
+            #expect(body.contains("applyHotkeyChange"),
+                    "\(setter) must apply through the one funnel, not its own path")
+        }
+        #expect(hotkeyMenu.components(separatedBy: "hotkeyMonitor.reconfigure(").count - 1 == 1,
+                "the persist→reconfigure→menu triple must exist exactly once")
+        #expect(hotkeyMenu.components(separatedBy: "ConfigStore.save(").count - 1 == 1,
+                "the persist step must exist exactly once")
+        #expect(!hotkeyMenu.contains("startPipeline"),
+                "a key change must not rebuild the pipeline")
+        #expect(!hotkeyMenu.contains("retrySetup"),
+                "a key change must not rebuild the pipeline via retrySetup")
+    }
+
+    /// The Settings seam's three key setters must reach the funnel, not persist on
+    /// their own — a setter that saved the blob itself would leave the live tap on the
+    /// old keys until relaunch.
+    /// Killing mutations: reimplement any of the three in the Settings extension with
+    /// its own `ConfigStore.save` → the no-save assertion reddens; do it through that
+    /// file's own `persist(_:)` wrapper — a double write the raw-call ban alone lets
+    /// through — → the no-wrapper assertion reddens.
+    @Test
+    func settingsKeySettersRouteIntoTheApplyFunnel() throws {
+        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        for (setter, apply) in [
+            ("setTrigger", "applyTrigger("),
+            ("setTranslateTrigger", "applyTranslateTrigger("),
+            ("setTranslateKeyIsAdditional", "applyTranslateKeyIsAdditional("),
+        ] {
+            let body = try Self.functionBody(named: setter, in: settings)
+            #expect(body.contains(apply), "\(setter) must delegate to the key apply path")
+            #expect(!body.contains("ConfigStore.save("),
+                    "\(setter) must not persist on its own — the tap would keep the old keys")
+            #expect(!body.contains("persist("),
+                    "\(setter) must not persist through the file's wrapper either — same double write, one indirection away")
+        }
     }
 
     /// The fn-conflict notice must be recomputed on every menu OPEN, not only at

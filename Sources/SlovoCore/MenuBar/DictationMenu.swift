@@ -10,6 +10,10 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// A disabled informational line warning that macOS also claims the fn key, so
     /// the user can see why an fn hold misbehaves; the argument is the remedy text.
     case fnConflictNotice(String)
+    /// The disabled second idle line, naming what the translate key does. It is its
+    /// own case rather than more text on `status`: that row is retitled at runtime
+    /// ("Recording"), which would wipe a shared line.
+    case translateHint(String)
     case separator
     /// The Cleanup Model submenu; `selectedModelId` is the currently selected model
     /// id so the builder can check the right catalog row. `enabled` is false whenever
@@ -78,15 +82,17 @@ public enum DictationMenu {
     /// holding Settings, then About, then Quit — each group fenced by a separator.
     /// The status line is seeded with `idleStatusLine(trigger:)`.
     public static func items(
-        trigger: HotkeyTrigger,
+        hotkeys: HotkeyConfiguration,
         cleanup: DictationMenuCleanupConfiguration,
         mutesSystemAudioWhileDictating: Bool,
         playsDictationSoundCues: Bool,
         isFnKeySystemAssigned: Bool
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
-            .status(idleStatusLine(trigger: trigger)),
-        ] + fnConflictNotice(trigger: trigger, isFnKeySystemAssigned: isFnKeySystemAssigned)
+            .status(idleStatusLine(trigger: hotkeys.main)),
+        ] + fnConflictNotice(hotkeys: hotkeys, isFnKeySystemAssigned: isFnKeySystemAssigned) + [
+            .translateHint(translateHintLine(hotkeys: hotkeys)),
+        ]
         let rest: [DictationMenuItem] = [
             .separator,
         ] + cleanupBlock(
@@ -114,6 +120,18 @@ public enum DictationMenu {
         "Hold \(trigger.displayName) to talk"
     }
 
+    /// The second idle line: what the translate key does. An additional key joins a
+    /// main-key hold, so it reads "Add"; a standalone key opens its own dictation, so
+    /// it reads "Hold" like the main key's line. Either way the line names only the
+    /// translate key — the main key already has a line of its own.
+    private static func translateHintLine(hotkeys: HotkeyConfiguration) -> String {
+        let key = hotkeys.translate.displayName
+        switch hotkeys.translateGesture {
+        case .additional: return "Add \(key) to translate"
+        case .standalone: return "Hold \(key) to translate"
+        }
+    }
+
     /// Names the collision and the one setting that resolves it, so the user can act
     /// without hunting through System Settings. Public because the renderer builds
     /// the notice row up front and re-shows it as the system setting changes, so it
@@ -121,13 +139,16 @@ public enum DictationMenu {
     public static let fnConflictRemedy =
         "fn also triggers a macOS action — set “Press 🌐 key to” to “Do Nothing” in System Settings ▸ Keyboard"
 
-    /// The header's conflict warning, present only when the fn trigger meets a macOS
-    /// assignment of the same key — the case where a hold fires the system action
-    /// instead of dictating. Any other trigger is unaffected by that assignment, so
-    /// the notice stays absent and the menu never warns about a conflict that the
-    /// user does not have.
-    private static func fnConflictNotice(trigger: HotkeyTrigger, isFnKeySystemAssigned: Bool) -> [DictationMenuItem] {
-        guard trigger == .fn, isFnKeySystemAssigned else { return [] }
+    /// The header's conflict warning, present only when an fn hold — in either role —
+    /// meets a macOS assignment of the same key, the case where the hold fires the
+    /// system action instead of dictating. With fn bound to neither key that
+    /// assignment is harmless, so the menu never warns about a conflict the user does
+    /// not have.
+    private static func fnConflictNotice(
+        hotkeys: HotkeyConfiguration,
+        isFnKeySystemAssigned: Bool
+    ) -> [DictationMenuItem] {
+        guard hotkeys.usesFnKey, isFnKeySystemAssigned else { return [] }
         return [.fnConflictNotice(fnConflictRemedy)]
     }
 

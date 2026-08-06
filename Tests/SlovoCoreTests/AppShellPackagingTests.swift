@@ -56,7 +56,7 @@ struct AppShellPackagingTests {
         #expect(composition.contains("warmUp()"),
                 "startup composition must preload the resident ASR engine via warmUp()")
         #expect(composition.contains("statusReporter: statusReporter"))
-        #expect(composition.contains("CGEventTapHotkeyMonitor(trigger:"))
+        #expect(composition.contains("CGEventTapHotkeyMonitor(configuration:"))
         let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
         #expect(Self.containsStatement(#"startPipeline\(\)"#, in: launchBody),
                 "launch must invoke the production composition starter, not merely define it elsewhere")
@@ -67,9 +67,9 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
         let menuBuilder = try Self.strippingComments(from: Self.source("Sources/slovo/DictationMenuBuilder.swift"))
         // Multiline call (see SettingsSurfaceSourceGuardTests): call token and the
-        // threaded trigger asserted separately, each independently RED-able.
+        // threaded key configuration asserted separately, each independently RED-able.
         #expect(menuBuilder.contains("DictationMenu.items("))
-        #expect(menuBuilder.contains("trigger: trigger,"))
+        #expect(menuBuilder.contains("hotkeys: hotkeys,"))
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("#selector(AppDelegate.showSettingsWindow)"))
         #expect(menuBuilder.contains("#selector(AppDelegate.showVocabularyQuickAdd)"))

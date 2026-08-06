@@ -16,7 +16,7 @@ struct DictationMenuBuilder {
     }
 
     func make(
-        trigger: HotkeyTrigger,
+        hotkeys: HotkeyConfiguration,
         cleanup: DictationMenuCleanupConfiguration,
         mutesSystemAudioWhileDictating: Bool,
         playsDictationSoundCues: Bool,
@@ -29,16 +29,16 @@ struct DictationMenuBuilder {
         // The status dropdown is its own menu delegate: the hybrid update row needs
         // the willHighlight swap and the menuWillOpen re-sync.
         menu.delegate = target
-        // Each build owns its rows: drop the previous menu's notice so a trigger
-        // change away from fn cannot leave the open-time re-sync holding a row that
-        // is no longer in any menu.
+        // Each build owns its rows: drop the previous menu's notice so a key change
+        // away from fn cannot leave the open-time re-sync holding a row that is no
+        // longer in any menu.
         target.fnConflictMenuItem = nil
         var statusItem = NSMenuItem()
         // The config arguments no longer fit the strict 160-char line, so the call
         // is multiline per multiline_arguments_brackets; the source guards assert the
-        // call token and the threaded trigger separately.
+        // call token and the threaded configuration separately.
         for item in DictationMenu.items(
-            trigger: trigger,
+            hotkeys: hotkeys,
             cleanup: cleanup,
             mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
             playsDictationSoundCues: playsDictationSoundCues,
@@ -46,10 +46,15 @@ struct DictationMenuBuilder {
         ) {
             switch item {
             case .status(let title):
+                // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
+                // line, then the two persistent rows claiming their slot while hidden
+                // — the notice directly under the line whose key it warns about — and
+                // the translate hint last, from its own arm. Accepted cost: a visible
+                // update row sits between the two key hints.
                 let entry = disabled(title)
                 statusItem = entry
                 menu.addItem(entry)
-                if trigger == .fn {
+                if hotkeys.usesFnKey {
                     menu.addItem(makeFnConflictItem())
                 }
                 menu.addItem(makeUpdateItem())
@@ -58,6 +63,8 @@ struct DictationMenuBuilder {
                 // re-syncs it from the live system setting.
                 target.fnConflictMenuItem?.title = text
                 target.fnConflictMenuItem?.isHidden = false
+            case .translateHint(let title):
+                menu.addItem(disabled(title))
             case .separator:
                 menu.addItem(.separator())
             case .cleanupModel(let modelId, let enabled):
@@ -129,8 +136,8 @@ struct DictationMenuBuilder {
         return item
     }
 
-    /// The one persistent fn-conflict row, created only for the fn trigger — no other
-    /// trigger can collide with the system's fn assignment. Informational only: it
+    /// The one persistent fn-conflict row, created only when fn is bound in some role
+    /// — no other key can collide with the system's fn assignment. Informational only: it
     /// reads as a grey line in the dropdown, never an alert, because Slovo must not
     /// steal focus. Starts hidden and carries its text from the outset, so the
     /// open-time re-sync can reveal it on a build where the conflict did not yet exist.

@@ -49,10 +49,10 @@ public enum MenuBarGlyph {
         }
     }
 
-    /// Derives the recording-glyph mode from the latched dictation mode and whether
-    /// cleanup is effectively on. Raw wins whenever cleanup is off — even under a
-    /// Control latch — because a translate hold cannot run without cleanup; with
-    /// cleanup on, a translate latch shows translate and a plain hold shows clean.
+    /// Derives the recording-glyph mode from the dictation's mode and whether cleanup
+    /// is effectively on. Raw wins whenever cleanup is off — however the hold came to
+    /// translate — because a translate hold cannot run without cleanup; with cleanup
+    /// on, a translate hold shows translate and a plain one shows clean.
     public static func recordingGlyphMode(mode: DictationMode, isCleanupOn: Bool) -> RecordingGlyphMode {
         guard isCleanupOn else { return .raw }
         switch mode {

@@ -49,6 +49,11 @@ public enum ConfigStore {
         // a stored number decodes as before.
         let keepWarmSeconds: Int?
         let trigger: String?
+        // An absent wire field means Control, additional — the hardcoded translate
+        // hold every install had before the key became configurable (backward
+        // compatible, no migration).
+        let translateTrigger: String?
+        let translateKeyIsAdditional: Bool
         let mode: String?
         let asr: StoredAsr
         let cleanup: StoredCleanup
@@ -70,6 +75,8 @@ public enum ConfigStore {
             case language
             case keepWarmSeconds
             case trigger
+            case translateTrigger
+            case translateKeyIsAdditional
             case mode
             case asr
             case cleanup
@@ -84,6 +91,10 @@ public enum ConfigStore {
             language = try container.decode(Language.self, forKey: .language)
             keepWarmSeconds = try container.decodeIfPresent(Int.self, forKey: .keepWarmSeconds)
             trigger = try container.decodeIfPresent(String.self, forKey: .trigger)
+            translateTrigger = try container.decodeIfPresent(String.self, forKey: .translateTrigger)
+            translateKeyIsAdditional = try container.decodeIfPresent(
+                Bool.self, forKey: .translateKeyIsAdditional
+            ) ?? true
             mode = try container.decodeIfPresent(String.self, forKey: .mode)
             asr = try container.decode(StoredAsr.self, forKey: .asr)
             cleanup = try container.decode(StoredCleanup.self, forKey: .cleanup)
@@ -104,6 +115,9 @@ public enum ConfigStore {
             try container.encode(language, forKey: .language)
             try container.encodeIfPresent(keepWarmSeconds, forKey: .keepWarmSeconds)
             try container.encodeIfPresent(trigger, forKey: .trigger)
+            try container.encodeIfPresent(translateTrigger, forKey: .translateTrigger)
+            // Explicit on the wire (like `mutesSystemAudioWhileDictating`), never omitted.
+            try container.encode(translateKeyIsAdditional, forKey: .translateKeyIsAdditional)
             try container.encodeIfPresent(mode, forKey: .mode)
             try container.encode(asr, forKey: .asr)
             try container.encode(cleanup, forKey: .cleanup)
@@ -128,6 +142,16 @@ public enum ConfigStore {
                 decodedTrigger = parsed
             } else {
                 decodedTrigger = .fn
+            }
+
+            // Same fail-closed rule for the translate key; absent → Control, the key
+            // that translated before the setting existed.
+            let decodedTranslateTrigger: HotkeyTrigger
+            if let translateTrigger {
+                guard let parsed = HotkeyTrigger(rawValue: translateTrigger) else { return nil }
+                decodedTranslateTrigger = parsed
+            } else {
+                decodedTranslateTrigger = .control
             }
 
             let hasForbiddenProvider = cleanup.provider != nil && cleanup.provider != "openrouter"
@@ -168,6 +192,8 @@ public enum ConfigStore {
                 language: language,
                 keepWarmSeconds: migratedKeepWarmSeconds,
                 trigger: decodedTrigger,
+                translateTrigger: decodedTranslateTrigger,
+                translateKeyIsAdditional: translateKeyIsAdditional,
                 asrBackend: asr.backend,
                 asrModel: asr.model,
                 openRouterModel: openRouterModel,
@@ -185,6 +211,8 @@ public enum ConfigStore {
             language = config.language
             keepWarmSeconds = config.keepWarmSeconds
             trigger = config.trigger.rawValue
+            translateTrigger = config.translateTrigger.rawValue
+            translateKeyIsAdditional = config.translateKeyIsAdditional
             mode = Config.defaultMode
             mutesSystemAudioWhileDictating = config.mutesSystemAudioWhileDictating
             playsDictationSoundCues = config.playsDictationSoundCues
@@ -327,6 +355,16 @@ public enum ConfigStore {
         // A nil keep-warm is the valid resident default; a present value must be a
         // sane window.
         if let keepWarmSeconds = config.keepWarmSeconds, !(0...3_600).contains(keepWarmSeconds) {
+            return nil
+        }
+        // The AUTHORITATIVE mutual-exclusion check on the two hotkeys: one key cannot
+        // hold both roles. The Settings pickers also make a colliding pair
+        // unselectable, but that only keeps the user away from this rule — every
+        // stored pair is decided here. Guarding the whole Config (not the wire
+        // strings) covers load — where a colliding blob fails closed to defaults —
+        // and save, so a pair that would wipe the stored config at next launch is
+        // never written.
+        guard config.trigger != config.translateTrigger else {
             return nil
         }
         guard config.asrBackend == .whisperKit,

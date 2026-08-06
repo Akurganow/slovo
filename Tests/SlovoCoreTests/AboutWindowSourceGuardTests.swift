@@ -53,7 +53,7 @@ struct AboutWindowSourceGuardTests {
     /// window would open behind other apps); drop the `if aboutWindow == nil` guard or
     /// the `aboutWindow = AboutWindow()` cache assignment → RED (a repeat click would
     /// stack a new window); drop either bundle-version read, the `SlovoDevBuild`
-    /// read, or the config trigger read → RED (a hard-coded or missing value would
+    /// read, or any configured-key read → RED (a hard-coded or missing value would
     /// no longer track reality).
     @Test
     func aboutPresenterActivatesCachesAndReadsLiveValues() throws {
@@ -61,8 +61,7 @@ struct AboutWindowSourceGuardTests {
         #expect(presenter.contains("NSApp.activate(ignoringOtherApps: true)"))
         #expect(presenter.contains("if aboutWindow == nil"))
         #expect(presenter.contains("aboutWindow = AboutWindow()"))
-        #expect(presenter.contains("ConfigStore.load(from: defaults).trigger"))
-        #expect(presenter.contains(".displayName"))
+        #expect(presenter.contains("hotkeys: ConfigStore.load(from: defaults).hotkeyConfiguration"))
         #expect(presenter.contains("\"CFBundleShortVersionString\""))
         #expect(presenter.contains("\"CFBundleVersion\""))
         #expect(presenter.contains("\"SlovoDevBuild\""))
@@ -83,17 +82,21 @@ struct AboutWindowSourceGuardTests {
     }
 
     /// The view renders the Glagolitic Slovo glyph "Ⱄ" (U+2C14) as its brand mark, the
-    /// composed version line, and the trigger key as an inline keycap.
+    /// composed version line, and BOTH configured keys as inline keycaps — the guide
+    /// states the gesture the user actually has, so neither keycap may be a literal.
     /// Stated sensitivity: change the brand glyph away from "Ⱄ" → RED (the literal is
     /// gone; a comment mention alone cannot satisfy it, as the scan strips comments);
-    /// stop composing the version line via `AboutInfo.versionLine(` or drop the
-    /// `Keycap(label: triggerName)` → the matching `#expect` goes RED.
+    /// stop composing the version line via `AboutInfo.versionLine(`, drop either
+    /// `Keycap(label:)` binding, or hardcode the translate keycap back to "⌃" → the
+    /// matching `#expect` goes RED.
     @Test
-    func aboutViewRendersBrandGlyphVersionAndTriggerKeycap() throws {
+    func aboutViewRendersBrandGlyphVersionAndKeyKeycaps() throws {
         let view = try Self.strippedCode("Sources/slovo/About/AboutView.swift")
         #expect(view.contains("\u{2C14}"))
         #expect(view.contains("AboutInfo.versionLine("))
-        #expect(view.contains("Keycap(label: triggerName)"))
+        #expect(view.contains("Keycap(label: hotkeys.main.displayName)"))
+        #expect(view.contains("Keycap(label: hotkeys.translate.displayName)"))
+        #expect(!view.contains("Keycap(label: \"\u{2303}\")"))
     }
 
     /// The About window offers an Acknowledgements affordance that opens the bundled

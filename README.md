@@ -23,7 +23,8 @@ tuned.
 ## Features
 
 - Push-to-talk dictation from a configurable key — the `fn` / Globe key by
-  default, or a right-hand modifier (⌘, ⌥, ⌃, ⇧), chosen in Settings.
+  default, or one side of ⌘, ⌥, ⇧ — or ⌃, where either Control key counts —
+  chosen in Settings.
 - Local speech capture and on-device transcription through WhisperKit
   (Whisper large-v3 turbo; part of the Argmax OSS SDK, formerly the
   standalone WhisperKit package), including several languages mixed within a
@@ -35,9 +36,13 @@ tuned.
   mode: zero network requests, and the raw final transcript lands in the
   focused field once at key-up, near-instantly. Translation is unavailable
   while cleanup is off.
-- Optional per-dictation translation: hold Control together with the
-  push-to-talk key to translate that dictation into a target language as part
-  of the same cleanup step; a plain hold is unchanged.
+- Optional per-dictation translation from a **Translate key** of its own — ⌃ by
+  default, drawn from the same pool as the push-to-talk key and never the same
+  key. It is an *additional* key by default: hold it together with the
+  push-to-talk key and that dictation is translated into your target language as
+  part of the same cleanup step. Turn **Use as additional key** off and it
+  becomes a second push-to-talk key that always translates. Either way a plain
+  hold is unchanged.
 - Optional muting of system audio while dictating — a menu-bar **Mute Audio
   While Dictating** switch (on by default) silences playback while speech is
   delivered to recognition and restores it afterward.
@@ -68,7 +73,7 @@ tuned.
   `Ⱍ` clean, `Ⰳ` raw, `Ⱂ` translate — plus a monochrome app icon that follows
   the system theme.
 - A native **Settings** window (General, Cleanup, Vocabulary) for the
-  push-to-talk key, recognition language, sound cues, launch at login,
+  push-to-talk key, the translate key, recognition language, sound cues, launch at login,
   automatic updates, cleanup model and style, translation target language, API
   key, and vocabulary.
 - A menu-bar **About Slovo** window with a built-in quick guide (dictate,
@@ -129,14 +134,24 @@ after that, transcription runs fully on-device.
    menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off by
    choice is not a failure — raw mode inserts silently, with no error glyph.
 
-To translate a dictation, hold Control at any moment while the push-to-talk key
-is down: that dictation is cleaned and translated into your target language in
-the same single step, then inserted. A plain hold (no Control) is unchanged.
-While a translate hold is active, the menu-bar recording glyph is the Glagolitic
-letter Pokoji `Ⱂ` instead of the clean-mode recording glyph `Ⱍ`, switching the
-moment Control latches so the mode is visible at a glance. Translation requires
-cleanup: while **Clean Up Dictation** is off, Control has no effect and the
-recording glyph stays the raw-mode `Ⰳ`.
+To translate a dictation, use the **Translate key** — ⌃ out of the box, and
+any other key from the same pool in **Settings → General**. By default it is
+an additional key: press it at any moment while the push-to-talk key is down,
+and that dictation is cleaned and translated into your target language in the
+same single step, then inserted. Slovo sees ⌃ and `fn` in every keystroke, so
+they count even if you were already holding one; a sided ⌘, ⌥ or ⇧ is noticed
+only when that key itself moves, so it has to go down during the hold. A plain
+hold (translate key untouched) is unchanged. Turn **Use as additional key**
+off and the translate key stands alone: hold it by itself to dictate, and that
+dictation is always translated, while the push-to-talk key keeps working as
+plain dictation.
+While a dictation is set to translate, the menu-bar recording glyph is the
+Glagolitic letter Pokoji `Ⱂ` instead of the clean-mode recording glyph `Ⱍ` —
+it switches the moment an additional translate key joins the hold, and shows
+from the start of a standalone translate hold, so the mode is visible at a
+glance. Translation requires cleanup: while **Clean Up Dictation** is off, the
+translate key adds no translation and the recording glyph stays the raw-mode
+`Ⰳ`.
 Choose the target — the Recognition Language list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation

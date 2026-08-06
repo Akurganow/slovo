@@ -18,10 +18,16 @@ struct DictationMenuTests {
         model: String = "m",
         translate: String = "en",
         trigger: HotkeyTrigger = .fn,
+        translateTrigger: HotkeyTrigger = .control,
+        translateIsAdditional: Bool = true,
         fnAssigned: Bool = false
     ) -> [DictationMenuItem] {
         DictationMenu.items(
-            trigger: trigger,
+            hotkeys: HotkeyConfiguration(
+                main: trigger,
+                translate: translateTrigger,
+                translateIsAdditional: translateIsAdditional
+            ),
             cleanup: DictationMenuCleanupConfiguration(
                 selectedModelId: model,
                 translationLanguage: translate,
@@ -60,6 +66,7 @@ struct DictationMenuTests {
     func onStateAppearsInSpecOrder() {
         #expect(items(availability: .on, model: "openai/gpt-5.6-luna") == [
             .status("Hold fn to talk"),
+            .translateHint("Add ⌃ to translate"),
             .separator,
             .cleanupToggle(isOn: true),
             .cleanupModel(selectedModelId: "openai/gpt-5.6-luna", enabled: true),
@@ -84,6 +91,7 @@ struct DictationMenuTests {
     func offByChoiceKeepsTheThreeItemBlockWithTranslateAndModelDisabled() {
         #expect(items(availability: .offByChoice, model: "x") == [
             .status("Hold fn to talk"),
+            .translateHint("Add ⌃ to translate"),
             .separator,
             .cleanupToggle(isOn: false),
             .cleanupModel(selectedModelId: "x", enabled: false),
@@ -109,6 +117,7 @@ struct DictationMenuTests {
     func offNoKeyReplacesTheWholeBlockWithAddKey() {
         #expect(items(availability: .offNoKey) == [
             .status("Hold fn to talk"),
+            .translateHint("Add ⌃ to translate"),
             .separator,
             .addOpenRouterKey,
             .separator,
@@ -336,6 +345,58 @@ struct DictationMenuTests {
         #expect(items(availability: .on, trigger: .rightOption).contains(.status("Hold Right ⌥ to talk")))
         #expect(items(availability: .on, trigger: .leftOption).contains(.status("Hold Left ⌥ to talk")))
         #expect(DictationMenu.idleStatusLine(trigger: .rightCommand) == "Hold Right ⌘ to talk")
+    }
+
+    /// The translate hint is the header's second idle line, and it names the
+    /// configured translate key and its mode: "Add" while the key rides on top of a
+    /// main-key hold, "Hold" while it dictates on its own (matching the main key's
+    /// line). It is built from the key's display name, never its wire value.
+    /// Stated sensitivity: hardcode either the key (⌃) or the mode word, build the
+    /// line from `rawValue` ("Add left-shift to translate"), or swap the two mode
+    /// words → the exact-equality `#expect` mismatches → RED.
+    @Test
+    func translateHintNamesTheConfiguredKeyAndMode() {
+        #expect(items(availability: .on).contains(.translateHint("Add ⌃ to translate")))
+        #expect(items(availability: .on, translateTrigger: .leftShift)
+            .contains(.translateHint("Add Left ⇧ to translate")))
+        #expect(items(availability: .on, translateTrigger: .leftShift, translateIsAdditional: false)
+            .contains(.translateHint("Hold Left ⇧ to translate")))
+        // Main-key-independent: the additional line names the translate key alone.
+        #expect(items(availability: .on, trigger: .rightOption, translateTrigger: .fn)
+            .contains(.translateHint("Add fn to translate")))
+    }
+
+    /// The hint is a SEPARATE line in the header, exactly once, never folded into the
+    /// status row — that row is retitled at runtime ("Recording") and would wipe it.
+    /// Stated sensitivity: append the translate text to `idleStatusLine` instead of
+    /// emitting the case (the status equality then fails), emit the hint twice, or
+    /// drop it → RED.
+    @Test
+    func translateHintIsItsOwnHeaderLineEmittedOnce() {
+        let list = items(availability: .on)
+        #expect(list.filter { if case .translateHint = $0 { return true }; return false }.count == 1)
+        #expect(list.first == .status("Hold fn to talk"))
+        guard let hintIndex = list.firstIndex(of: .translateHint("Add ⌃ to translate")) else {
+            Issue.record("translate hint missing: \(list)")
+            return
+        }
+        #expect(list[..<hintIndex].allSatisfy { $0 != .separator },
+                "the hint belongs to the header, above the first separator: \(list)")
+    }
+
+    /// The fn-conflict notice follows the fn KEY into either role: a translate key on
+    /// fn collides with the macOS assignment exactly as a main key on fn does.
+    /// Stated sensitivity: gate the notice on `hotkeys.main == .fn` alone → the
+    /// translate-on-fn case reports 0 notices → RED.
+    @Test
+    func fnConflictNoticeFollowsTheFnKeyIntoTheTranslateRole() {
+        let list = items(availability: .on, trigger: .rightOption, translateTrigger: .fn, fnAssigned: true)
+        #expect(fnConflictNoticeCount(list) == 1)
+        #expect(list.contains(.fnConflictNotice(fnConflictCopy)))
+        // Still gated on the system assignment: no assignment, no notice.
+        #expect(fnConflictNoticeCount(
+            items(availability: .on, trigger: .rightOption, translateTrigger: .fn, fnAssigned: false)
+        ) == 0)
     }
 
     /// The cleanup-model item carries the selected id so the builder checks the right

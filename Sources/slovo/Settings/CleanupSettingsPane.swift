@@ -16,6 +16,9 @@ struct CleanupSettingsPane: View {
     @State private var apiKey: String = ""
     @State private var isConfirmingKeyRemoval = false
     @State private var useSpellCheckHints: Bool
+    // The keys are edited in the General pane, so this cached window re-reads them
+    // on appear; the target picker's own caption names them.
+    @State private var hotkeys: HotkeyConfiguration
     // The observed model, not a value snapshot (spec D1): the subscription
     // repaints the pane on any funnel write in the same runloop — no re-fetch
     // sites, nothing to go stale.
@@ -28,6 +31,7 @@ struct CleanupSettingsPane: View {
         _writingStyle = State(initialValue: config.writingStyle)
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
+        _hotkeys = State(initialValue: config.hotkeyConfiguration)
         _availabilityModel = ObservedObject(wrappedValue: actions.cleanupAvailabilityModel)
     }
 
@@ -67,31 +71,34 @@ struct CleanupSettingsPane: View {
             writingStyle = config.writingStyle
             translationLanguage = config.translationTargetLanguage.rawValue
             useSpellCheckHints = config.useSpellCheckHints
+            hotkeys = config.hotkeyConfiguration
         }
     }
 
     // The toggle displays the EFFECTIVE state (off-and-disabled with no key)
     // while writes go to the stored preference; a computed binding keeps the
-    // display/preference split without onChange re-entry.
+    // display/preference split without onChange re-entry. The status line rides the
+    // label's SECOND Text (the documented title-and-subtitle builder) so it stays
+    // attached to the toggle it explains — a sibling Text would sit behind a divider.
     private var masterSection: some View {
         Section {
-            Toggle("Clean up dictation", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { availability.isOn },
                 set: { enabled in actions.setCleanupEnabled(enabled) }
-            ))
-            .disabled(!availability.isToggleEnabled)
-            if let status = availability.settingsStatusLine {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            )) {
+                Text("Clean up dictation")
+                if let status = availability.settingsStatusLine {
+                    Text(status)
+                }
             }
+            .disabled(!availability.isToggleEnabled)
         }
     }
 
     // Model, writing style, and translate target share one section: they are the
-    // knobs of a single cleanup step, so grouping them makes the relationship —
-    // including the hidden Control-to-translate trigger — visible at a glance. Each
-    // row is its own view so no single closure grows unwieldy.
+    // knobs of a single cleanup step, so grouping them shows at a glance that
+    // translation rides on cleanup — the target's own caption names the key that asks
+    // for it. Each row is its own view so no single closure grows unwieldy.
     private var cleanupSection: some View {
         Section("Cleanup") {
             modelRow
@@ -133,20 +140,31 @@ struct CleanupSettingsPane: View {
         .onChange(of: writingStyle) { _, newValue in actions.setWritingStyle(newValue) }
     }
 
-    @ViewBuilder private var translateRow: some View {
+    private var translateRow: some View {
         // No Auto row: a translate target must be a concrete language (the fail-closed
         // config guard rejects the sentinel), unlike the recognition-language picker.
-        Picker("Translate to", selection: $translationLanguage) {
+        Picker(selection: $translationLanguage) {
             ForEach(RecognitionLanguageCatalog.options) { option in
                 Text(option.displayName).tag(option.code)
             }
+        } label: {
+            Text("Translate to")
+            Text(translateCaption)
         }
         .onChange(of: translationLanguage) { _, newCode in
             actions.setTranslationLanguage(Language(rawValue: newCode))
         }
-        Text("Used when you hold Control while dictating.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    }
+
+    /// Names the gesture the user actually has: the translate key is configurable,
+    /// and standing alone its hold IS the dictation rather than something added to
+    /// one. Same fork as the menu hint and the About guide, phrased for this row.
+    private var translateCaption: String {
+        let key = hotkeys.translate.displayName
+        switch hotkeys.translateGesture {
+        case .additional: return "Used when you add \(key) while dictating."
+        case .standalone: return "Used when you dictate with \(key) held."
+        }
     }
 
     private var apiKeySection: some View {
@@ -194,11 +212,11 @@ struct CleanupSettingsPane: View {
     private var spellCheckHintsSection: some View {
         // The input-language hint has no toggle; only the spell pass is user-gated.
         Section("Language hints") {
-            Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
-                .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
-            Text("Spell-check findings from your Mac guide cleanup toward the right words.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Toggle(isOn: $useSpellCheckHints) {
+                Text("Use system spell-check hints")
+                Text("Your Mac's spell-check guides cleanup to the right words.")
+            }
+            .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
         }
     }
 

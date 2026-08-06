@@ -59,20 +59,30 @@ Clarifications:
   transcript.** No overlay, no partial text on screen. In BOTH modes the final
   text is inserted exactly once at key-up: the cleaned text while cleanup is on
   (raw only on a genuine cleanup failure), the raw final transcript in raw mode.
-- **Translate hold.** Holding the push-to-talk key together with Control at any
-  moment of the hold makes that one dictation translate: the single cleanup step
-  also translates the result into the target language chosen in Settings or the
-  menu-bar dropdown, then inserts it. A plain hold (no Control) must never
-  translate, and translate requires cleanup to be effectively on — while cleanup
-  is off, Control has no effect on the dictation.
+- **Translate hold.** Translation is driven by a configurable **translate key**
+  (Control by default), drawn from the same pool as the push-to-talk key and
+  never the same key — the two settings are mutually exclusive. By default it is
+  an *additional* key: press it at any moment while the push-to-talk key is down
+  and that one dictation translates. Slovo sees ⌃ and fn in every keystroke, so
+  they also count when already down as the hold begins; a sided ⌘, ⌥ or ⇧ is
+  noticed only when that key itself moves, so it must go down during the hold.
+  With "Use as additional key" off it is *standalone* — a push-to-talk key of
+  its own whose every dictation translates, while the main key keeps dictating
+  plainly. Either way the single cleanup step also translates the result into
+  the target language chosen in Settings or the menu-bar dropdown, then inserts
+  it. A plain hold (translate key untouched) must never translate, and translate
+  requires cleanup to be effectively on — while cleanup is off, the translate
+  key adds no translation to the dictation. The defaults preserve today's
+  behavior exactly.
 - **Recording glyph family.** The recording glyph names the mode: the Glagolitic
   letter Cherv "Ⱍ" (U+2C1D) while a plain hold records with cleanup on, Glagoli
   "Ⰳ" (U+2C03) while cleanup is effectively off (raw mode, either cause), and
-  Pokoji "Ⱂ" (U+2C12) while a translate hold is active (Control latched at any
-  moment of the hold; the glyph switches live the moment Control latches, so the
-  mode is visible at a glance). The resting idle glyph shows Slovo "Ⱄ" (U+2C14)
-  normally, swapping to Nash "Ⱀ" (U+2C10) while a downloaded update awaits
-  Restart. The failure glyph "Ⱁ" (U+2C11) is unchanged.
+  Pokoji "Ⱂ" (U+2C12) while a dictation is set to translate — from the moment an
+  additional translate key joins the hold (live, mid-hold), or from key-down for a
+  standalone translate hold, so the mode is visible at a glance. Raw wins over
+  translate: with cleanup off the glyph stays Glagoli. The resting idle glyph
+  shows Slovo "Ⱄ" (U+2C14) normally, swapping to Nash "Ⱀ" (U+2C10) while a
+  downloaded update awaits Restart. The failure glyph "Ⱁ" (U+2C11) is unchanged.
 - **Mute while dictating.** A menu-bar switch (on by default) silences system
   audio output while the key is held and restores it afterward; turning it off
   leaves system audio untouched during dictation.
