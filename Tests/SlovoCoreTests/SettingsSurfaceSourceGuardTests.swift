@@ -229,8 +229,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// Phase 3 landed: the Cleanup pane now hosts the spell-check hints toggle at the
     /// former extension point (inverts the retired
     /// `cleanupPaneLeavesPhase3ExtensionPointUnimplemented`).
-    /// Stated sensitivity: removing the `Toggle("Use system spell-check hints", …)`
-    /// from the pane turns this red.
+    /// Stated sensitivity: removing the spell-check-hints toggle — whose title is the
+    /// first Text of its label builder — from the pane turns this red.
     @Test
     func cleanupPaneHostsSpellCheckHintsToggle() throws {
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")

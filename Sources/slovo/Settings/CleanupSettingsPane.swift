@@ -17,7 +17,7 @@ struct CleanupSettingsPane: View {
     @State private var isConfirmingKeyRemoval = false
     @State private var useSpellCheckHints: Bool
     // The keys are edited in the General pane, so this cached window re-reads them
-    // on appear; the translate caption below the target picker names them.
+    // on appear; the target picker's own caption names them.
     @State private var hotkeys: HotkeyConfiguration
     // The observed model, not a value snapshot (spec D1): the subscription
     // repaints the pane on any funnel write in the same runloop — no re-fetch
@@ -77,26 +77,28 @@ struct CleanupSettingsPane: View {
 
     // The toggle displays the EFFECTIVE state (off-and-disabled with no key)
     // while writes go to the stored preference; a computed binding keeps the
-    // display/preference split without onChange re-entry.
+    // display/preference split without onChange re-entry. The status line rides the
+    // label's SECOND Text (the documented title-and-subtitle builder) so it stays
+    // attached to the toggle it explains — a sibling Text would sit behind a divider.
     private var masterSection: some View {
         Section {
-            Toggle("Clean up dictation", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { availability.isOn },
                 set: { enabled in actions.setCleanupEnabled(enabled) }
-            ))
-            .disabled(!availability.isToggleEnabled)
-            if let status = availability.settingsStatusLine {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            )) {
+                Text("Clean up dictation")
+                if let status = availability.settingsStatusLine {
+                    Text(status)
+                }
             }
+            .disabled(!availability.isToggleEnabled)
         }
     }
 
     // Model, writing style, and translate target share one section: they are the
     // knobs of a single cleanup step, so grouping them shows at a glance that
-    // translation rides on cleanup — the caption under the target names the key that
-    // asks for it. Each row is its own view so no single closure grows unwieldy.
+    // translation rides on cleanup — the target's own caption names the key that asks
+    // for it. Each row is its own view so no single closure grows unwieldy.
     private var cleanupSection: some View {
         Section("Cleanup") {
             modelRow
@@ -138,20 +140,20 @@ struct CleanupSettingsPane: View {
         .onChange(of: writingStyle) { _, newValue in actions.setWritingStyle(newValue) }
     }
 
-    @ViewBuilder private var translateRow: some View {
+    private var translateRow: some View {
         // No Auto row: a translate target must be a concrete language (the fail-closed
         // config guard rejects the sentinel), unlike the recognition-language picker.
-        Picker("Translate to", selection: $translationLanguage) {
+        Picker(selection: $translationLanguage) {
             ForEach(RecognitionLanguageCatalog.options) { option in
                 Text(option.displayName).tag(option.code)
             }
+        } label: {
+            Text("Translate to")
+            Text(translateCaption)
         }
         .onChange(of: translationLanguage) { _, newCode in
             actions.setTranslationLanguage(Language(rawValue: newCode))
         }
-        Text(translateCaption)
-            .font(.caption)
-            .foregroundStyle(.secondary)
     }
 
     /// Names the gesture the user actually has: the translate key is configurable,
@@ -210,11 +212,11 @@ struct CleanupSettingsPane: View {
     private var spellCheckHintsSection: some View {
         // The input-language hint has no toggle; only the spell pass is user-gated.
         Section("Language hints") {
-            Toggle("Use system spell-check hints", isOn: $useSpellCheckHints)
-                .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
-            Text("Spell-check findings from your Mac guide cleanup toward the right words.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Toggle(isOn: $useSpellCheckHints) {
+                Text("Use system spell-check hints")
+                Text("Spell-check findings from your Mac guide cleanup toward the right words.")
+            }
+            .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
         }
     }
 

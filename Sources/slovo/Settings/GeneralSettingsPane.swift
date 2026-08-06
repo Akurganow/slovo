@@ -80,16 +80,16 @@ struct GeneralSettingsPane: View {
             }
             translateKeyRow
             additionalKeyRow
-            Picker("Recognition language", selection: $language) {
+            Picker(selection: $language) {
                 Text("Auto").tag(Language.auto)
                 ForEach(RecognitionLanguageCatalog.options) { option in
                     Text(option.displayName).tag(Language(rawValue: option.code))
                 }
+            } label: {
+                Text("Recognition language")
+                Text("Auto handles mixed-language speech best.")
             }
             .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
-            Text("Auto handles mixed-language speech best.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Toggle("Sound Cues", isOn: Binding(
                 get: { dictationSoundCuePreferenceModel.isEnabled },
                 set: { actions.setPlaysDictationSoundCues($0) }

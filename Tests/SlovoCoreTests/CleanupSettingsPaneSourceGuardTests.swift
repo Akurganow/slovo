@@ -21,12 +21,17 @@ struct CleanupSettingsPaneSourceGuardTests {
         ))
     }
 
-    /// Stated sensitivity: gate the toggle on `isOn` instead of
-    /// `isToggleEnabled`, or drop the disabled modifier → RED.
+    /// The title moved into the label builder — the status line is its subtitle Text,
+    /// so the hint stays attached to the toggle instead of becoming its own row behind
+    /// a divider — so the toggle is pinned by its binding form plus that title Text
+    /// rather than by a `Toggle("…", isOn:)` string argument.
+    /// Stated sensitivity: gate the toggle on `isOn` instead of `isToggleEnabled`, drop
+    /// the disabled modifier, or drop the title from the label → RED.
     @Test
     func masterToggleIsGatedOnToggleEnabled() throws {
         let source = try Self.paneSource()
-        #expect(source.contains(#"Toggle("Clean up dictation""#))
+        #expect(source.contains("Toggle(isOn: Binding("))
+        #expect(source.contains(#"Text("Clean up dictation")"#))
         #expect(source.contains(".disabled(!availability.isToggleEnabled)"))
     }
 
