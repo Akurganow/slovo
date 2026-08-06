@@ -159,10 +159,15 @@ tap, verify on a real keyboard:
 - **Live change:** switch the key in Settings → General while idle — the new key works
   on the next dictation with no "Preparing Speech Model" pulse.
 - **Translate key, additional (the default):** hold the push-to-talk key and press
-  or hold the translate key (⌃ by default) at any point before releasing — the
-  dictation is translated into the configured target (menu bar / Settings →
-  Cleanup), and the menu-bar recording glyph switches to Pokoji `Ⱂ` live, at that
-  moment; a hold without it is not translated and keeps the plain recording glyph.
+  the translate key (⌃ by default) at any point before releasing — the dictation is
+  translated into the configured target (menu bar / Settings → Cleanup), and the
+  menu-bar recording glyph switches to Pokoji `Ⱂ` live, at that moment; a hold
+  without it is not translated and keeps the plain recording glyph.
+- **Additional key already down:** with ⌃ (or fn) as the translate key, hold it
+  BEFORE the push-to-talk key and dictate — it counts, and `Ⱂ` shows from the
+  start. With a sided ⌘/⌥/⇧ as the translate key the same sequence does NOT
+  translate: only its press during the hold is visible to Slovo, which is what the
+  README and AGENTS.md say.
 - **Translate key, standalone:** turn "Use as additional key" off in Settings →
   General, then hold the translate key alone — it dictates and always translates,
   showing `Ⱂ` from key-down, while the push-to-talk key still dictates plainly.

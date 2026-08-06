@@ -134,20 +134,24 @@ after that, transcription runs fully on-device.
    menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off by
    choice is not a failure — raw mode inserts silently, with no error glyph.
 
-To translate a dictation, use the **Translate key** — ⌃ out of the box, and any
-other key from the same pool in **Settings → General**. By default it is an
-additional key: press or hold it at any moment while the push-to-talk key is
-down, and that dictation is cleaned and translated into your target language in
-the same single step, then inserted. A plain hold (translate key untouched) is
-unchanged. Turn **Use as additional key** off and the translate key stands
-alone: hold it by itself to dictate, and that dictation is always translated,
-while the push-to-talk key keeps working as plain dictation.
+To translate a dictation, use the **Translate key** — ⌃ out of the box, and
+any other key from the same pool in **Settings → General**. By default it is
+an additional key: press it at any moment while the push-to-talk key is down,
+and that dictation is cleaned and translated into your target language in the
+same single step, then inserted. Slovo sees ⌃ and `fn` in every keystroke, so
+they count even if you were already holding one; a sided ⌘, ⌥ or ⇧ is noticed
+only when that key itself moves, so it has to go down during the hold. A plain
+hold (translate key untouched) is unchanged. Turn **Use as additional key**
+off and the translate key stands alone: hold it by itself to dictate, and that
+dictation is always translated, while the push-to-talk key keeps working as
+plain dictation.
 While a dictation is set to translate, the menu-bar recording glyph is the
-Glagolitic letter Pokoji `Ⱂ` instead of the clean-mode recording glyph `Ⱍ` — it
-switches the moment an additional translate key joins the hold, and shows from the
-start of a standalone translate hold, so the mode is visible at a glance. Translation
-requires cleanup: while **Clean Up Dictation** is off, the translate key adds no
-translation and the recording glyph stays the raw-mode `Ⰳ`.
+Glagolitic letter Pokoji `Ⱂ` instead of the clean-mode recording glyph `Ⱍ` —
+it switches the moment an additional translate key joins the hold, and shows
+from the start of a standalone translate hold, so the mode is visible at a
+glance. Translation requires cleanup: while **Clean Up Dictation** is off, the
+translate key adds no translation and the recording glyph stays the raw-mode
+`Ⰳ`.
 Choose the target — the Recognition Language list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation

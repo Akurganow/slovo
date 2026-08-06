@@ -62,15 +62,18 @@ Clarifications:
 - **Translate hold.** Translation is driven by a configurable **translate key**
   (Control by default), drawn from the same pool as the push-to-talk key and
   never the same key — the two settings are mutually exclusive. By default it is
-  an *additional* key: held together with the push-to-talk key at any moment of
-  the hold, it makes that one dictation translate. With "Use as additional key"
-  off it is *standalone* — a push-to-talk key of its own whose every dictation
-  translates, while the main key keeps dictating plainly. Either way the single
-  cleanup step also translates the result into the target language chosen in
-  Settings or the menu-bar dropdown, then inserts it. A plain hold (translate key
-  untouched) must never translate, and translate requires cleanup to be
-  effectively on — while cleanup is off, the translate key adds no translation to
-  the dictation. The defaults preserve today's behavior exactly.
+  an *additional* key: press it at any moment while the push-to-talk key is down
+  and that one dictation translates. Slovo sees ⌃ and fn in every keystroke, so
+  they also count when already down as the hold begins; a sided ⌘, ⌥ or ⇧ is
+  noticed only when that key itself moves, so it must go down during the hold.
+  With "Use as additional key" off it is *standalone* — a push-to-talk key of
+  its own whose every dictation translates, while the main key keeps dictating
+  plainly. Either way the single cleanup step also translates the result into
+  the target language chosen in Settings or the menu-bar dropdown, then inserts
+  it. A plain hold (translate key untouched) must never translate, and translate
+  requires cleanup to be effectively on — while cleanup is off, the translate
+  key adds no translation to the dictation. The defaults preserve today's
+  behavior exactly.
 - **Recording glyph family.** The recording glyph names the mode: the Glagolitic
   letter Cherv "Ⱍ" (U+2C1D) while a plain hold records with cleanup on, Glagoli
   "Ⰳ" (U+2C03) while cleanup is effectively off (raw mode, either cause), and

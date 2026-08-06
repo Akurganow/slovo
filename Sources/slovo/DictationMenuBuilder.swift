@@ -46,6 +46,11 @@ struct DictationMenuBuilder {
         ) {
             switch item {
             case .status(let title):
+                // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
+                // line, then the two persistent rows claiming their slot while hidden
+                // — the notice directly under the line whose key it warns about — and
+                // the translate hint last, from its own arm. Accepted cost: a visible
+                // update row sits between the two key hints.
                 let entry = disabled(title)
                 statusItem = entry
                 menu.addItem(entry)

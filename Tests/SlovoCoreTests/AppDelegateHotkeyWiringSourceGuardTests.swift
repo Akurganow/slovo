@@ -297,8 +297,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The Settings seam's three key setters must reach the funnel, not persist on
     /// their own — a setter that saved the blob itself would leave the live tap on the
     /// old keys until relaunch.
-    /// Killing mutation: reimplement any of the three in the Settings extension with
-    /// its own `ConfigStore.save` → the no-save assertion reddens.
+    /// Killing mutations: reimplement any of the three in the Settings extension with
+    /// its own `ConfigStore.save` → the no-save assertion reddens; do it through that
+    /// file's own `persist(_:)` wrapper — a double write the raw-call ban alone lets
+    /// through — → the no-wrapper assertion reddens.
     @Test
     func settingsKeySettersRouteIntoTheApplyFunnel() throws {
         let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
@@ -311,6 +313,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             #expect(body.contains(apply), "\(setter) must delegate to the key apply path")
             #expect(!body.contains("ConfigStore.save("),
                     "\(setter) must not persist on its own — the tap would keep the old keys")
+            #expect(!body.contains("persist("),
+                    "\(setter) must not persist through the file's wrapper either — same double write, one indirection away")
         }
     }
 

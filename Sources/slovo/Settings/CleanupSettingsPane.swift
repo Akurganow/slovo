@@ -94,9 +94,9 @@ struct CleanupSettingsPane: View {
     }
 
     // Model, writing style, and translate target share one section: they are the
-    // knobs of a single cleanup step, so grouping them makes the relationship —
-    // including the hidden Control-to-translate trigger — visible at a glance. Each
-    // row is its own view so no single closure grows unwieldy.
+    // knobs of a single cleanup step, so grouping them shows at a glance that
+    // translation rides on cleanup — the caption under the target names the key that
+    // asks for it. Each row is its own view so no single closure grows unwieldy.
     private var cleanupSection: some View {
         Section("Cleanup") {
             modelRow

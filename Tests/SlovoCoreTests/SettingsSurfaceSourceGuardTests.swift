@@ -87,14 +87,25 @@ struct SettingsSurfaceSourceGuardTests {
     /// renders the other's key as an unselectable row — disabled, not hidden, so the
     /// user sees why. The store's fail-closed validation remains the authoritative
     /// check; this is what keeps the user from ever reaching it.
-    /// Stated sensitivity: drop either `.selectionDisabled(…)` → the collision becomes
-    /// selectable and only the store would refuse it → RED; filter the pool instead
-    /// (hiding the row rather than disabling it) → the pinned modifier is gone → RED.
+    /// Each assertion is scoped to its OWN picker: a file-wide check is satisfied by
+    /// both modifiers existing anywhere, so swapping the two conditions — each picker
+    /// disabling its own current selection, leaving the collision selectable in both —
+    /// would pass it.
+    /// Stated sensitivity: drop either `.selectionDisabled(…)`, or SWAP the two
+    /// conditions between the pickers → the matching `#expect` reddens, because the
+    /// condition each picker must carry names the OTHER picker's state; filter the
+    /// pool instead (hiding the row rather than disabling it) → RED.
     @Test
     func keyPickersDisableEachOthersSelection() throws {
         let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        #expect(general.contains(".selectionDisabled(option == translateTrigger)"))
-        #expect(general.contains(".selectionDisabled(option == trigger)"))
+        let mainPicker = try Self.blockBody(after: #"Picker("Push-to-talk key", selection: $trigger)"#, in: general)
+        #expect(mainPicker.contains(".selectionDisabled(option == translateTrigger)"),
+                "the push-to-talk picker must disable the key the TRANSLATE role holds")
+        let translatePicker = try Self.blockBody(
+            after: #"Picker("Translate key", selection: $translateTrigger)"#, in: general
+        )
+        #expect(translatePicker.contains(".selectionDisabled(option == trigger)"),
+                "the translate picker must disable the key the MAIN role holds")
     }
 
     /// The translate row reads `<main key> + [dropdown]` while the key is additional
@@ -314,6 +325,30 @@ struct SettingsSurfaceSourceGuardTests {
                 "the translate hint must render as a disabled informational line")
     }
 
+    /// The header's RENDERED order, which the model cannot pin: the two persistent
+    /// rows — the fn-conflict notice and the update line — are appended inside the
+    /// status arm, so they hold their slot even while hidden, and the model's item
+    /// order alone decides nothing about where they land. Order pinned here: status
+    /// line, notice, update row (then the translate hint, from its own arm — see
+    /// `menuBuilderRendersTheTranslateHintAndTheFnRowForEitherRole`).
+    /// Stated sensitivity: append the update row before the notice, or move
+    /// `menu.addItem(entry)` after either of them → the in-order `#expect` reddens.
+    /// Green by construction — the order predates this guard — so its proof is the
+    /// mutation, not a prior RED.
+    @Test
+    func menuBuilderKeepsTheHeaderRowOrder() throws {
+        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        guard let statusCase = builder.range(of: "case .status(let title):"),
+              let nextCase = builder.range(of: "case .", range: statusCase.upperBound..<builder.endIndex)
+        else {
+            Issue.record("status case not found in builder")
+            return
+        }
+        let body = String(builder[statusCase.upperBound..<nextCase.lowerBound])
+        #expect(Self.containsInOrder(["menu.addItem(entry)", "makeFnConflictItem()", "makeUpdateItem()"], in: body),
+                "the header must render as status line, then the fn-conflict row, then the update row")
+    }
+
     /// The cleanup toggle renders as an always-actionable item — the type narrowing to
     /// `isOn` removed the off-and-disabled path — with its checkmark driven by `isOn`.
     /// Stated sensitivity: reintroduce a `disabled("Clean Up Dictation")` rendering, or
@@ -447,6 +482,15 @@ struct SettingsSurfaceSourceGuardTests {
         let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
         #expect(makeMenu.contains("hotkeys: config.hotkeyConfiguration"))
         #expect(makeMenu.contains("selectedModelId: config.openRouterModel"))
+    }
+
+    private static func containsInOrder(_ needles: [String], in source: String) -> Bool {
+        var searchStart = source.startIndex
+        for needle in needles {
+            guard let range = source.range(of: needle, range: searchStart..<source.endIndex) else { return false }
+            searchStart = range.upperBound
+        }
+        return true
     }
 
     /// The brace-balanced block that opens right after `anchor` — a function body or
