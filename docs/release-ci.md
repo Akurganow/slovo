@@ -40,6 +40,7 @@ set, so a docs-only push never cuts a release.
 | `workflow_dispatch` on `main` | yes | yes | yes | yes when releasable |
 | `pull_request` into `main` | yes ([swift.yml](../.github/workflows/swift.yml) only) | no | no | no |
 | pushing a `v*` tag | — the workflow has no tag trigger; tags are created only by the pipeline | | | |
+| `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch | yes | signed only — no notarization, no staple, no DMG | yes (`slovo-dev`, 7-day retention) | no |
 
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
 (the same one that guards pull requests), so every packaged build is gated by the
@@ -63,6 +64,32 @@ CI bakes in the strict release checks: `codesign --verify --strict --deep`, bund
 identifier `com.slovo.app`, team identifier `ZN8H5SF4R7`, `stapler validate` on
 both the app and the DMG, and a Gatekeeper assessment
 (`spctl --assess --type execute`).
+
+## Dev builds on demand
+
+[dev-build.yml](../.github/workflows/dev-build.yml) exists for one consumer: the
+owner, testing a branch by hand on a Mac that cannot build or sign locally — a
+work machine without the keys or toolchain, behind a TLS-inspecting proxy
+(Zscaler) that breaks SwiftPM fetches, or after a cloud coding session that
+pushed a branch from a Linux container. It is **not** a distribution channel.
+
+- **Trigger:** manual `workflow_dispatch` on a chosen branch. Only accounts with
+  write access can dispatch it; fork code can neither trigger it nor read its
+  secrets. The dispatch itself is the owner's approval of the code being signed.
+- **What it does:** run the full reusable test gate, stamp a run-scoped dev
+  version (`<last-release>-dev.<run-number>` — the same never-masquerade idiom
+  as the trunk `-ci.N` stamp), build, sign with the stable Developer ID, verify
+  the signature, and upload a `slovo-dev` zip artifact with 7-day retention.
+- **What it deliberately cannot do:** notarize, staple, build a DMG, tag, or
+  release. The `dev-signing` environment holds only the two certificate secrets
+  — no App Store Connect key, no Sparkle key — so even a dispatched run cannot
+  produce a notarized artifact or touch the update feed.
+- **Using the artifact:** download the zip from the run summary, unzip, launch.
+  The first launch of an unnotarized build needs the one-time Gatekeeper
+  bypass (System Settings → Privacy & Security → **Open Anyway**); that friction
+  is accepted for a dev build. Because the signing identity is the same
+  Developer ID as releases and local dev builds, macOS privacy grants
+  (microphone, Accessibility, Input Monitoring) stay stable across all of them.
 
 ## Versioning
 
@@ -170,8 +197,30 @@ packaging job can read them.
 | `ASC_API_ISSUER_ID` | the App Store Connect Issuer ID (step 2) |
 | `SPARKLE_ED_PRIVATE_KEY` | the Sparkle EdDSA private key that signs the appcast feed |
 
-If you add a **deployment branch/tag** rule to the `release` environment, it must
-allow `main` — the packaging job runs on every push to `main`, not only on tags.
+Restrict the `release` environment to **Deployment branches → Selected
+branches → `main`** (the packaging job runs on every push to `main`, not only on
+tags, so `main` must be allowed). This rule is what stops a manual
+`workflow_dispatch` of the release pipeline on a side branch from reaching the
+signing secrets — and, if the commits qualified, pushing a version bump and tag
+from that branch.
+
+### 4. Create the `dev-signing` environment and secrets
+
+In **Settings → Environments**, create an environment named `dev-signing` for
+[dev builds on demand](#dev-builds-on-demand). Add the two Developer ID secrets
+from step 1 as **environment** secrets — the same values already in `release`
+(GitHub cannot share secrets between environments, so paste them again):
+
+| Secret name | Value |
+| --- | --- |
+| `DEVELOPER_ID_APP_P12_BASE64` | base64 of the Developer ID `.p12` (step 1) |
+| `DEVELOPER_ID_APP_P12_PASSWORD` | the `.p12` export password (step 1) |
+
+No other secrets belong here — keeping the notarization and Sparkle keys out of
+this environment is what caps what a dev build can do. Leave deployment branches
+unrestricted (dev builds are dispatched on arbitrary branches) and add no
+required reviewers: the dispatcher is the owner, so a second approval click
+would gate nothing.
 
 ### Branch protection nuance
 
