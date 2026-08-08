@@ -8,12 +8,18 @@ name: Dev Build
 # being signed.
 #
 # Scope is deliberately narrow: build + sign ONLY. No notarization, no stapling,
-# no DMG, no tag, no release — the `dev-signing` environment holds just the two
+# no tag, no release — the `dev-signing` environment holds just the two
 # Developer ID certificate secrets, so even an approved run cannot notarize an
 # artifact or touch the Sparkle feed. An unnotarized build downloads with a
 # one-time Gatekeeper "Open Anyway" step, which is the accepted cost; signing
 # with the same stable Developer ID keeps TCC grants (microphone, Accessibility,
 # Input Monitoring) stable across dev builds and releases alike.
+#
+# The uploaded file is a signed DMG, not a zip: GitHub wraps every artifact
+# download in its own zip, and that wrapper is lossy (symlinks and exec bits are
+# dropped — fatal for the embedded Sparkle.framework), so a lossless container
+# must ride inside it. A DMG mounts with a double click, which the streaming
+# zips Archive Utility sometimes rejects do not.
 on:
   workflow_dispatch:
 
@@ -88,22 +94,24 @@ jobs:
           # rest of the job, so codesign resolves the Developer ID identity from it.
           security list-keychains -d user -s "$keychain_path"
           rm -f "$cert_path"
-      - name: Build and sign the app (sign-only, no notarization)
+      - name: Build and sign the app and DMG (sign-only, no notarization)
         env:
           SIGNING_IDENTITY: "Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)"
         run: |
           set -euo pipefail
           # With no notary credentials in the environment the script's documented
-          # sign-only mode applies: it builds and signs, then stops.
+          # sign-only mode applies: each phase builds and signs, then stops.
           Scripts/sign-and-notarize.sh app
-          ditto -c -k --keepParent .build/dist/Slovo.app .build/dist/Slovo.zip
+          Scripts/sign-and-notarize.sh dmg
       - name: Verify code signing
         run: |
           set -euo pipefail
           # The release pipeline's signing checks minus stapler/spctl, which are
           # red by definition on an unnotarized artifact.
           app=".build/dist/Slovo.app"
+          dmg=".build/dist/Slovo.dmg"
           codesign --verify --strict --deep --verbose=2 "$app"
+          codesign --verify --verbose=2 "$dmg"
           info="$(codesign --display --verbose=4 "$app" 2>&1)"
           echo "$info"
           echo "$info" | grep -q "Identifier=com.slovo.app"
@@ -112,6 +120,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: slovo-dev
-          path: .build/dist/Slovo.zip
+          path: .build/dist/Slovo.dmg
           retention-days: 7
           if-no-files-found: error
