@@ -66,6 +66,11 @@ stapling, tagging, and publishing — when the conventional commits warrant a
 release; nobody tags or edits a version by hand. See
 [docs/release-ci.md](docs/release-ci.md).
 
+For manual testing on a Mac that cannot build or sign locally, the owner can
+dispatch the on-demand [Dev Build workflow](.github/workflows/dev-build.yml),
+which produces a signed (but not notarized) app zip from any branch — see
+[docs/release-ci.md](docs/release-ci.md#dev-builds-on-demand).
+
 ## Pull Request Checklist
 
 - [ ] The change is scoped to one behavior or documentation goal.

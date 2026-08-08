@@ -1,0 +1,117 @@
+name: Dev Build
+
+# On-demand dev packaging for the owner's own manual testing on Macs that cannot
+# build or sign locally (no toolchain, no keys, or a TLS-inspecting corporate
+# proxy that breaks SwiftPM fetches). Manually dispatched on a chosen branch by
+# someone with write access — fork code can neither trigger this workflow nor
+# read its secrets, so the dispatch itself is the owner's approval of the code
+# being signed.
+#
+# Scope is deliberately narrow: build + sign ONLY. No notarization, no stapling,
+# no DMG, no tag, no release — the `dev-signing` environment holds just the two
+# Developer ID certificate secrets, so even an approved run cannot notarize an
+# artifact or touch the Sparkle feed. An unnotarized build downloads with a
+# one-time Gatekeeper "Open Anyway" step, which is the accepted cost; signing
+# with the same stable Developer ID keeps TCC grants (microphone, Accessibility,
+# Input Monitoring) stable across dev builds and releases alike.
+on:
+  workflow_dispatch:
+
+# Least privilege: every job only reads the checkout.
+permissions:
+  contents: read
+
+concurrency:
+  # A superseded dev build has no value; cancel it (unlike a release, no run
+  # here ever mutates repository state).
+  group: dev-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Same reusable test gate that guards pull requests and releases: no dev
+  # artifact is ever produced from code that fails the suite.
+  test:
+    uses: ./.github/workflows/swift.yml
+
+  package-dev:
+    needs: test
+    runs-on: macos-26
+    # Secret store only (the two Developer ID certificate secrets). No required
+    # reviewers: in this repository the dispatcher IS the owner, so a second
+    # approval click would gate nothing.
+    environment: dev-signing
+    steps:
+      - uses: actions/checkout@v7
+      - name: Stamp the dev version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          # Run-scoped dev stamp so the artifact never masquerades as a release
+          # (same idiom as release.yml's trunk-verification `-ci.N` stamp).
+          current="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)"
+          Scripts/stamp-app-version.sh "${current}-dev.${RUN_NUMBER}" "$RUN_NUMBER"
+      - name: Cache SwiftPM build
+        uses: actions/cache@v6
+        with:
+          # Same key family as the release pipeline (both build -c release), so
+          # dev builds reuse its warm cache; .build/dist stays excluded so a
+          # restored cache never carries a stale signed bundle.
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+            .build/release
+          key: ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+      - name: Import Developer ID signing certificate
+        env:
+          DEVELOPER_ID_APP_P12_BASE64: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 }}
+          DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain_path="$RUNNER_TEMP/slovo-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+          cert_path="$RUNNER_TEMP/developer_id_app.p12"
+          printf '%s' "$DEVELOPER_ID_APP_P12_BASE64" | base64 --decode > "$cert_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$cert_path" -P "$DEVELOPER_ID_APP_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$keychain_password" "$keychain_path" >/dev/null
+          # The ephemeral keychain is the only one on the user search list for the
+          # rest of the job, so codesign resolves the Developer ID identity from it.
+          security list-keychains -d user -s "$keychain_path"
+          rm -f "$cert_path"
+      - name: Build and sign the app (sign-only, no notarization)
+        env:
+          SIGNING_IDENTITY: "Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)"
+        run: |
+          set -euo pipefail
+          # With no notary credentials in the environment the script's documented
+          # sign-only mode applies: it builds and signs, then stops.
+          Scripts/sign-and-notarize.sh app
+          ditto -c -k --keepParent .build/dist/Slovo.app .build/dist/Slovo.zip
+      - name: Verify code signing
+        run: |
+          set -euo pipefail
+          # The release pipeline's signing checks minus stapler/spctl, which are
+          # red by definition on an unnotarized artifact.
+          app=".build/dist/Slovo.app"
+          codesign --verify --strict --deep --verbose=2 "$app"
+          info="$(codesign --display --verbose=4 "$app" 2>&1)"
+          echo "$info"
+          echo "$info" | grep -q "Identifier=com.slovo.app"
+          echo "$info" | grep -q "TeamIdentifier=ZN8H5SF4R7"
+      - name: Upload dev artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: slovo-dev
+          path: .build/dist/Slovo.zip
+          retention-days: 7
+          if-no-files-found: error
