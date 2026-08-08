@@ -16,11 +16,14 @@ permissions:
 # Supersede an in-progress run when the same ref gets a newer push (saves the
 # scarce macOS runner minutes).
 concurrency:
-  # Stable, caller-independent group. As a reusable workflow this must not share a
-  # concurrency group with its caller (release.yml), or a called run could contend
-  # with the run that called it; a literal prefix keeps it distinct while still
-  # canceling superseded pull-request runs.
-  group: swift-${{ github.ref }}
+  # Group by calling workflow AND ref. As a reusable workflow this must not
+  # share a concurrency group with its caller (release.yml / dev-build.yml),
+  # nor may two different callers on the same ref cancel each other — a
+  # dev-build's test call must never cancel the PR gate on the same merge ref,
+  # or a release's test phase on main. Inside a reusable run github.workflow
+  # resolves to the CALLER's workflow name, so each caller gets its own per-ref
+  # group while superseded runs of the same caller still cancel.
+  group: swift-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
