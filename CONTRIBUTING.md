@@ -67,8 +67,9 @@ release; nobody tags or edits a version by hand. See
 [docs/release-ci.md](docs/release-ci.md).
 
 For manual testing on a Mac that cannot build or sign locally, the owner can
-dispatch the on-demand [Dev Build workflow](.github/workflows/dev-build.yml),
-which produces a signed (but not notarized) DMG from any branch — see
+dispatch the on-demand [Dev Build workflow](.github/workflows/dev-build.yml) —
+manually from the Actions tab, or by applying the `dev-build` label to a pull
+request — which produces a signed (but not notarized) DMG; see
 [docs/release-ci.md](docs/release-ci.md#dev-builds-on-demand).
 
 ## Pull Request Checklist

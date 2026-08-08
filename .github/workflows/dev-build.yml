@@ -2,10 +2,17 @@ name: Dev Build
 
 # On-demand dev packaging for the owner's own manual testing on Macs that cannot
 # build or sign locally (no toolchain, no keys, or a TLS-inspecting corporate
-# proxy that breaks SwiftPM fetches). Manually dispatched on a chosen branch by
-# someone with write access — fork code can neither trigger this workflow nor
-# read its secrets, so the dispatch itself is the owner's approval of the code
-# being signed.
+# proxy that breaks SwiftPM fetches). Fork code can neither trigger this
+# workflow nor read its secrets, so the trigger itself is the owner's approval
+# of the code being signed. Two triggers produce the same artifact:
+#
+#   * workflow_dispatch — Actions tab, any branch.
+#   * labeling a pull request `dev-build` — the in-PR "button". Only users with
+#     triage rights or higher can apply labels (in this repository: the owner
+#     and invited collaborators); any other label name is ignored by the gate
+#     below. The run builds the PR's MERGE RESULT (what would land on main),
+#     shows in the PR's checks, a sticky PR comment links the finished DMG, and
+#     the label is removed at the end so the next click triggers a fresh build.
 #
 # Scope is deliberately narrow: build + sign ONLY. No notarization, no stapling,
 # no tag, no release — the `dev-signing` environment holds just the two
@@ -18,37 +25,52 @@ name: Dev Build
 # The uploaded file is a signed DMG, not a zip: GitHub wraps every artifact
 # download in its own zip, and that wrapper is lossy (symlinks and exec bits are
 # dropped — fatal for the embedded Sparkle.framework), so a lossless container
-# must ride inside it. A DMG mounts with a double click, which the streaming
-# zips Archive Utility sometimes rejects do not.
+# must ride inside it. Unlike a second zip, a DMG both removes the
+# nested-archive step and sidesteps Archive Utility's occasional failure to
+# expand GitHub's streaming wrapper zips.
 on:
   workflow_dispatch:
+  pull_request:
+    types: [labeled]
 
-# Least privilege: every job only reads the checkout.
+# Least privilege: only the announce job below gets PR-write scopes.
 permissions:
   contents: read
 
 concurrency:
   # A superseded dev build has no value; cancel it (unlike a release, no run
-  # here ever mutates repository state).
+  # here ever mutates repository state). On label events the ref is the PR's
+  # merge ref, so each PR gets its own group.
   group: dev-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # Same reusable test gate that guards pull requests and releases: no dev
-  # artifact is ever produced from code that fails the suite.
+  # artifact is ever produced from code that fails the suite. The gate
+  # expression is repeated on each job because Actions has no YAML anchors.
   test:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'dev-build'
     uses: ./.github/workflows/swift.yml
 
   package-dev:
     needs: test
+    # Belt for fork PRs: they cannot read the dev-signing secrets and their
+    # authors cannot apply labels, but exclude them outright anyway.
+    if: >-
+      (github.event_name == 'workflow_dispatch' || github.event.label.name == 'dev-build') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
     # Secret store only (the two Developer ID certificate secrets). No required
     # reviewers: in this repository the dispatcher IS the owner, so a second
     # approval click would gate nothing.
     environment: dev-signing
+    outputs:
+      version: ${{ steps.stamp.outputs.version }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - uses: actions/checkout@v7
       - name: Stamp the dev version
+        id: stamp
         env:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
@@ -57,6 +79,7 @@ jobs:
           # (same idiom as release.yml's trunk-verification `-ci.N` stamp).
           current="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)"
           Scripts/stamp-app-version.sh "${current}-dev.${RUN_NUMBER}" "$RUN_NUMBER"
+          echo "version=${current}-dev.${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
       - name: Cache SwiftPM build
         uses: actions/cache@v6
         with:
@@ -117,9 +140,45 @@ jobs:
           echo "$info" | grep -q "Identifier=com.slovo.app"
           echo "$info" | grep -q "TeamIdentifier=ZN8H5SF4R7"
       - name: Upload dev artifact
+        id: upload
         uses: actions/upload-artifact@v7
         with:
           name: slovo-dev
           path: .build/dist/Slovo.dmg
           retention-days: 7
           if-no-files-found: error
+
+  # Label-triggered runs only: pin the artifact to the PR with one sticky
+  # comment (updated in place on rebuilds) and drop the label so the next
+  # click starts a fresh build. Write scopes live only in this secret-less job.
+  announce:
+    needs: package-dev
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Link the DMG from the PR and re-arm the label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          VERSION: ${{ needs.package-dev.outputs.version }}
+          ARTIFACT_URL: ${{ needs.package-dev.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          marker="<!-- slovo-dev-build -->"
+          body="$(printf '%s\n**Dev build ready:** [Slovo.dmg](%s) — `%s`, merge result of %s ([run](%s)).\nUnzip once, double-click the DMG, drag Slovo to Applications; first launch needs Open Anyway.' \
+            "$marker" "$ARTIFACT_URL" "$VERSION" "$HEAD_SHA" "$RUN_URL")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"${marker}\"))][0].id // empty")"
+          if [ -n "$comment_id" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/${PR}/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh api "repos/${REPO}/issues/${PR}/comments" -f body="$body" >/dev/null
+          fi
+          # 404 here just means the label was already removed by hand.
+          gh api -X DELETE "repos/${REPO}/issues/${PR}/labels/dev-build" >/dev/null || true
