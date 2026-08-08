@@ -40,7 +40,7 @@ set, so a docs-only push never cuts a release.
 | `workflow_dispatch` on `main` | yes | yes | yes | yes when releasable |
 | `pull_request` into `main` | yes ([swift.yml](../.github/workflows/swift.yml) only) | no | no | no |
 | pushing a `v*` tag | — the workflow has no tag trigger; tags are created only by the pipeline | | | |
-| `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch | yes | signed only — no notarization, no staple, no DMG | yes (`slovo-dev`, 7-day retention) | no |
+| `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
 
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
 (the same one that guards pull requests), so every packaged build is gated by the
@@ -78,17 +78,23 @@ pushed a branch from a Linux container. It is **not** a distribution channel.
   secrets. The dispatch itself is the owner's approval of the code being signed.
 - **What it does:** run the full reusable test gate, stamp a run-scoped dev
   version (`<last-release>-dev.<run-number>` — the same never-masquerade idiom
-  as the trunk `-ci.N` stamp), build, sign with the stable Developer ID, verify
-  the signature, and upload a `slovo-dev` zip artifact with 7-day retention.
-- **What it deliberately cannot do:** notarize, staple, build a DMG, tag, or
-  release. The `dev-signing` environment holds only the two certificate secrets
+  as the trunk `-ci.N` stamp), build, sign the app and a DMG with the stable
+  Developer ID, verify the signatures, and upload the DMG as a `slovo-dev`
+  artifact with 7-day retention.
+- **What it deliberately cannot do:** notarize, staple, tag, or release. The
+  `dev-signing` environment holds only the two certificate secrets
   — no App Store Connect key, no Sparkle key — so even a dispatched run cannot
   produce a notarized artifact or touch the update feed.
-- **Using the artifact:** download the zip from the run summary, unzip, launch.
-  The first launch of an unnotarized build needs the one-time Gatekeeper
-  bypass (System Settings → Privacy & Security → **Open Anyway**); that friction
-  is accepted for a dev build. Because the signing identity is the same
-  Developer ID as releases and local dev builds, macOS privacy grants
+- **Using the artifact:** the run-summary download is `slovo-dev.zip` — GitHub
+  wraps every artifact in its own zip, and that wrapper is lossy (symlinks and
+  exec bits are dropped, fatal for the embedded Sparkle.framework), which is
+  why a lossless signed `Slovo.dmg` rides inside rather than a bare `.app`.
+  Unzip once (if Archive Utility rejects the streaming zip, `ditto -x -k
+  slovo-dev.zip .` in Terminal), double-click the DMG, drag **Slovo** to
+  Applications. The first launch of an unnotarized build needs the one-time
+  Gatekeeper bypass (System Settings → Privacy & Security → **Open Anyway**);
+  that friction is accepted for a dev build. Because the signing identity is
+  the same Developer ID as releases and local dev builds, macOS privacy grants
   (microphone, Accessibility, Input Monitoring) stay stable across all of them.
 
 ## Versioning
