@@ -89,9 +89,9 @@ pushed a branch from a Linux container. It is **not** a distribution channel.
   wraps every artifact in its own zip, and that wrapper is lossy (symlinks and
   exec bits are dropped, fatal for the embedded Sparkle.framework), which is
   why a lossless signed `Slovo.dmg` rides inside rather than a bare `.app`.
-  Unzip once (if Archive Utility rejects the streaming zip, `ditto -x -k
-  slovo-dev.zip .` in Terminal), double-click the DMG, drag **Slovo** to
-  Applications. The first launch of an unnotarized build needs the one-time
+  Unzip once — if Archive Utility rejects the streaming zip, run
+  `ditto -x -k slovo-dev.zip .` in Terminal — then double-click the DMG and
+  drag **Slovo** to Applications. The first launch of an unnotarized build needs the one-time
   Gatekeeper bypass (System Settings → Privacy & Security → **Open Anyway**);
   that friction is accepted for a dev build. Because the signing identity is
   the same Developer ID as releases and local dev builds, macOS privacy grants
