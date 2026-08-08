@@ -40,7 +40,7 @@ set, so a docs-only push never cuts a release.
 | `workflow_dispatch` on `main` | yes | yes | yes | yes when releasable |
 | `pull_request` into `main` | yes ([swift.yml](../.github/workflows/swift.yml) only) | no | no | no |
 | pushing a `v*` tag | — the workflow has no tag trigger; tags are created only by the pipeline | | | |
-| `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
+| `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch, or labeling a PR `dev-build` | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
 
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
 (the same one that guards pull requests), so every packaged build is gated by the
@@ -73,9 +73,16 @@ work machine without the keys or toolchain, behind a TLS-inspecting proxy
 (Zscaler) that breaks SwiftPM fetches, or after a cloud coding session that
 pushed a branch from a Linux container. It is **not** a distribution channel.
 
-- **Trigger:** manual `workflow_dispatch` on a chosen branch. Only accounts with
-  write access can dispatch it; fork code can neither trigger it nor read its
-  secrets. The dispatch itself is the owner's approval of the code being signed.
+- **Triggers:** two, producing the same artifact. (1) Manual `workflow_dispatch`
+  on a chosen branch — only accounts with write access can dispatch it. (2) The
+  in-PR "button": apply the `dev-build` label to a pull request (one click in
+  the PR sidebar; labels require triage rights or higher, so only the owner and
+  invited collaborators can click). A label run builds the PR's **merge
+  result** — the code as it would land on `main` — appears in the PR's checks,
+  posts one sticky PR comment linking the finished DMG (updated in place on
+  rebuilds), and removes the label so the next click starts a fresh build.
+  Fork code can neither trigger the workflow nor read its secrets; either
+  trigger is the owner's approval of the code being signed.
 - **What it does:** run the full reusable test gate, stamp a run-scoped dev
   version (`<last-release>-dev.<run-number>` — the same never-masquerade idiom
   as the trunk `-ci.N` stamp), build, sign the app and a DMG with the stable
@@ -227,6 +234,11 @@ this environment is what caps what a dev build can do. Leave deployment branches
 unrestricted (dev builds are dispatched on arbitrary branches) and add no
 required reviewers: the dispatcher is the owner, so a second approval click
 would gate nothing.
+
+Also create the PR-trigger label once, in **Issues → Labels → New label**:
+name `dev-build` (color and description free). Applying it to a pull request is
+the one-click dev-build trigger described in
+[Dev builds on demand](#dev-builds-on-demand).
 
 ### Branch protection nuance
 
