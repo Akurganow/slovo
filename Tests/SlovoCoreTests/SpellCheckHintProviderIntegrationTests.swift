@@ -22,7 +22,7 @@ struct SpellCheckHintProviderIntegrationTests {
     func realProviderFlagsAKnownMisspellingWhenEnglishEnabled() {
         let provider = SystemSpellCheckHintProvider()
 
-        let findings = provider.findings(in: "I recieve teh package", ignoring: [])
+        let findings = provider.findings(in: "I recieve teh package", ignoring: []).spelling
 
         #expect(!findings.isEmpty || !Self.englishSpellingEnabled,
                 "with English spelling enabled the on-device checker must flag a misspelling; got \(findings)")
@@ -39,10 +39,10 @@ struct SpellCheckHintProviderIntegrationTests {
     func ignoredTermIsNotFlagged() {
         let provider = SystemSpellCheckHintProvider()
 
-        let baseline = provider.findings(in: "I recieve teh package", ignoring: [])
+        let baseline = provider.findings(in: "I recieve teh package", ignoring: []).spelling
         guard Self.englishSpellingEnabled, baseline.contains(where: { $0.token == "teh" }) else { return }
 
-        let withIgnore = provider.findings(in: "I recieve teh package", ignoring: ["teh"])
+        let withIgnore = provider.findings(in: "I recieve teh package", ignoring: ["teh"]).spelling
 
         #expect(!withIgnore.contains { $0.token == "teh" }, "an ignored term must not be flagged; got \(withIgnore)")
     }

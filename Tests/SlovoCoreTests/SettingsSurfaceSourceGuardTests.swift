@@ -32,6 +32,9 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(cleanup.contains("actions.setCleanupModel("))
         #expect(cleanup.contains("actions.setWritingStyle("))
         #expect(cleanup.contains("actions.saveOpenRouterKey("))
+        // Sensitivity: drop the hints Toggle's `onChange` wiring → this `#expect`
+        // goes RED, proving the spell/grammar hints switch no longer reaches the app.
+        #expect(cleanup.contains("actions.setSpellCheckHints("))
 
         let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
         #expect(vocabulary.contains("actions.listVocabulary()"))
@@ -224,18 +227,6 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(source.contains("window.makeFirstResponder(self)"))
         #expect(!source.contains("@FocusState"))
         #expect(!source.contains(".defaultFocus("))
-    }
-
-    /// Phase 3 landed: the Cleanup pane now hosts the spell-check hints toggle at the
-    /// former extension point (inverts the retired
-    /// `cleanupPaneLeavesPhase3ExtensionPointUnimplemented`).
-    /// Stated sensitivity: removing the spell-check-hints toggle — whose title is the
-    /// first Text of its label builder — from the pane turns this red.
-    @Test
-    func cleanupPaneHostsSpellCheckHintsToggle() throws {
-        let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
-
-        #expect(cleanup.contains("Use system spell-check hints"))
     }
 
     /// The window presenter activates the app before showing (the `.accessory`

@@ -76,10 +76,11 @@ public struct PromptBuilder: Sendable {
     /// The advisory hint block, or nil when there is nothing to advise. The keyboard
     /// language is presented as the most likely dictation language — a prior for
     /// resolving language ambiguity, never a license to translate or to flatten
-    /// code-switching. Spell signals stay soft: they must never force a correct
-    /// proper noun, technical term, or intentional code-switched word to change.
+    /// code-switching. Spell and grammar signals stay soft: they must never force a
+    /// correct proper noun, technical term, or intentional code-switched word to
+    /// change, nor reword a sentence the speaker meant as dictated.
     private func advisoryBlock(for hints: CleanupHints) -> String? {
-        guard hints.inputLocale != nil || !hints.spellFindings.isEmpty else {
+        guard hints.inputLocale != nil || !hints.spellFindings.isEmpty || !hints.grammarFindings.isEmpty else {
             return nil
         }
         var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
@@ -108,6 +109,23 @@ public struct PromptBuilder: Sendable {
                 .joined(separator: "; ")
             lines.append("The on-device spell checker flagged these tokens as possibly misspelled, with suggestions: \(rendered).")
             lines.append("Treat as hints only. If a token is a correct proper noun, technical term, or intentional code-switched word, keep it unchanged.")
+        }
+        if !hints.grammarFindings.isEmpty {
+            let rendered = hints.grammarFindings
+                .map { finding -> String in
+                    let suggestion: String = finding.corrections.isEmpty
+                        ? ""
+                        : " (suggested: \(finding.corrections.joined(separator: ", ")))"
+                    let subject: String = finding.fragment.isEmpty ? "" : "\(finding.fragment): "
+                    return subject + finding.message + suggestion
+                }
+                .joined(separator: "; ")
+            lines.append("The on-device grammar checker flagged these fragments: \(rendered).")
+            lines.append(
+                "Treat as hints only. The checker does not know the speaker's intent and misfires on "
+                    + "dictated speech; apply a fix only where it is a genuine dictation artifact, and "
+                    + "never let it reword a sentence the speaker clearly meant."
+            )
         }
         return lines.joined(separator: "\n")
     }

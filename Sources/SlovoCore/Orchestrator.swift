@@ -239,8 +239,12 @@ public actor Orchestrator {
     /// component and cleanup proceeds on the raw transcript.
     private func gatherCleanupHints(for transcript: String) async -> CleanupHints {
         let inputLocale = await readInputSourceLanguage()
-        let spellFindings = await gatherSpellFindings(for: transcript)
-        return CleanupHints(inputLocale: inputLocale, spellFindings: spellFindings)
+        let findings = await gatherSpellCheckFindings(for: transcript)
+        return CleanupHints(
+            inputLocale: inputLocale,
+            spellFindings: findings.spelling,
+            grammarFindings: findings.grammar
+        )
     }
 
     /// The active keyboard input language, read on the main actor (spec). The
@@ -250,15 +254,16 @@ public actor Orchestrator {
         return await MainActor.run { reader.currentPrimaryLanguage() }
     }
 
-    /// The spell findings, gated by the toggle and the provider's presence, ignoring
-    /// the session vocabulary. Empty when there is nothing to run. `NSSpellChecker.shared`
-    /// is not main-actor-isolated (proven by the strict-concurrency build), so the
-    /// pass runs synchronously on this actor — acceptable because the input is
-    /// push-to-talk-bounded and the pass is dwarfed by the network cleanup call.
-    /// `async` so a threading change touches only this body, never its callers.
-    private func gatherSpellFindings(for transcript: String) async -> [SpellFinding] {
+    /// The spelling and grammar findings, gated by the toggle and the provider's
+    /// presence, ignoring the session vocabulary. `.empty` when there is nothing to
+    /// run. `NSSpellChecker.shared` is not main-actor-isolated (proven by the
+    /// strict-concurrency build), so the pass runs synchronously on this actor —
+    /// acceptable because the input is push-to-talk-bounded and the pass is dwarfed
+    /// by the network cleanup call. `async` so a threading change touches only this
+    /// body, never its callers.
+    private func gatherSpellCheckFindings(for transcript: String) async -> SpellCheckFindings {
         guard cleanupConfig.useSpellCheckHints, let provider = deps.spellCheckHints else {
-            return []
+            return .empty
         }
         return provider.findings(in: transcript, ignoring: sessionVocabulary.map(\.term))
     }
