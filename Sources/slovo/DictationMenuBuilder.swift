@@ -47,17 +47,16 @@ struct DictationMenuBuilder {
             switch item {
             case .status(let title):
                 // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
-                // line, then the two persistent rows claiming their slot while hidden
-                // — the notice directly under the line whose key it warns about — and
-                // the translate hint last, from its own arm. Accepted cost: a visible
-                // update row sits between the two key hints.
+                // line, then the fn-conflict notice claiming its slot while hidden —
+                // directly under the line whose key it warns about. The update row is
+                // appended after the translate hint instead, so the two key hints stay
+                // adjacent and nothing splits them.
                 let entry = disabled(title)
                 statusItem = entry
                 menu.addItem(entry)
                 if hotkeys.usesFnKey {
                     menu.addItem(makeFnConflictItem())
                 }
-                menu.addItem(makeUpdateItem())
             case .fnConflictNotice(let text):
                 // The model's build-time verdict seeds the row; every later open
                 // re-syncs it from the live system setting.
@@ -65,6 +64,9 @@ struct DictationMenuBuilder {
                 target.fnConflictMenuItem?.isHidden = false
             case .translateHint(let title):
                 menu.addItem(disabled(title))
+                // The update row sits below both key hints: it is the last header row,
+                // and it claims its slot here even while hidden.
+                menu.addItem(makeUpdateItem())
             case .separator:
                 menu.addItem(.separator())
             case .cleanupModel(let modelId, let enabled):
