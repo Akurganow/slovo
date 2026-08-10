@@ -320,15 +320,15 @@ struct SettingsSurfaceSourceGuardTests {
     }
 
     /// The header's RENDERED order, which the model cannot pin: the two persistent
-    /// rows — the fn-conflict notice and the update line — are appended inside the
-    /// status arm, so they hold their slot even while hidden, and the model's item
-    /// order alone decides nothing about where they land. Order pinned here: status
-    /// line, notice, update row (then the translate hint, from its own arm — see
-    /// `menuBuilderRendersTheTranslateHintAndTheFnRowForEitherRole`).
-    /// Stated sensitivity: append the update row before the notice, or move
-    /// `menu.addItem(entry)` after either of them → the in-order `#expect` reddens.
-    /// Green by construction — the order predates this guard — so its proof is the
-    /// mutation, not a prior RED.
+    /// rows — the fn-conflict notice and the update line — are appended from the
+    /// arms of two different cases, so they hold their slot even while hidden and
+    /// the model's item order alone decides nothing about where they land. Order
+    /// pinned here: status line, then the fn-conflict notice (status arm), then the
+    /// translate hint with the update row directly after it (hint arm), so the two
+    /// key hints stay adjacent and the update line never splits them.
+    /// Stated sensitivity: move `makeUpdateItem()` back into the status arm (which
+    /// puts it between the two key hints), or append it before the hint's own
+    /// `menu.addItem` → the in-order `#expect` reddens.
     @Test
     func menuBuilderKeepsTheHeaderRowOrder() throws {
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
@@ -338,9 +338,21 @@ struct SettingsSurfaceSourceGuardTests {
             Issue.record("status case not found in builder")
             return
         }
-        let body = String(builder[statusCase.upperBound..<nextCase.lowerBound])
-        #expect(Self.containsInOrder(["menu.addItem(entry)", "makeFnConflictItem()", "makeUpdateItem()"], in: body),
-                "the header must render as status line, then the fn-conflict row, then the update row")
+        let statusBody = String(builder[statusCase.upperBound..<nextCase.lowerBound])
+        #expect(Self.containsInOrder(["menu.addItem(entry)", "makeFnConflictItem()"], in: statusBody),
+                "the header must render as the status line, then the fn-conflict row")
+        #expect(!statusBody.contains("makeUpdateItem()"),
+                "the update row must not render inside the status arm: that puts it between the two key hints")
+
+        guard let hintCase = builder.range(of: "case .translateHint(let title):"),
+              let afterHint = builder.range(of: "case .", range: hintCase.upperBound..<builder.endIndex)
+        else {
+            Issue.record("translateHint case not found in builder")
+            return
+        }
+        let hintBody = String(builder[hintCase.upperBound..<afterHint.lowerBound])
+        #expect(Self.containsInOrder(["menu.addItem(disabled(title))", "makeUpdateItem()"], in: hintBody),
+                "the update row must render directly after the translate hint")
     }
 
     /// The cleanup toggle renders as an always-actionable item — the type narrowing to
