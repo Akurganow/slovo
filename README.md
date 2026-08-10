@@ -57,9 +57,8 @@ tuned.
   the macOS system alert volume, and Slovo has no separate volume control.
 - Cleanup hints: your active keyboard language and the system spell and grammar
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
-  then sends them to OpenRouter with the transcript as advisory context. macOS
-  ships grammar rules for English only, so the grammar half is silently absent in
-  other languages; spelling hints follow the 40-odd languages your Mac checks.
+  then sends them to OpenRouter with the transcript as advisory context. Grammar
+  hints are English-only, as macOS ships grammar rules for English alone.
 - OpenRouter API key stored in macOS Keychain and read only when cleanup
   runs — added through the menu-bar **Add OpenRouter Key…** window or
   **Settings → Cleanup**; a **Remove Key…** button in **Settings → Cleanup**

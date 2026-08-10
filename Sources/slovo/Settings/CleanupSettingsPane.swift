@@ -210,11 +210,11 @@ struct CleanupSettingsPane: View {
     }
 
     private var spellCheckHintsSection: some View {
-        // The input-language hint has no toggle; only the spell pass is user-gated.
+        // The input-language hint has no toggle; only the checker pass is user-gated.
         Section("Language hints") {
             Toggle(isOn: $useSpellCheckHints) {
-                Text("Use system spell-check hints")
-                Text("Your Mac's spell-check guides cleanup to the right words.")
+                Text("Use system spell and grammar hints")
+                Text("Your Mac's checker guides cleanup to the right words; grammar is English-only.")
             }
             .onChange(of: useSpellCheckHints) { _, enabled in actions.setSpellCheckHints(enabled) }
         }
