@@ -10,11 +10,17 @@ public final class FakeSpellCheckHintProvider: SpellCheckHintProviding {
         public let ignoredVocabulary: [String]
     }
 
-    private let findingsToReturn: [SpellFinding]
+    private let findingsToReturn: SpellCheckFindings
     private let recordedCalls = Mutex<[Call]>([])
 
-    public init(findings: [SpellFinding]) {
+    public init(findings: SpellCheckFindings) {
         self.findingsToReturn = findings
+    }
+
+    /// Spelling-only convenience: the common case in tests that predate grammar
+    /// findings, kept so those call sites read as they did.
+    public convenience init(findings: [SpellFinding]) {
+        self.init(findings: SpellCheckFindings(spelling: findings))
     }
 
     /// Every call's arguments, in invocation order.
@@ -22,7 +28,7 @@ public final class FakeSpellCheckHintProvider: SpellCheckHintProviding {
         recordedCalls.withLock { $0 }
     }
 
-    public func findings(in transcript: String, ignoring vocabulary: [String]) -> [SpellFinding] {
+    public func findings(in transcript: String, ignoring vocabulary: [String]) -> SpellCheckFindings {
         recordedCalls.withLock { $0.append(Call(transcript: transcript, ignoredVocabulary: vocabulary)) }
         return findingsToReturn
     }

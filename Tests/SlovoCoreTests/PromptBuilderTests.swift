@@ -151,6 +151,76 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("flagged these tokens"))
     }
 
+    /// Stated sensitivity: dropping the grammar rendering from the advisory block (so
+    /// grammar findings are gathered but never reach the model) turns this red.
+    @Test
+    func advisoryBlockCarriesGrammarFindings() {
+        let hints = CleanupHints(
+            inputLocale: nil,
+            spellFindings: [],
+            grammarFindings: [
+                GrammarFinding(
+                    fragment: "is",
+                    message: "The word ‘is’ may not agree with the rest of the sentence.",
+                    corrections: ["am", "are"]
+                ),
+            ]
+        )
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: hints
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(systemText.contains("Advisory context (may be wrong"))
+        #expect(systemText.contains("is: The word ‘is’ may not agree with the rest of the sentence."))
+        #expect(systemText.contains("(suggested: am, are)"))
+        // Grammar advice must stay as soft as the spelling advice: the checker
+        // misfires on dictated speech and must never license a rewrite.
+        #expect(systemText.contains("never let it reword a sentence the speaker clearly meant"))
+    }
+
+    /// Stated sensitivity: a grammar finding whose fragment could not be resolved must
+    /// still advise via its message; prefixing an empty fragment would emit a stray
+    /// ": " — this turns red.
+    @Test
+    func grammarFindingWithoutFragmentRendersMessageAlone() {
+        let hints = CleanupHints(
+            grammarFindings: [
+                GrammarFinding(fragment: "", message: "Consider ‘an’ instead", corrections: ["an"]),
+            ]
+        )
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: hints
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(systemText.contains("flagged these fragments: Consider ‘an’ instead (suggested: an)"))
+        #expect(!systemText.contains(": : "), "an unresolved fragment must not emit a stray separator")
+    }
+
+    /// Stated sensitivity: rendering the grammar sentences unconditionally makes this
+    /// grammar-free case go red — the spelling half must survive alone, since Apple
+    /// ships grammar rules for English only and most dictations have none.
+    @Test
+    func grammarSentencesAbsentWhenNoGrammarFindings() {
+        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            context: PersonalizationContext(vocabulary: []),
+            hints: CleanupHints(spellFindings: [SpellFinding(token: "teh", guesses: ["the"])])
+        )
+        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+
+        #expect(systemText.contains("teh → the"))
+        #expect(!systemText.contains("grammar checker"))
+    }
+
     /// Stated sensitivity: the existing 3-arg overload must keep producing NO
     /// advisory block, so old callers are unchanged; adding a block there turns red.
     @Test

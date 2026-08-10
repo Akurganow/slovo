@@ -107,4 +107,46 @@ struct OrchestratorCleanupHintsTests {
         #expect(cleaner.calls.last?.hints.spellFindings.isEmpty == true)
         #expect(cleaner.calls.last?.hints.inputLocale == "en", "the locale hint has no toggle and must remain")
     }
+
+    /// Stated sensitivity: an orchestrator that forwards only the spelling half (the
+    /// pre-grammar behavior) leaves `grammarFindings` empty at the cleaner → RED.
+    @Test
+    func gatheredGrammarFindingsReachTheCleaner() async {
+        let cleaner = FakeCleaner(outcome: .success("HI"))
+        let grammar = [GrammarFinding(fragment: "is", message: "may not agree", corrections: ["are"])]
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            config: Config(),
+            dependencies: Self.deps(
+                cleaner: cleaner,
+                inputSource: nil,
+                spell: FakeSpellCheckHintProvider(findings: SpellCheckFindings(grammar: grammar))
+            )
+        )
+
+        await Self.runSession(orchestrator)
+
+        #expect(cleaner.calls.last?.hints.grammarFindings == grammar)
+    }
+
+    /// Stated sensitivity: the spell-check toggle governs BOTH halves of the pass —
+    /// they come from one provider call. An orchestrator that gates only the spelling
+    /// half lets grammar findings through with the toggle off → RED.
+    @Test
+    func grammarPassAlsoSkippedWhenToggleOff() async {
+        let cleaner = FakeCleaner(outcome: .success("HI"))
+        let provider = FakeSpellCheckHintProvider(
+            findings: SpellCheckFindings(
+                grammar: [GrammarFinding(fragment: "is", message: "may not agree", corrections: [])]
+            )
+        )
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            config: Config(useSpellCheckHints: false),
+            dependencies: Self.deps(cleaner: cleaner, inputSource: nil, spell: provider)
+        )
+
+        await Self.runSession(orchestrator)
+
+        #expect(provider.calls.isEmpty)
+        #expect(cleaner.calls.last?.hints.grammarFindings.isEmpty == true)
+    }
 }
