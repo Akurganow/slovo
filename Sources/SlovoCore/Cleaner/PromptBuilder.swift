@@ -49,18 +49,20 @@ public struct PromptBuilder: Sendable {
         context: PersonalizationContext,
         hints: CleanupHints
     ) -> CleanupPrompt {
-        // Top-N vocabulary by weight, descending; padding is deliberately NOT
-        // done (caching is a bonus, not a driver).
-        let keptTerms = context.vocabulary
+        // Top-N vocabulary by weight, descending; the budget counts usable terms, so a
+        // row that renders blank never spends a slot. Padding is deliberately NOT done
+        // (caching is a bonus, not a driver).
+        let keptEntries = context.vocabulary
             .sorted { $0.weight > $1.weight }
+            .map(\.vocabularyEntry)
+            .filter { !$0.isEmpty }
             .prefix(maxVocabularyTerms)
-            .map(\.term)
 
+        // Block order is the prompt's cache prefix: the stable instruction block first,
+        // then the slow-moving vocabulary, then the per-dictation advisory.
         var systemBlocks = [instructions(for: config)]
-        if !keptTerms.isEmpty {
-            systemBlocks.append(
-                "<vocabulary>\nPreserve these terms verbatim: \(keptTerms.joined(separator: ", "))\n</vocabulary>"
-            )
+        if !keptEntries.isEmpty {
+            systemBlocks.append(vocabularyBlock(entries: keptEntries))
         }
         if let advisory = advisoryBlock(for: hints) {
             systemBlocks.append("<advisory>\n\(advisory)\n</advisory>")
@@ -71,6 +73,26 @@ public struct PromptBuilder: Sendable {
             systemBlocks: systemBlocks,
             input: raw
         )
+    }
+
+    /// The vocabulary block instructs CORRECTION, not only preservation: ASR renders a
+    /// protected term phonetically in the dictation's own alphabet ("RCV" → "РСВ"), and a
+    /// preserve-only rule leaves that mangled form untouched. A recorded expansion rides
+    /// along as a gloss, so both guards are load-bearing: one keeps the gloss out of the
+    /// output, the other keeps correction from inserting a term nobody said.
+    private func vocabularyBlock(entries: some Sequence<String>) -> String {
+        let lines = [
+            "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
+                + entries.joined(separator: ", "),
+            "Preserve these terms verbatim wherever the transcript already spells them correctly.",
+            "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
+                + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
+                + "replace it with the spelling given here.",
+            "The parenthetical is context only: never write it into the output, "
+                + "and never expand an abbreviation the speaker said in short form.",
+            "Never introduce a term from this list that the speaker did not say.",
+        ]
+        return "<vocabulary>\n\(lines.joined(separator: "\n"))\n</vocabulary>"
     }
 
     /// The advisory hint block, or nil when there is nothing to advise. The keyboard
@@ -196,9 +218,9 @@ public struct PromptBuilder: Sendable {
         [
             PromptSection(tag: "role", lines: roleLines(mode: .plain)),
             PromptSection(tag: "task", lines: taskLines(mode: .plain)
-                + ["Rewrite the transcript into \(style)."]),
+                + ["Return the transcript as \(style), changing only what the rules below allow."]),
             PromptSection(tag: "output_rules", lines:
-                [outputContractLine(mode: .plain), fidelityLine, pleasantriesLine]
+                [outputContractLine(mode: .plain), fidelityLine, plainCompletenessLine, pleasantriesLine]
                 + plainLanguageLines
                 + ["Preserve meaning, names, acronyms, commands, and intentional repetitions."]
                 + artifactLines(mode: .plain)
@@ -268,6 +290,13 @@ public struct PromptBuilder: Sendable {
 
     private var fidelityLine: String {
         "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
+    }
+
+    /// The carve-out names the rules below rather than artifacts alone, so it cannot be
+    /// read as outranking the filler, self-correction, and pleasantry removals.
+    /// Translate mode states the same contract in its own translation wording.
+    private var plainCompletenessLine: String {
+        "Add nothing and drop nothing: every idea the speaker dictated stays in the output except where a rule below removes it."
     }
 
     private var pleasantriesLine: String {
@@ -358,5 +387,24 @@ public struct PromptBuilder: Sendable {
     private func shortInputLine(mode: PromptMode) -> String {
         "If the transcript is a short test phrase, fragment, or clean sentence, still return \(mode.outputAdjective) "
             + "text, not a chat reply."
+    }
+}
+
+private extension Term {
+    /// The recorded expansion travels with the term so the model can recognize the
+    /// full form behind an abbreviation it would otherwise not connect to a
+    /// mis-recognized rendering. Empty when the row carries no usable term, so the
+    /// caller can drop it instead of listing a blank entry.
+    var vocabularyEntry: String {
+        let trimmedTerm = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTerm.isEmpty else {
+            return ""
+        }
+        guard let expansion = expansion?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !expansion.isEmpty
+        else {
+            return trimmedTerm
+        }
+        return "\(trimmedTerm) (\(expansion))"
     }
 }

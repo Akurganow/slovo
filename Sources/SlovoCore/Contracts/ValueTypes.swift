@@ -57,7 +57,8 @@ public extension Language {
 }
 
 /// One personalization vocabulary row: a term the user dictates, an optional
-/// expansion to substitute, the language it applies to, and a bias weight.
+/// expansion, the language it applies to, and a bias weight. The expansion is a
+/// gloss for the model — context only, never substituted into the output.
 public struct Term: Sendable {
     public let term: String
     public let expansion: String?

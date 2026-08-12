@@ -5,8 +5,16 @@ import SlovoCore
 
 @Suite("Cleanup prompt builder")
 struct PromptBuilderTests {
-    private static func term(_ name: String, weight: Int) -> Term {
-        Term(term: name, expansion: nil, lang: .en, weight: weight)
+    private static func term(_ name: String, weight: Int, expansion: String? = nil) -> Term {
+        Term(term: name, expansion: expansion, lang: .en, weight: weight)
+    }
+
+    private static func plainSystemText(style: WritingStyle = .casual, vocabulary: [Term] = []) -> String {
+        PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: style, language: .auto),
+            context: PersonalizationContext(vocabulary: vocabulary)
+        ).systemBlocks.joined(separator: "\n")
     }
 
     /// Stated sensitivity: dropping or reversing the weight sort changes the
@@ -33,6 +41,97 @@ struct PromptBuilderTests {
             #expect(p9 < p7 && p7 < p5, "kept terms must be in descending-weight order")
         }
         #expect(!systemText.contains("w3") && !systemText.contains("w1"))
+    }
+
+    /// A kept term travels with the expansion the user recorded — the only production
+    /// consumer of `Term.expansion` in the cleanup prompt; a term without a usable one
+    /// stays bare rather than trailing empty parentheses. The header must announce the
+    /// parenthetical as a recorded meaning, or the model reads it as text to emit.
+    /// Stated sensitivity: revert the vocabulary mapping to `\.term` (expansions
+    /// dropped), drop the empty-expansion guard (`PTT ()` rendered), or drop the
+    /// "recorded meaning in parentheses" framing from the header → RED.
+    @Test
+    func vocabularyEntriesCarryTheRecordedExpansion() {
+        let systemText = Self.plainSystemText(vocabulary: [
+            Self.term("RCV", weight: 9, expansion: "RingCentral Video / RingCentral Meet"),
+            Self.term("PTT", weight: 7, expansion: ""),
+            Self.term("Slovo", weight: 5),
+        ])
+
+        #expect(systemText.contains(
+            "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
+                + "RCV (RingCentral Video / RingCentral Meet), PTT, Slovo"
+        ))
+    }
+
+    /// Both halves of an entry are trimmed, and a row whose term is only whitespace is
+    /// skipped outright rather than listing a blank entry. The blank row carries an
+    /// expansion on purpose: without the skip it would render as " (Push To Talk)",
+    /// which the empty-entry filter alone would not catch.
+    /// Stated sensitivity: drop the term trim ("  RCV   (…)"), drop the expansion trim
+    /// ("RCV (  RingCentral Video  )"), drop the blank-term skip ("…),  (Push To Talk),
+    /// Slovo"), or drop the empty-entry filter ("…), , Slovo") → RED.
+    @Test
+    func vocabularyEntriesAreTrimmedAndBlankTermsSkipped() {
+        let systemText = Self.plainSystemText(vocabulary: [
+            Self.term("  RCV  ", weight: 9, expansion: "  RingCentral Video  "),
+            Self.term("   ", weight: 7, expansion: "Push To Talk"),
+            Self.term("Slovo", weight: 5),
+        ])
+
+        #expect(systemText.contains("in parentheses where known: RCV (RingCentral Video), Slovo"))
+    }
+
+    /// The block must drive CORRECTION, not only preservation: a transliterated
+    /// mis-recognition ("RCV" heard as "РСВ") has to be replaced. The parenthetical
+    /// guard keeps the recorded meaning out of the output, and the closing guard stops
+    /// correction from inserting a term nobody said.
+    /// Stated sensitivity: drop any one of the four instruction lines from
+    /// `vocabularyBlock` → its expectation reddens.
+    @Test
+    func vocabularyBlockDemandsCorrectionWithoutInvention() {
+        let systemText = Self.plainSystemText(vocabulary: [Self.term("RCV", weight: 9)])
+        let correction = "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
+            + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
+            + "replace it with the spelling given here."
+
+        #expect(systemText.contains("Preserve these terms verbatim wherever the transcript already spells them correctly."))
+        #expect(systemText.contains(correction))
+        #expect(systemText.contains(PromptBuilderFixtures.parentheticalGuardLine))
+        #expect(systemText.contains("Never introduce a term from this list that the speaker did not say."))
+    }
+
+    /// The budget counts USABLE terms: a row that renders blank must not spend one of
+    /// the top-N slots and push a real term out of the prompt. The blank row sits at
+    /// weight 8, inside the head, with three valid rows around it.
+    /// Stated sensitivity: filter the blank entries after `prefix` instead of before it
+    /// (the previous behavior) → "Slovo" is pushed out of the list → RED.
+    @Test
+    func blankRowsDoNotConsumeATopNSlot() {
+        let systemText = Self.plainSystemText(vocabulary: [
+            Self.term("RCV", weight: 9, expansion: "RingCentral Video"),
+            Self.term("  ", weight: 8),
+            Self.term("PTT", weight: 7),
+            Self.term("Slovo", weight: 5),
+        ])
+
+        #expect(systemText.contains("in parentheses where known: RCV (RingCentral Video), PTT, Slovo"))
+    }
+
+    /// A speaker with no vocabulary must never be told to correct toward an empty list,
+    /// so every line of the block — not just its tag — has to be absent.
+    /// Stated sensitivity: emit the vocabulary block unconditionally, or hoist any one
+    /// of its five lines into a block every prompt receives → RED.
+    @Test
+    func noVocabularyBlockWhenVocabularyEmpty() {
+        let systemText = Self.plainSystemText()
+
+        #expect(!systemText.contains("<vocabulary>"))
+        #expect(!systemText.contains("Correct spellings of the speaker's terms"))
+        #expect(!systemText.contains("Preserve these terms verbatim wherever the transcript already spells them correctly."))
+        #expect(!systemText.contains("replace it with the spelling given here"))
+        #expect(!systemText.contains(PromptBuilderFixtures.parentheticalGuardLine))
+        #expect(!systemText.contains("Never introduce a term from this list that the speaker did not say."))
     }
 
     /// Stated sensitivity: hard-coding a provider model in the prompt builder
@@ -66,6 +165,23 @@ struct PromptBuilderTests {
         #expect(systemText.contains("If the transcript is a short test phrase"))
         #expect(systemText.contains("<output>1, 2, 3, проверяем, 1, 2, 3.</output>"))
         #expect(!systemText.contains("<output>\(raw)</output>"))
+    }
+
+    /// The plain task line must not read as a paraphrase license: it asks for the
+    /// transcript back in the configured register, changed only where the rules allow.
+    /// Stated sensitivity: revert the task line to "Rewrite the transcript into
+    /// \(style)." → every expectation below reddens.
+    @Test
+    func plainTaskLineReturnsTheTranscriptInsteadOfRewritingIt() {
+        let formal = Self.plainSystemText(style: .formal)
+        let veryCasual = Self.plainSystemText(style: .veryCasual)
+
+        #expect(formal.contains("Return the transcript as formal written prose, changing only what the rules below allow."))
+        #expect(veryCasual.contains(
+            "Return the transcript as very casual, conversational prose, changing only what the rules below allow."
+        ))
+        #expect(!formal.contains("Rewrite the transcript"))
+        #expect(!veryCasual.contains("Rewrite the transcript"))
     }
 
     /// Stated sensitivity: removing the filler rule, the run-on guidance, the

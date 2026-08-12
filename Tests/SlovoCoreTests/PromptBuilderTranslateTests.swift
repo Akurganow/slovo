@@ -7,7 +7,11 @@ import SlovoCore
 // independently from the builder so they pin drift, not a tautology.
 @Suite("Cleanup prompt translate mode")
 struct PromptBuilderTranslateTests {
-    private static func translateBlock(style: WritingStyle, target: Language = .ru) -> String {
+    private static func translateSystemText(
+        style: WritingStyle,
+        target: Language = .ru,
+        vocabulary: [Term] = []
+    ) -> String {
         PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
             raw: "прибери мусор and clean up the code",
             config: CleanupConfig(
@@ -16,7 +20,7 @@ struct PromptBuilderTranslateTests {
                 translationTargetLanguage: target,
                 translate: true
             ),
-            context: PersonalizationContext(vocabulary: [])
+            context: PersonalizationContext(vocabulary: vocabulary)
         ).systemBlocks.joined(separator: "\n")
     }
 
@@ -28,7 +32,7 @@ struct PromptBuilderTranslateTests {
     /// plain contract or a plain example).
     @Test
     func translateModeSwapsInATranslationDirective() {
-        let block = Self.translateBlock(style: .casual)
+        let block = Self.translateSystemText(style: .casual)
 
         // The plain contract and plain examples must NOT leak into translate mode.
         #expect(!block.contains("Never translate."),
@@ -60,6 +64,40 @@ struct PromptBuilderTranslateTests {
         #expect(block.contains("casual"))
     }
 
+    /// Plain mode's completeness guard is worded for a cleanup; translate keeps the
+    /// thesis worded for a translation, so neither mode inherits the other's phrasing.
+    /// Stated sensitivity: adding the plain completeness line to the mode-shared rule
+    /// lines leaks it here → first expectation reddens; deleting translate's own
+    /// thesis reddens the second.
+    @Test
+    func translateKeepsItsOwnDropNothingThesis() {
+        let block = Self.translateSystemText(style: .casual)
+
+        #expect(!block.contains("every idea the speaker dictated stays in the output"),
+                "the plain-mode completeness wording must not leak into translate mode")
+        #expect(block.contains("Add nothing and drop nothing: every idea in the transcript, and only those, appears in the translation."))
+    }
+
+    /// The vocabulary block is mode-independent: a translated dictation must correct a
+    /// mis-recognized protected term exactly as a cleaned one does, and must not paste
+    /// the recorded meaning into the translation.
+    /// Stated sensitivity: gate the vocabulary block on plain mode → the `<vocabulary>`
+    /// and entry expectations redden; drop any guard line → its expectation reddens.
+    @Test
+    func translateModeCarriesTheVocabularyBlockWithItsGuards() {
+        let block = Self.translateSystemText(
+            style: .casual,
+            vocabulary: [Term(term: "RCV", expansion: "RingCentral Video", lang: .en, weight: 9)]
+        )
+
+        #expect(block.contains("<vocabulary>"))
+        #expect(block.contains("in parentheses where known: RCV (RingCentral Video)"))
+        #expect(block.contains(PromptBuilderFixtures.parentheticalGuardLine),
+                "a translated output must not absorb the recorded meaning of a protected term")
+        #expect(block.contains("replace it with the spelling given here."))
+        #expect(block.contains("Never introduce a term from this list that the speaker did not say."))
+    }
+
     /// The WritingStyle governs the translation register too: the style word must
     /// appear and must differ across styles.
     /// Stated sensitivity: if translate ignores WritingStyle (hardcodes one register
@@ -68,8 +106,8 @@ struct PromptBuilderTranslateTests {
     /// translate blocks (the plain baseline block never contains it).
     @Test
     func translateRegisterFollowsWritingStyle() {
-        let formal = Self.translateBlock(style: .formal)
-        let casual = Self.translateBlock(style: .casual)
+        let formal = Self.translateSystemText(style: .formal)
+        let casual = Self.translateSystemText(style: .casual)
 
         // Anchor: both are genuine translate blocks, absent in the baseline.
         #expect(formal.contains("Translate the transcript into Russian"))
@@ -90,7 +128,7 @@ struct PromptBuilderTranslateTests {
     /// appears → RED.
     @Test
     func translateTargetIsRenderedFromConfigNotHardcoded() {
-        let english = Self.translateBlock(style: .casual, target: .en)
+        let english = Self.translateSystemText(style: .casual, target: .en)
         #expect(english.contains("Translate the transcript into English"),
                 "the directive must translate into the configured target")
         #expect(!english.contains("Translate the transcript into Russian"),
@@ -100,7 +138,7 @@ struct PromptBuilderTranslateTests {
 
         // Cross-check the existing .ru target still issues the Russian directive, so
         // the two cases together pin that the directive follows config both ways.
-        let russian = Self.translateBlock(style: .casual, target: .ru)
+        let russian = Self.translateSystemText(style: .casual, target: .ru)
         #expect(russian.contains("Translate the transcript into Russian"))
         #expect(!russian.contains("Translate the transcript into English"))
     }
@@ -113,13 +151,13 @@ struct PromptBuilderTranslateTests {
     /// of these expectations.
     @Test
     func translateExamplesAreGatedOnTheVerifiedTargetCode() {
-        let english = Self.translateBlock(style: .casual, target: .en)
+        let english = Self.translateSystemText(style: .casual, target: .en)
         #expect(english.contains("<examples>"), "the verified en target must carry its examples block")
         #expect(english.contains("feature/auth"), "the en block must carry the code-switch commit example")
 
         // A target outside the verified core carries ONLY the language-neutral
         // shared examples (math notation) — never another language's pairs.
-        let swahili = Self.translateBlock(style: .casual, target: Language(rawValue: "sw"))
+        let swahili = Self.translateSystemText(style: .casual, target: Language(rawValue: "sw"))
         #expect(swahili.contains("<output>log₂(3)</output>"),
                 "every target must carry the shared formula examples")
         #expect(!swahili.contains("feature/auth"),
