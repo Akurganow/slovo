@@ -30,11 +30,11 @@ struct VocabularySettingsPane: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(
                 """
-                Terms cleanup keeps verbatim — names, brands, jargon. Terms and their \
-                expansions guide the dictation cleanup. With the experimental \
-                vocabulary bias switch on, the highest-weighted terms that fit the \
-                recognizer's small prompt budget are also passed to the on-device \
-                speech recognizer.
+                Cleanup keeps these terms verbatim and fixes them when they come out \
+                misspelled — names, brands, jargon. An expansion tells cleanup what a \
+                term means; it is never inserted into your text. With the experimental \
+                vocabulary bias switch on, the highest-weighted terms that fit are also \
+                passed to the on-device speech recognizer.
                 """
             )
             .font(.caption)

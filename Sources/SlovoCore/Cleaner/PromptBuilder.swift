@@ -292,6 +292,8 @@ public struct PromptBuilder: Sendable {
         "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
     }
 
+    /// The plain-mode mirror of `fidelityLine`: over-aggressive cleanup fails by
+    /// dropping dictated ideas, which the anti-invention rule alone does not forbid.
     /// The carve-out names the rules below rather than artifacts alone, so it cannot be
     /// read as outranking the filler, self-correction, and pleasantry removals.
     /// Translate mode states the same contract in its own translation wording.
