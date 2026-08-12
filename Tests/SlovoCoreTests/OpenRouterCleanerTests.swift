@@ -50,7 +50,7 @@ struct OpenRouterCleanerTests {
         #expect(request.httpMethod == "POST")
         #expect(request.value(forHTTPHeaderField: "authorization") == "Bearer synthetic-openrouter-key")
         #expect(request.value(forHTTPHeaderField: "content-type") == "application/json")
-        #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/slovo-app/slovo")
+        #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/Akurganow/slovo")
         #expect(request.value(forHTTPHeaderField: "X-Title") == "Slovo")
         #expect(request.timeoutInterval == 30)
 

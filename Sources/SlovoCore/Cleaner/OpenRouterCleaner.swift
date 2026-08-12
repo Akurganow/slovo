@@ -70,7 +70,7 @@ public struct OpenRouterCleaner: Cleaner {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
-        urlRequest.setValue("https://github.com/slovo-app/slovo", forHTTPHeaderField: "HTTP-Referer")
+        urlRequest.setValue("https://github.com/Akurganow/slovo", forHTTPHeaderField: "HTTP-Referer")
         urlRequest.setValue("Slovo", forHTTPHeaderField: "X-Title")
         urlRequest.httpBody = try JSONEncoder().encode(body)
 
