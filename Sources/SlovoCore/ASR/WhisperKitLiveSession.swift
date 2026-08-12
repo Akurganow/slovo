@@ -279,7 +279,8 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             // dictations entirely unconfirmed, forcing a full re-decode at key-up.
             // Accepted cost (owner, 2026-07-24): .auto re-detects language per
             // clipped pass, so a frozen pass can carry a language flip — cleanup
-            // normalizes it, and no soft hint exists (turbo prompt bug, #24).
+            // normalizes it; no language hint is sent, since the prompt channel
+            // carries the bias vocabulary instead.
             requiredSegmentsForConfirmation: 1
         ) { _, newState in
             streamStatus.update(newState)

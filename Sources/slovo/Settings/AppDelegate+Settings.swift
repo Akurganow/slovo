@@ -76,6 +76,10 @@ extension AppDelegate: SettingsActions {
         applySpellCheckHints(enabled)
     }
 
+    func setVocabularyBias(_ enabled: Bool) {
+        applyVocabularyBias(enabled)
+    }
+
     func setAutomaticallyInstallsUpdates(_ enabled: Bool) {
         var config = ConfigStore.load(from: defaults)
         config.automaticallyInstallsUpdates = enabled
@@ -147,6 +151,19 @@ extension AppDelegate: SettingsActions {
             try composition?.personalization.removeVocabulary(id: id)
         } catch {
             logger.error("vocabulary remove failed")
+        }
+    }
+
+    /// Persists the experimental vocabulary-bias switch and applies it to the NEXT
+    /// dictation live — the `applySpellCheckHints` shape: no pipeline rebuild, no ASR
+    /// re-warm, and no status-menu rebuild (the switch is not menu-visible). Only the
+    /// terms handed to the recognizer change; cleanup keeps the full vocabulary.
+    func applyVocabularyBias(_ enabled: Bool) {
+        var config = ConfigStore.load(from: defaults)
+        config.usesVocabularyBias = enabled
+        guard persist(config) else { return }
+        Task { @MainActor in
+            await composition?.orchestrator.updateUsesVocabularyBias(enabled)
         }
     }
 

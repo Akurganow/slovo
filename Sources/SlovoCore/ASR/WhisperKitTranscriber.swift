@@ -14,8 +14,8 @@ import Foundation
 /// No WhisperKit SDK type crosses this seam: the engine is injected as a
 /// `ModelLoading & SpeechStreamingSessionCreating` value, the resampler as `AudioConverting`, and
 /// the idle-timing source as `Clock`, so the whole session is driven by fakes in
-/// tests. Bias EFFICACY is verified on-device, not here — see
-/// `biasFieldVerification`.
+/// tests. Bias-prompt EFFICACY is verified on-device (docs/release-checklist.md),
+/// not here.
 public actor WhisperKitTranscriber: Transcriber {
     public struct Configuration: Equatable, Sendable {
         public static let defaults = Configuration()
@@ -29,14 +29,6 @@ public actor WhisperKitTranscriber: Transcriber {
             self.keepWarmSeconds = keepWarmSeconds
         }
     }
-
-    /// Whether the disabled bias-prompt path has been verified safe to re-enable.
-    /// Efficacy stays an on-device check.
-    public enum BiasFieldVerification: Equatable, Sendable {
-        case requiresL4Verification
-    }
-
-    public static let biasFieldVerification: BiasFieldVerification = .requiresL4Verification
 
     private let configuration: Configuration
     private let engine: any ModelLoading & SpeechStreamingSessionCreating & Sendable
@@ -94,16 +86,8 @@ public actor WhisperKitTranscriber: Transcriber {
             throw Self.mapLoadFailure(error)
         }
 
-        // Bias-prompt injection is DISABLED: WhisperKit + the turbo model return
-        // deterministically EMPTY output for ANY non-nil DecodingOptions.promptTokens,
-        // proven on the A/B stand with real voice on 2026-07-02 — a non-nil prompt
-        // silently breaks dictation. The live session therefore runs unbiased. The
-        // budgeted `WhisperKitBiasPromptBuilder` and its
-        // tests are kept intact as the guard for re-enabling once the SDK prompt path
-        // works again (tracked follow-up); `biasTerms` still reaches the cleaner via
-        // the orchestrator, so vocabulary is not lost meanwhile.
         do {
-            let speechSession = try engine.makeSpeechStreamingSession()
+            let speechSession = try engine.makeSpeechStreamingSession(biasTerms: biasTerms)
             try await speechSession.start()
             self.speechSession = speechSession
         } catch {

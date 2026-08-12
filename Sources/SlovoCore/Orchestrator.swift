@@ -95,17 +95,20 @@ public actor Orchestrator {
     private let deps: Dependencies
     private var cleanupConfig: CleanupConfig
     private var mutesSystemAudioWhileDictating: Bool
+    private var usesVocabularyBias: Bool
     private let vocabularyLimit: Int
 
     public init(
         dependencies: Dependencies,
         cleanupConfig: CleanupConfig,
         mutesSystemAudioWhileDictating: Bool = true,
+        usesVocabularyBias: Bool = false,
         vocabularyLimit: Int = 50
     ) {
         self.deps = dependencies
         self.cleanupConfig = cleanupConfig
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
+        self.usesVocabularyBias = usesVocabularyBias
         self.vocabularyLimit = vocabularyLimit
     }
 
@@ -126,6 +129,13 @@ public actor Orchestrator {
     /// `updateCleanupConfig` — a push because only the app knows the toggle changed.
     public func updateMutesSystemAudioWhileDictating(_ enabled: Bool) {
         mutesSystemAudioWhileDictating = enabled
+    }
+
+    /// Live-pushes the experimental vocabulary-bias switch to the NEXT dictation,
+    /// like `updateMutesSystemAudioWhileDictating`. It gates ONLY what reaches the
+    /// speech engine; cleanup keeps the full vocabulary either way.
+    public func updateUsesVocabularyBias(_ enabled: Bool) {
+        usesVocabularyBias = enabled
     }
 
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
@@ -410,10 +420,18 @@ public actor Orchestrator {
         guard ownsRecordingSession(recordingSession) else { return }
 
         // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
-        // resolve the personalization vocabulary once and reuse it as the ASR
-        // bias and the cleaner context.
-        let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
-        sessionVocabulary = biasTerms
+        // resolve the personalization vocabulary once and derive both consumers
+        // from it — the cleaner context and, behind the experimental switch, the
+        // recognizer's bias prompt.
+        let vocabulary = deps.personalization.vocabulary(limit: vocabularyLimit)
+        sessionVocabulary = vocabulary
+        // Latched here with the cleanup flag below, so a mid-hold push cannot change
+        // what THIS session began with. The switch gates only the recognizer:
+        // `sessionVocabulary` stays full, so cleanup personalization is unaffected.
+        // It defaults off partly because a prompted model can transcribe the glossary
+        // itself on a speech-free hold — non-empty text the empty-transcript
+        // invariant cannot catch (see docs/release-checklist.md's on-device gate).
+        let speechBiasTerms = usesVocabularyBias ? vocabulary : []
         // Latch the effective-cleanup flag once, HERE — never read
         // `cleanupConfig.runsCleaner` at clean time: a mid-hold `updateCleanupConfig`
         // push would otherwise split this session's key-up clean short-circuit,
@@ -429,7 +447,7 @@ public actor Orchestrator {
             deps.reportStatus(.preparingSpeechModel)
         }
         do {
-            try await deps.transcriber.begin(biasTerms: biasTerms)
+            try await deps.transcriber.begin(biasTerms: speechBiasTerms)
         } catch let error as TranscriptionError {
             guard ownsRecordingSession(recordingSession) else { return }
             // Release the mic first, then contain the failure.

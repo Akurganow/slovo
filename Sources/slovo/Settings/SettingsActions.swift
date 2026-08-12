@@ -31,6 +31,9 @@ protocol SettingsActions: AnyObject {
     func setCleanupModel(_ modelId: String)
     func setWritingStyle(_ style: WritingStyle)
     func setSpellCheckHints(_ enabled: Bool)
+    /// The experimental switch that also hands the top vocabulary terms to the
+    /// speech recognizer as a bias prompt.
+    func setVocabularyBias(_ enabled: Bool)
     func setCleanupEnabled(_ enabled: Bool)
     func setPlaysDictationSoundCues(_ enabled: Bool)
     func setAutomaticallyInstallsUpdates(_ enabled: Bool)

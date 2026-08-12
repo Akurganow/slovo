@@ -28,9 +28,17 @@ struct VocabularySettingsPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Terms cleanup keeps verbatim — names, brands, jargon.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(
+                """
+                Terms cleanup keeps verbatim — names, brands, jargon. Terms and their \
+                expansions guide the dictation cleanup. With the experimental \
+                vocabulary bias switch on, the highest-weighted terms that fit the \
+                recognizer's small prompt budget are also passed to the on-device \
+                speech recognizer.
+                """
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
             table
         }
         .padding()

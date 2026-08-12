@@ -329,6 +329,61 @@ struct AppRuntimeSourceGuardTests {
                 "the orchestrator must expose a live mute-flag update so no rebuild is needed")
     }
 
+    /// The session factory must feed the pure `decodingOptions` the session's OWN
+    /// terms and the loaded model's OWN tokenizer. The hermetic unit test pins the
+    /// function; this pins the CALL into it, where a build that never biases anything
+    /// (empty terms, or a tokenizer closure that always yields nothing) would
+    /// otherwise leave every test green — the false-green shape this repo has already
+    /// been burned by, one floor up.
+    /// Stated sensitivity: pass `biasTerms: []`, or hand it `{ _ in [] }` instead of
+    /// the engine's tokenizer → the matching `#expect` goes RED. Both tokens appear
+    /// exactly once in the file, inside this call.
+    @Test
+    func speechSessionFactoryFeedsDecodingOptionsItsTermsAndTokenizer() throws {
+        let engine = try Self.code("Sources/SlovoCore/ASR/WhisperKitEngine.swift")
+        let factoryBody = try Self.functionBody(named: "makeSpeechStreamingSession", in: engine)
+
+        #expect(factoryBody.contains("biasTerms: biasTerms"),
+                "the session's own terms must reach the decoding options, not a literal")
+        #expect(factoryBody.contains("engine.tokenizer?.encode(text: text)"),
+                "the loaded model's tokenizer must measure the prompt, not a stub closure")
+    }
+
+    /// The experimental vocabulary-bias switch applies live to the NEXT dictation,
+    /// like the mute switch: persist, push the flag to the running orchestrator, and
+    /// never rebuild — a rebuild would re-warm ASR and show the loading pulse for a
+    /// flag that only decides what the next `begin` is handed.
+    /// Stated sensitivity, one per assertion — no test target links `Sources/slovo`,
+    /// so these are the only guards on the app-layer chain and each must pin a VALUE,
+    /// not a name: route the change through a rebuild
+    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState) → RED;
+    /// delete the `guard persist(config)` line (the switch works for the session and
+    /// is lost at relaunch) → RED; write a different config field (e.g.
+    /// `useSpellCheckHints`) → RED; push `!enabled` instead of `enabled` → RED;
+    /// unhook the pane's setter from the apply path → RED.
+    @Test
+    func changingVocabularyBiasAppliesLiveWithoutPipelineRebuild() throws {
+        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
+        let applyBody = try Self.functionBody(named: "applyVocabularyBias", in: settings)
+        let setterBody = try Self.functionBody(named: "setVocabularyBias", in: settings)
+
+        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
+            #expect(!applyBody.contains(forbidden),
+                    "changing the vocabulary-bias switch must not \(forbidden): that re-warms ASR and shows the loading pulse")
+        }
+        #expect(applyBody.contains("config.usesVocabularyBias = enabled"),
+                "the apply path must write THIS field, with the value it was given")
+        #expect(applyBody.contains("guard persist(config)"),
+                "the change must survive relaunch, not just the running session")
+        #expect(applyBody.contains("updateUsesVocabularyBias(enabled)"),
+                "the switch must push its own value live to the running orchestrator")
+        #expect(setterBody.contains("applyVocabularyBias(enabled)"),
+                "the pane's setter must route its own value through the live-apply path")
+        #expect(orchestrator.contains("func updateUsesVocabularyBias"),
+                "the orchestrator must expose a live vocabulary-bias update so no rebuild is needed")
+    }
+
     /// AC12: the FSM stays PURE — `transition` decides on (state, event) only. The
     /// mute switch is a CAPTURE-stage flag applied in the orchestrator, never
     /// threaded into the pure decision table.

@@ -60,7 +60,10 @@ struct OrchestratorTests {
     }
 
     /// Happy path + folded biasTerms: the cleaned text is injected AND the
-    /// transcriber and cleaner received the resolved vocabulary.
+    /// transcriber and cleaner received the resolved vocabulary. Run with the
+    /// experimental bias switch ON, the one configuration where the vocabulary
+    /// reaches BOTH consumers (the gated behavior lives in
+    /// `OrchestratorVocabularyBiasTests`).
     /// Stated sensitivity: drop the vocab→biasTerms resolve (pass `[]`) → recorded
     /// biasTerms/context empty → RED.
     @Test
@@ -69,7 +72,7 @@ struct OrchestratorTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Self.cleanupConfig,
+            config: Config(usesVocabularyBias: true),
             dependencies: Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
         )
 
@@ -85,7 +88,7 @@ struct OrchestratorTests {
     }
 
     /// The production composition gives one vocabulary budget to both ASR bias and
-    /// cleanup context.
+    /// cleanup context (bias switch on, so both consumers are observable).
     /// Stated sensitivity: hard-code `50` inside the actor or apply a different
     /// limit to cleaner context -> both recorded vocab arrays contain too many terms
     /// or diverge -> RED.
@@ -100,7 +103,7 @@ struct OrchestratorTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Self.cleanupConfig,
+            config: Config(usesVocabularyBias: true),
             dependencies: Self.deps(
                 transcriber: transcriber,
                 cleaner: cleaner,

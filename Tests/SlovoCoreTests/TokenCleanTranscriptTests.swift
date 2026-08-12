@@ -61,6 +61,7 @@ struct TokenCleanTranscriptTests {
     /// regardless of the sanitizer (this test inspects only the decoder options).
     @Test
     func decodingOptionsRequestSkippedSpecialTokens() {
-        #expect(WhisperKitEngine.decodingOptions(language: .auto).skipSpecialTokens)
+        #expect(WhisperKitEngine.decodingOptions(language: .auto, biasTerms: [], tokenizer: { _ in [] })
+            .skipSpecialTokens)
     }
 }

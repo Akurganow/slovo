@@ -43,6 +43,7 @@ public enum PipelineFactory {
             dependencies: assembly.dependencies,
             cleanupConfig: cleanupConfig ?? config.cleanupConfig,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
+            usesVocabularyBias: config.usesVocabularyBias,
             vocabularyLimit: vocabularyLimit
         )
     }

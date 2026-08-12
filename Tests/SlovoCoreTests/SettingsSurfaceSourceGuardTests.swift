@@ -26,6 +26,13 @@ struct SettingsSurfaceSourceGuardTests {
         // (`actions.setLaunchAtLogin(newValue)`) → this `#expect` goes RED,
         // proving the "Open at login" control is no longer wired to the app.
         #expect(general.contains("actions.setLaunchAtLogin("))
+        // Sensitivity: drop the vocabulary-bias Toggle's `onChange` wiring, or push the
+        // INVERTED value (`!newValue`) → the first `#expect` goes RED; bind the Toggle
+        // to `.constant(false)` (a switch that renders and moves nothing) → the second
+        // goes RED. No test target links `Sources/slovo`, so these value-level forms
+        // are the only guard on the control itself.
+        #expect(general.contains("actions.setVocabularyBias(newValue)"))
+        #expect(general.contains("Toggle(isOn: $usesVocabularyBias)"))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains("CleanupModelCatalog.options"))
@@ -68,6 +75,11 @@ struct SettingsSurfaceSourceGuardTests {
         // appears nowhere else (`init` uses `_launchAtLogin = State(initialValue:)`),
         // so the toggle would otherwise show a stale login-item state on reopen.
         #expect(onAppear.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
+        // Sensitivity: delete the `.onAppear` re-seed
+        // `usesVocabularyBias = config.usesVocabularyBias` → RED. That exact form
+        // appears nowhere else (`init` uses `_usesVocabularyBias = State(initialValue:)`),
+        // so the experimental switch would show a stale state on reopen.
+        #expect(onAppear.contains("usesVocabularyBias = config.usesVocabularyBias"))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains(".onAppear"))

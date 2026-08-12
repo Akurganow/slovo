@@ -17,5 +17,6 @@ public protocol SpeechStreamingSession: Sendable {
 
 /// Creates a fresh live recognition session for each dictation.
 public protocol SpeechStreamingSessionCreating {
-    func makeSpeechStreamingSession() throws -> any SpeechStreamingSession
+    /// Opens a session biased toward `biasTerms`; an empty list runs unbiased.
+    func makeSpeechStreamingSession(biasTerms: [Term]) throws -> any SpeechStreamingSession
 }
