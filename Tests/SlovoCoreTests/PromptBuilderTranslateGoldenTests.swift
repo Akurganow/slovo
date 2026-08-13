@@ -13,7 +13,7 @@ struct PromptBuilderTranslateGoldenTests {
     private static let emptyCatalog = PromptExampleCatalog(cleanup: [], translation: [:])
 
     private static func translateBlock() -> String {
-        PromptBuilder(maxVocabularyTerms: 3, examples: emptyCatalog).buildPrompt(
+        PromptBuilder(examples: emptyCatalog).buildPrompt(
             raw: "hello",
             config: CleanupConfig(
                 writingStyle: .casual,

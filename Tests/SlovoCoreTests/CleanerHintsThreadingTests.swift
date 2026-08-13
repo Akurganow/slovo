@@ -32,7 +32,7 @@ struct CleanerHintsThreadingTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         _ = try await cleaner.clean("raw", config: Self.config, context: Self.context, hints: Self.hints)

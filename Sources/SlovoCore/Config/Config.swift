@@ -62,6 +62,11 @@ public struct Config: Equatable, Sendable {
     public var translateKeyIsAdditional: Bool
     public var asrBackend: AsrBackend
     public var asrModel: String
+    /// Whether the top vocabulary terms are also handed to the speech recognizer as
+    /// a bias prompt. EXPERIMENTAL, default off: the prompt rides every decode
+    /// window, so it trades sampling headroom for spelling fidelity. Off, the
+    /// vocabulary still reaches cleanup in full.
+    public var usesVocabularyBias: Bool
     public var openRouterModel: String
     /// Whether the cleanup step runs at all — the user's stored PREFERENCE.
     /// The per-session EFFECTIVE value also requires an OpenRouter key; see
@@ -120,6 +125,7 @@ public struct Config: Equatable, Sendable {
         translateKeyIsAdditional: Bool = true,
         asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
+        usesVocabularyBias: Bool = false,
         openRouterModel: String = Config.defaultOpenRouterModel,
         cleanupEnabled: Bool = true,
         writingStyle: WritingStyle = .casual,
@@ -136,6 +142,7 @@ public struct Config: Equatable, Sendable {
         self.translateKeyIsAdditional = translateKeyIsAdditional
         self.asrBackend = asrBackend
         self.asrModel = asrModel
+        self.usesVocabularyBias = usesVocabularyBias
         self.openRouterModel = openRouterModel
         self.cleanupEnabled = cleanupEnabled
         self.writingStyle = writingStyle

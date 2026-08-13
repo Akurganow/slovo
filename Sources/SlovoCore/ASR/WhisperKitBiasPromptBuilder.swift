@@ -1,63 +1,73 @@
 import Foundation
 
-/// Builds the prompt-token text used to bias WhisperKit toward user vocabulary.
-public enum WhisperKitBiasPromptBuilder {
+/// Builds the prompt tokens that bias WhisperKit toward the user's vocabulary.
+///
+/// The prompt is a fictitious PRECEDING TRANSCRIPT, so it carries a one-line
+/// glossary of bare surface forms — `"RCV, GitHub, OAuth."` — and never the
+/// expansions, which belong to the downstream cleanup prompt.
+enum WhisperKitBiasPromptBuilder {
     /// Upper bound on the tokens handed to `DecodingOptions.promptTokens`.
     ///
-    /// WhisperKit trims `promptTokens` to `(Constants.maxTokenContext / 2) - 1` and
-    /// keeps only the `.suffix` (WhisperKit `Core/TextDecoder.swift`), where
-    /// `Constants.maxTokenContext = Int(448 / 2) = 224` (WhisperKit `Core/Models.swift`)
-    /// — half of Whisper's 448-token decoder context. So the SDK retains at most
-    /// `(224 / 2) - 1 = 111` prompt tokens and drops the rest from the FRONT, which
-    /// would discard our highest-weight head (terms arrive weight-desc). We budget
-    /// below that 111-token ceiling with a safety margin so our head always survives
-    /// the SDK's own clamp, with headroom for BPE tokenizing the joined lines more
-    /// densely than any per-line estimate.
-    public static let promptTokenBudget = 96
+    /// The binding constraint is SAMPLING HEADROOM, not the SDK's 111-token prompt
+    /// clamp. WhisperKit caps one decode window at 223 loop iterations
+    /// (`min(initialPromptIndex - 1 + sampleLength, maxTokenContext - 1)`, with
+    /// `sampleLength` defaulting to `maxTokenContext` = 224) and spends prefill
+    /// tokens INSIDE that loop, so every prompt token costs one sampled output
+    /// token. These 24 plus the 5 special prefill tokens leave 194 sampled tokens,
+    /// against the ~143-178 a 30 s window of Russian at 120-150 wpm needs (~2.38
+    /// tokens/word). The former 96-token budget left ~122 — below that demand — and
+    /// truncated windows mid-speech: no closing timestamp, starved segment
+    /// confirmation, temperature-fallback cascades, empty transcripts. Internal (not
+    /// private) so a `@testable` test pins that inequality against this value.
+    static let maxPromptTokens = 24
 
-    public static func prompt(for biasTerms: [Term]) -> String? {
-        let lines = spokenHintLines(for: biasTerms)
-        return lines.isEmpty ? nil : lines.joined(separator: "\n")
-    }
-
-    public static func promptTokens(
+    /// The bias prompt for `biasTerms` (weight-descending), or `nil` when even its
+    /// first term does not fit — an unbiased session beats a prompt that eats the
+    /// window's sampling headroom.
+    ///
+    /// Trimming drops from the TAIL: the SDK keeps only the `.suffix` of an
+    /// over-budget prompt, which would discard exactly the highest-weight head this
+    /// budget exists to protect.
+    static func promptTokens(
         for biasTerms: [Term],
         tokenizer: (String) -> [Int]
     ) -> [Int]? {
-        let lines = spokenHintLines(for: biasTerms)
-        guard !lines.isEmpty else {
-            return nil
-        }
-
-        // Grow the prompt head-first (weight-desc) one line at a time, keeping the
-        // last tokenization that stays within budget and dropping the tail once the
-        // next line would exceed it. Tokenizing the joined prefix (not per-line
-        // concatenation) keeps the result identical to the uncapped prompt when the
-        // whole vocabulary fits.
-        var budgetedTokens: [Int] = []
-        for lineCount in 1...lines.count {
-            let candidate = tokenizer(lines.prefix(lineCount).joined(separator: "\n"))
-            if candidate.count > promptTokenBudget {
-                break
+        // Lossless pre-bound on the key-down hot path: a surface costs at least one
+        // token, so a prompt reaching index i spends at least i + 1 tokens and any
+        // surface at index >= maxPromptTokens is already over budget. Trimming those
+        // one at a time would re-tokenize the whole glossary per dropped surface.
+        //
+        // That >= 1 token per surface is a tokenizer property, not a guarantee — but
+        // it fails benignly: a tokenizer packing several surfaces into one token would
+        // only under-fill the budget (dropping surfaces that might have fit), never
+        // overflow it. The loop below still enforces the ceiling either way.
+        var surfaces = Array(distinctSurfaces(of: biasTerms).prefix(maxPromptTokens))
+        while !surfaces.isEmpty {
+            let tokens = tokenizer(promptText(for: surfaces))
+            // No tokens for a non-empty glossary means the engine's tokenizer has not
+            // loaded, so there is nothing to trim toward: the session runs unbiased.
+            guard !tokens.isEmpty else { return nil }
+            if tokens.count <= maxPromptTokens {
+                return tokens
             }
-            budgetedTokens = candidate
+            surfaces.removeLast()
         }
-        return budgetedTokens.isEmpty ? nil : budgetedTokens
+        return nil
     }
 
-    private static func spokenHintLines(for biasTerms: [Term]) -> [String] {
-        biasTerms.map(\.spokenHint).filter { !$0.isEmpty }
+    private static func promptText(for surfaces: [String]) -> String {
+        surfaces.joined(separator: ", ") + "."
     }
-}
 
-private extension Term {
-    var spokenHint: String {
-        let trimmedTerm = term.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let expansion = expansion?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !expansion.isEmpty
-        else {
-            return trimmedTerm
+    /// Trimmed, non-empty surface forms in arrival order, with case-insensitive
+    /// repeats collapsed onto the first occurrence — the highest-weighted one, and
+    /// the spelling the user stored.
+    private static func distinctSurfaces(of biasTerms: [Term]) -> [String] {
+        var seen: Set<String> = []
+        return biasTerms.compactMap { term in
+            let surface = term.term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !surface.isEmpty, seen.insert(surface.lowercased()).inserted else { return nil }
+            return surface
         }
-        return "\(trimmedTerm) \(expansion)"
     }
 }

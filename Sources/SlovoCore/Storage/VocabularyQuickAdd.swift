@@ -3,8 +3,9 @@ import Foundation
 /// Turns the menu's comma-separated quick-add input into `vocabulary` rows.
 ///
 /// User-added terms get category `term`, source `manual`, and weight 3 — above
-/// bulk-imported rows (1–2) so they reliably reach the cleanup prompt's top-N,
-/// below identity anchors (4–5).
+/// bulk-imported rows (1–2), below identity anchors (4–5). Weight orders the
+/// cleanup glossary, which lists every term; more sharply, it decides which terms
+/// survive into the ASR bias prompt's 24-token head.
 public enum VocabularyQuickAdd {
     public static let category = "term"
     public static let source = "manual"

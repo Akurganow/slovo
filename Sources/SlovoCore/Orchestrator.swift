@@ -95,18 +95,18 @@ public actor Orchestrator {
     private let deps: Dependencies
     private var cleanupConfig: CleanupConfig
     private var mutesSystemAudioWhileDictating: Bool
-    private let vocabularyLimit: Int
+    private var usesVocabularyBias: Bool
 
     public init(
         dependencies: Dependencies,
         cleanupConfig: CleanupConfig,
         mutesSystemAudioWhileDictating: Bool = true,
-        vocabularyLimit: Int = 50
+        usesVocabularyBias: Bool = false
     ) {
         self.deps = dependencies
         self.cleanupConfig = cleanupConfig
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
-        self.vocabularyLimit = vocabularyLimit
+        self.usesVocabularyBias = usesVocabularyBias
     }
 
     /// The current session state (for tests/introspection).
@@ -126,6 +126,13 @@ public actor Orchestrator {
     /// `updateCleanupConfig` — a push because only the app knows the toggle changed.
     public func updateMutesSystemAudioWhileDictating(_ enabled: Bool) {
         mutesSystemAudioWhileDictating = enabled
+    }
+
+    /// Live-pushes the experimental vocabulary-bias switch to the NEXT dictation,
+    /// like `updateMutesSystemAudioWhileDictating`. It gates ONLY what reaches the
+    /// speech engine; cleanup keeps the full vocabulary either way.
+    public func updateUsesVocabularyBias(_ enabled: Bool) {
+        usesVocabularyBias = enabled
     }
 
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
@@ -394,6 +401,10 @@ public actor Orchestrator {
     /// pump that pipes each captured chunk into the session for the hold.
     /// Extracted from `execute` so that switch stays within its body-length gate.
     private func beginCapture(for recordingSession: RecordingSession) async {
+        // Latched BEFORE the first suspension. `recorder.start()` is the longest await
+        // in this chain, and the actor admits a toggle push there — read afterwards,
+        // the switch would silently redefine the dictation already in progress.
+        let sessionUsesVocabularyBias = usesVocabularyBias
         deps.cueController.beginSession()
         let stream: AsyncStream<AudioChunk>
         do {
@@ -410,14 +421,24 @@ public actor Orchestrator {
         guard ownsRecordingSession(recordingSession) else { return }
 
         // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
-        // resolve the personalization vocabulary once and reuse it as the ASR
-        // bias and the cleaner context.
-        let biasTerms = deps.personalization.vocabulary(limit: vocabularyLimit)
-        sessionVocabulary = biasTerms
+        // resolve the personalization vocabulary once and derive both consumers
+        // from it — the cleaner context and, behind the experimental switch, the
+        // recognizer's bias prompt.
+        let vocabulary = deps.personalization.vocabulary()
+        sessionVocabulary = vocabulary
+        // The switch gates only the recognizer: `sessionVocabulary` stays full, so
+        // cleanup personalization is unaffected. It defaults off partly because a
+        // prompted model can transcribe the glossary itself on a speech-free hold —
+        // non-empty text the empty-transcript invariant cannot catch (see
+        // docs/release-checklist.md's on-device gate).
+        let speechBiasTerms = sessionUsesVocabularyBias ? vocabulary : []
         // Latch the effective-cleanup flag once, HERE — never read
         // `cleanupConfig.runsCleaner` at clean time: a mid-hold `updateCleanupConfig`
         // push would otherwise split this session's key-up clean short-circuit,
-        // running the cleaner on a transcript the session began without.
+        // running the cleaner on a transcript the session began without. This latch
+        // sits later than the bias one above, so a push landing during
+        // `recorder.start()` still reaches it; that window is accepted, and narrowing
+        // it is a decision to make on its own merits rather than by symmetry.
         sessionRunsCleaner = cleanupConfig.runsCleaner
         // Only claim preparation when `begin` really has loading to do. Reported
         // unconditionally, it overwrote "Recording" with a lie for the whole hold
@@ -429,7 +450,7 @@ public actor Orchestrator {
             deps.reportStatus(.preparingSpeechModel)
         }
         do {
-            try await deps.transcriber.begin(biasTerms: biasTerms)
+            try await deps.transcriber.begin(biasTerms: speechBiasTerms)
         } catch let error as TranscriptionError {
             guard ownsRecordingSession(recordingSession) else { return }
             // Release the mic first, then contain the failure.

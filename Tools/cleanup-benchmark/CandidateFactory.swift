@@ -17,7 +17,7 @@ public enum CleanupBenchmarkCandidateFactory {
                 cleaner: OpenRouterCleaner(
                     session: .shared,
                     keyProvider: keyProvider,
-                    promptBuilder: PromptBuilder(maxVocabularyTerms: 50)
+                    promptBuilder: PromptBuilder()
                 )
             )
         case .passThrough:

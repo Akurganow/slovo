@@ -28,6 +28,26 @@ struct WhisperKitTranscriberSessionTests {
         #expect(engine.events.first == .load, "the model must load first; events: \(engine.events)")
     }
 
+    /// begin hands its biasTerms to the session factory unchanged — the wiring
+    /// that feeds the re-enabled bias prompt.
+    /// Stated sensitivity: pass [] (or drop/reorder terms) instead of the received
+    /// biasTerms → the recorded terms differ → RED.
+    @Test
+    func beginForwardsBiasTermsToTheSessionFactory() async throws {
+        let terms = [
+            Term(term: "GitHub", expansion: nil, lang: .en, weight: 2),
+            Term(term: "ExampleCorp", expansion: "Example Corp", lang: .en, weight: 1),
+        ]
+        let engine = FakeSpeechEngine()
+        let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
+
+        try await transcriber.begin(biasTerms: terms)
+
+        let recorded = try #require(engine.sessionBiasTerms.first, "the session factory must be asked once")
+        #expect(recorded.map(\.term) == ["GitHub", "ExampleCorp"])
+        #expect(recorded.map(\.expansion) == [nil, "Example Corp"])
+    }
+
     /// A re-begin over a dangling session must replace its live stream and must NOT
     /// re-load an already-loaded model.
     /// Stated sensitivity: leak the prior session's samples → finalization sees

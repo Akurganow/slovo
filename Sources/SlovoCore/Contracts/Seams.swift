@@ -119,5 +119,10 @@ public enum InjectionError: Error, Equatable, Sendable {
 /// and `profileFacts`, plus a `Correction` value type) are deferred; the real
 /// GRDB adapter will define their exact shapes.
 public protocol PersonalizationSource: Sendable {
-    func vocabulary(limit: Int) -> [Term]
+    /// The user's whole bias vocabulary, weight-descending with the term breaking
+    /// ties — consumers budget it themselves, so the order must be stable. The
+    /// ordering is load-bearing only on the ASR path, where arrival order alone
+    /// decides which terms reach the bias prompt's token budget; the cleanup builder
+    /// re-sorts defensively, and fakes may hand back plain arrival order.
+    func vocabulary() -> [Term]
 }

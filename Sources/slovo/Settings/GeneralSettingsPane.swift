@@ -12,6 +12,7 @@ struct GeneralSettingsPane: View {
     @State private var translateTrigger: HotkeyTrigger
     @State private var translateKeyIsAdditional: Bool
     @State private var language: Language
+    @State private var usesVocabularyBias: Bool
     @ObservedObject private var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel
     @State private var launchAtLogin: Bool
     @State private var automaticallyInstallsUpdates: Bool
@@ -23,6 +24,7 @@ struct GeneralSettingsPane: View {
         _translateTrigger = State(initialValue: config.translateTrigger)
         _translateKeyIsAdditional = State(initialValue: config.translateKeyIsAdditional)
         _language = State(initialValue: config.language)
+        _usesVocabularyBias = State(initialValue: config.usesVocabularyBias)
         _dictationSoundCuePreferenceModel = ObservedObject(
             wrappedValue: actions.dictationSoundCuePreferenceModel
         )
@@ -56,6 +58,7 @@ struct GeneralSettingsPane: View {
             seedHotkeys()
             let config = actions.currentConfig()
             language = config.language
+            usesVocabularyBias = config.usesVocabularyBias
             // The login item can be toggled off outside the app (System Settings),
             // so re-read the live state rather than trust the cached value.
             launchAtLogin = actions.launchAtLoginEnabled()
@@ -90,11 +93,25 @@ struct GeneralSettingsPane: View {
                 Text("Auto handles mixed-language speech best.")
             }
             .onChange(of: language) { _, newValue in actions.setRecognitionLanguage(newValue) }
+            vocabularyBiasRow
             Toggle("Sound Cues", isOn: Binding(
                 get: { dictationSoundCuePreferenceModel.isEnabled },
                 set: { actions.setPlaysDictationSoundCues($0) }
             ))
         }
+    }
+
+    /// The experimental switch that also biases speech recognition toward the top
+    /// vocabulary terms. Its caption warns about the experiment itself rather than
+    /// explaining the mechanism — the Vocabulary pane is where the terms are
+    /// described. The caption is the label's SECOND Text (the documented
+    /// title-and-subtitle builder), as on `additionalKeyRow`.
+    private var vocabularyBiasRow: some View {
+        Toggle(isOn: $usesVocabularyBias) {
+            Text("Vocabulary bias (experimental)")
+            Text("Experimental features may misbehave — use with care.")
+        }
+        .onChange(of: usesVocabularyBias) { _, newValue in actions.setVocabularyBias(newValue) }
     }
 
     /// The translate key beside the hold it joins: while the key is additional the row

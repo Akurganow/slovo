@@ -28,9 +28,17 @@ struct VocabularySettingsPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Terms cleanup keeps verbatim — names, brands, jargon.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(
+                """
+                Cleanup keeps these terms verbatim and fixes them when they come out \
+                misspelled — names, brands, jargon. An expansion tells cleanup what a \
+                term means; it is never inserted into your text. With the experimental \
+                vocabulary bias switch on, the highest-weighted terms that fit are also \
+                passed to the on-device speech recognizer.
+                """
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
             table
         }
         .padding()

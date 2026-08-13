@@ -196,6 +196,7 @@ public enum ConfigStore {
                 translateKeyIsAdditional: translateKeyIsAdditional,
                 asrBackend: asr.backend,
                 asrModel: asr.model,
+                usesVocabularyBias: asr.vocabularyBias,
                 openRouterModel: openRouterModel,
                 cleanupEnabled: cleanup.enabled,
                 writingStyle: cleanup.writingStyle,
@@ -218,7 +219,11 @@ public enum ConfigStore {
             playsDictationSoundCues = config.playsDictationSoundCues
             translationTargetLanguage = config.translationTargetLanguage
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
-            asr = StoredAsr(backend: config.asrBackend, model: config.asrModel)
+            asr = StoredAsr(
+                backend: config.asrBackend,
+                model: config.asrModel,
+                vocabularyBias: config.usesVocabularyBias
+            )
             cleanup = StoredCleanup(
                 enabled: config.cleanupEnabled,
                 provider: nil,
@@ -242,6 +247,10 @@ public enum ConfigStore {
     private struct StoredAsr: Codable {
         let backend: AsrBackend
         let model: String
+        // An absent wire field defaults to `false` at decode, so every blob predating
+        // the experimental switch keeps the recognizer unbiased (backward compatible,
+        // no migration).
+        let vocabularyBias: Bool
         /// Runtime-only marker (never encoded) so the enclosing config can migrate
         /// the sibling legacy keep-warm default.
         let migratedFromLegacyAppleSpeech: Bool
@@ -249,11 +258,13 @@ public enum ConfigStore {
         private enum CodingKeys: String, CodingKey {
             case backend
             case model
+            case vocabularyBias
         }
 
-        init(backend: AsrBackend, model: String) {
+        init(backend: AsrBackend, model: String, vocabularyBias: Bool) {
             self.backend = backend
             self.model = model
+            self.vocabularyBias = vocabularyBias
             self.migratedFromLegacyAppleSpeech = false
         }
 
@@ -265,6 +276,7 @@ public enum ConfigStore {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             let storedBackend = try container.decode(String.self, forKey: .backend)
             let storedModel = try container.decode(String.self, forKey: .model)
+            vocabularyBias = try container.decodeIfPresent(Bool.self, forKey: .vocabularyBias) ?? false
 
             switch storedBackend {
             case AsrBackend.whisperKit.rawValue:
@@ -288,6 +300,8 @@ public enum ConfigStore {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(backend, forKey: .backend)
             try container.encode(model, forKey: .model)
+            // Explicit on the wire (like `useSpellCheckHints`), never omitted.
+            try container.encode(vocabularyBias, forKey: .vocabularyBias)
         }
     }
 

@@ -57,32 +57,40 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         lock.withLock { loadedEngine = nil }
     }
 
-    public func makeSpeechStreamingSession() throws -> any SpeechStreamingSession {
+    public func makeSpeechStreamingSession(biasTerms: [Term]) throws -> any SpeechStreamingSession {
         guard let engine = currentEngine else {
             throw TranscriptionError.backendUnavailable
         }
         return try WhisperKitLiveSession(
             engine: engine,
-            decodingOptions: Self.decodingOptions(language: language)
+            decodingOptions: Self.decodingOptions(language: language, biasTerms: biasTerms) { text in
+                engine.tokenizer?.encode(text: text) ?? []
+            }
         )
     }
 
-    /// The streaming decoder options for `language`. Internal (not private) so
-    /// the token-clean contract's first-line layer — `skipSpecialTokens` — is
-    /// pinned by a `@testable` unit test without widening the public API.
+    /// The streaming decoder options for `language`, biased toward `biasTerms`
+    /// (empty runs unbiased). Pure and internal (not private) so a `@testable`
+    /// unit test pins BOTH the token-clean contract's first-line layer —
+    /// `skipSpecialTokens` — and the bias wiring, without widening the public API
+    /// or loading a model.
     ///
     /// `skipSpecialTokens: true` is the FIRST-LINE optimization for the
     /// token-clean text domain: SDK-owned and token-ID-exact, but version-
     /// dependent. The AUTHORITATIVE guarantor is the compose-site sanitizer
     /// (`WhisperKitTranscriptText.strippingSpecialTokens`). `detectLanguage`
     /// pairs with the `.auto` sentinel so mixed RU+EN keeps auto-detecting.
-    static func decodingOptions(language: Language) -> DecodingOptions {
+    static func decodingOptions(
+        language: Language,
+        biasTerms: [Term],
+        tokenizer: (String) -> [Int]
+    ) -> DecodingOptions {
         DecodingOptions(
             task: .transcribe,
             language: language.whisperKitLanguageCode,
             detectLanguage: language == .auto,
             skipSpecialTokens: true,
-            promptTokens: nil
+            promptTokens: WhisperKitBiasPromptBuilder.promptTokens(for: biasTerms, tokenizer: tokenizer)
         )
     }
 

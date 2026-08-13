@@ -30,11 +30,12 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
         log.logLength(of: records)
     }
 
-    public func vocabulary(limit: Int) -> [Term] {
+    /// The term breaks weight ties: without it SQLite is free to return equal-weight
+    /// rows in any order, and the head of this list is what fits the ASR bias budget.
+    public func vocabulary() -> [Term] {
         let records = (try? database.read { db in
             try VocabularyRecord
-                .order(Column("weight").desc)
-                .limit(limit)
+                .order(Column("weight").desc, Column("term").asc)
                 .fetchAll(db)
         }) ?? []
 
@@ -52,14 +53,15 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
         }
     }
 
-    /// Every stored vocabulary row, unfiltered and uncapped — the Settings
-    /// vocabulary table's read. Unlike `vocabulary(limit:)`, which swallows a read
-    /// failure into `[]` so the dictation pipeline degrades gracefully, this method
-    /// `throws`: the management UI must be able to tell a genuine read failure apart
-    /// from an empty store.
+    /// Every stored vocabulary row — the Settings vocabulary table's read, which needs
+    /// the stable row ids `vocabulary()` does not carry. Unlike `vocabulary()`, which
+    /// swallows a read failure into `[]` so the dictation pipeline degrades gracefully,
+    /// this method `throws`: the management UI must be able to tell a genuine read
+    /// failure apart from an empty store. Shares `vocabulary()`'s tie-break so the
+    /// user-visible table cannot reshuffle its equal-weight rows after an edit.
     public func allVocabulary() throws -> [VocabularyRecord] {
         let records = try database.read { db in
-            try VocabularyRecord.order(Column("weight").desc).fetchAll(db)
+            try VocabularyRecord.order(Column("weight").desc, Column("term").asc).fetchAll(db)
         }
         // Coarse only: the COUNT is not a payload; no term is ever logged.
         log.event("vocabulary listed")
