@@ -66,6 +66,14 @@ and only for the OpenRouter cleanup attempt.
   addition only when the final decode is the exact normalized live result plus
   an anomalous suffix timestamped strictly beyond the recorded audio. The model
   remains resident between dictations.
+  Known constraint: WhisperKit's decode loop caps every 30 s window at 223
+  iterations shared between prefill and sampled output, leaving ~219 sampled
+  tokens even with no prompt, while fast Russian speech (~180 wpm at the
+  measured 2.38 tokens/word) demands ~214 — dictation runs near the truncation
+  ceiling by construction, observed live once as a five-fallback decode on an
+  unbiased dictation (2026-08-12). The vocabulary-bias budget derivation in
+  `WhisperKitBiasPromptBuilder` and the release-checklist gate build on this
+  same arithmetic.
 - `WhisperKitTranscriptText.compose` guarantees the token-clean text domain in
   two layers: the compose-site sanitizer is the authoritative guarantor — every
   `finish()` outcome routes through it, stripping ASR special tokens
