@@ -12,7 +12,7 @@ with it off, nothing leaves the machine at all.
 [![Swift CI](https://github.com/Akurganow/slovo/actions/workflows/swift.yml/badge.svg)](https://github.com/Akurganow/slovo/actions/workflows/swift.yml)
 [![Release](https://img.shields.io/github/v/release/Akurganow/slovo)](https://github.com/Akurganow/slovo/releases/latest)
 [![License: GPL v3](https://img.shields.io/github/license/Akurganow/slovo)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-blue)
+![Platform](https://img.shields.io/badge/platform-macOS%2015%2B-blue)
 ![Swift](https://img.shields.io/badge/swift-6.3-orange)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/akurganow)
 
@@ -89,7 +89,7 @@ tuned.
 ## Requirements
 
 - Apple Silicon Mac.
-- macOS 26 or newer.
+- macOS 15 (Sequoia) or newer.
 - Microphone and Accessibility permissions. Input Monitoring may be
   requested only as a targeted hotkey recovery step if the event tap
   cannot start.

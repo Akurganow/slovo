@@ -143,12 +143,12 @@ build_app() {
         run test -f "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle/AudioCues/$cue_resource"
     done
 
-    # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
+    # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).
     local icon_build="$DIST_DIR/icon"
     run install -d "$icon_build"
     run xcrun actool "$ROOT/Resources/$APP_NAME.icon" --app-icon "$APP_NAME" --compile "$icon_build" \
         --output-partial-info-plist "$icon_build/partial.plist" \
-        --minimum-deployment-target 26.0 --platform macosx --target-device mac \
+        --minimum-deployment-target 15.0 --platform macosx --target-device mac \
         --output-format human-readable-text
     run install -m 0644 "$icon_build/Assets.car" "$CONTENTS_PATH/Resources/Assets.car"
     run install -m 0644 "$icon_build/$APP_NAME.icns" "$CONTENTS_PATH/Resources/$APP_NAME.icns"

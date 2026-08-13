@@ -70,13 +70,13 @@ stage_bundle() {
   # degrades every prompt to example-free, so staging it is part of the product.
   ditto "$bin_path/slovo_SlovoCore.bundle" "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle"
 
-  # Compile the macOS 26 app icon (theme-adaptive .icon -> Assets.car + legacy .icns).
+  # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).
   local icon_build="$RUN_DIR/icon"
   rm -rf "$icon_build"
   mkdir -p "$icon_build"
   xcrun actool "$ROOT_DIR/Resources/Slovo.icon" --app-icon "$APP_NAME" --compile "$icon_build" \
     --output-partial-info-plist "$icon_build/partial.plist" \
-    --minimum-deployment-target 26.0 --platform macosx --target-device mac \
+    --minimum-deployment-target 15.0 --platform macosx --target-device mac \
     --output-format human-readable-text >/dev/null
   cp "$icon_build/Assets.car" "$APP_CONTENTS/Resources/Assets.car"
   cp "$icon_build/$APP_NAME.icns" "$APP_CONTENTS/Resources/$APP_NAME.icns"

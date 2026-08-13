@@ -113,7 +113,7 @@ struct AppShellPackagingTests {
         #expect(plist["NSPrincipalClass"] as? String == "NSApplication")
         #expect((plist["NSMicrophoneUsageDescription"] as? String)?.isEmpty == false)
         #expect((plist["NSSpeechRecognitionUsageDescription"] as? String)?.isEmpty == false)
-        #expect(plist["LSMinimumSystemVersion"] as? String == "26.0")
+        #expect(plist["LSMinimumSystemVersion"] as? String == "15.0")
     }
 
     @Test
