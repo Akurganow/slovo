@@ -3,8 +3,9 @@
 ## Requirements
 
 - Apple Silicon Mac.
-- macOS 26 or newer.
-- Xcode with Swift 6.3 toolchain.
+- Xcode 26.4 or newer, the first release carrying the Swift 6.3 toolchain, which
+  needs macOS 26.2 or newer on the build machine. The shipped app runs on
+  macOS 15 (Sequoia) or newer.
 - Swift Package Manager.
 
 ## Build
@@ -215,3 +216,32 @@ on the dev Mac:
   DIFFERENT Team ID — it MUST be rejected and silently discarded (nothing
   installed, no indication). This is the proof of the same-Developer-ID
   authenticity guarantee (closes design open-question OQ5).
+
+## Manual macOS 15 floor check (oldest-OS-only)
+
+The test gate never runs on the floor: the Swift 6.3 toolchain is Xcode 26.4 or
+newer, which does not install below macOS 26.2, so every CI runner and dev Mac is
+newer than the oldest OS the app claims to support. No amount of green CI proves
+the binary still launches on macOS 15.
+
+**Owner:** the maintainer cutting the release.
+
+**Trigger:** before shipping a release that touches the floor — a change to the
+deployment target in `Package.swift`, to `LSMinimumSystemVersion`, to the actool
+`--minimum-deployment-target` flags in the packaging scripts, or adoption of a
+system API newer than the floor.
+
+**Procedure:** package a signed build (`Scripts/sign-and-notarize.sh app`), copy
+the resulting `Slovo.app` to a Mac running macOS 15 (Sequoia), and verify:
+
+- **Launch:** the app starts with no dyld or missing-symbol error, and its glyph
+  appears in the menu bar.
+- **One full dictation round:** hold the push-to-talk key, speak, release — the
+  cleaned text lands in the frontmost app.
+- **Update check:** the dropdown's "Check for Updates…" row completes and reports
+  a result instead of an error.
+
+**Passing:** all three succeed on the macOS 15 machine. Any failure is a floor
+violation — the deployment target claims an OS the binary cannot actually run on —
+not a defect of that particular Mac, and it blocks the release until either the
+cause is fixed or the floor is raised to an OS that does work.

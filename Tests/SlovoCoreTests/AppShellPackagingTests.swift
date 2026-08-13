@@ -113,7 +113,57 @@ struct AppShellPackagingTests {
         #expect(plist["NSPrincipalClass"] as? String == "NSApplication")
         #expect((plist["NSMicrophoneUsageDescription"] as? String)?.isEmpty == false)
         #expect((plist["NSSpeechRecognitionUsageDescription"] as? String)?.isEmpty == false)
-        #expect(plist["LSMinimumSystemVersion"] as? String == "26.0")
+    }
+
+    /// One floor, eight stamps: Info.plist's LSMinimumSystemVersion is the reference,
+    /// every other stamp must state the same value — one stamp drifting goes RED,
+    /// an agreed floor raise (all eight moved together) stays green with no test edit.
+    /// A stamp that cannot be found fails loudly rather than skipping; one matched
+    /// twice fails as ambiguous rather than trusting the first hit. NOT a substitute
+    /// for the manual check on the floor OS: this catches silently diverged configs,
+    /// only a real run catches an agreed-but-broken runtime.
+    @Test
+    func deploymentFloorStampsAgree() throws {
+        let data = try Data(contentsOf: Self.packageRoot.appending(path: "Resources/Info.plist"))
+        let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let floor = try #require(plist["LSMinimumSystemVersion"] as? String,
+                                 "floor stamp not found: LSMinimumSystemVersion in Resources/Info.plist")
+        let major = try #require(floor.split(separator: ".").first.map(String.init),
+                                 "floor stamp unreadable: \"\(floor)\" has no major component")
+
+        let manifest = try Self.source("Package.swift")
+        let platforms = manifest.matches(of: /\.macOS\(\.v(\d+)\)/)
+        try #require(!platforms.isEmpty,
+                     "floor stamp not found: .macOS(.vNN) platform in Package.swift")
+        try #require(platforms.count == 1,
+                     "ambiguous floor stamp: .macOS(.vNN) platform in Package.swift")
+        #expect(String(platforms[0].1) == major)
+
+        for script in ["Scripts/build_and_run.sh", "Scripts/sign-and-notarize.sh"] {
+            let text = try Self.source(script)
+            let targets = text.matches(of: /--minimum-deployment-target (\d+(?:\.\d+)*)/)
+            try #require(!targets.isEmpty,
+                         "floor stamp not found: --minimum-deployment-target in \(script)")
+            try #require(targets.count == 1,
+                         "ambiguous floor stamp: --minimum-deployment-target in \(script)")
+            #expect(String(targets[0].1) == floor, "actool floor in \(script) diverged from Info.plist")
+        }
+
+        let readme = try Self.source("README.md")
+        let badges = readme.matches(of: /macOS%20(\d+)%2B/)
+        try #require(!badges.isEmpty,
+                     "floor stamp not found: URL-encoded platform badge in README.md")
+        try #require(badges.count == 1,
+                     "ambiguous floor stamp: URL-encoded platform badge in README.md")
+        #expect(String(badges[0].1) == major)
+        for document in ["README.md", "CONTRIBUTING.md", "docs/development.md"] {
+            let text = try Self.source(document)
+            let stamps = text.matches(of: /macOS (\d+) \(\w+\) or newer/)
+            try #require(!stamps.isEmpty,
+                         "floor stamp not found: requirements line in \(document)")
+            try #require(stamps.count == 1, "ambiguous floor stamp in \(document)")
+            #expect(String(stamps[0].1) == major, "prose floor in \(document) diverged from Info.plist")
+        }
     }
 
     @Test

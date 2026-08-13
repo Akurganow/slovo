@@ -7,8 +7,9 @@ Thanks for taking the time to improve Slovo.
 Requirements:
 
 - Apple Silicon Mac.
-- macOS 26 or newer.
-- Xcode with Swift 6.3 toolchain.
+- Xcode 26.4 or newer, the first release carrying the Swift 6.3 toolchain, which
+  needs macOS 26.2 or newer on the build machine. The shipped app runs on
+  macOS 15 (Sequoia) or newer.
 - A stable code-signing identity for packaged app testing.
 
 Install Swift package dependencies from the checked-in lockfile:

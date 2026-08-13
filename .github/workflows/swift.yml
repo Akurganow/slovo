@@ -28,8 +28,12 @@ concurrency:
 
 jobs:
   test:
-    # The package floor is macOS 26 (Apple on-device SpeechTranscriber /
-    # SpeechAnalyzer) built with the Swift 6.3 toolchain.
+    # The app floor is macOS 15, but the gate runs on macOS 26 only: Swift 6.3
+    # (required by Package.swift) ships in Xcode 26.4+, which Apple gates at
+    # macOS 26.2, so no macOS 15 runner can install the required Xcode; a
+    # standalone swift.org toolchain was ruled out to keep the gate on the
+    # stock Xcode toolchain. Runtime on the floor is verified by hand — see
+    # docs/development.md, "Manual macOS 15 floor check".
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7

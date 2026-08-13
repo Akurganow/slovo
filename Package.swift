@@ -15,7 +15,7 @@ let swiftLintPlugins: [Target.PluginUsage] = [
 
 let package = Package(
     name: "slovo",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v15)],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
