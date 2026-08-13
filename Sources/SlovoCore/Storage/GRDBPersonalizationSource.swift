@@ -1,3 +1,4 @@
+import Foundation
 import GRDB
 
 /// The GRDB-backed `PersonalizationSource`. The only place
@@ -5,9 +6,15 @@ import GRDB
 ///
 /// SECURITY: a DB-row value (a term, expansion, …) must NEVER reach the
 /// log. Only coarse counts cross into `RedactionSafeLog` — never a row payload.
+///
+/// It constructs its own `GRDBTermMissStore` over the shared pool rather than
+/// receiving one (`AppComposition` builds a second for the recording seam):
+/// both are stateless structs over the same `DatabasePool`, so there is no
+/// shared instance to inject and no injection point to look for.
 public struct GRDBPersonalizationSource: PersonalizationSource {
     private let database: DatabasePool
     private let log: RedactionSafeLog
+    private let missStore: GRDBTermMissStore
 
     public init(
         database: DatabasePool,
@@ -15,6 +22,7 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
     ) {
         self.database = database
         self.log = log
+        self.missStore = GRDBTermMissStore(database: database, log: log)
     }
 
     /// Inserts user-added rows with `INSERT OR IGNORE` (the record's conflict
@@ -30,8 +38,12 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
         log.logLength(of: records)
     }
 
-    /// The term breaks weight ties: without it SQLite is free to return equal-weight
-    /// rows in any order, and the head of this list is what fits the ASR bias budget.
+    /// The user's bias vocabulary in BIAS-RANK order: `BiasRanker` score
+    /// descending (manual weight + decayed misses), weight then term breaking
+    /// ties. With no stored misses this is exactly the old weight-descending
+    /// order. The events read is SEPARATELY fallible: if `term_misses` cannot
+    /// be read, ranking degrades to weight order — the vocabulary itself must
+    /// never vanish with it (the cleanup glossary rides on this read too).
     public func vocabulary() -> [Term] {
         let records = (try? database.read { db in
             try VocabularyRecord
@@ -43,7 +55,7 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
         log.event("vocabulary fetched")
         log.logLength(of: records)
 
-        return records.map { record in
+        let terms = records.map { record in
             Term(
                 term: record.term,
                 expansion: record.expansion,
@@ -51,14 +63,28 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
                 weight: record.weight
             )
         }
+
+        guard let missDates = try? missStore.missDatesByKey() else {
+            log.event("term miss read failed; weight order")
+            return terms
+        }
+        let ranked = BiasRanker.rank(terms, missDates: missDates, now: Date())
+        // Coarse observability for the whole feedback loop: how many terms
+        // moved, over how many stored events. Counts only, never a surface.
+        let movedCount = zip(terms, ranked).filter { $0.term != $1.term }.count
+        let eventRowCount = missDates.values.reduce(0) { $0 + $1.count }
+        log.event("vocabulary ranked moved=\(movedCount) eventRows=\(eventRowCount)")
+        return ranked
     }
 
     /// Every stored vocabulary row — the Settings vocabulary table's read, which needs
     /// the stable row ids `vocabulary()` does not carry. Unlike `vocabulary()`, which
     /// swallows a read failure into `[]` so the dictation pipeline degrades gracefully,
     /// this method `throws`: the management UI must be able to tell a genuine read
-    /// failure apart from an empty store. Shares `vocabulary()`'s tie-break so the
-    /// user-visible table cannot reshuffle its equal-weight rows after an edit.
+    /// failure apart from an empty store. Keeps raw weight order INTENTIONALLY while
+    /// `vocabulary()` re-ranks by decayed misses: Settings shows the user the manual
+    /// order they authored, so the two reads diverge by design. Its weight tie-break
+    /// keeps the user-visible table from reshuffling equal-weight rows after an edit.
     public func allVocabulary() throws -> [VocabularyRecord] {
         let records = try database.read { db in
             try VocabularyRecord.order(Column("weight").desc, Column("term").asc).fetchAll(db)

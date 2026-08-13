@@ -119,10 +119,21 @@ public enum InjectionError: Error, Equatable, Sendable {
 /// and `profileFacts`, plus a `Correction` value type) are deferred; the real
 /// GRDB adapter will define their exact shapes.
 public protocol PersonalizationSource: Sendable {
-    /// The user's whole bias vocabulary, weight-descending with the term breaking
-    /// ties — consumers budget it themselves, so the order must be stable. The
+    /// The user's whole bias vocabulary, bias-rank descending (manual weight plus
+    /// decayed miss boost; weight then term break ties — identical to weight order
+    /// when no misses are stored) — consumers budget it themselves, so the order
+    /// must be stable. The
     /// ordering is load-bearing only on the ASR path, where arrival order alone
     /// decides which terms reach the bias prompt's token budget; the cleanup builder
     /// re-sorts defensively, and fakes may hand back plain arrival order.
     func vocabulary() -> [Term]
+}
+
+/// Sink for one dictation's detected vocabulary misses (folded term keys).
+/// Non-throwing by contract: recording is fire-and-forget off the hot path —
+/// a failure is logged coarsely inside the adapter and never disturbs the
+/// injection pipeline (a throwing signature would force a swallowed `try?`
+/// at the single call site).
+public protocol TermMissRecording: Sendable {
+    func recordMisses(_ termKeys: [String]) async
 }
