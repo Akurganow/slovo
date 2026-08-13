@@ -16,14 +16,12 @@ struct VocabularyManagementTests {
         return (GRDBPersonalizationSource(database: pool), { TempDatabase.remove(at: path) })
     }
 
-    /// list-all returns every stored row (not the weight-capped top-N that
-    /// `vocabulary(limit:)` returns).
-    /// Stated sensitivity: route `allVocabulary()` through the capped
-    /// `vocabulary(limit:)` path, or apply any LIMIT, → fewer than all rows come
-    /// back → RED. The seed is 60 rows — more than the app's largest cap
-    /// (`vocabularyLimit` = 50) and any plausible LIMIT — so even a mutation that
-    /// routes through `vocabulary(limit: 50)` visibly drops rows and reddens; a
-    /// 3-row seed would let any cap ≥ 3 survive.
+    /// list-all returns every stored row, so the Settings table can never silently
+    /// hide terms the user added.
+    /// Stated sensitivity: add any `.limit(n)` with n < 60 to `allVocabulary()`'s
+    /// query → fewer than 60 rows come back → RED. The seed is 60 rows rather than 3
+    /// so that a plausible round-number cap (10, 25, 50) reddens too; a 3-row seed
+    /// would let every such cap survive.
     @Test
     func allVocabularyReturnsEveryStoredRow() throws {
         let (source, teardown) = try Self.openStore()
@@ -39,6 +37,14 @@ struct VocabularyManagementTests {
                 "allVocabulary must return every stored row (60), not a capped subset; got \(terms.count)")
         #expect(Set(terms) == Set(seeded.map(\.term)),
                 "allVocabulary must return exactly the stored terms")
+        // Every row shares weight 1, so the term tie-break alone decides the order the
+        // Settings table renders. Lexicographic, not numeric: "term-10" precedes "term-2".
+        // Stated sensitivity: drop `Column("term").asc` from `allVocabulary()`'s ORDER BY
+        // → the equal-weight rows come back in an unspecified order, here
+        // ["term-9", "term-8", "term-7"] → RED. Which order SQLite picks is a query-plan
+        // detail and differs between fixtures, so the pin is on the term order alone.
+        #expect(Array(terms.prefix(3)) == ["term-1", "term-10", "term-11"],
+                "equal-weight rows must render in term order; got \(Array(terms.prefix(3)))")
     }
 
     /// remove-by-id deletes exactly the identified row and leaves the rest.

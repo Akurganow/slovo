@@ -22,11 +22,9 @@ public struct CleanupPrompt: Sendable, Equatable {
 /// active mode's language contract is emitted — the model never sees "never
 /// translate" and "translate into X" at once.
 public struct PromptBuilder: Sendable {
-    private let maxVocabularyTerms: Int
     private let examples: PromptExampleCatalog
 
-    public init(maxVocabularyTerms: Int, examples: PromptExampleCatalog = .bundled) {
-        self.maxVocabularyTerms = maxVocabularyTerms
+    public init(examples: PromptExampleCatalog = .bundled) {
         self.examples = examples
     }
 
@@ -49,14 +47,24 @@ public struct PromptBuilder: Sendable {
         context: PersonalizationContext,
         hints: CleanupHints
     ) -> CleanupPrompt {
-        // Top-N vocabulary by weight, descending; the budget counts usable terms, so a
-        // row that renders blank never spends a slot. Padding is deliberately NOT done
-        // (caching is a bonus, not a driver).
+        // The WHOLE vocabulary. It costs ~1k tokens of system prefix per request:
+        // free on providers that cache prefixes automatically, paid in full on
+        // Anthropic models, which need explicit cache_control breakpoints this code
+        // does not send. Terms run weight-descending, ties broken on the term.
+        //
+        // The tie-break is TOTAL by scalar, not `<`: Swift's sort is not
+        // contractually stable, so a comparator reporting equality for two
+        // canonically-equivalent-but-byte-different terms would let them swap between
+        // runs and break the byte-stable prefix. Rows that render blank are dropped
+        // rather than listed as empty entries.
         let keptEntries = context.vocabulary
-            .sorted { $0.weight > $1.weight }
+            .sorted { lhs, rhs in
+                lhs.weight == rhs.weight
+                    ? lhs.term.unicodeScalars.lexicographicallyPrecedes(rhs.term.unicodeScalars)
+                    : lhs.weight > rhs.weight
+            }
             .map(\.vocabularyEntry)
             .filter { !$0.isEmpty }
-            .prefix(maxVocabularyTerms)
 
         // Block order is the prompt's cache prefix: the stable instruction block first,
         // then the slow-moving vocabulary, then the per-dictation advisory.

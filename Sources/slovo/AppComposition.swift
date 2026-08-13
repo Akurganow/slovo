@@ -2,8 +2,6 @@ import Foundation
 import SlovoCore
 
 enum AppComposition {
-    private static let vocabularyLimit = 50
-
     struct Live {
         let orchestrator: Orchestrator
         let hotkeyMonitor: CGEventTapHotkeyMonitor
@@ -48,7 +46,7 @@ enum AppComposition {
         let cleaner = OpenRouterCleaner(
             session: .shared,
             keyProvider: openRouterKeyProvider,
-            promptBuilder: PromptBuilder(maxVocabularyTerms: vocabularyLimit, examples: .bundled),
+            promptBuilder: PromptBuilder(examples: .bundled),
             log: log
         )
         let injector = ClipboardPasteInjector(
@@ -87,7 +85,6 @@ enum AppComposition {
             orchestrator: PipelineFactory.makeOrchestrator(
                 config: config,
                 dependencies: dependencies,
-                vocabularyLimit: vocabularyLimit,
                 cleanupConfig: cleanupConfig
             ),
             hotkeyMonitor: CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration),

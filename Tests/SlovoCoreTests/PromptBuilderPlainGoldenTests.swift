@@ -13,7 +13,7 @@ struct PromptBuilderPlainGoldenTests {
     private static let emptyCatalog = PromptExampleCatalog(cleanup: [], translation: [:])
 
     private static func plainBlock(examples: PromptExampleCatalog = emptyCatalog) -> String {
-        PromptBuilder(maxVocabularyTerms: 3, examples: examples).buildPrompt(
+        PromptBuilder(examples: examples).buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: [])

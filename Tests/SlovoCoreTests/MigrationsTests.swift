@@ -15,7 +15,7 @@ import SlovoCore
 struct MigrationsTests {
 
     /// Opening at a NON-EXISTENT path creates the DB and an empty
-    /// `vocabulary`; `vocabulary(limit:)` returns `[]` without crashing.
+    /// `vocabulary`; `vocabulary()` returns `[]` without crashing.
     /// Stated sensitivity: branch on file-exists and skip the migrator when the
     /// file is missing → the table doesn't exist → the query crashes/errors → RED.
     @Test

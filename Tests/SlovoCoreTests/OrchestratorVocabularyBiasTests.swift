@@ -17,7 +17,11 @@ struct OrchestratorVocabularyBiasTests {
         Term(term: "GitHub", expansion: nil, lang: .en, weight: 1),
     ]
 
-    private static func dependencies(transcriber: any Transcriber, cleaner: FakeCleaner) -> Dependencies {
+    private static func dependencies(
+        transcriber: any Transcriber,
+        cleaner: FakeCleaner,
+        recorder: any AudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+    ) -> Dependencies {
         Dependencies(
             transcriber: transcriber,
             cleaner: cleaner,
@@ -26,7 +30,7 @@ struct OrchestratorVocabularyBiasTests {
             audio: FakeSystemAudioController(
                 muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
             ),
-            recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+            recorder: recorder,
             cueController: FakeDictationCueController(),
             log: RedactionSafeLog(subsystem: "slovo", category: "vocabulary-bias-test")
         )
@@ -35,13 +39,14 @@ struct OrchestratorVocabularyBiasTests {
     private static func makeOrchestrator(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
-        usesVocabularyBias: Bool
+        usesVocabularyBias: Bool,
+        recorder: any AudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
     ) -> Orchestrator {
         var config = Config()
         config.usesVocabularyBias = usesVocabularyBias
         return PipelineFactory.makeOrchestrator(
             config: config,
-            dependencies: dependencies(transcriber: transcriber, cleaner: cleaner)
+            dependencies: dependencies(transcriber: transcriber, cleaner: cleaner, recorder: recorder)
         )
     }
 
@@ -146,6 +151,34 @@ struct OrchestratorVocabularyBiasTests {
                 "the session must begin with the value latched at capture start")
     }
 
+    /// The same latch, at the EARLIER and much longer suspension: `recorder.start()`
+    /// spans microphone startup, so a toggle push is far likelier to land there than
+    /// in the residency read. Sibling of the test above, one suspension upstream.
+    /// Stated sensitivity: move the `usesVocabularyBias` read back below
+    /// `recorder.start()` → the push lands first and the session records ["RCV",
+    /// "GitHub"] → RED. The residency-read test above stays GREEN under that same
+    /// mutation, which is why this one has to exist.
+    @Test
+    func aPushLandingInsideRecorderStartCannotChangeTheLatchedSession() async {
+        let transcriber = ResidencyGateTranscriber()
+        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
+        let recorder = StartGateRecorder()
+        let orchestrator = Self.makeOrchestrator(
+            transcriber: transcriber,
+            cleaner: cleaner,
+            usesVocabularyBias: false,
+            recorder: recorder
+        )
+        // Runs INSIDE the orchestrator's `recorder.start()` await — before the
+        // vocabulary is even read.
+        recorder.onStart { await orchestrator.updateUsesVocabularyBias(true) }
+
+        await Self.runDictation(on: orchestrator)
+
+        #expect(transcriber.beginBiasTerms.map { $0.map(\.term) } == [[]],
+                "the session must begin with the value latched before capture opened")
+    }
+
     /// The live push decides the NEXT dictation, so a switch flipped between
     /// dictations changes what the engine is handed without a pipeline rebuild.
     /// Stated sensitivity: make `updateUsesVocabularyBias` a no-op (or have it write
@@ -210,4 +243,35 @@ private final class ResidencyGateTranscriber: Transcriber, Sendable {
     }
 
     func cancel() async {}
+}
+
+/// A recorder that runs a hook INSIDE `start()` — `beginCapture`'s first and longest
+/// suspension — and otherwise behaves exactly like `FakeAudioRecorder`.
+private final class StartGateRecorder: AudioRecorder, Sendable {
+    private let base = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+    private let duringStart = Mutex<(@Sendable () async -> Void)?>(nil)
+
+    /// Installs the work to interleave at the recorder-start suspension point.
+    @preconcurrency
+    func onStart(_ body: @escaping @Sendable () async -> Void) {
+        duringStart.withLock { $0 = body }
+    }
+
+    func start() async throws -> AsyncStream<AudioChunk> {
+        let interleaved = duringStart.withLock { $0 }
+        await interleaved?()
+        return try await base.start()
+    }
+
+    func suspendDelivery() {
+        base.suspendDelivery()
+    }
+
+    func resumeDelivery() {
+        base.resumeDelivery()
+    }
+
+    func stop() async {
+        await base.stop()
+    }
 }

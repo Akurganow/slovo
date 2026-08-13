@@ -4,8 +4,8 @@ import GRDB
 
 import SlovoCore
 
-// Dedup on (term, category), top-N by weight, and seed idempotency (corrections
-// inert).
+// Dedup on (term, category), full ordering by weight, and seed idempotency
+// (corrections inert).
 //
 // Contract under test lives in `Sources/SlovoCore/Storage/`.
 //
@@ -43,27 +43,76 @@ struct VocabularyStoreTests {
         #expect(afterDuplicate == 1, "the same (term, category) must dedup to a single row; got \(afterDuplicate)")
     }
 
-    /// `vocabulary(limit:)` returns the highest-weight N terms in descending
-    /// order. Expected `[w9, w7, w5]` from the FIXTURE weights, not the source.
-    /// Stated sensitivity: drop/reverse the `.order(weight.desc)` → wrong set/order
-    /// → RED.
+    /// `vocabulary()` returns EVERY stored term in descending weight order — the read
+    /// is uncapped, and its consumers (the cleanup prompt, the ASR bias head) budget
+    /// it themselves. Five distinct-weight anchors pin the ordering; 60 weight-0
+    /// fillers sit below them so the fixture outgrows every plausible cap.
+    /// Stated sensitivity: drop/reverse the `.order(weight.desc)` → the anchor head
+    /// stops being [w9, w7, w5, w3, w1] → RED. Reintroduce `.limit(50)` → 50 rows
+    /// instead of 65, and the tail is filler-45 rather than filler-60 → RED; `.limit(10)`
+    /// and `.limit(25)` redden the same two expectations. A 5-row fixture (the version
+    /// this replaced) let every one of those caps pass. Dropping `Column("term").asc`
+    /// also reddens the tail here — the weight-0 group comes back reversed, ending at
+    /// filler-01 — which is the unspecified tie order this fixture happens to expose.
     @Test
-    func vocabularyReturnsTopNByWeightInOrder() throws {
+    func vocabularyReturnsEveryTermByWeightInOrder() throws {
         let (pool, teardown) = try Self.openStore()
         defer { teardown() }
 
         // Insert in a deliberately non-weight order so insertion-order ≠ weight order.
-        try SeedImport.importRows([
+        let anchors = [
             VocabularyRecord(term: "w5", category: "tech", weight: 5),
             VocabularyRecord(term: "w3", category: "tech", weight: 3),
             VocabularyRecord(term: "w9", category: "tech", weight: 9),
             VocabularyRecord(term: "w1", category: "tech", weight: 1),
             VocabularyRecord(term: "w7", category: "tech", weight: 7),
+        ]
+        // Zero-padded so term order and numeric order coincide; weight 0 keeps every
+        // filler below the anchors.
+        let fillers = (1...60).map { index in
+            VocabularyRecord(term: String(format: "filler-%02d", index), category: "tech", weight: 0)
+        }
+        try SeedImport.importRows(anchors + fillers, into: pool)
+
+        let terms = GRDBPersonalizationSource(database: pool).vocabulary().map(\.term)
+        #expect(terms.count == 65, "all 65 stored rows must come back uncapped; got \(terms.count)")
+        #expect(Array(terms.prefix(5)) == ["w9", "w7", "w5", "w3", "w1"],
+                "the weighted anchors must lead in descending weight order; got \(Array(terms.prefix(5)))")
+        #expect(terms.last == "filler-60",
+                "the lowest-weight tail must survive the read; got \(String(describing: terms.last))")
+    }
+
+    /// Equal weights are the common case once several terms share a seeded weight, and
+    /// the head of this list is what fits the ASR bias budget — so the tie order must
+    /// be the term, not whatever SQLite happens to return. Rows are inserted in
+    /// reverse-alphabetical order, so insertion order and term order disagree. This
+    /// pins THIS side's own ordering only: the in-memory cleanup sort is a separate
+    /// decision under its own comparator, and the two are deliberately not compared.
+    /// `Bravo` makes the tie case-sensitive — the pair `Bravo`/`bravo` differs only in
+    /// a byte, which is exactly what an unspecified tie order reshuffles.
+    /// Stated sensitivity: drop `Column("term").asc` from the ORDER BY → SQLite may
+    /// return the tie group in ANY order and here returns `[delta, charlie, bravo,
+    /// alpha, Bravo]` instead of `[Bravo, alpha, bravo, charlie, delta]` → RED. That
+    /// order is not a rule to rely on: the 65-row test above, under the same mutation,
+    /// gets its equal-weight group back in the OPPOSITE direction. Which way it falls
+    /// is a query-plan detail — the reason the tie-break has to be explicit.
+    @Test
+    func equalWeightsAreOrderedByTerm() throws {
+        let (pool, teardown) = try Self.openStore()
+        defer { teardown() }
+
+        try SeedImport.importRows([
+            VocabularyRecord(term: "delta", category: "tech", weight: 4),
+            VocabularyRecord(term: "charlie", category: "tech", weight: 4),
+            VocabularyRecord(term: "zulu", category: "tech", weight: 9),
+            VocabularyRecord(term: "bravo", category: "tech", weight: 4),
+            VocabularyRecord(term: "alpha", category: "tech", weight: 4),
+            VocabularyRecord(term: "Bravo", category: "tech", weight: 4),
         ], into: pool)
 
-        let top = GRDBPersonalizationSource(database: pool).vocabulary(limit: 3).map(\.term)
-        #expect(top == ["w9", "w7", "w5"],
-                "vocabulary(limit: 3) must return the top-3 by weight in descending order [w9, w7, w5]; got \(top)")
+        let terms = GRDBPersonalizationSource(database: pool).vocabulary().map(\.term)
+        #expect(terms == ["zulu", "Bravo", "alpha", "bravo", "charlie", "delta"],
+                "weight still leads; equal weights must break on the term ascending; got \(terms)")
     }
 
     /// Applying a SYNTHETIC seed twice leaves `vocabulary` un-duplicated and

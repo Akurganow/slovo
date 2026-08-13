@@ -34,7 +34,7 @@ struct DbRowRedactionTests {
         let log = RedactionSafeLog(subsystem: "slovo", category: "storage-test") { captured.append($0) }
         let source = GRDBPersonalizationSource(database: pool, log: log)
 
-        let terms = source.vocabulary(limit: 10)
+        let terms = source.vocabulary()
         // Sanity: the sentinel WAS stored and fetched (guards a vacuous pass where
         // nothing was read).
         #expect(terms.contains { $0.term == Self.sentinel }, "precondition: the sentinel row must be fetched")

@@ -10,37 +10,73 @@ struct PromptBuilderTests {
     }
 
     private static func plainSystemText(style: WritingStyle = .casual, vocabulary: [Term] = []) -> String {
-        PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: style, language: .auto),
             context: PersonalizationContext(vocabulary: vocabulary)
         ).systemBlocks.joined(separator: "\n")
     }
 
-    /// Stated sensitivity: dropping or reversing the weight sort changes the
-    /// exact high-value vocabulary order sent to OpenRouter.
+    /// Terms are listed weight-descending, whatever order the context arrives in — the
+    /// model reads the head as the most important spellings.
+    /// Stated sensitivity: drop or reverse the weight sort → the rendered list stops
+    /// being `w9, w7, w5, w3, w1` → RED.
     @Test
-    func keepsTopNVocabularyByWeightInOrder() {
-        let vocabulary = [
+    func rendersVocabularyByWeightDescending() {
+        let systemText = Self.plainSystemText(vocabulary: [
             Self.term("w5", weight: 5),
             Self.term("w3", weight: 3),
             Self.term("w9", weight: 9),
             Self.term("w1", weight: 1),
             Self.term("w7", weight: 7),
-        ]
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
-            raw: "hello",
-            config: CleanupConfig(model: "openai/gpt-5.6-luna", writingStyle: .formal, language: .auto),
-            context: PersonalizationContext(vocabulary: vocabulary)
-        )
-        let systemText = prompt.systemBlocks.joined(separator: "\n")
+        ])
 
-        let positions = ["w9", "w7", "w5"].map { systemText.range(of: $0)?.lowerBound }
-        #expect(positions.allSatisfy { $0 != nil }, "all top-3-by-weight terms must be present: \(systemText)")
-        if let p9 = positions[0], let p7 = positions[1], let p5 = positions[2] {
-            #expect(p9 < p7 && p7 < p5, "kept terms must be in descending-weight order")
-        }
-        #expect(!systemText.contains("w3") && !systemText.contains("w1"))
+        #expect(systemText.contains("in parentheses where known: w9, w7, w5, w3, w1"))
+    }
+
+    /// The cleanup prompt carries the WHOLE vocabulary — there is no term budget to
+    /// spend, only the ~1k tokens of system prefix it costs. 60 terms is more than the
+    /// retired 50-term cap and more than any plausible round-number cap, so a silently
+    /// reintroduced one cannot hide here. Names are zero-padded so that no term is a
+    /// substring of another: unpadded, "term-6" would be found inside "term-60" and a
+    /// cap keeping only the head could pass.
+    /// Stated sensitivity: reintroduce `.prefix(50)` → exactly 10 terms stop rendering
+    /// (term-051…term-060) → RED; `.prefix(25)` drops 35, `.prefix(10)` drops 50 → RED.
+    /// Weight 1 throughout is deliberate: the order is then purely term-driven, so the
+    /// padded names make the surviving set an exact, readable prefix.
+    @Test
+    func rendersEveryTermWithNoCap() {
+        let names = (1...60).map { String(format: "term-%03d", $0) }
+        let vocabulary = names.map { Self.term($0, weight: 1) }
+
+        let systemText = Self.plainSystemText(vocabulary: vocabulary)
+
+        let missing = names.filter { !systemText.contains($0) }
+        #expect(missing.isEmpty, "all 60 terms must render; missing \(missing.count): \(missing)")
+    }
+
+    /// Equal weights must not leave the rendered order to `sorted`'s unspecified tie
+    /// behavior: the block is a cache prefix, so a reshuffle between dictations costs
+    /// a cache miss wherever prefix caching applies. This pins THIS side's own
+    /// ordering — the store's SQL ORDER BY is a separate decision under a separate
+    /// collation, and the two are deliberately not compared. `Bravo` makes the tie
+    /// case-sensitive: `Bravo`/`bravo` differ only in one byte, the case an
+    /// equality-reporting comparator would leave free to swap.
+    /// Stated sensitivity: drop the scalar tie-break (leaving `$0.weight > $1.weight`)
+    /// → Swift's sort leaves the tie group in arrival order and the list renders
+    /// `zulu, delta, charlie, bravo, alpha, Bravo` → RED.
+    @Test
+    func equalWeightTermsRenderInTermOrder() {
+        let systemText = Self.plainSystemText(vocabulary: [
+            Self.term("delta", weight: 4),
+            Self.term("charlie", weight: 4),
+            Self.term("zulu", weight: 9),
+            Self.term("bravo", weight: 4),
+            Self.term("alpha", weight: 4),
+            Self.term("Bravo", weight: 4),
+        ])
+
+        #expect(systemText.contains("in parentheses where known: zulu, Bravo, alpha, bravo, charlie, delta"))
     }
 
     /// A kept term travels with the expansion the user recorded — the only production
@@ -101,23 +137,6 @@ struct PromptBuilderTests {
         #expect(systemText.contains("Never introduce a term from this list that the speaker did not say."))
     }
 
-    /// The budget counts USABLE terms: a row that renders blank must not spend one of
-    /// the top-N slots and push a real term out of the prompt. The blank row sits at
-    /// weight 8, inside the head, with three valid rows around it.
-    /// Stated sensitivity: filter the blank entries after `prefix` instead of before it
-    /// (the previous behavior) → "Slovo" is pushed out of the list → RED.
-    @Test
-    func blankRowsDoNotConsumeATopNSlot() {
-        let systemText = Self.plainSystemText(vocabulary: [
-            Self.term("RCV", weight: 9, expansion: "RingCentral Video"),
-            Self.term("  ", weight: 8),
-            Self.term("PTT", weight: 7),
-            Self.term("Slovo", weight: 5),
-        ])
-
-        #expect(systemText.contains("in parentheses where known: RCV (RingCentral Video), PTT, Slovo"))
-    }
-
     /// A speaker with no vocabulary must never be told to correct toward an empty list,
     /// so every line of the block — not just its tag — has to be absent.
     /// Stated sensitivity: emit the vocabulary block unconditionally, or hoist any one
@@ -138,7 +157,7 @@ struct PromptBuilderTests {
     /// makes custom OpenRouter model selection ineffective.
     @Test
     func promptModelComesFromCleanupConfig() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(model: "custom/provider-model", writingStyle: .formal, language: .auto),
             context: PersonalizationContext(vocabulary: [])
@@ -152,7 +171,7 @@ struct PromptBuilderTests {
     @Test
     func promptRequiresTransformOnlyReplyForShortDictation() {
         let raw = "1 2 3 проверяем 1 2 3"
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: raw,
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: [])
@@ -189,7 +208,7 @@ struct PromptBuilderTests {
     /// regress on the most common dictation cleanup.
     @Test
     func promptTeachesRussianFillerRemovalAndRunOnSplitting() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: [])
@@ -217,7 +236,7 @@ struct PromptBuilderTests {
                 SpellFinding(token: "teh", guesses: ["the"]),
             ]
         )
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -239,7 +258,7 @@ struct PromptBuilderTests {
     /// no-hints (toggle off AND no locale) case go red.
     @Test
     func noAdvisoryBlockWhenHintsEmpty() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -255,7 +274,7 @@ struct PromptBuilderTests {
     /// must survive while the spell sentences must not appear.
     @Test
     func localeLineRemainsButSpellSentencesAbsentWhenNoFindings() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -282,7 +301,7 @@ struct PromptBuilderTests {
                 ),
             ]
         )
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -308,7 +327,7 @@ struct PromptBuilderTests {
                 GrammarFinding(fragment: "", message: "Consider ‘an’ instead", corrections: ["an"]),
             ]
         )
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -325,7 +344,7 @@ struct PromptBuilderTests {
     /// ships grammar rules for English only and most dictations have none.
     @Test
     func grammarSentencesAbsentWhenNoGrammarFindings() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: []),
@@ -341,7 +360,7 @@ struct PromptBuilderTests {
     /// advisory block, so old callers are unchanged; adding a block there turns red.
     @Test
     func threeArgOverloadEmitsNoAdvisoryBlock() {
-        let prompt = PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: [])

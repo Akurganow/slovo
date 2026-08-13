@@ -35,7 +35,6 @@ public enum PipelineFactory {
     public static func makeOrchestrator(
         config: Config,
         dependencies: Dependencies,
-        vocabularyLimit: Int = 50,
         cleanupConfig: CleanupConfig? = nil
     ) -> Orchestrator {
         let assembly = assemble(config: config, dependencies: dependencies)
@@ -43,8 +42,7 @@ public enum PipelineFactory {
             dependencies: assembly.dependencies,
             cleanupConfig: cleanupConfig ?? config.cleanupConfig,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            usesVocabularyBias: config.usesVocabularyBias,
-            vocabularyLimit: vocabularyLimit
+            usesVocabularyBias: config.usesVocabularyBias
         )
     }
 

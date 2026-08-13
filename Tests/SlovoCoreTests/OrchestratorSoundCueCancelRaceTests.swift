@@ -314,7 +314,7 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
 private final class PerCallPersonalizationSource: PersonalizationSource {
     private let callCount = Mutex(0)
 
-    func vocabulary(limit: Int) -> [Term] {
+    func vocabulary() -> [Term] {
         let index = callCount.withLock { current -> Int in
             defer { current += 1 }
             return current

@@ -128,6 +128,12 @@ xcrun stapler validate .build/dist/Slovo.dmg
   OFF, so this needs Settings → General → "Vocabulary bias (experimental)" turned
   ON first; otherwise the pass exercises only the unbiased path. Efficacy and
   safety are decided by the gate below, not by this plumbing check.
+- cleanup substitutes NOTHING into a phrase of ordinary words that collide with
+  short vocabulary entries (dictate plain-English sentences using words like
+  "rooms", "cop", "ads" in their everyday sense). The cleanup prompt now lists the
+  WHOLE vocabulary, and its "never introduce a term the speaker did not say" guard
+  was written when that list was a quarter of today's size; nothing automated
+  measures spurious substitution, so this is the only place it is checked.
 - privacy holds: raw audio stays local, secrets are never logged, cleanup is
   always attempted through OpenRouter, and fallback inserts the direct transcript
   only when cleanup is unavailable, refused, or misconfigured.
@@ -138,9 +144,12 @@ Efficacy and safety of the bias prompt are decided here, not by unit tests: the
 prompt rides EVERY decode window. The switch ships OFF, so the biased arm exists
 only once Settings → General → "Vocabulary bias (experimental)" is turned ON —
 turn it on for the gate, and leave it off afterwards unless the gate passed.
-Record one dictation set — a >30 s phrase, two medium phrases, a bare-acronym
-phrase, and a silent hold — and decode the SAME recorded audio twice, with the
-toggle ON and with it OFF:
+The app retains no raw audio and has no file-replay command, so the two arms are
+two LIVE passes, not two decodes of one recording. Write down a fixed five-item
+phrase set — a >30 s phrase, two medium phrases, a bare-acronym phrase, and a
+silent hold — and dictate that same set twice: once with the toggle ON, once with
+it OFF, speaking each item the same way in both passes. The criteria below are
+per-arm telemetry, so they never require the two arms to agree word for word:
 
 - every phrase comes back non-empty and matches the dictated source, modulo the
   vocabulary terms themselves.
@@ -149,7 +158,9 @@ toggle ON and with it OFF:
 - the confirmed boundary advances past 30 s on the >30 s phrase on both arms.
 - a SILENT hold with the toggle ON yields an empty transcript and inserts nothing.
 
-Any failure keeps the toggle off.
+Any failure keeps the toggle off. A recorded-audio replay harness — decoding one
+captured file through both arms — would be the stricter instrument and remains
+the natural next step for this gate.
 
 Supersession note: a 2026-07-02 A/B concluded that WhisperKit + turbo returns
 deterministically EMPTY output for ANY non-nil `promptTokens` (recorded then as

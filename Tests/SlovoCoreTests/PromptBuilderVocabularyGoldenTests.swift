@@ -11,7 +11,7 @@ import SlovoCore
 @Suite("Cleanup prompt vocabulary golden")
 struct PromptBuilderVocabularyGoldenTests {
     private static func blocks(hints: CleanupHints = CleanupHints()) -> [String] {
-        PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
             context: PersonalizationContext(vocabulary: [

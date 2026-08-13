@@ -123,6 +123,34 @@ struct WhisperKitBiasPromptBuilderTests {
         #expect((tokens?.count ?? 0) <= Self.maxPromptTokens)
     }
 
+    /// The trim loop is pre-bounded, so a full uncapped vocabulary costs ONE
+    /// tokenization on the key-down path instead of one per dropped surface. The
+    /// pre-bound is lossless: a surface at index >= `maxPromptTokens` needs more than
+    /// the budget's tokens to reach, so it could never have survived the loop.
+    /// Stated sensitivity: drop the `prefix(maxPromptTokens)` pre-bound → the loop
+    /// starts at 250 surfaces and tokenizes once per drop down to 24, i.e.
+    /// 250 - 24 + 1 = 227 invocations instead of 1 → RED. The result expectation is
+    /// the losslessness half: it is the same head-prefix prompt either way, so it
+    /// stays green under that mutation and pins that the pre-bound changed only work.
+    @Test
+    func theTrimLoopIsPreBoundedToTheBudget() {
+        let terms = (0..<250).map { index in
+            Term(term: "t\(index)", expansion: nil, lang: .en, weight: 250 - index)
+        }
+        var invocations = 0
+
+        let tokens = WhisperKitBiasPromptBuilder.promptTokens(for: terms) { text in
+            invocations += 1
+            return Self.wordTokenizer(text)
+        }
+
+        #expect(invocations == 1,
+                "a 250-term vocabulary must cost one tokenization, not one per dropped surface; got \(invocations)")
+        let survivingHead = (0..<Self.maxPromptTokens).map { "t\($0)" }.joined(separator: ", ") + "."
+        #expect(tokens == Self.wordTokenizer(survivingHead),
+                "the pre-bound must be lossless: the same head-prefix prompt survives")
+    }
+
     /// A single term that cannot fit the budget yields NO prompt: a prompt whose
     /// own head does not fit would be re-trimmed by the SDK anyway.
     /// Stated sensitivity: return the over-budget tokens (or their prefix) instead

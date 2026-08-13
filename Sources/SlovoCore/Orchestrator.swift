@@ -96,20 +96,17 @@ public actor Orchestrator {
     private var cleanupConfig: CleanupConfig
     private var mutesSystemAudioWhileDictating: Bool
     private var usesVocabularyBias: Bool
-    private let vocabularyLimit: Int
 
     public init(
         dependencies: Dependencies,
         cleanupConfig: CleanupConfig,
         mutesSystemAudioWhileDictating: Bool = true,
-        usesVocabularyBias: Bool = false,
-        vocabularyLimit: Int = 50
+        usesVocabularyBias: Bool = false
     ) {
         self.deps = dependencies
         self.cleanupConfig = cleanupConfig
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
         self.usesVocabularyBias = usesVocabularyBias
-        self.vocabularyLimit = vocabularyLimit
     }
 
     /// The current session state (for tests/introspection).
@@ -404,6 +401,10 @@ public actor Orchestrator {
     /// pump that pipes each captured chunk into the session for the hold.
     /// Extracted from `execute` so that switch stays within its body-length gate.
     private func beginCapture(for recordingSession: RecordingSession) async {
+        // Latched BEFORE the first suspension. `recorder.start()` is the longest await
+        // in this chain, and the actor admits a toggle push there — read afterwards,
+        // the switch would silently redefine the dictation already in progress.
+        let sessionUsesVocabularyBias = usesVocabularyBias
         deps.cueController.beginSession()
         let stream: AsyncStream<AudioChunk>
         do {
@@ -423,19 +424,21 @@ public actor Orchestrator {
         // resolve the personalization vocabulary once and derive both consumers
         // from it — the cleaner context and, behind the experimental switch, the
         // recognizer's bias prompt.
-        let vocabulary = deps.personalization.vocabulary(limit: vocabularyLimit)
+        let vocabulary = deps.personalization.vocabulary()
         sessionVocabulary = vocabulary
-        // Latched here with the cleanup flag below, so a mid-hold push cannot change
-        // what THIS session began with. The switch gates only the recognizer:
-        // `sessionVocabulary` stays full, so cleanup personalization is unaffected.
-        // It defaults off partly because a prompted model can transcribe the glossary
-        // itself on a speech-free hold — non-empty text the empty-transcript
-        // invariant cannot catch (see docs/release-checklist.md's on-device gate).
-        let speechBiasTerms = usesVocabularyBias ? vocabulary : []
+        // The switch gates only the recognizer: `sessionVocabulary` stays full, so
+        // cleanup personalization is unaffected. It defaults off partly because a
+        // prompted model can transcribe the glossary itself on a speech-free hold —
+        // non-empty text the empty-transcript invariant cannot catch (see
+        // docs/release-checklist.md's on-device gate).
+        let speechBiasTerms = sessionUsesVocabularyBias ? vocabulary : []
         // Latch the effective-cleanup flag once, HERE — never read
         // `cleanupConfig.runsCleaner` at clean time: a mid-hold `updateCleanupConfig`
         // push would otherwise split this session's key-up clean short-circuit,
-        // running the cleaner on a transcript the session began without.
+        // running the cleaner on a transcript the session began without. This latch
+        // sits later than the bias one above, so a push landing during
+        // `recorder.start()` still reaches it; that window is accepted, and narrowing
+        // it is a decision to make on its own merits rather than by symmetry.
         sessionRunsCleaner = cleanupConfig.runsCleaner
         // Only claim preparation when `begin` really has loading to do. Reported
         // unconditionally, it overwrote "Recording" with a lie for the whole hold

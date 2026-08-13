@@ -15,7 +15,7 @@ import SlovoTestSupport
 //         init(outcome: Outcome)
 //     }
 //     final class FakePersonalizationSource: PersonalizationSource {
-//         init(terms: [Term]) ; func vocabulary(limit: Int) -> [Term]
+//         init(terms: [Term]) ; func vocabulary() -> [Term]
 //     }
 @Suite("Fakes")
 struct FakesContractTests {
@@ -77,7 +77,7 @@ struct FakesContractTests {
 
         // The consumer sees only the protocol — it never touches persistence.
         let source: PersonalizationSource = FakePersonalizationSource(terms: [t1, t2, t3])
-        let received = source.vocabulary(limit: 3)
+        let received = source.vocabulary()
 
         #expect(received.count == 3, "expected 3 terms, got \(received.count)")
         // Compare by identifying fields (Term is not Equatable) to prove

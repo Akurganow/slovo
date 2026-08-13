@@ -51,7 +51,10 @@ struct AppShellPackagingTests {
         #expect(composition.contains("CoreAudioOutputMute()"))
         #expect(composition.contains("AVAudioEngineRecorder(authorizer:"))
         #expect(composition.contains("PipelineFactory.makeOrchestrator"))
-        #expect(composition.contains("vocabularyLimit: vocabularyLimit"))
+        // Stated sensitivity: change the production prompt-builder call at all —
+        // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
+        // default — → this exact call text is gone → RED.
+        #expect(composition.contains("PromptBuilder(examples: .bundled)"))
         #expect(composition.contains("keepWarmSeconds: config.keepWarmSeconds"))
         #expect(composition.contains("warmUp()"),
                 "startup composition must preload the resident ASR engine via warmUp()")

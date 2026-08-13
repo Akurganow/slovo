@@ -39,7 +39,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         _ = try await cleaner.clean("raw transcript", config: Self.config, context: Self.context)
@@ -77,7 +77,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         let output = try await cleaner.clean("raw", config: Self.config, context: Self.context)
@@ -93,7 +93,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         _ = try? await cleaner.clean("raw transcript", config: Self.config, context: Self.context)
@@ -110,7 +110,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         await Self.expectThrows(cleaner) { error in
@@ -128,7 +128,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         await Self.expectThrows(cleaner) { error in
@@ -145,7 +145,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.failure(.missingKey)),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         )
 
         await Self.expectThrows(cleaner) { error in
@@ -174,12 +174,12 @@ struct OpenRouterCleanerTests {
         _ = try await OpenRouterCleaner(
             session: first.makeSession(),
             keyProvider: keyProvider,
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         ).clean("raw one", config: Self.config, context: Self.context)
         _ = try await OpenRouterCleaner(
             session: second.makeSession(),
             keyProvider: keyProvider,
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 3)
+            promptBuilder: PromptBuilder()
         ).clean("raw two", config: Self.config, context: Self.context)
 
         #expect(reads.withLock { $0 } == 1,
@@ -257,7 +257,7 @@ struct OpenRouterCleanerTests {
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(keyOutcome),
-            promptBuilder: PromptBuilder(maxVocabularyTerms: 8),
+            promptBuilder: PromptBuilder(),
             log: log
         )
         _ = try? await cleaner.clean(

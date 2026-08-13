@@ -12,7 +12,7 @@ struct PromptBuilderTranslateTests {
         target: Language = .ru,
         vocabulary: [Term] = []
     ) -> String {
-        PromptBuilder(maxVocabularyTerms: 3).buildPrompt(
+        PromptBuilder().buildPrompt(
             raw: "прибери мусор and clean up the code",
             config: CleanupConfig(
                 writingStyle: style,

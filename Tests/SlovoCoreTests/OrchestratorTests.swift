@@ -87,18 +87,21 @@ struct OrchestratorTests {
                 "the resolved vocabulary must reach the cleaner context for spelling preservation; got \(cleanerTerms)")
     }
 
-    /// The production composition gives one vocabulary budget to both ASR bias and
-    /// cleanup context (bias switch on, so both consumers are observable).
-    /// Stated sensitivity: hard-code `50` inside the actor or apply a different
-    /// limit to cleaner context -> both recorded vocab arrays contain too many terms
-    /// or diverge -> RED.
+    /// One uncapped read feeds both consumers: the orchestrator hands the WHOLE
+    /// vocabulary to ASR bias and to cleanup context alike, and each budgets it
+    /// downstream (bias switch on, so both consumers are observable). The fixture is
+    /// 65 terms so it outgrows every plausible cap; the earlier 3-term version let a
+    /// reintroduced `prefix(50)` pass unnoticed.
+    /// Stated sensitivity: reintroduce `prefix(50)` inside the actor → both arrays hold
+    /// 50 terms instead of 65 → RED; `prefix(25)` and `prefix(10)` redden identically.
+    /// Cap only one consumer → that array alone shortens and the two diverge → RED.
     @Test
-    func vocabularyLimitFeedsBothTranscriberBiasAndCleanerContext() async {
-        let vocabulary = [
-            Term(term: "one", expansion: nil, lang: .en, weight: 10),
-            Term(term: "two", expansion: nil, lang: .en, weight: 9),
-            Term(term: "three", expansion: nil, lang: .en, weight: 8),
-        ]
+    func fullVocabularyFeedsBothTranscriberBiasAndCleanerContext() async {
+        // Weights descend with the index, so the expected order is the seeded order.
+        let vocabulary = (1...65).map { index in
+            Term(term: String(format: "term-%03d", index), expansion: nil, lang: .en, weight: 100 - index)
+        }
+        let expected = vocabulary.map(\.term)
         let transcriber = FakeTranscriber(outcome: .success("hi"))
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
@@ -109,16 +112,15 @@ struct OrchestratorTests {
                 cleaner: cleaner,
                 injector: injector,
                 vocabulary: vocabulary
-            ),
-            vocabularyLimit: 2
+            )
         )
 
         await Self.runSession(orchestrator)
 
-        #expect(transcriber.calls.last?.biasTerms.map(\.term) == ["one", "two"],
-                "ASR biasTerms must use the configured vocabulary limit")
-        #expect(cleaner.calls.last?.context.vocabulary.map(\.term) == ["one", "two"],
-                "cleaner context must use the same configured vocabulary limit")
+        #expect(transcriber.calls.last?.biasTerms.map(\.term) == expected,
+                "ASR biasTerms must carry all 65 terms, uncapped; got \(transcriber.calls.last?.biasTerms.count ?? 0)")
+        #expect(cleaner.calls.last?.context.vocabulary.map(\.term) == expected,
+                "cleaner context must carry the same 65 terms; got \(cleaner.calls.last?.context.vocabulary.count ?? 0)")
     }
 
     /// #2: switching the cleanup model applies to the NEXT dictation live — the

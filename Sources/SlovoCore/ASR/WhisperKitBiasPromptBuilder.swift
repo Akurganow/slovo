@@ -32,7 +32,16 @@ enum WhisperKitBiasPromptBuilder {
         for biasTerms: [Term],
         tokenizer: (String) -> [Int]
     ) -> [Int]? {
-        var surfaces = distinctSurfaces(of: biasTerms)
+        // Lossless pre-bound on the key-down hot path: a surface costs at least one
+        // token, so a prompt reaching index i spends at least i + 1 tokens and any
+        // surface at index >= maxPromptTokens is already over budget. Trimming those
+        // one at a time would re-tokenize the whole glossary per dropped surface.
+        //
+        // That >= 1 token per surface is a tokenizer property, not a guarantee — but
+        // it fails benignly: a tokenizer packing several surfaces into one token would
+        // only under-fill the budget (dropping surfaces that might have fit), never
+        // overflow it. The loop below still enforces the ceiling either way.
+        var surfaces = Array(distinctSurfaces(of: biasTerms).prefix(maxPromptTokens))
         while !surfaces.isEmpty {
             let tokens = tokenizer(promptText(for: surfaces))
             // No tokens for a non-empty glossary means the engine's tokenizer has not
