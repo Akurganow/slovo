@@ -195,6 +195,12 @@ verify_app() {
       return 1
     fi
   done
+  # A missing embedded framework surfaces as a dyld launch failure with no
+  # useful message, so name it here instead.
+  if [[ ! -d "$APP_CONTENTS/Frameworks/SQLCipher.framework" ]]; then
+    echo "SQLCipher.framework is not staged in $APP_CONTENTS/Frameworks" >&2
+    return 1
+  fi
   local attempts=20
   while (( attempts > 0 )); do
     if pgrep -x "$PROCESS_NAME" >/dev/null; then

@@ -12,32 +12,51 @@ struct SQLCipherPackagingGuardTests {
     /// Contents/Frameworks and signs it before the app codesign (the only one
     /// carrying slovo.entitlements) — an unembedded dynamic framework leaves
     /// the notarized app with a dangling @rpath load command that only
-    /// resolves next to a development checkout.
-    /// Stated sensitivity: drop the ditto or the framework codesign, or sign
-    /// the app first → the ordered-needle scan → RED.
+    /// resolves next to a development checkout. The copy SOURCE is pinned to
+    /// the xcframework's macOS slice and the discovery function to a script
+    /// read: a destination-only scan passes even when the ditto copies Sparkle
+    /// under SQLCipher's name, and the printed plan alone cannot tell a real
+    /// lookup from a hardcoded path.
+    /// Stated sensitivity: drop the ditto or the framework codesign, sign the
+    /// app first, or point the ditto at another framework → the ordered-needle
+    /// scan → RED; delete or rename sqlcipher_framework_path → the discovery
+    /// pin → RED.
     @Test
     func appPhaseEmbedsAndSignsSQLCipher() throws {
+        let releaseScript = Self.strippingShellComments(from: try Self.source("Scripts/sign-and-notarize.sh"))
+        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: releaseScript),
+                                     "the release script must discover the framework, not hardcode a path")
+        #expect(discovery.contains("SQLCipher.framework"), Comment(rawValue: discovery))
+
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunSQLCipher-\(UUID().uuidString)", notary: true)
         #expect(appPlan.exitCode == 0, Comment(rawValue: appPlan.output))
         #expect(Self.output(appPlan.output, containsInOrder: [
-            "DRY-RUN ditto", "Frameworks/SQLCipher.framework",
+            "DRY-RUN ditto", "SQLCipher.xcframework/macos-", "Frameworks/SQLCipher.framework",
             "DRY-RUN codesign", "SQLCipher.framework",
             "DRY-RUN codesign", "slovo.entitlements",
         ]), Comment(rawValue: appPlan.output))
     }
 
     /// The dev launcher must stage and sign the same bundle shape as the
-    /// release pipeline, or dev runs diverge from what ships.
-    /// Stated sensitivity: drop the embed from stage_bundle, drop the
-    /// framework sign, or reorder it after the app → the body-scoped ordered
-    /// scans → RED.
+    /// release pipeline, or dev runs diverge from what ships. The staged copy
+    /// is pinned to the discovery function's own variable, so a ditto reading
+    /// another framework cannot satisfy it.
+    /// Stated sensitivity: drop the embed from stage_bundle, copy a different
+    /// source, drop the framework sign, or reorder it after the app → the
+    /// body-scoped ordered scans → RED; delete or rename
+    /// sqlcipher_framework_path → the discovery pin → RED.
     @Test
     func devLauncherStagesAndSignsSQLCipher() throws {
         let launcher = try Self.source("Scripts/build_and_run.sh")
         let script = Self.strippingShellComments(from: launcher)
+        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: script),
+                                     "the dev launcher must discover the framework, not hardcode a path")
+        #expect(discovery.contains("SQLCipher.framework"), Comment(rawValue: discovery))
 
         let stage = try #require(Self.shellFunctionBody(named: "stage_bundle", in: script))
-        #expect(Self.output(stage, containsInOrder: ["ditto", "Frameworks/SQLCipher.framework"]), Comment(rawValue: stage))
+        #expect(Self.output(stage, containsInOrder: [
+            "ditto", "\"$sqlcipher_framework\"", "Frameworks/SQLCipher.framework",
+        ]), Comment(rawValue: stage))
 
         let sign = try #require(Self.shellFunctionBody(named: "sign_bundle", in: script))
         #expect(Self.output(sign, containsInOrder: [
