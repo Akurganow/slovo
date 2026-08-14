@@ -111,6 +111,25 @@ sparkle_framework_path() {
     fi
 }
 
+# Locate the macOS slice of SQLCipher.xcframework, with the same
+# one-or-stop/DRY_RUN contract as the Sparkle twin above. Every platform slice
+# carries a SQLCipher.framework, so the path filter picks the macOS one — the
+# maccatalyst slice has no "macos-" path component and is excluded by it.
+sqlcipher_framework_path() {
+    local canonical found count
+    canonical="$ROOT/.build/artifacts/sqlcipher.swift/SQLCipher/SQLCipher.xcframework/macos-arm64_x86_64/SQLCipher.framework"
+    found="$(find "$ROOT/.build/artifacts" -type d -path "*/macos-*/*" -name "SQLCipher.framework" 2>/dev/null || true)"
+    count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
+    if [[ "$count" == "1" ]]; then
+        printf '%s\n' "$found"
+    elif [[ "$DRY_RUN" == "1" ]]; then
+        printf '%s\n' "$canonical"
+    else
+        echo "Expected exactly one macOS SQLCipher.framework under $ROOT/.build/artifacts, found $count" >&2
+        exit 65
+    fi
+}
+
 build_app() {
     if [[ -e "$APP_PATH" ]]; then
         echo "$APP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
@@ -171,17 +190,26 @@ build_app() {
     run rm -r "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
     run rm "$CONTENTS_PATH/Frameworks/Sparkle.framework/XPCServices"
 
-    # Inside-out signing: Sparkle's nested helpers, then the framework, before
+    # Embed SQLCipher, the dynamic framework the binary loads through
+    # @executable_path/../Frameworks; without the embedded copy the notarized
+    # app carries a load command that only resolves next to a development
+    # checkout.
+    local sqlcipher_framework
+    sqlcipher_framework="$(sqlcipher_framework_path)"
+    run ditto "$sqlcipher_framework" "$CONTENTS_PATH/Frameworks/SQLCipher.framework"
+
+    # Inside-out signing: Sparkle's nested helpers, then the frameworks, before
     # the app below. Deep signing mis-signs the Autoupdate helper and fails only
     # at notarization (Sparkle #1641), so each piece is signed explicitly;
-    # Sparkle code carries no entitlements.
-    local sparkle_codesign_args=(--force --options runtime)
+    # framework code carries no entitlements.
+    local framework_codesign_args=(--force --options runtime)
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then
-        sparkle_codesign_args+=(--timestamp)
+        framework_codesign_args+=(--timestamp)
     fi
-    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
-    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
-    run codesign "${sparkle_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
+    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
+    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
+    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
+    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/SQLCipher.framework"
 
     local codesign_args=(--force --options runtime --entitlements "$ROOT/slovo.entitlements")
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then
