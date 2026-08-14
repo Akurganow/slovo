@@ -17,9 +17,13 @@ enum TempDatabase {
     /// tests stay an independent oracle of the keying contract.
     static let passphrase: @Sendable () throws -> String = { "slovo-test-passphrase" }
 
-    /// Deletes the DB file and its WAL/SHM sidecars.
+    /// Deletes the DB file and every artifact the encryption feature can
+    /// leave beside it (WAL/SHM sidecars, migration temp, set-aside copies).
     static func remove(at path: String) {
-        for suffix in ["", "-wal", "-shm"] {
+        for suffix in [
+            "", "-wal", "-shm", ".encrypting",
+            ".unreadable", ".unreadable-wal", ".unreadable-shm"
+        ] {
             try? FileManager.default.removeItem(atPath: path + suffix)
         }
     }
