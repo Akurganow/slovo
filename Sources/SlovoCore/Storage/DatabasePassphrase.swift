@@ -24,7 +24,11 @@ public enum PersonalizationDatabasePassphrase {
 
     /// The IOPlatformUUID could not be read — practically unreachable on real
     /// hardware. A throw here fails composition loudly rather than deriving a
-    /// bogus key and orphaning the real database.
+    /// bogus key and orphaning the real database. One transitional exception:
+    /// in the pre-encryption (plaintext) state the failure first surfaces
+    /// inside the migration and lands in its broad catch — that session runs
+    /// on the plaintext file unchanged (still no bogus key) and the migration
+    /// retries next launch.
     public enum ReadError: Error {
         case serviceUnavailable
         case uuidMissing
