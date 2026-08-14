@@ -193,8 +193,11 @@ enum GateChecks {
     /// deliberate review step, before the gate passes it.
     /// Entries: `decodeMs`/`drainMs`/`requestMs` are millisecond durations;
     /// `planCase` is a decode-plan case NAME (associated values dropped at the
-    /// call site); `confirmedEndSeconds` is a stream-position offset in seconds.
+    /// call site); `confirmedEndSeconds` is a stream-position offset in seconds;
+    /// `biasRetried ? 1 : 0` is a 0/1 flag for whether the tail decode was
+    /// retried without the bias prompt — a decision bit, never transcript.
     private static let allowedMetricPayloads: Set<String> = [
+        "biasRetried ? 1 : 0",
         "decodeMs",
         "drainMs",
         "planCase",

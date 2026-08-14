@@ -1,4 +1,6 @@
+import Foundation
 import Testing
+import WhisperKit
 
 @testable import SlovoCore
 
@@ -194,5 +196,49 @@ struct WhisperKitBiasPromptBuilderTests {
 
         let unbiased = WhisperKitEngine.decodingOptions(language: .auto, biasTerms: [], tokenizer: Self.wordTokenizer)
         #expect(unbiased.promptTokens == nil, "no vocabulary must keep the session unbiased")
+    }
+
+    /// Sensitivity: dropping the `promptTokens = nil` strip leaves the retry biased;
+    /// perturbing any other field between the two derivations — specifically
+    /// `wordTimestamps`, whose loss silently disarms the terminal-hallucination
+    /// guard — breaks the whole-struct JSON equality.
+    @Test
+    func tailOptionsDifferFromTheBiasedBaseOnlyInPromptTokens() throws {
+        var base = DecodingOptions()
+        base.promptTokens = [7, 8, 9]
+
+        let biased = WhisperKitLiveSession.tailDecodingOptions(
+            base: base, fromSeconds: 1.25, wordTimestamps: true, withBias: true
+        )
+        let unbiased = WhisperKitLiveSession.tailDecodingOptions(
+            base: base, fromSeconds: 1.25, wordTimestamps: true, withBias: false
+        )
+
+        #expect(biased.clipTimestamps == [1.25])
+        #expect(biased.wordTimestamps)
+        #expect(biased.promptTokens == [7, 8, 9])
+        #expect(unbiased.promptTokens == nil)
+
+        var expectedUnbiased = biased
+        expectedUnbiased.promptTokens = nil
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        #expect(try encoder.encode(unbiased) == encoder.encode(expectedUnbiased))
+    }
+
+    /// The `wordTimestamps: false` arm — the majority of tail decodes, which never
+    /// run the terminal-hallucination guard.
+    /// Stated sensitivity: dropping the `if wordTimestamps` CONDITION (leaving the
+    /// assignment unconditional) forces WhisperKit to compute word-level alignment
+    /// on every key-up decode — added latency on the exact hot path the `decodeMs`
+    /// mark exists to protect → RED. The sibling test above covers the opposite
+    /// mutation, deleting the assignment outright.
+    @Test
+    func tailOptionsLeaveWordTimestampsOffWhenTheGuardWillNotRun() {
+        let options = WhisperKitLiveSession.tailDecodingOptions(
+            base: DecodingOptions(), fromSeconds: 0, wordTimestamps: false, withBias: true
+        )
+
+        #expect(!options.wordTimestamps)
     }
 }
