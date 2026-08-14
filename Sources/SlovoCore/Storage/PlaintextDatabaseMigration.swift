@@ -45,14 +45,11 @@ enum PlaintextDatabaseMigration {
 
         try verifyEncryptedCopy(at: temporaryPath, passphrase: passphrase)
 
-        // Sidecar removal must PRECEDE the swap: afterwards, a stale plaintext
-        // -wal beside the encrypted file would be the one state the design
-        // promises cannot exist. SQLite normally deletes both on the last
-        // close; these removals guard the times it does not — their content
-        // is plaintext.
-        for suffix in PersonalizationDatabase.sidecarSuffixes {
-            try? fileManager.removeItem(atPath: path + suffix)
-        }
+        // No sidecar removal here: SQLite deletes -wal/-shm at the clean
+        // close above (measured on this platform), so no plaintext sidecar
+        // survives past this point — before the swap. Test 4b pins that
+        // invariant and reddens if this ever stops being true.
+        //
         // Same-directory regular-file replace: the resulting URL is the
         // original path, so the returned value carries no information here.
         _ = try fileManager.replaceItemAt(

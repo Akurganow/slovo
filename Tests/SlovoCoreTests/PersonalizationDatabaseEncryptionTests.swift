@@ -153,15 +153,14 @@ struct PersonalizationDatabaseEncryptionTests {
         #expect(!FileManager.default.fileExists(atPath: path + ".encrypting"))
     }
 
-    /// Spec test 4b: the migration itself must remove the plaintext sidecars —
-    /// they hold plaintext dictation fragments. Planted manually because a
-    /// clean close often deletes the real ones; this pins the removal loop
-    /// that guards the residual cases. (The remove-BEFORE-rename ordering is
-    /// a crash-window argument, not a testable end state; and SQLite itself
-    /// tolerates foreign sidecars — measured: it resets their content, it
-    /// does not delete the files.)
-    /// Stated sensitivity: delete the sidecar-removal loop in
-    /// `encryptInPlace` → the sidecar-absence assertions → RED.
+    /// Spec test 4b: END-STATE invariant — no plaintext sidecars survive the
+    /// migration. SQLite itself deletes them at the plaintext connection's
+    /// clean close (measured; the migration carries no removal code) — this
+    /// test is the tripwire that forces a removal mechanism back in if that
+    /// behavior ever changes (e.g. a persistent-WAL build).
+    /// Stated sensitivity: any migration failure → RED (control: forcing
+    /// `encryptInPlace` to throw reddens it); SQLite persisting the WAL past
+    /// close → the sidecar-absence assertions → RED.
     @Test
     func migrationRemovesPlaintextSidecars() throws {
         let path = TempDatabase.freshPath()

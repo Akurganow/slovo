@@ -31,11 +31,6 @@ public enum PersonalizationDatabase {
         }
     }
 
-    /// Sidecars SQLite keeps next to a WAL database; the migration and the
-    /// set-aside path must handle them together with the main file.
-    static let sidecarSuffixes = ["-wal", "-shm"]
-    static let unreadableSuffix = ".unreadable"
-
     /// On-disk classification, total by construction: a missing file is
     /// missing (`fileExists`, so the name is honest), the 16-byte SQLite
     /// header is definite, and EVERYTHING else — encrypted, empty, truncated,
