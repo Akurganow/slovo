@@ -24,7 +24,7 @@ struct MigrationsTests {
         defer { TempDatabase.remove(at: path) }
         #expect(!FileManager.default.fileExists(atPath: path), "precondition: the DB file must not exist yet")
 
-        let pool = try PersonalizationDatabase.open(at: path)
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: TempDatabase.passphrase)
         #expect(FileManager.default.fileExists(atPath: path), "open must create the DB file")
 
         let tableExists = try pool.read { db in try db.tableExists("vocabulary") }

@@ -11,7 +11,7 @@ import SlovoCore
 struct TermMissStoreTests {
     private static func openStore() throws -> (pool: DatabasePool, teardown: () -> Void) {
         let path = TempDatabase.freshPath()
-        let pool = try PersonalizationDatabase.open(at: path)
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: TempDatabase.passphrase)
         return (pool, { TempDatabase.remove(at: path) })
     }
 

@@ -23,7 +23,8 @@ enum AppComposition {
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
         let permissionPreflighter = SystemPermissionPreflighter()
         let database = try PersonalizationDatabase.open(
-            at: personalizationDatabasePath(fileManager: fileManager).path
+            at: personalizationDatabasePath(fileManager: fileManager).path,
+            passphrase: PersonalizationDatabasePassphrase.derive
         )
         let source = GRDBPersonalizationSource(database: database, log: log)
         let whisperKitTranscriber = WhisperKitTranscriber(

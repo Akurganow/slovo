@@ -12,6 +12,11 @@ enum TempDatabase {
         NSTemporaryDirectory() + "slovo-test-" + UUID().uuidString + ".sqlite"
     }
 
+    /// Stable passphrase provider for suites that just need AN encrypted
+    /// database. Deliberately NOT derived from the production constants — the
+    /// tests stay an independent oracle of the keying contract.
+    static let passphrase: @Sendable () throws -> String = { "slovo-test-passphrase" }
+
     /// Deletes the DB file and its WAL/SHM sidecars.
     static func remove(at path: String) {
         for suffix in ["", "-wal", "-shm"] {
