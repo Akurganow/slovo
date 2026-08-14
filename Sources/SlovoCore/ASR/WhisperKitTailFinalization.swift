@@ -209,17 +209,45 @@ enum WhisperKitTerminalHallucinationGuard {
 enum WhisperKitTailFinalization {
     enum Plan: Equatable, Sendable {
         case noAudio
+        case silent
         case reuse(String)
         case decode(confirmedPrefix: String, liveTail: String, fromSeconds: Float)
     }
+
+    /// Whether an entire hold carried no voice energy: no frame's VAD-relative
+    /// energy exceeds `threshold`. Strict `>` mirrors the SDK's own
+    /// `isVoiceDetected` comparison; an empty array is silent (totality — in
+    /// production the no-audio guard runs first).
+    static func isSilentHold(relativeEnergy: [Float], threshold: Float) -> Bool {
+        !relativeEnergy.contains { $0 > threshold }
+    }
+
+    /// Below the streaming VAD's 0.3 ON PURPOSE. For any value <= 0.3 the gate
+    /// is STRICTLY MORE CONSERVATIVE than the live VAD: it stands down on any
+    /// voiced frame anywhere in the hold, including frames the live path's
+    /// windowed check never examined — so it can only fire on holds the live
+    /// path already treated as speechless. The lower value biases the remaining
+    /// error toward letting a silent hold through (an undo) rather than eating a
+    /// genuinely quiet dictation (the user's words).
+    static let silentHoldEnergyThreshold: Float = 0.15
 
     static func plan(
         totalSampleCount: Int,
         tailSampleCount: Int,
         minimumDecodableTailSampleCount: Int,
+        relativeEnergy: [Float],
         state: WhisperKitStreamState
     ) -> Plan {
+        // `.noAudio` FIRST keeps a dead microphone, a revoked permission or a
+        // capture bug diagnosable instead of masquerading as an intentional
+        // silent hold. `.silent` before `.reuse`/`.decode` cannot steal a real
+        // transcript: `.reuse` needs a voice-detected pass, which needs a frame
+        // above the streaming VAD's 0.3.
         guard totalSampleCount > 0 else { return .noAudio }
+        guard !isSilentHold(
+            relativeEnergy: relativeEnergy,
+            threshold: silentHoldEnergyThreshold
+        ) else { return .silent }
         guard state.processedSampleCount < totalSampleCount else {
             return .reuse(WhisperKitTranscriptText.compose([
                 state.confirmedText,
@@ -246,7 +274,7 @@ enum WhisperKitTailFinalization {
         decode: (Float) async throws -> String
     ) async rethrows -> String {
         switch plan {
-        case .noAudio:
+        case .noAudio, .silent:
             return ""
         case .reuse(let text):
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
