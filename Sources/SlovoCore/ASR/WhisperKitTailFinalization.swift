@@ -214,22 +214,32 @@ enum WhisperKitTailFinalization {
         case decode(confirmedPrefix: String, liveTail: String, fromSeconds: Float)
     }
 
-    /// Whether an entire hold carried no voice energy: no frame's VAD-relative
-    /// energy exceeds `threshold`. Strict `>` mirrors the SDK's own
-    /// `isVoiceDetected` comparison; an empty array is silent (totality — in
-    /// production the no-audio guard runs first).
+    /// Whether an entire hold carried no voice energy: fewer than
+    /// `minimumVoicedFrameCount` frames have VAD-relative energy above
+    /// `threshold`. Strict `>` mirrors the SDK's own `isVoiceDetected`
+    /// comparison; an empty array is silent (totality — in production the
+    /// no-audio guard runs first).
     static func isSilentHold(relativeEnergy: [Float], threshold: Float) -> Bool {
-        !relativeEnergy.contains { $0 > threshold }
+        relativeEnergy.lazy.filter { $0 > threshold }
+            .prefix(minimumVoicedFrameCount).count < minimumVoicedFrameCount
     }
 
-    /// Below the streaming VAD's 0.3 ON PURPOSE. For any value <= 0.3 the gate
-    /// is STRICTLY MORE CONSERVATIVE than the live VAD: it stands down on any
-    /// voiced frame anywhere in the hold, including frames the live path's
-    /// windowed check never examined — so it can only fire on holds the live
-    /// path already treated as speechless. The lower value biases the remaining
-    /// error toward letting a silent hold through (an undo) rather than eating a
-    /// genuinely quiet dictation (the user's words).
-    static let silentHoldEnergyThreshold: Float = 0.15
+    /// One frame is 100 ms — too short to carry a word, long enough to carry a
+    /// chair creak, a key clack, or the opening frame's ambient artifact (its
+    /// VAD reference is the SDK's fixed 1e-3, so the FIRST frame of every hold
+    /// reads high). A hold long enough to decode at all (>= 1 s, ~10 frames)
+    /// never delivers real speech as a single voiced frame.
+    static let minimumVoicedFrameCount = 2
+
+    /// Below the streaming VAD's 0.3 ON PURPOSE: a gated hold therefore carries
+    /// at most one frame the live VAD itself would have called voiced, which
+    /// keeps the gate more conservative than the live path it defers to.
+    /// Measured on device: silence in a room with AC, a fan and a creaky chair
+    /// spans 0.12-0.21 — the VAD reference is a trailing MINIMUM of noise, so
+    /// quiet frames drift upward through a hold — against voiced maxima of
+    /// 0.43-0.70. 0.25 covers the measured silence band whole and still leaves
+    /// a 1.7x margin to the quietest measured speech.
+    static let silentHoldEnergyThreshold: Float = 0.25
 
     static func plan(
         totalSampleCount: Int,
@@ -240,9 +250,11 @@ enum WhisperKitTailFinalization {
     ) -> Plan {
         // `.noAudio` FIRST keeps a dead microphone, a revoked permission or a
         // capture bug diagnosable instead of masquerading as an intentional
-        // silent hold. `.silent` before `.reuse`/`.decode` cannot steal a real
-        // transcript: `.reuse` needs a voice-detected pass, which needs a frame
-        // above the streaming VAD's 0.3.
+        // silent hold. `.silent` before `.reuse` is deliberate the other way:
+        // a gated hold carries at most ONE live-VAD-voiced frame, and the lone
+        // streamed pass such a spike can trigger is exactly the
+        // hallucination-prone shape this gate discards — reusing it would
+        // paste that text (spec v3.1; pinned by the guard-order test).
         guard totalSampleCount > 0 else { return .noAudio }
         guard !isSilentHold(
             relativeEnergy: relativeEnergy,

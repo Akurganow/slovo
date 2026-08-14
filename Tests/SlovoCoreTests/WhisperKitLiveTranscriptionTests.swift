@@ -66,7 +66,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 36_000,
                 tailSampleCount: 16_000,
                 minimumDecodableTailSampleCount: 16_000,
-                relativeEnergy: [0.5],
+                relativeEnergy: [0.5, 0.5],
                 state: state
             ) == .decode(confirmedPrefix: "confirmed ", liveTail: "old tail", fromSeconds: 1.25)
         )
@@ -91,7 +91,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 100_000,
                 tailSampleCount: 80_000,
                 minimumDecodableTailSampleCount: 16_000,
-                relativeEnergy: [0.5],
+                relativeEnergy: [0.5, 0.5],
                 state: state
             ) == .decode(confirmedPrefix: "confirmed ", liveTail: "", fromSeconds: 1.25)
         )
@@ -125,7 +125,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 8_000,
                 tailSampleCount: 8_000,
                 minimumDecodableTailSampleCount: 16_000,
-                relativeEnergy: [0.4],
+                relativeEnergy: [0.4, 0.4],
                 state: WhisperKitStreamState()
             ) == .decode(confirmedPrefix: "", liveTail: "", fromSeconds: 0)
         )
@@ -147,7 +147,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 32_000,
                 tailSampleCount: 14_400,
                 minimumDecodableTailSampleCount: 16_000,
-                relativeEnergy: [0.6],
+                relativeEnergy: [0.6, 0.6],
                 state: state
             ) == .reuse("привет hello")
         )
