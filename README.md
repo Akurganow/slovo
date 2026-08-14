@@ -65,9 +65,10 @@ tuned.
   deletes it (cleanup then turns off until you add a key again).
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
-- Local SQLite personalization store for vocabulary hints — add and remove
-  terms in **Settings → Vocabulary**, or use the menu-bar **Add Vocabulary…**
-  quick action — to protect your own terms during cleanup.
+- Local SQLite personalization store for vocabulary hints, encrypted at rest
+  with SQLCipher — add and remove terms in **Settings → Vocabulary**, or use the
+  menu-bar **Add Vocabulary…** quick action — to protect your own terms during
+  cleanup.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states — resting idle shows `Ⱄ` normally, swapping to `Ⱀ`
   when a downloaded update awaits restart; the recording glyph names the mode:
@@ -185,9 +186,15 @@ clipboard managers not to record it, pastes, and restores the previous
 clipboard contents afterward.
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
-as a macOS Keychain item. Local personalization databases, seed files,
-dotenv files, signing keys, and credential bundles are ignored by Git. See
-[docs/privacy.md](docs/privacy.md) for the full data-path table.
+as a macOS Keychain item. The personalization database is encrypted at rest
+with SQLCipher, under a key derived from this Mac's hardware identifier and
+stored nowhere, so a copy of it that leaves the Mac is unreadable; the flip
+side is that it opens only on the Mac that created it, and once an encrypting
+build has opened it, older Slovo builds can no longer read it. Local
+personalization databases, seed files, dotenv files, signing keys, and
+credential bundles are ignored by Git. See
+[docs/privacy.md](docs/privacy.md) for the full data-path table and what the
+encryption does and does not protect against.
 
 ## Configuration
 
@@ -376,7 +383,9 @@ be released under the GPLv3.
 The shipped app bundle redistributes several third-party components, all
 under permissive licenses compatible with the GPLv3: WhisperKit
 (argmax-oss-swift, MIT — with an Apache-2.0 portion, swift-transformers),
-GRDB.swift (MIT), Settings (MIT), LaunchAtLogin-Modern (MIT), Sparkle
+GRDB.swift (MIT, taken from Zetetic's SQLCipher-enabled distribution),
+SQLCipher Community Edition (BSD-3-Clause), Settings (MIT),
+LaunchAtLogin-Modern (MIT), Sparkle
 (MIT, with four external notices for bsdiff, sais-lite, ed25519, and
 SUSignatureVerifier), and the modified AbdrTar Bank Elhaz “Lower & Soft”
 sound cues (CC0 1.0). Applicable copyright and permission notices, plus the

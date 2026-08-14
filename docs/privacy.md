@@ -12,8 +12,8 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 | Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts (plus a target-language name when translating) |
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
-| Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
-| Vocabulary miss events (folded vocabulary surfaces + timestamps of dictations where the cleaner corrected the term; no transcript content) | Local SQLite database | Never sent; pruned to the last 90 days whenever new events are recorded; reads ignore anything older; never logged |
+| Personal vocabulary | Local SQLCipher-encrypted SQLite database | Used as prompt/context terms, never logged |
+| Vocabulary miss events (folded vocabulary surfaces + timestamps of dictations where the cleaner corrected the term; no transcript content) | Local SQLCipher-encrypted SQLite database | Never sent; pruned to the last 90 days whenever new events are recorded; reads ignore anything older; never logged |
 | App settings (hotkey, models, toggles) | `UserDefaults` | Never sent |
 | Clipboard snapshot | Local pasteboard restore path | Never sent |
 
@@ -29,6 +29,54 @@ the new value to Keychain.
 Stable code signing matters. macOS Keychain and privacy permissions use the app's
 identity when deciding whether the current binary is trusted. Ad-hoc builds or
 frequently changing bundle identities can cause repeated prompts.
+
+## Local Database Encryption
+
+The personalization database (`~/Library/Application Support/slovo/slovo.db`) is
+encrypted at rest with SQLCipher. It holds hand-entered vocabulary terms and
+vocabulary-miss events today; the provisioned `corrections` table would carry
+fragments of dictated text, and encryption landed before that table went live.
+
+The key is stored nowhere. Slovo derives it on demand — at every database
+connection setup — from this Mac's hardware identifier (the IOKit
+`IOPlatformUUID`) through HKDF-SHA256. The Keychain is deliberately not used:
+ad-hoc and development builds risk repeated Keychain prompts under unstable code
+signing (see **Keychain** above), and a Keychain reset would orphan the database.
+
+**Protected:** copies of the database made from this version onward that leave
+this Mac — Time Machine, cloud sync, manual copies — and casual, untargeted reads
+of the file by other programs on the machine.
+
+**Deliberately not protected:**
+
+- A targeted attack by a program written specifically against Slovo on this Mac.
+  The derivation is public — open-source code plus a world-readable hardware
+  identifier — so on this machine the encryption is obfuscation only; the real
+  guarantee is for copies that leave the Mac.
+- Active malware running with your privileges. No application-level mechanism
+  defends against that.
+- Physical remnants of the old plaintext file on disk after migration. APFS and
+  SSDs offer no secure erase; FileVault covers that layer.
+- Backups and copies made **before** this version. They stay plaintext wherever
+  they already are: encryption applies from this version onward and cannot reach
+  back into existing Time Machine snapshots or cloud backups.
+
+Because the key comes from the hardware, the database opens only on the Mac that
+created it. One copied from another Mac — or read after a logic-board
+replacement — cannot be decrypted, so Slovo renames it to `slovo.db.unreadable`
+beside `slovo.db` in `~/Library/Application Support/slovo/`, never reads it
+again, and starts with an empty database. The bytes are kept, not deleted;
+recovery is manual. Moving personalization to another Mac is not supported.
+
+A database created by an earlier, pre-encryption version is re-encrypted in place
+on the first launch after the update, invisibly. If re-encryption cannot complete,
+that session runs on the plaintext file unchanged and the next launch retries.
+The migration is **one-way**: once a build with encryption has opened the
+database, older Slovo builds can no longer read it.
+
+The feature is silent throughout — no dialogs, no notifications, no log lines. A
+set-aside, or a migration that keeps failing, is therefore diagnosable only from
+what is on disk, never from a log.
 
 ## Local Files
 
