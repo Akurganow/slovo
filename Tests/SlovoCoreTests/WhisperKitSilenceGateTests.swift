@@ -126,10 +126,10 @@ struct WhisperKitSilenceGateTests {
         #expect(voiced != .silent)
     }
 
-    /// Pins the consistency argument: at or below AudioStreamTranscriber's
-    /// default `silenceThreshold` (0.3), the gate only fires on holds the
-    /// streaming VAD already treated as speechless. Sensitivity: tuning the
-    /// constant above 0.3.
+    /// Pins the frame-threshold ordering against AudioStreamTranscriber's
+    /// default `silenceThreshold` (0.3): a gated hold carries at most one frame
+    /// the streaming VAD would call voiced. Sensitivity: tuning the constant
+    /// above 0.3.
     @Test
     func gateThresholdStaysAtOrBelowTheStreamingVad() {
         #expect(WhisperKitTailFinalization.silentHoldEnergyThreshold <= 0.3)
