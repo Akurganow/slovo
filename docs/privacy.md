@@ -56,7 +56,11 @@ of the file by other programs on the machine.
 - Active malware running with your privileges. No application-level mechanism
   defends against that.
 - Physical remnants of the old plaintext file on disk after migration. APFS and
-  SSDs offer no secure erase; FileVault covers that layer.
+  SSDs offer no secure erase; FileVault covers that layer. There is also a brief
+  named-file window: the migration puts the encrypted copy in place by exchanging
+  it with the original, so a crash at that instant can leave the plaintext
+  original beside the database as `slovo.db.encrypting`. Slovo deletes any such
+  leftover at the next launch, before it opens the database.
 - Backups and copies made **before** this version. They stay plaintext wherever
   they already are: encryption applies from this version onward and cannot reach
   back into existing Time Machine snapshots or cloud backups.

@@ -332,9 +332,12 @@ try dbPool.write { db in
   set `configuration.journalMode = .wal` and pass it when opening.
 - **WAL sidecars hold ciphertext.** The `-wal` file of a keyed database carries
   encrypted page images, so it no longer leaks readable rows; `-shm` is the
-  wal-index shared-memory file and holds no row content either way. The exception
-  is sidecars left from a plaintext era of the same file — those are still
-  plaintext, and nothing removes them for you.
+  wal-index shared-memory file and holds no row content either way. Sidecars from
+  a plaintext era of the same file are plaintext, but they do not outlive it:
+  SQLite deletes `-wal`/`-shm` when that connection closes cleanly (measured on
+  macOS). slovo's migration therefore carries no removal code, and pins their
+  absence as an end-state invariant instead — the tripwire that forces a removal
+  step back in if a build ever persists the WAL past close.
 - **A keyless open still reads plaintext files.** Under the SQLCipher build a
   bare `DatabaseQueue(path:)` — no `usePassphrase` — opens an unencrypted
   database exactly as a stock GRDB build does; the codec engages only once a key
@@ -377,8 +380,8 @@ with no passphrase.
 2. `ATTACH DATABASE '<tmp>' AS rekeyed KEY '<new passphrase>'`.
 3. `SELECT sqlcipher_export('rekeyed')`, then `DETACH`.
 4. Verify the temp file opens with the new passphrase.
-5. Remove the old `-wal`/`-shm` sidecars, then swap the temp file over the
-   original.
+5. Swap the temp file over the original. No sidecar step: the clean close in
+   step 3 already took the old `-wal`/`-shm` with it.
 
 The trade is deliberate: the export shape writes a separate file and swaps it in
 only after the copy is verified readable under the new passphrase, so the

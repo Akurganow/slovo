@@ -188,11 +188,11 @@ clipboard contents afterward.
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. The personalization database is encrypted at rest
 with SQLCipher, under a key derived from this Mac's hardware identifier and
-stored nowhere, so a copy of it that leaves the Mac is unreadable; the flip
-side is that it opens only on the Mac that created it, and once an encrypting
-build has opened it, older Slovo builds can no longer read it. Local
-personalization databases, seed files, dotenv files, signing keys, and
-credential bundles are ignored by Git. See
+stored nowhere, so a copy of it that leaves the Mac is unreadable without that
+Mac's hardware identifier; the flip side is that it opens only on the Mac that
+created it, and once an encrypting build has opened it, older Slovo builds can
+no longer read it. Local personalization databases, seed files, dotenv files,
+signing keys, and credential bundles are ignored by Git. See
 [docs/privacy.md](docs/privacy.md) for the full data-path table and what the
 encryption does and does not protect against.
 
