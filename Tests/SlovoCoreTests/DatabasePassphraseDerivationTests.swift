@@ -46,6 +46,11 @@ struct DatabasePassphraseDerivationTests {
             database. Fix the code — NEVER update this constant.
             """
         )
+        #expect(
+            PersonalizationDatabasePassphrase.derive(from: "F1A2B3C4-D5E6-4789-ABCD-0123456789EF")
+                == "8f8f7a3f3b24b3bc02f50de2b292b25cf6dae0886fea27f48a01a202e6d6c87a",
+            "second vector with hex letters: pins case-sensitivity of the input, which the all-zeros vector cannot see"
+        )
     }
 
     /// Smoke for the production path: derivation works on the machine running

@@ -300,6 +300,12 @@ struct PersonalizationDatabaseEncryptionTests {
         let fresh = try PersonalizationDatabase.open(at: copy, passphrase: Self.passphraseB)
         defer { try? fresh.close() }
         try #require(manager.fileExists(atPath: copy + ".unreadable"))
+        // The single-file-move contract: the set-aside carries the main file
+        // only. (The live `-wal`/`-shm` beside it now belong to the fresh
+        // replacement pool, so they say nothing about the foreign database —
+        // test 5d pins that half.)
+        #expect(!manager.fileExists(atPath: copy + ".unreadable-wal"))
+        #expect(!manager.fileExists(atPath: copy + ".unreadable-shm"))
 
         // The documented manual-recovery path: take the set-aside bytes
         // elsewhere and open them with the key that made them.
@@ -348,6 +354,79 @@ struct PersonalizationDatabaseEncryptionTests {
         let retried = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
         defer { try? retried.close() }
         #expect(try Self.header(at: path) != Self.plaintextHeader)
+    }
+
+    /// Spec test 5d: characterization tripwire — a FAILED keyed open deletes
+    /// foreign `-wal`/`-shm` (after folding their pages into the main file;
+    /// see 5c). The set-aside's single-file-move contract depends on this: if
+    /// a future SQLite stops cleaning them, stale foreign sidecars would sit
+    /// next to the fresh replacement database, and this test reddens first.
+    /// Stated sensitivity: platform characterization (like 4b) — no slovo
+    /// mutation reddens it; a SQLite/SQLCipher behavior change does.
+    @Test
+    func failedKeyedOpenLeavesNoForeignSidecars() throws {
+        let path = TempDatabase.freshPath()
+        defer { TempDatabase.remove(at: path) }
+        let manager = FileManager.default
+
+        let foreign = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        try foreign.close()
+        try Data("wal remnant".utf8).write(to: URL(fileURLWithPath: path + "-wal"))
+        try Data("shm remnant".utf8).write(to: URL(fileURLWithPath: path + "-shm"))
+
+        #expect(throws: (any Error).self) {
+            let wrongKey = try DatabasePool(
+                path: path,
+                configuration: PersonalizationDatabase.keyedConfiguration(passphrase: Self.passphraseB)
+            )
+            try wrongKey.close()
+        }
+
+        #expect(!manager.fileExists(atPath: path + "-wal"))
+        #expect(!manager.fileExists(atPath: path + "-shm"))
+        #expect(manager.fileExists(atPath: path))
+    }
+
+    /// A non-wrong-key open failure (here: permissions) must PROPAGATE — never
+    /// be answered by setting a readable database aside and starting empty.
+    /// Stated sensitivity: widening the .opaque catch beyond SQLITE_NOTADB →
+    /// the aside appears and open succeeds → RED on both assertions.
+    @Test
+    func nonWrongKeyOpenFailurePropagatesInsteadOfSettingAside() throws {
+        let path = TempDatabase.freshPath()
+        defer {
+            _ = chmod(path, 0o600)
+            TempDatabase.remove(at: path)
+        }
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        try pool.close()
+        try #require(chmod(path, 0) == 0)
+
+        #expect(throws: (any Error).self) {
+            _ = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        }
+        #expect(!FileManager.default.fileExists(atPath: path + ".unreadable"),
+                "a permission error must not be treated as a wrong key")
+    }
+
+    /// A failing passphrase provider must fail the open outright — never fall
+    /// through to an unkeyed or empty-key database.
+    /// Stated sensitivity: swallowing the provider's error inside
+    /// `keyedConfiguration` (e.g. `try? passphrase() ?? ""`) → open succeeds
+    /// and a database file appears → RED on both assertions.
+    @Test
+    func throwingPassphraseProviderFailsTheOpenWithoutCreatingAFile() throws {
+        let path = TempDatabase.freshPath()
+        defer { TempDatabase.remove(at: path) }
+
+        #expect(throws: PersonalizationDatabasePassphrase.ReadError.self) {
+            _ = try PersonalizationDatabase.open(at: path, passphrase: {
+                throw PersonalizationDatabasePassphrase.ReadError.uuidMissing
+            })
+        }
+        let attributes = try FileManager.default.attributesOfItem(atPath: path)
+        #expect((attributes[.size] as? Int) == 0,
+                "a failed derivation must leave no database — at most the empty file SQLite pre-created")
     }
 
     /// Spec test 8: the classification is total — every possible on-disk

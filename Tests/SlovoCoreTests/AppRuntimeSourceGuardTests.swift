@@ -69,6 +69,20 @@ struct AppRuntimeSourceGuardTests {
         #expect(delegate.contains("Request Accessibility Access"))
     }
 
+    /// The composition root must derive the database passphrase from THIS
+    /// Mac's hardware identity. A hardcoded literal here would share one key
+    /// across every installation and still pass the whole behavioral suite,
+    /// which drives `open` with explicit test passphrases — this line is the
+    /// only pin on the production wiring.
+    /// Stated sensitivity: replace the argument with any literal provider →
+    /// RED.
+    @Test
+    func compositionDerivesTheDatabasePassphraseFromHardwareIdentity() throws {
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+
+        #expect(composition.contains("passphrase: PersonalizationDatabasePassphrase.derive"))
+    }
+
     @Test
     func readinessCheckUsesKeyPresenceWithoutDecryptingSecret() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
