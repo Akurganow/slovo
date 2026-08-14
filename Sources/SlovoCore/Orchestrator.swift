@@ -17,6 +17,9 @@ public struct Dependencies: Sendable {
     /// do not gather hints, in which case the cleaner receives empty `CleanupHints`.
     public var inputSourceLanguage: (any InputSourceLanguageReading)?
     public var spellCheckHints: (any SpellCheckHintProviding)?
+    /// Optional sink for detected vocabulary misses. Nil in composition/tests
+    /// that do not record usage, in which case dictations record nothing.
+    public var termMissRecorder: (any TermMissRecording)?
 
     @preconcurrency
     public init(
@@ -30,7 +33,8 @@ public struct Dependencies: Sendable {
         log: RedactionSafeLog,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         inputSourceLanguage: (any InputSourceLanguageReading)? = nil,
-        spellCheckHints: (any SpellCheckHintProviding)? = nil
+        spellCheckHints: (any SpellCheckHintProviding)? = nil,
+        termMissRecorder: (any TermMissRecording)? = nil
     ) {
         self.transcriber = transcriber
         self.cleaner = cleaner
@@ -43,6 +47,7 @@ public struct Dependencies: Sendable {
         self.statusReporter = statusReporter
         self.inputSourceLanguage = inputSourceLanguage
         self.spellCheckHints = spellCheckHints
+        self.termMissRecorder = termMissRecorder
     }
 
     public func reportStatus(_ status: StatusMessage) {
@@ -79,6 +84,11 @@ public actor Orchestrator {
     private var pumpTask: Task<FeedHealth, Never>?
     /// The in-flight finish→clean→inject follow-on (see `.endCaptureAndFinalizeTranscript`).
     private var pipelineTask: Task<Void, Never>?
+    /// The in-flight miss-recording task. Deliberately NOT cancelled or
+    /// nilled in `.returnToIdle` (unlike `pumpTask`): idle follows injection
+    /// on the same call stack, and cancelling here would kill the write on
+    /// every dictation. The next dictation simply overwrites the handle.
+    private var termMissTask: Task<Void, Never>?
     /// The committed feed outcome of the current session, used at finish to tell a
     /// total conversion failure apart from legitimate silence.
     private var feedHealth = FeedHealth()
@@ -184,7 +194,7 @@ public actor Orchestrator {
             // letting a disguised-empty transcript flow on to clean/inject. Any
             // successful feed, or an empty tap with no error, stays the empty path.
             if text.isEmpty, feedHealth.successCount == 0, let feedError = feedHealth.lastError {
-                deps.log.event("transcription.totalFeedFailure.\(feedErrorKindName(feedError))")
+                deps.log.event("transcription.totalFeedFailure.\(Self.feedErrorKindName(feedError))")
                 Self.diagnosticLog.error("transcription.failure stage=feed")
                 await handle(.failed(.transcription(feedError)))
             } else {
@@ -234,10 +244,29 @@ public actor Orchestrator {
                 context: context,
                 hints: hints
             )
+            recordTermMisses(raw: transcript, cleaned: cleaned)
             await handle(.cleaned(cleaned))
         } catch {
             await handle(.failed(.cleanup))
         }
+    }
+
+    /// Captures the inputs BEFORE `.cleaned` is handled (that event drives
+    /// inject → `.returnToIdle`, which clears `sessionVocabulary` on this same
+    /// call stack) and hands them to the detached reporter. Translate sessions
+    /// are excluded — cross-script folding would manufacture false misses.
+    private func recordTermMisses(raw: String, cleaned: String) {
+        guard sessionMode != .translate, let recorder = deps.termMissRecorder else { return }
+        termMissTask = TermMissReporter.spawn(
+            raw: raw, cleaned: cleaned, vocabulary: sessionVocabulary,
+            recorder: recorder, log: deps.log
+        )
+    }
+
+    /// Observes the miss-recording task's completion. A test seam — production
+    /// never waits on it (see `injectionDoesNotWaitForRecording`).
+    public func awaitTermMissDrain() async {
+        await termMissTask?.value
     }
 
     /// Gathers the on-device cleanup hints for a transcript at the clean step: the
@@ -347,7 +376,7 @@ public actor Orchestrator {
             return nil
 
         case .log(let event):
-            deps.log.event(logName(for: event))
+            deps.log.event(Self.logName(for: event))
             return nil
 
         case .notify(let status):
@@ -524,32 +553,6 @@ public actor Orchestrator {
                 guard let self else { return }
                 await self.finishAndContinue()
             }
-        }
-    }
-
-    /// The static case name of a feed error, for the payload-free health log —
-    /// never the wrapped cause or any associated value.
-    private func feedErrorKindName(_ error: TranscriptionError) -> String {
-        switch error {
-        case .backendUnavailable:
-            return "backendUnavailable"
-        case .assetMissing:
-            return "assetMissing"
-        case .audioFormatUnsupported:
-            return "audioFormatUnsupported"
-        case .engineFailure:
-            return "engineFailure"
-        }
-    }
-
-    private func logName(for event: FsmLogEvent) -> String {
-        switch event {
-        case .singleFlightIgnored:
-            return "fsm.singleFlightIgnored"
-        case .unexpectedEvent:
-            return "fsm.unexpectedEvent"
-        case .stageFailed:
-            return "fsm.stageFailed"
         }
     }
 }

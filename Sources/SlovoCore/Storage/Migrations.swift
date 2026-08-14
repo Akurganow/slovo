@@ -1,6 +1,6 @@
 import GRDB
 
-/// The v1 schema migration for the personalization store (mirrors
+/// The schema migrations for the personalization store (mirrors
 /// `data/schema.sql`). Idempotent by construction: GRDB's `DatabaseMigrator`
 /// tracks applied migration identifiers, so re-running `migrate` is a no-op — no
 /// unconditional `CREATE TABLE`.
@@ -9,6 +9,9 @@ import GRDB
 /// terms verbatim (prompt caching is a bonus, never a day-one driver). The
 /// `corrections` and `profile` tables are created for migration stability but are
 /// INERT in v1 — no v1 code reads or writes them.
+///
+/// v2 adds `term_misses` — per-key ASR-miss events with 90-day retention,
+/// written by `GRDBTermMissStore` and read by the bias ranking.
 public enum PersonalizationMigrations {
     public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
@@ -43,6 +46,20 @@ public enum PersonalizationMigrations {
                 // is the runtime authority; keep the real DB in sync with the doc).
                 t.column("value", .text).notNull()
             }
+        }
+        migrator.registerMigration("v2.termMisses") { db in
+            try db.create(table: "term_misses") { t in
+                t.autoIncrementedPrimaryKey("id")
+                // The folded vocabulary surface (NFC + lowercase + whitespace
+                // runs collapsed, which subsumes trimming), not a
+                // row id: case-variant vocabulary rows share one statistic, and
+                // orphans left by deleted terms age out via retention instead
+                // of a cascade.
+                t.column("term_key", .text).notNull()
+                t.column("created_at", .text).notNull().defaults(sql: "(datetime('now'))")
+            }
+            try db.create(indexOn: "term_misses", columns: ["term_key", "created_at"])
+            try db.create(indexOn: "term_misses", columns: ["created_at"])
         }
         return migrator
     }

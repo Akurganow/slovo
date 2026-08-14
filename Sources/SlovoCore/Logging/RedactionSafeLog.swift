@@ -1,6 +1,25 @@
 import CryptoKit
 import Foundation
 import os
+import Synchronization
+
+/// Serializes sink invocation. The sink is a plain `(String) -> Void` so tests
+/// can pass an ordinary capturing closure, but callers log from several
+/// executors at once (the detached `TermMissReporter` task alongside the
+/// `actor Orchestrator`), so every call runs under one lock. A reference box
+/// because `Mutex` is non-copyable: copies of the value-type log must share it.
+private final class SerializedSink: @unchecked Sendable {
+    private let lock = Mutex<Void>(())
+    private let emitLine: (String) -> Void
+
+    init(_ emitLine: @escaping (String) -> Void) {
+        self.emitLine = emitLine
+    }
+
+    func emit(_ message: String) {
+        lock.withLock { _ in emitLine(message) }
+    }
+}
 
 /// A redaction-safe wrapper around `os.Logger`.
 ///
@@ -12,14 +31,16 @@ import os
 /// The `sink` seam exists for tests: by default emission goes through
 /// `os.Logger` with `.private` interpolation, but a test can inject a capturing
 /// closure to assert exactly what would be emitted.
-/// `@unchecked Sendable` rather than a `@Sendable`-closure sink: the production
-/// default sink captures only an `os.Logger` (itself `Sendable`), and a test's
-/// capturing sink is invoked only by its holder — synchronously, never
-/// concurrently. Keeping the sink a plain `(String) -> Void` lets existing tests
-/// pass an ordinary capturing closure (a `@Sendable` sink would forbid that) while
-/// the type stays safely shareable across the `actor Orchestrator`.
-public struct RedactionSafeLog: @unchecked Sendable {
-    private let sink: (String) -> Void
+///
+/// - Important: the sink MAY be invoked from any executor — the same log value
+///   is shared across the `actor Orchestrator` and the detached miss-reporting
+///   task. Invocations are serialized by an internal lock, so a capturing test
+///   sink observes one call at a time; ordering between concurrent producers is
+///   not defined, and a test that reads its captured lines must first await the
+///   work that emits them. The lock is NOT recursive: a sink must never log
+///   back into the same `RedactionSafeLog`, which would deadlock.
+public struct RedactionSafeLog: Sendable {
+    private let sink: SerializedSink
 
     /// - Parameters:
     ///   - subsystem: reverse-DNS subsystem identifier for `os.Logger`.
@@ -28,29 +49,29 @@ public struct RedactionSafeLog: @unchecked Sendable {
     ///     with `.private` interpolation so payload text is redacted by the OS.
     public init(subsystem: String, category: String, sink: ((String) -> Void)? = nil) {
         if let sink {
-            self.sink = sink
+            self.sink = SerializedSink(sink)
         } else {
             let logger = Logger(subsystem: subsystem, category: category)
             // `.private` keeps the line out of plaintext logs on a release build;
             // this wrapper only ever hands the logger already-redacted text.
-            self.sink = { message in logger.log("\(message, privacy: .private)") }
+            self.sink = SerializedSink { message in logger.log("\(message, privacy: .private)") }
         }
     }
 
     /// Emits static, non-payload text verbatim. Callers must pass only fixed
     /// strings here — never an interpolated payload value.
     public func event(_ message: String) {
-        sink(message)
+        sink.emit(message)
     }
 
     /// Emits a payload's length to the sink, never its content.
     public func logLength(of value: some Collection) {
-        sink("len=\(value.count)")
+        sink.emit("len=\(value.count)")
     }
 
     /// Emits a payload's stable correlation hash to the sink, never the raw value.
     public func logHash(of value: String) {
-        sink("hash=\(Self.hashed(value))")
+        sink.emit("hash=\(Self.hashed(value))")
     }
 
     /// A short, stable hash usable for correlating log lines without revealing

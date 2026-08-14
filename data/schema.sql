@@ -42,3 +42,17 @@ CREATE TABLE IF NOT EXISTS profile (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Per-key ASR-miss events driving the bias-head ranking (v2). `term_key` is
+-- the folded vocabulary surface (NFC + lowercase + whitespace runs collapsed,
+-- which subsumes trimming), NOT a vocabulary row id: no foreign key, orphans
+-- age out via the 90-day retention prune that shares each insert's
+-- transaction, and reads ignore anything older than the window regardless.
+-- PRAGMA foreign_keys is irrelevant to this table by design.
+CREATE TABLE IF NOT EXISTS term_misses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  term_key TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS index_term_misses_on_term_key_created_at ON term_misses(term_key, created_at);
+CREATE INDEX IF NOT EXISTS index_term_misses_on_created_at ON term_misses(created_at);

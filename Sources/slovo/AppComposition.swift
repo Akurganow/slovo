@@ -69,7 +69,8 @@ enum AppComposition {
             log: log,
             statusReporter: statusReporter,
             inputSourceLanguage: SystemInputSourceLanguageReader(),
-            spellCheckHints: SystemSpellCheckHintProvider()
+            spellCheckHints: SystemSpellCheckHintProvider(),
+            termMissRecorder: GRDBTermMissStore(database: database, log: log)
         )
 
         // The ONE effective-on definition (CleanupAvailability.derive), applied

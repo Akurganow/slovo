@@ -13,6 +13,7 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLite database | Used as prompt/context terms, never logged |
+| Vocabulary miss events (folded vocabulary surfaces + timestamps of dictations where the cleaner corrected the term; no transcript content) | Local SQLite database | Never sent; pruned to the last 90 days whenever new events are recorded; reads ignore anything older; never logged |
 | App settings (hotkey, models, toggles) | `UserDefaults` | Never sent |
 | Clipboard snapshot | Local pasteboard restore path | Never sent |
 
