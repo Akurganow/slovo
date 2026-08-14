@@ -340,68 +340,97 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
         case .reuse: planCase = "reuse"
         case .decode: planCase = "decode"
         }
+        var biasRetried = false
+        var guardTrimmed = false
         let decodeStartUptime = ProcessInfo.processInfo.systemUptime
         let finalText = try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds in
-            var finalOptions = decodingOptions
-            finalOptions.clipTimestamps = [fromSeconds]
-            if shouldGuardTerminalHallucination {
-                finalOptions.wordTimestamps = true
-            }
-            let results = try await engine.transcribe(
-                audioArray: samples,
-                decodeOptions: finalOptions
-            )
-            let decodedText = WhisperKitTranscriptText.compose(results.map(\.text))
-            guard shouldGuardTerminalHallucination else { return decodedText }
-            return guardedTailText(
-                decodedText: decodedText,
-                results: results,
+            let resolution = try await WhisperKitTailFinalization.finalizeTail(
+                isBiased: decodingOptions.promptTokens?.isEmpty == false,
+                shouldGuard: shouldGuardTerminalHallucination,
                 liveTailText: tailSpan.liveText,
-                totalSampleCount: samples.count
-            )
+                audioDurationSeconds: Float(samples.count) / Float(WhisperKit.sampleRate)
+            ) { withBias in
+                try await self.decodeTail(
+                    samples: samples,
+                    fromSeconds: fromSeconds,
+                    wordTimestamps: shouldGuardTerminalHallucination,
+                    withBias: withBias
+                )
+            }
+            biasRetried = resolution.retriedWithoutBias
+            guardTrimmed = resolution.guardTrimmed
+            return resolution.text
         }
         let decodeMs = Int((ProcessInfo.processInfo.systemUptime - decodeStartUptime) * 1_000)
+        // Separates a guard trim from decoder-level loss of a truncated trailing
+        // word — only the former is Slovo's own decision.
+        if guardTrimmed {
+            Self.diagnosticLog.info("asr.terminalGuard trimmedTerminalSuffix")
+        }
         Self.diagnosticLog.info(
             """
             asr.tailFinalization plan=\(planCase, privacy: .public) \
             confirmedEndSeconds=\(streamState.confirmedEndSeconds, format: .fixed(precision: 2), privacy: .public) \
             samples=\(samples.count, privacy: .public) \
-            decodeMs=\(decodeMs, privacy: .public)
+            decodeMs=\(decodeMs, privacy: .public) \
+            biasRetry=\(biasRetried ? 1 : 0, privacy: .public)
             """
         )
         return finalText
     }
 
-    /// Applies the terminal-hallucination guard to a finished tail decode. The
-    /// attribution mark separates a guard trim from decoder-level loss of a
-    /// truncated trailing word — only the former is Slovo's own decision.
-    private func guardedTailText(
-        decodedText: String,
-        results: [TranscriptionResult],
-        liveTailText: String,
-        totalSampleCount: Int
-    ) -> String {
-        let words = results
-            .flatMap(\.segments)
-            .flatMap { $0.words ?? [] }
-            .map {
-                WhisperKitDecodedWord(
-                    text: $0.word,
-                    probability: $0.probability,
-                    startSeconds: $0.start,
-                    endSeconds: $0.end
-                )
-            }
-        let guardedText = WhisperKitTerminalHallucinationGuard.resolve(
-            liveText: liveTailText,
-            decodedText: decodedText,
-            words: words,
-            audioDurationSeconds: Float(totalSampleCount) / Float(WhisperKit.sampleRate)
+    private func decodeTail(
+        samples: [Float],
+        fromSeconds: Float,
+        wordTimestamps: Bool,
+        withBias: Bool
+    ) async throws -> WhisperKitTailDecode {
+        let results = try await engine.transcribe(
+            audioArray: samples,
+            decodeOptions: Self.tailDecodingOptions(
+                base: decodingOptions,
+                fromSeconds: fromSeconds,
+                wordTimestamps: wordTimestamps,
+                withBias: withBias
+            )
         )
-        if guardedText != decodedText {
-            Self.diagnosticLog.info("asr.terminalGuard trimmedTerminalSuffix")
+        return WhisperKitTailDecode(
+            text: WhisperKitTranscriptText.compose(results.map(\.text)),
+            words: results
+                .flatMap(\.segments)
+                .flatMap { $0.words ?? [] }
+                .map {
+                    WhisperKitDecodedWord(
+                        text: $0.word,
+                        probability: $0.probability,
+                        startSeconds: $0.start,
+                        endSeconds: $0.end
+                    )
+                }
+        )
+    }
+
+    /// The per-attempt options for the final tail decode: the session's options
+    /// with the clip boundary applied, word timings opted in only when the
+    /// terminal-hallucination guard will run, and the bias prompt stripped for
+    /// the bias-free retry. Internal, not private, so a `@testable` test pins
+    /// the derivation — including that the two attempts differ ONLY in bias —
+    /// without loading a model.
+    static func tailDecodingOptions(
+        base: DecodingOptions,
+        fromSeconds: Float,
+        wordTimestamps: Bool,
+        withBias: Bool
+    ) -> DecodingOptions {
+        var options = base
+        options.clipTimestamps = [fromSeconds]
+        if wordTimestamps {
+            options.wordTimestamps = true
         }
-        return guardedText
+        if !withBias {
+            options.promptTokens = nil
+        }
+        return options
     }
 
     func cancel() async {

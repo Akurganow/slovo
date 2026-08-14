@@ -85,6 +85,14 @@ struct WhisperKitDecodedWord: Equatable, Sendable {
     }
 }
 
+/// One tail-decode attempt's outcome: the composed transcript plus the word
+/// timings the terminal-hallucination guard needs — carried together so the
+/// guard can only ever see text and timings from the SAME attempt.
+struct WhisperKitTailDecode: Equatable, Sendable {
+    let text: String
+    let words: [WhisperKitDecodedWord]
+}
+
 enum WhisperKitTerminalHallucinationGuard {
     private struct TokenizedWord {
         let word: WhisperKitDecodedWord
@@ -221,9 +229,11 @@ enum WhisperKitTailFinalization {
         return .decode(
             confirmedPrefix: state.confirmedText,
             // An empty decode of a DECODABLE tail is the decoder's verdict —
-            // nothing spoken there — and must stay empty (the empty-result
-            // invariant). Only a tail too short to open one decode window
-            // cannot testify, so only then does live unconfirmed text stand in.
+            // nothing spoken there — and must stay empty, ONCE BIAS HAS BEEN
+            // RULED OUT (the bias-free retry in `decodeRetryingWithoutBias`
+            // runs first; see the empty-result invariant). Only a tail too
+            // short to open one decode window cannot testify, so only then
+            // does live unconfirmed text stand in.
             liveTail: tailSampleCount <= minimumDecodableTailSampleCount
                 ? state.unconfirmedText
                 : "",
@@ -250,5 +260,52 @@ enum WhisperKitTailFinalization {
                 tail.isEmpty ? liveTail : tail,
             ])
         }
+    }
+
+    /// Bias-free retry policy for the final tail decode (task #44): a bias prompt
+    /// can empty out a short decode (EOT at the first sampled position, or the
+    /// first-token-confidence fallback cascade), so an empty BIASED decode is not
+    /// yet the decoder's verdict — the verdict is the bias-free attempt's. Exactly
+    /// one retry; the flag feeds the permanent `biasRetry` telemetry field.
+    ///
+    /// A throw from the FIRST attempt propagates — it is the only decode there was.
+    /// A throw from the RETRY is absorbed in favour of the first attempt's outcome:
+    /// the rescue must never turn a survivable empty tail into an error that costs
+    /// the user the whole dictation's confirmed prefix.
+    nonisolated(nonsending) static func decodeRetryingWithoutBias(
+        isBiased: Bool,
+        decode: (_ withBias: Bool) async throws -> WhisperKitTailDecode
+    ) async rethrows -> (outcome: WhisperKitTailDecode, retriedWithoutBias: Bool) {
+        let first = try await decode(isBiased)
+        guard isBiased, first.text.isEmpty else { return (first, false) }
+        do {
+            return (try await decode(false), true)
+        } catch {
+            return (first, true)
+        }
+    }
+
+    /// The whole tail-finalization decision for one decode span: bias-free retry,
+    /// then the terminal-hallucination guard on the winning attempt. Closure-injected
+    /// like `decodeRetryingWithoutBias` so the guard wiring — which attempt's words
+    /// the guard sees, whether its verdict is honoured — is unit-testable without a
+    /// loaded model. `guardTrimmed` is returned rather than logged because this
+    /// module is Foundation-only; the caller owns the attribution mark.
+    nonisolated(nonsending) static func finalizeTail(
+        isBiased: Bool,
+        shouldGuard: Bool,
+        liveTailText: String,
+        audioDurationSeconds: Float,
+        decode: (_ withBias: Bool) async throws -> WhisperKitTailDecode
+    ) async rethrows -> (text: String, retriedWithoutBias: Bool, guardTrimmed: Bool) {
+        let resolution = try await decodeRetryingWithoutBias(isBiased: isBiased, decode: decode)
+        guard shouldGuard else { return (resolution.outcome.text, resolution.retriedWithoutBias, false) }
+        let guarded = WhisperKitTerminalHallucinationGuard.resolve(
+            liveText: liveTailText,
+            decodedText: resolution.outcome.text,
+            words: resolution.outcome.words,
+            audioDurationSeconds: audioDurationSeconds
+        )
+        return (guarded, resolution.retriedWithoutBias, guarded != resolution.outcome.text)
     }
 }
