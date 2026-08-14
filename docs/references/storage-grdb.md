@@ -1,8 +1,11 @@
 # GRDB.swift (personalization store)
 
 > Reference doc for slovo (native Swift, macOS). Pinned to **GRDB.swift 7.x**
-> (latest release at time of writing: **v7.11.1**, 2026-06-18). All APIs below
-> are verified against the official repository and its in-repo DocC sources
+> (latest release at time of writing: **v7.11.1**, 2026-06-18). slovo consumes
+> GRDB through Zetetic's SQLCipher-enabled distribution
+> ([github.com/sqlcipher/GRDB.swift](https://github.com/sqlcipher/GRDB.swift)),
+> whose tags mirror upstream; the API is upstream's and every claim below is
+> verified against the official repository and its in-repo DocC sources
 > ([github.com/groue/GRDB.swift](https://github.com/groue/GRDB.swift)). See the
 > `## Verification` section at the end for the audit trail.
 
@@ -23,15 +26,21 @@ few-shot prompting. Requirements it satisfies:
 
 Add the package dependency:
 
-- Package URL: `https://github.com/groue/GRDB.swift.git`
+- Package URL: `https://github.com/sqlcipher/GRDB.swift.git` — Zetetic's
+  SQLCipher-enabled distribution of upstream GRDB. Same products, same SwiftPM
+  package identity (`grdb.swift`), so `import GRDB` and every
+  `.product(name:package:)` spelling are unchanged; it defines
+  `SQLITE_HAS_CODEC` and pulls SQLCipher Community from
+  `https://github.com/sqlcipher/SQLCipher.swift.git` (`from: "4.11.0"`) as a
+  binary XCFramework.
 - Product to link: **`GRDB`** (there is also a `GRDB-dynamic` product for
   dynamic linking — pick exactly one).
-- Version requirement: pin to the 7.x major, e.g. `from: "7.0.0"`.
+- Version requirement: `from: "7.11.1"`.
 
 In `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+.package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.11.1"),
 // ...
 .target(
     name: "Slovo",
@@ -42,7 +51,12 @@ In `Package.swift`:
 ```
 
 For an Xcode app target: File → Add Package Dependencies → enter the URL above,
-choose "Up to Next Major Version" `7.0.0`, and add the `GRDB` library product.
+choose "Up to Next Major Version" `7.11.1`, and add the `GRDB` library product.
+
+**If the distribution is ever abandoned,** upstream GRDB supports SQLCipher on
+its own: its `Package.swift` carries `GRDB+SQLCipher`-marked lines to uncomment
+(the same SQLCipher.swift dependency and codec defines) — GRDB's documented
+official path, and the shape Zetetic's distribution already applies.
 
 **Minimum requirements (GRDB 7.x):** Swift 6.1+, Xcode 16.3+, macOS 10.15+
 (also iOS 13+, tvOS 13+, watchOS 7+), SQLite 3.20.0+. macOS comfortably exceeds
@@ -81,7 +95,9 @@ before opening (standard Foundation; not GRDB-specific):
 import Foundation
 import GRDB
 
-func makePersonalizationDatabase() throws -> DatabasePool {
+func makePersonalizationDatabase(
+    passphrase: @escaping @Sendable () throws -> String
+) throws -> DatabasePool {
     let appSupport = try FileManager.default.url(
         for: .applicationSupportDirectory,
         in: .userDomainMask,
@@ -90,8 +106,15 @@ func makePersonalizationDatabase() throws -> DatabasePool {
     let dir = appSupport.appendingPathComponent("slovo", isDirectory: true)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
+    var configuration = Configuration()
+    // Keying belongs in prepareDatabase (GRDB's own recommendation): the key is
+    // loaded at each connection setup rather than held for the pool's lifetime.
+    configuration.prepareDatabase { db in
+        try db.usePassphrase(passphrase())
+    }
+
     let dbURL = dir.appendingPathComponent("slovo.db")
-    let dbPool = try DatabasePool(path: dbURL.path)
+    let dbPool = try DatabasePool(path: dbURL.path, configuration: configuration)
     try migrator.migrate(dbPool)   // create-or-get: builds schema on first run
     return dbPool
 }
@@ -307,6 +330,19 @@ try dbPool.write { db in
   rollback journal (`DELETE` mode) for an on-disk database — so a default
   `DatabaseQueue` produces no `-wal`/`-shm` files. If you need WAL with a queue,
   set `configuration.journalMode = .wal` and pass it when opening.
+- **WAL sidecars hold ciphertext.** The `-wal` file of a keyed database carries
+  encrypted page images, so it no longer leaks readable rows; `-shm` is the
+  wal-index shared-memory file and holds no row content either way. Sidecars from
+  a plaintext era of the same file are plaintext, but they do not outlive it:
+  SQLite deletes `-wal`/`-shm` when that connection closes cleanly (measured on
+  macOS). slovo's migration therefore carries no removal code, and pins their
+  absence as an end-state invariant instead — the tripwire that forces a removal
+  step back in if a build ever persists the WAL past close.
+- **A keyless open still reads plaintext files.** Under the SQLCipher build a
+  bare `DatabaseQueue(path:)` — no `usePassphrase` — opens an unencrypted
+  database exactly as a stock GRDB build does; the codec engages only once a key
+  is set. That is what makes an in-place plaintext→encrypted migration, and a
+  fallback to the untouched original, possible at all.
 - **`migrate` on startup is the whole "create-or-get".** Call
   `try migrator.migrate(db)` right after opening; do not branch on
   "file exists". A missing file → fresh DB → all migrations run; an existing file
@@ -328,6 +364,36 @@ try dbPool.write { db in
   keep storage/retrieval going through GRDB (don't hand-format) so ordering of
   `createdAt` for "recent corrections" stays consistent.
 
+## Key rotation
+
+SQLCipher can change a key in place: after opening with the current key,
+`PRAGMA rekey = 'new-passphrase'` re-encrypts the database with the new one
+(`sqlite3_rekey` is the C equivalent; a `PRAGMA rekey = "x'…'"` form takes a raw
+binary key).
+
+slovo's documented rotation does not use it. It is the same
+open-export-verify-swap shape as a plaintext→encrypted migration, with one
+difference: the source database is opened with the **old passphrase** instead of
+with no passphrase.
+
+1. Open the existing database keyed with the old passphrase.
+2. `ATTACH DATABASE '<tmp>' AS rekeyed KEY '<new passphrase>'`.
+3. `SELECT sqlcipher_export('rekeyed')`, then `DETACH`.
+4. Verify the temp file opens with the new passphrase.
+5. Swap the temp file over the original. No sidecar step: the clean close in
+   step 3 already took the old `-wal`/`-shm` with it.
+
+The trade is deliberate: the export shape writes a separate file and swaps it in
+only after the copy is verified readable under the new passphrase, so the
+original stays intact until that point, and it reuses the one mechanism slovo
+already implements and tests. `PRAGMA rekey` rewrites the live file instead.
+
+slovo marks the derivation scheme with a `-v1` suffix in its HKDF info string, so
+a future scheme is distinguishable from the current one. slovo's own policy — the
+HKDF constants, the wrong-key handling, the set-aside convention — lives in
+`docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md` and
+the code doc comments, not in this vendor reference.
+
 ## Full sources
 
 - Repository (canonical): https://github.com/groue/GRDB.swift
@@ -343,6 +409,14 @@ try dbPool.write { db in
 - `Configuration.journalMode` (source): https://github.com/groue/GRDB.swift/blob/master/GRDB/Core/Configuration.swift
 - SQLite conflict resolution (upstream): https://www.sqlite.org/lang_conflict.html
 - SQLite WAL mode (upstream): https://www.sqlite.org/wal.html
+- SQLCipher distribution slovo depends on: https://github.com/sqlcipher/GRDB.swift
+  (manifest at the pinned tag: https://github.com/sqlcipher/GRDB.swift/blob/v7.11.1/Package.swift)
+- SQLCipher Community Edition (the binary XCFramework that distribution pulls in):
+  https://github.com/sqlcipher/SQLCipher.swift
+- SQLCipher README — plaintext→encrypted via `ATTACH` + `sqlcipher_export()`,
+  key changes via `PRAGMA rekey`, and "when a key is not provided, SQLCipher will
+  behave just like the standard SQLite library":
+  https://github.com/sqlcipher/sqlcipher/blob/master/README.md
 
 ## Verification
 
@@ -359,6 +433,17 @@ and the GitHub releases page). I did not author this doc.
 - **SPM install.** Package URL `https://github.com/groue/GRDB.swift.git`; two
   products `GRDB` and `GRDB-dynamic` ("Pick only one. When in doubt, prefer
   `GRDB`"); pinning `from: "7.0.0"` is valid 7.x. (README)
+  - **Addendum 2026-08-14 — those two lines describe the pre-switch state.**
+    slovo now depends on `https://github.com/sqlcipher/GRDB.swift.git` pinned
+    `from: "7.11.1"`; the `## Install (SPM)` section above is current, this
+    bullet is the 2026-06-27 record. Verified against the fork's `Package.swift`
+    at tag `v7.11.1`: the products `GRDB` and `GRDB-dynamic` and the package
+    identity are unchanged from upstream, `SQLITE_HAS_CODEC` is defined for both
+    C and Swift settings, and the manifest appends
+    `https://github.com/sqlcipher/SQLCipher.swift.git` `from: "4.11.0"`. The
+    contingency is verified too: upstream's own `Package.swift` at the same tag
+    carries the commented `GRDB+SQLCipher` lines that enable the identical
+    configuration.
 - **Minimum requirements.** Swift 6.1+ / Xcode 16.3+ / macOS 10.15+ / iOS 13+ /
   tvOS 13+ / watchOS 7+ / SQLite 3.20.0+ — verbatim match. (README)
 - **`DatabaseQueue` / `DatabasePool` open-at-path** and the `read`/`write`
@@ -425,6 +510,14 @@ and the GitHub releases page). I did not author this doc.
 - https://github.com/groue/GRDB.swift/blob/master/GRDB/Record/PersistableRecord%2BInsert.swift
 - https://github.com/groue/GRDB.swift/blob/master/GRDB/Record/MutablePersistableRecord%2BInsert.swift
 - https://github.com/groue/GRDB.swift/blob/master/GRDB/Record/MutablePersistableRecord.swift
+
+Validated 2026-08-14 for the dependency-switch addendum:
+
+- https://github.com/sqlcipher/GRDB.swift/blob/v7.11.1/Package.swift
+- https://github.com/groue/GRDB.swift/blob/v7.11.1/Package.swift (the commented
+  `GRDB+SQLCipher` lines)
+- https://github.com/sqlcipher/sqlcipher/blob/master/README.md
+- https://github.com/sqlcipher/SQLCipher.swift/blob/master/LICENSE.md
 
 ### Still unverifiable
 

@@ -12,7 +12,7 @@ struct VocabularyManagementTests {
 
     private static func openStore() throws -> (source: GRDBPersonalizationSource, teardown: () -> Void) {
         let path = TempDatabase.freshPath()
-        let pool = try PersonalizationDatabase.open(at: path)
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: TempDatabase.passphrase)
         return (GRDBPersonalizationSource(database: pool), { TempDatabase.remove(at: path) })
     }
 

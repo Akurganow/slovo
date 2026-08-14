@@ -39,6 +39,16 @@ struct ThirdPartyNoticesTests {
         // GRDB.swift, MIT.
         #expect(notices.contains("Copyright (C) 2015-2025 Gwendal Roué"))
 
+        // SQLCipher Community Edition, BSD-3-Clause — enters the bundle
+        // transitively via the GRDB fork, so the manifest-derived roster
+        // cannot see it; pin it explicitly like every bundled binary.
+        #expect(notices.contains("## SQLCipher Community Edition"))
+        #expect(notices.contains("Copyright (c) 2025, ZETETIC LLC"))
+        // The human-facing roster row too: the section and the table can be
+        // deleted independently, so pinning only the section leaves a reader
+        // of the summary table with no sign that SQLCipher ships at all.
+        #expect(notices.contains("| SQLCipher Community Edition | BSD-3-Clause |"))
+
         // Settings and LaunchAtLogin-Modern (identical sindresorhus MIT bodies):
         // both credited independently by header and source.
         #expect(notices.contains("Copyright (c) Sindre Sorhus <sindresorhus@gmail.com>"))

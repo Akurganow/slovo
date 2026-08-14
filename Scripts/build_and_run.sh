@@ -43,6 +43,20 @@ sparkle_framework_path() {
   printf '%s\n' "$found"
 }
 
+# Locate the macOS slice of SQLCipher.xcframework. Every platform slice carries
+# a SQLCipher.framework, so the path filter picks the macOS one — the
+# maccatalyst slice has no "macos-" path component and is excluded by it.
+sqlcipher_framework_path() {
+  local found count
+  found="$(find "$ROOT_DIR/.build/artifacts" -type d -path "*/macos-*/*" -name "SQLCipher.framework" 2>/dev/null || true)"
+  count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [[ "$count" != "1" ]]; then
+    echo "expected exactly one macOS SQLCipher.framework under .build/artifacts, found $count (run swift build first / clear stale artifacts)" >&2
+    exit 65
+  fi
+  printf '%s\n' "$found"
+}
+
 stage_bundle() {
   local bin_path build_binary
   bin_path="$(swift build \
@@ -93,6 +107,13 @@ stage_bundle() {
   ditto "$sparkle_framework" "$APP_CONTENTS/Frameworks/Sparkle.framework"
   rm -r "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
   rm "$APP_CONTENTS/Frameworks/Sparkle.framework/XPCServices"
+
+  # SQLCipher is a dynamic framework the binary loads through
+  # @executable_path/../Frameworks; without the embedded copy the staged app
+  # only launches next to a development checkout.
+  local sqlcipher_framework
+  sqlcipher_framework="$(sqlcipher_framework_path)"
+  ditto "$sqlcipher_framework" "$APP_CONTENTS/Frameworks/SQLCipher.framework"
 }
 
 available_signing_identities() {
@@ -132,13 +153,14 @@ resolve_signing_identity() {
 sign_bundle() {
   local identity
   identity="$(resolve_signing_identity)"
-  # Inside-out: Sparkle's nested helpers, then the framework, before the app.
+  # Inside-out: Sparkle's nested helpers, then the frameworks, before the app.
   # Never deep-sign — it mis-signs the Autoupdate helper (Sparkle #1641).
-  # Sparkle code carries no entitlements; dev keeps the existing no-timestamp
+  # Framework code carries no entitlements; dev keeps the existing no-timestamp
   # signing.
   codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
   codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
   codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework"
+  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/SQLCipher.framework"
   codesign \
     --force \
     --options runtime \
@@ -173,6 +195,12 @@ verify_app() {
       return 1
     fi
   done
+  # A missing embedded framework surfaces as a dyld launch failure with no
+  # useful message, so name it here instead.
+  if [[ ! -d "$APP_CONTENTS/Frameworks/SQLCipher.framework" ]]; then
+    echo "SQLCipher.framework is not staged in $APP_CONTENTS/Frameworks" >&2
+    return 1
+  fi
   local attempts=20
   while (( attempts > 0 )); do
     if pgrep -x "$PROCESS_NAME" >/dev/null; then
