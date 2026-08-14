@@ -329,6 +329,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             // windowClipTime opens zero decode windows, so its empty decode is
             // structural, not a verdict that nothing was spoken.
             minimumDecodableTailSampleCount: Int(decodingOptions.windowClipTime * Float(WhisperKit.sampleRate)),
+            relativeEnergy: streamInput.relativeEnergy,
             state: streamState
         )
         // Latency mark: attribute the key-up tail-finalization step — the case name
@@ -337,6 +338,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
         let planCase: String
         switch plan {
         case .noAudio: planCase = "noAudio"
+        case .silent: planCase = "silent"
         case .reuse: planCase = "reuse"
         case .decode: planCase = "decode"
         }

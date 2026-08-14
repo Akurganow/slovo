@@ -116,9 +116,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - A user-muted output stays muted, intentional cancellation is silent, and each
   red dictation-failure glyph produces one Error cue. Update-install failure does
   not use the dictation cue path.
-- Silence plays Start, End, then Error — the recording did end, so End belongs. A
-  failure DURING recording plays Start then Error alone, since no recording ended.
-  A later cleanup or insertion failure plays Start, End, then Error in FIFO order.
+- Silence plays Start, End, then Error — the recording did end, so End belongs —
+  and the log line shows `plan=silent`, nothing is inserted. A failure DURING
+  recording plays Start then Error alone, since no recording ended. A later
+  cleanup or insertion failure plays Start, End, then Error in FIFO order.
 - Secure-input fields fail closed without writing transcript text to the
   clipboard.
 - Offline, refused, unavailable, or misconfigured cleanup falls back to
@@ -156,7 +157,11 @@ per-arm telemetry, so they never require the two arms to agree word for word:
 - zero temperature fallbacks on both arms.
 - `ru` detected on every window on both arms.
 - the confirmed boundary advances past 30 s on the >30 s phrase on both arms.
-- a SILENT hold with the toggle ON yields an empty transcript and inserts nothing.
+- a SILENT hold with the toggle ON yields an empty transcript and inserts nothing
+  — now via the silence gate, which decides before the tail decode on both arms.
+- a NORMAL-voice dictation at arm's length WITH THE TOGGLE ON still transcribes.
+  This probes the silence gate's boundary rather than fixing a floor on whispers:
+  occasionally trimming genuinely quiet speech is accepted product behavior.
 
 Any failure keeps the toggle off. A recorded-audio replay harness — decoding one
 captured file through both arms — would be the stricter instrument and remains

@@ -66,7 +66,9 @@ and only for the OpenRouter cleanup attempt.
   addition only when the final decode is the exact normalized live result plus
   an anomalous suffix timestamped strictly beyond the recorded audio. When a
   bias-prompted final decode composes to empty, Slovo decodes once more
-  without the prompt and uses the winning attempt. The model remains resident
+  without the prompt and uses the winning attempt. A hold with fewer than two
+  frames of above-threshold voice energy finishes empty without a final decode,
+  so Whisper never gets the chance to hallucinate into silence. The model remains resident
   between dictations.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223
   iterations shared between prefill and sampled output, leaving ~219 sampled

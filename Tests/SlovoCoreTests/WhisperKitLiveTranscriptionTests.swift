@@ -66,6 +66,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 36_000,
                 tailSampleCount: 16_000,
                 minimumDecodableTailSampleCount: 16_000,
+                relativeEnergy: [0.5, 0.5],
                 state: state
             ) == .decode(confirmedPrefix: "confirmed ", liveTail: "old tail", fromSeconds: 1.25)
         )
@@ -90,6 +91,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 100_000,
                 tailSampleCount: 80_000,
                 minimumDecodableTailSampleCount: 16_000,
+                relativeEnergy: [0.5, 0.5],
                 state: state
             ) == .decode(confirmedPrefix: "confirmed ", liveTail: "", fromSeconds: 1.25)
         )
@@ -123,6 +125,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 8_000,
                 tailSampleCount: 8_000,
                 minimumDecodableTailSampleCount: 16_000,
+                relativeEnergy: [0.4, 0.4],
                 state: WhisperKitStreamState()
             ) == .decode(confirmedPrefix: "", liveTail: "", fromSeconds: 0)
         )
@@ -144,6 +147,7 @@ struct WhisperKitLiveTranscriptionTests {
                 totalSampleCount: 32_000,
                 tailSampleCount: 14_400,
                 minimumDecodableTailSampleCount: 16_000,
+                relativeEnergy: [0.6, 0.6],
                 state: state
             ) == .reuse("привет hello")
         )
@@ -474,6 +478,10 @@ struct WhisperKitLiveTranscriptionTests {
             totalSampleCount: samples.count,
             tailSampleCount: tailSpan.sampleCount,
 """))
+        // The silence gate's only source-pinned residue. A bare `contains` is
+        // enough because the argument occurs exactly once in the file, and the
+        // anchor above cannot reach it: a three-line comment sits mid-list.
+        #expect(source.contains("relativeEnergy: streamInput.relativeEnergy,"))
         #expect(source.contains("""
             let resolution = try await WhisperKitTailFinalization.finalizeTail(
                 isBiased: decodingOptions.promptTokens?.isEmpty == false,
