@@ -38,7 +38,15 @@ public enum PersonalizationDatabase {
                 return try openEncrypted(at: path, passphrase: passphrase)
             }
         case .plaintext:
-            try PlaintextDatabaseMigration.encryptInPlace(at: path, passphrase: passphrase)
+            do {
+                try PlaintextDatabaseMigration.encryptInPlace(at: path, passphrase: passphrase)
+            } catch {
+                // Never trade user data for encryption: the plaintext original
+                // is untouched on failure, so a broad catch is safe HERE (the
+                // .opaque branch must stay narrow — see its comment). The
+                // state sniff re-runs the migration at the next launch.
+                return try openPlaintext(at: path)
+            }
             return try openEncrypted(at: path, passphrase: passphrase)
         }
     }
@@ -95,6 +103,12 @@ public enum PersonalizationDatabase {
             try db.usePassphrase(passphrase())
         }
         return configuration
+    }
+
+    private static func openPlaintext(at path: String) throws -> DatabasePool {
+        let pool = try DatabasePool(path: path)
+        try PersonalizationMigrations.migrator.migrate(pool)
+        return pool
     }
 
     private static func openEncrypted(

@@ -293,6 +293,44 @@ struct PersonalizationDatabaseEncryptionTests {
         #expect(terms == ["wal-only-term"])
     }
 
+    /// Spec test 6: if re-encryption cannot complete, THIS session serves the
+    /// plaintext file unchanged and the next launch retries. The failure is
+    /// forced with an immutable (uchg) file at the temp path — file-scoped on
+    /// purpose: a read-only parent directory would also block the fallback's
+    /// own WAL sidecars, breaking the very path under test. If this test is
+    /// ever killed mid-run, the leftover survives `rm -rf` until
+    /// `chflags nouchg` clears it (the defer handles normal completion).
+    /// Stated sensitivity: rethrow-instead-of-fallback → open throws → RED;
+    /// fallback to a FRESH db instead of the existing plaintext one → row
+    /// assertion RED; a state machine that never retries → second-open header
+    /// assertion RED.
+    @Test
+    func failedMigrationFallsBackToPlaintextForThisSession() throws {
+        let path = TempDatabase.freshPath()
+        let temporaryPath = path + ".encrypting"
+        defer {
+            _ = chflags(temporaryPath, 0)
+            TempDatabase.remove(at: path)
+        }
+        try Self.makePlaintextDatabase(at: path, terms: ["epsilon-term"])
+        try Data().write(to: URL(fileURLWithPath: temporaryPath))
+        try #require(chflags(temporaryPath, UInt32(UF_IMMUTABLE)) == 0)
+
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        let terms = try pool.read { db in
+            try String.fetchAll(db, sql: "SELECT term FROM vocabulary")
+        }
+        #expect(terms == ["epsilon-term"])
+        #expect(try Self.header(at: path) == Self.plaintextHeader)
+        try pool.close()
+
+        // Next-launch retry: with the blocker gone the migration completes.
+        try #require(chflags(temporaryPath, 0) == 0)
+        let retried = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        defer { try? retried.close() }
+        #expect(try Self.header(at: path) != Self.plaintextHeader)
+    }
+
     /// Spec test 8: the classification is total — every possible on-disk
     /// state maps to a defined case. (`fileState` is internal; this test is
     /// its consumer.)
