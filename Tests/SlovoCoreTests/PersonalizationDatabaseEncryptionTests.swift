@@ -176,6 +176,25 @@ struct PersonalizationDatabaseEncryptionTests {
         #expect(!FileManager.default.fileExists(atPath: path + "-shm"))
     }
 
+    /// Spec test 4c: a leftover `.encrypting` next to an already-ENCRYPTED
+    /// database is removed on open — after a crash inside the swap window the
+    /// leftover IS the plaintext original (replaceItemAt swaps, then unlinks),
+    /// and the .plaintext arm will never run again to clean it.
+    /// Stated sensitivity: cleanup living only inside encryptInPlace → the
+    /// leftover survives the reopen → RED.
+    @Test
+    func leftoverTempNextToEncryptedDatabaseIsRemovedOnOpen() throws {
+        let path = TempDatabase.freshPath()
+        defer { TempDatabase.remove(at: path) }
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        try pool.close()
+        try Data("plaintext orphan".utf8).write(to: URL(fileURLWithPath: path + ".encrypting"))
+
+        let reopened = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        defer { try? reopened.close() }
+        #expect(!FileManager.default.fileExists(atPath: path + ".encrypting"))
+    }
+
     /// Spec test 5: an encrypted DB this key cannot read (another Mac, board
     /// swap) is silently set aside — KEPT, not deleted — and a fresh empty
     /// encrypted DB takes its place; a second wrong-key round REPLACES the

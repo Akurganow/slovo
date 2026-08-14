@@ -11,17 +11,17 @@ enum PlaintextDatabaseMigration {
     /// SQLCipher's documented plaintext→encrypted flow (`sqlcipher_export`):
     /// copy into a temp DB keyed with the passphrase, verify the copy opens
     /// with that same passphrase, and only then swap it over the original.
-    /// A crash at ANY point leaves either the plaintext original (+ an
-    /// ignorable temp fragment) or the finished encrypted file.
+    /// A crash before the swap leaves the plaintext original (+ a temp
+    /// fragment); a crash INSIDE `replaceItemAt`'s swap window can leave the
+    /// plaintext original at the temp path — `PersonalizationDatabase.open`
+    /// removes any leftover unconditionally on every launch, so no state
+    /// strands a plaintext file beside the encrypted one.
     static func encryptInPlace(
         at path: String,
         passphrase providePassphrase: () throws -> String
     ) throws {
         let temporaryPath = path + temporarySuffix
         let fileManager = FileManager.default
-        // A leftover temp from a crashed attempt is garbage by definition:
-        // the swap below only ever follows a fully verified copy.
-        try? fileManager.removeItem(atPath: temporaryPath)
 
         // ATTACH needs one materialized passphrase value — short-lived, unlike
         // the pool-lifetime capture the provider form exists to prevent.
@@ -58,8 +58,12 @@ enum PlaintextDatabaseMigration {
         )
     }
 
-    /// The swap's gate: the copy must open with the SAME passphrase the final
-    /// open will use — never swap in a file we cannot read back.
+    /// The LAST gate before the irreversible swap: the copy must open with the
+    /// SAME passphrase the final open will use. Not redundant with GRDB's own
+    /// validation at the final open — that one fires only after the original
+    /// is already gone. Measured: with this verify, a mis-keyed export ends in
+    /// a working plaintext-fallback session and the original intact; without
+    /// it, the original is destroyed and the open throws.
     private static func verifyEncryptedCopy(at path: String, passphrase: String) throws {
         let copy = try DatabaseQueue(
             path: path,

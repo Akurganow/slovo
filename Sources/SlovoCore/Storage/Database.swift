@@ -22,6 +22,13 @@ public enum PersonalizationDatabase {
         at path: String,
         passphrase: @escaping @Sendable () throws -> String
     ) throws -> DatabasePool {
+        // A leftover temp is disposable in EVERY state: either an unverified
+        // copy fragment, or — after a crash inside the swap window — the
+        // plaintext original whose data already reached the main path
+        // encrypted. Cleaning here, not in the migration, covers the states
+        // whose arms never run the migration again.
+        try? FileManager.default.removeItem(atPath: path + PlaintextDatabaseMigration.temporarySuffix)
+
         switch fileState(at: path) {
         case .missing:
             return try openEncrypted(at: path, passphrase: passphrase)
