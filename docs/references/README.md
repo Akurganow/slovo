@@ -26,7 +26,7 @@ depends on. The personalization seed data lives under `../../data/` and is
 | [asr-fluidaudio-parakeet.md](asr-fluidaudio-parakeet.md) | FluidAudio + Parakeet TDT v3 CoreML on the ANE; multilingual | github.com/FluidInference/FluidAudio + HF model card | Archived historical ASR comparison; not linked by runtime |
 | [asr-engine-selection.md](asr-engine-selection.md) | 42-engine ASR survey gated on RU+EN intra-utterance code-switching; why WhisperKit large-v3 stays the runtime path over Apple Speech; the on-device acceptance-test protocol | Multi-agent adversarial survey of HF model cards, arXiv/Interspeech papers, Apple/WWDC | ASR engine decision record — the "why" behind asr-whisperkit.md (the Apple-Speech and Parakeet notes point here) |
 | [cleanup-benchmark.md](cleanup-benchmark.md) | Cleanup latency/quality benchmark, sample format, OpenRouter-routed candidates | OpenRouter sources | Cleanup comparison harness |
-| [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE` | github.com/groue/GRDB.swift (DocC) | Personalization store (`GRDBPersonalizationSource`) |
+| [storage-grdb.md](storage-grdb.md) | GRDB.swift over SQLite; `DatabaseMigrator` (create-or-get); records; `INSERT OR IGNORE`; SQLCipher keying and key rotation | github.com/sqlcipher/GRDB.swift (Zetetic's SQLCipher distribution; API docs from the groue upstream DocC) | Personalization store (`GRDBPersonalizationSource`), encrypted at rest |
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `ClipboardPasteInjector` |
 | [menubar-packaging.md](menubar-packaging.md) | `NSStatusItem`, `LSUIElement`/`.accessory`, codesign/notarization, sandbox↔Accessibility conflict | Apple AppKit + Developer ID / App Sandbox docs | App shell + packaging |
 | [menubar-status-ui.md](menubar-status-ui.md) | Glagolitic status icon (bundled Noto Sans Glagolitic vs LastResort tofu) | Apple AppKit + Apple Support bundled-font lists | Status-icon glyphs (shipped) |
@@ -57,7 +57,7 @@ before→after, validated URLs, residual SDK/device-only gaps) is in its own
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |
 | menubar-status-ui.md | PASS | Glagolitic status glyphs render through bundled Noto Sans Glagolitic when pinned explicitly |
-| storage-grdb.md | PASS | `DatabaseQueue` default = DELETE/rollback (WAL only via `Configuration.journalMode=.wal`) |
+| storage-grdb.md | PASS (+ 2026-08-14 addendum) | `DatabaseQueue` default = DELETE/rollback (WAL only via `Configuration.journalMode=.wal`); the dependency switch to `sqlcipher/GRDB.swift` @ v7.11.1 was re-verified against that fork's manifest |
 | text-injection.md | PASS | Signatures (`CGEvent` keyboard init, `IsSecureEventInputEnabled`, nspasteboard markers) confirmed |
 | audio-capture.md | PARTIAL→fixed | **`audio-input` entitlement required under Hardened Runtime**; `installTap` deprecated (macOS 27) → `installAudioTap` |
 | macos-fn-hotkey.md | PARTIAL→fixed | enum/flag integers all correct; "active⇒Accessibility" is practitioner-observed, not Apple doctrine → preflight both |

@@ -134,6 +134,11 @@ Slovo uses SQLite through GRDB for local personalization data:
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
 
+The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
+SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
+identifier and stored nowhere; see
+`docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md`.
+
 The repository tracks only schema and migrations. Local databases and seed files
 are never committed.
 
