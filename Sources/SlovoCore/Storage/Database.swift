@@ -23,12 +23,41 @@ public enum PersonalizationDatabase {
         passphrase: @escaping @Sendable () throws -> String
     ) throws -> DatabasePool {
         switch fileState(at: path) {
-        case .missing, .opaque:
+        case .missing:
             return try openEncrypted(at: path, passphrase: passphrase)
+        case .opaque:
+            do {
+                return try openEncrypted(at: path, passphrase: passphrase)
+            } catch let error as DatabaseError where error.resultCode == .SQLITE_NOTADB {
+                // The one condition that justifies starting over: the bytes
+                // are not a database under this key (another Mac, board swap,
+                // corruption). Anything else — I/O, disk full, permissions —
+                // keeps propagating: a real disk problem must stay loud, not
+                // be answered with an empty database.
+                try setAsideUnreadable(at: path)
+                return try openEncrypted(at: path, passphrase: passphrase)
+            }
         case .plaintext:
             try PlaintextDatabaseMigration.encryptInPlace(at: path, passphrase: passphrase)
             return try openEncrypted(at: path, passphrase: passphrase)
         }
+    }
+
+    static let unreadableSuffix = ".unreadable"
+
+    /// Moves an undecryptable database out of the open path without destroying
+    /// it — the bytes stay recoverable by hand (the artifact is named in
+    /// docs/privacy.md).
+    private static func setAsideUnreadable(at path: String) throws {
+        let fileManager = FileManager.default
+        let asidePath = path + unreadableSuffix
+        // One generation: a newer unreadable file replaces an older one, and
+        // `moveItem` refuses an existing destination.
+        try? fileManager.removeItem(atPath: asidePath)
+        // No sidecars to carry: the failed keyed open deletes -wal/-shm after
+        // folding their pages into the main file (measured), so the bytes we
+        // preserve here are complete.
+        try fileManager.moveItem(atPath: path, toPath: asidePath)
     }
 
     /// On-disk classification, total by construction: a missing file is

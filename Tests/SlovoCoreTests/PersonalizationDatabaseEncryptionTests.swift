@@ -176,6 +176,123 @@ struct PersonalizationDatabaseEncryptionTests {
         #expect(!FileManager.default.fileExists(atPath: path + "-shm"))
     }
 
+    /// Spec test 5: an encrypted DB this key cannot read (another Mac, board
+    /// swap) is silently set aside — KEPT, not deleted — and a fresh empty
+    /// encrypted DB takes its place; a second wrong-key round REPLACES the
+    /// aside (one generation).
+    /// Stated sensitivity: delete-instead-of-rename → `.unreadable` missing →
+    /// RED; rethrow-instead-of-set-aside → open throws → RED; reusing the
+    /// unreadable file → non-empty vocabulary → RED; drop the pre-delete of
+    /// the older aside → the second round's move collides → open throws → RED.
+    @Test
+    func unreadableEncryptedDatabaseIsSetAsideAndReplacedFresh() throws {
+        let path = TempDatabase.freshPath()
+        defer { TempDatabase.remove(at: path) }
+        let foreign = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        try foreign.write { db in
+            try db.execute(
+                sql: "INSERT INTO vocabulary (term, category, source) VALUES ('foreign-term', 'test', 'import')"
+            )
+        }
+        let seeded = try foreign.read { db in
+            try Int.fetchOne(db, sql: "SELECT count(*) FROM vocabulary")
+        }
+        #expect(seeded == 1, "precondition: the foreign database must actually hold a row")
+        try foreign.close()
+
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseB)
+        let count = try pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT count(*) FROM vocabulary")
+        }
+        #expect(count == 0)
+        #expect(FileManager.default.fileExists(atPath: path + ".unreadable"))
+        #expect(try Self.header(at: path) != Self.plaintextHeader)
+        try pool.close()
+
+        // One generation: the fresh DB is keyed under B, so opening with A is
+        // a second wrong-key round — it must replace the aside, not collide.
+        let second = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        defer { try? second.close() }
+        #expect(FileManager.default.fileExists(atPath: path + ".unreadable"))
+    }
+
+    /// Spec test 5b: a file that is neither plaintext nor a readable database
+    /// under the key (short garbage) takes the same set-aside path —
+    /// empirically pinning that such files surface as SQLITE_NOTADB. If this
+    /// test reds with a DIFFERENT error code, STOP and report to the lead:
+    /// the catch is never widened silently.
+    /// Stated sensitivity: rethrow-instead-of-set-aside → open throws → RED;
+    /// a sniff that calls short garbage "plaintext" → the migration path
+    /// fails on it → RED.
+    @Test
+    func corruptedFileIsSetAsideAndReplacedFresh() throws {
+        let path = TempDatabase.freshPath()
+        defer { TempDatabase.remove(at: path) }
+        try Data("garbage".utf8).write(to: URL(fileURLWithPath: path))
+
+        let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        defer { try? pool.close() }
+        let count = try pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT count(*) FROM vocabulary")
+        }
+        #expect(count == 0)
+        #expect(FileManager.default.fileExists(atPath: path + ".unreadable"))
+    }
+
+    /// Spec test 5c: the failed wrong-key open folds WAL pages into the main
+    /// file before deleting the sidecars (measured), so the preserved
+    /// `.unreadable` file is complete on its own — the "keep the bytes"
+    /// promise depends on it.
+    /// Stated sensitivity: a SQLite that deletes a foreign WAL without
+    /// checkpointing it → the WAL-only row vanishes from the recovered file
+    /// → RED.
+    @Test
+    func setAsideKeepsWalResidentRowsRecoverable() throws {
+        let live = TempDatabase.freshPath()
+        let copy = TempDatabase.freshPath()
+        let recovered = TempDatabase.freshPath()
+        defer {
+            TempDatabase.remove(at: live)
+            TempDatabase.remove(at: copy)
+            TempDatabase.remove(at: recovered)
+        }
+        let manager = FileManager.default
+
+        let pool = try PersonalizationDatabase.open(at: live, passphrase: Self.passphraseA)
+        try pool.write { db in
+            try db.execute(
+                sql: "INSERT INTO vocabulary (term, category, source) VALUES ('wal-only-term', 'test', 'import')"
+            )
+        }
+        // Copied while the pool is still OPEN, so the row is WAL-resident —
+        // the state a database copied from a running Mac actually arrives in.
+        for suffix in ["", "-wal", "-shm"] where manager.fileExists(atPath: live + suffix) {
+            try manager.copyItem(atPath: live + suffix, toPath: copy + suffix)
+        }
+        let walSize = try #require(
+            manager.attributesOfItem(atPath: copy + "-wal")[.size] as? Int,
+            "the copy must carry a wal file"
+        )
+        // Vacuity guard: a wal holding nothing but its 32-byte header would
+        // mean the row was already checkpointed and this test proves nothing.
+        try #require(walSize > 32, "the row must still be wal-resident")
+        try pool.close()
+
+        let fresh = try PersonalizationDatabase.open(at: copy, passphrase: Self.passphraseB)
+        defer { try? fresh.close() }
+        try #require(manager.fileExists(atPath: copy + ".unreadable"))
+
+        // The documented manual-recovery path: take the set-aside bytes
+        // elsewhere and open them with the key that made them.
+        try manager.moveItem(atPath: copy + ".unreadable", toPath: recovered)
+        let reopened = try PersonalizationDatabase.open(at: recovered, passphrase: Self.passphraseA)
+        defer { try? reopened.close() }
+        let terms = try reopened.read { db in
+            try String.fetchAll(db, sql: "SELECT term FROM vocabulary")
+        }
+        #expect(terms == ["wal-only-term"])
+    }
+
     /// Spec test 8: the classification is total — every possible on-disk
     /// state maps to a defined case. (`fileState` is internal; this test is
     /// its consumer.)
