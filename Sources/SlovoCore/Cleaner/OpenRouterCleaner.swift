@@ -16,7 +16,6 @@ public struct OpenRouterCleaner: Cleaner {
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-    private static let maxCleanupTokens = 1_024
     private static let requestTimeout: TimeInterval = 30
 
     public init(
@@ -59,7 +58,6 @@ public struct OpenRouterCleaner: Cleaner {
                 OpenRouterRequest.Message(role: "system", content: prompt.systemBlocks.joined(separator: "\n\n")),
                 OpenRouterRequest.Message(role: "user", content: prompt.input),
             ],
-            maxTokens: Self.maxCleanupTokens,
             temperature: 0,
             // Cleanup is a constrained rewrite; provider-default reasoning (on for
             // some catalog models) only adds key-up latency.
