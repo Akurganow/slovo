@@ -68,7 +68,7 @@ struct OpenRouterCleanerTests {
         let messages = try #require(json["messages"] as? [[String: String]])
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
-        #expect(messages.last?["content"] == "raw transcript")
+        #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
     }
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or

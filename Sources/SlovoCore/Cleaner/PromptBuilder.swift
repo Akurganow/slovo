@@ -79,7 +79,7 @@ public struct PromptBuilder: Sendable {
         return CleanupPrompt(
             model: config.model,
             systemBlocks: systemBlocks,
-            input: raw
+            input: "<transcript>\(raw)</transcript>"
         )
     }
 

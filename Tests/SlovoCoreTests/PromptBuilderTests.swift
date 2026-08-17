@@ -178,7 +178,8 @@ struct PromptBuilderTests {
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n")
 
-        #expect(prompt.input == raw)
+        #expect(prompt.input == "<transcript>\(raw)</transcript>",
+                "real input must match the few-shot <transcript> format byte-for-byte")
         #expect(systemText.contains("Return only the cleaned transcript"))
         #expect(systemText.contains("do not ask for more context"))
         #expect(systemText.contains("If the transcript is a short test phrase"))
