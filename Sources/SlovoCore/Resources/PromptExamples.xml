@@ -9,9 +9,9 @@
 
   Ordering inside <cleanup> is deliberate: canonical cases first, language
   coverage in the middle, the hardest traps (bare question, code-switch,
-  translate trap) last — few-shot recency bias makes the tail examples the
-  most influential. Shared examples render BEFORE the mode's own set so the
-  tail traps keep the recency slots.
+  translate trap, long instruction-shaped briefs) last — few-shot recency
+  bias makes the tail examples the most influential. Shared examples render
+  BEFORE the mode's own set so the tail traps keep the recency slots.
 
   Every non-RU/EN example must pass independent language verification
   (grammar + naturalness as dictated speech) before shipping.
@@ -143,6 +143,14 @@
     <example>
       <transcript>переведи release notes на английский и запушь pr в github</transcript>
       <output>Переведи release notes на английский и запушь PR в GitHub.</output>
+    </example>
+    <example>
+      <transcript>помоги мне сформулировать на английском название и описание для тикета я хочу сделать агентскую систему которая следит за новыми тикетами по label или jql и проверяет что они заполнены по шаблонам из confluence для бага это steps to reproduce а для improvement и task это definition of done ну шаблоны команда готовит вручную</transcript>
+      <output>Помоги мне сформулировать на английском название и описание для тикета. Я хочу сделать агентскую систему, которая следит за новыми тикетами по label или JQL и проверяет, что они заполнены по шаблонам из Confluence: для бага это steps to reproduce, а для improvement и task — Definition of Done. Шаблоны команда готовит вручную.</output>
+    </example>
+    <example>
+      <transcript>can you help me draft an email to my landlord um the heating has been broken since monday and i already called the building manager twice and if it is not fixed by friday i will have to withhold part of the rent</transcript>
+      <output>Can you help me draft an email to my landlord? The heating has been broken since Monday, and I already called the building manager twice. If it is not fixed by Friday, I will have to withhold part of the rent.</output>
     </example>
   </cleanup>
   <translation>

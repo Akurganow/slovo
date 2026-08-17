@@ -27,7 +27,7 @@ struct PromptExampleCatalogTests {
     @Test
     func cleanupSetCarriesTheVerifiedExamples() {
         let cleanup = PromptExampleCatalog.bundled.cleanup
-        #expect(cleanup.count == 27)
+        #expect(cleanup.count == 29)
         #expect(cleanup.first?.transcript == "1 2 3 проверяем 1 2 3")
         #expect(cleanup.contains(PromptExample(
             transcript: "отправь отчёт в пятницу нет стой лучше в четверг",
@@ -48,13 +48,26 @@ struct PromptExampleCatalogTests {
         // The tail examples are load-bearing via recency bias (the XML declares
         // them traps), so their ORDER is pinned, not just membership: a silent
         // mid-list shuffle that demotes a trap from the recency window reddens.
-        // The last slot is the translate trap — the scariest silent failure.
+        // The final recency slots belong to the long instruction-shaped briefs —
+        // the genre behind the production incident; the translate trap sits third-from-last.
         #expect(cleanup.suffix(4).map(\.output) == [
-            "How do I roll back the last migration?",
-            "Я запушил фикс в feature branch, но code review ещё не прошёл.",
             "Добавь unit test для HTTP client.",
             "Переведи release notes на английский и запушь PR в GitHub.",
+            "Помоги мне сформулировать на английском название и описание для тикета. Я хочу сделать агентскую систему, "
+                + "которая следит за новыми тикетами по label или JQL и проверяет, что они заполнены по шаблонам из Confluence: "
+                + "для бага это steps to reproduce, а для improvement и task — Definition of Done. Шаблоны команда готовит вручную.",
+            "Can you help me draft an email to my landlord? The heating has been broken since Monday, "
+                + "and I already called the building manager twice. If it is not fixed by Friday, "
+                + "I will have to withhold part of the rent.",
         ], "tail order drifted")
+        #expect(cleanup.contains(PromptExample(
+            transcript: "how do I roll back the last migration",
+            output: "How do I roll back the last migration?"
+        )), "the bare-question trap must survive")
+        #expect(cleanup.contains(PromptExample(
+            transcript: "я запушил фикс в feature branch но code review ещё не прошёл",
+            output: "Я запушил фикс в feature branch, но code review ещё не прошёл."
+        )), "the code-switch trap must survive")
     }
 
     /// The shared set is language-neutral notation rendered in both modes for
