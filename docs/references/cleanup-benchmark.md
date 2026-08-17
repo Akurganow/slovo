@@ -82,7 +82,7 @@ the failures that matter for dictation cleanup:
 - the output is not wildly longer than the input.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-50 synthetic/public-style samples, grouped as:
+53 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
@@ -93,6 +93,13 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 | `commands-editor` | 4 |
 | `inverse-text-normalization` | 7 |
 | `safety-negative` | 8 |
+| `instruction-shaped-transcript` | 3 |
+
+The `instruction-shaped-transcript` category is the permanent tripwire for the
+executed-dictation failure class: long task-shaped dictations (the flagship is a
+1,557-char RU+EN brief addressed to an assistant) whose expectations reject an
+executed answer — headings the speaker never said, chat-style replies, few-shot
+tag echoes — while accepting the speaker's own words cleaned per the rules.
 
 The default benchmark does not download datasets or models at runtime.
 
@@ -123,8 +130,14 @@ The curated OpenRouter shortlist currently mirrors the app menu:
 
 Live benchmark of the full curated shortlist plus the no-cleanup baseline,
 measured on 2026-07-25 with 10 repetitions over
-the 50-sample suite and the exact request the app sends (temperature 0,
-`max_tokens` 1024, reasoning disabled via `reasoning: {effort: "none"}`).
+the 50-sample suite and the exact request the app sent at the time
+(temperature 0, `max_tokens` 1024, reasoning disabled via
+`reasoning: {effort: "none"}`). The request has since changed — the
+`instruction-shaped-transcript` hardening wrapped the input in
+`<transcript>` tags and removed `max_tokens` — so this snapshot predates
+the current prompt; the next live run (RED baseline on the pre-fix
+prompt, then GREEN on the current one, per the regression-class spec)
+supersedes it for the 53-sample suite.
 Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
