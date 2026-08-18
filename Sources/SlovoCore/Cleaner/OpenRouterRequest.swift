@@ -20,27 +20,23 @@ public struct OpenRouterRequest: Encodable {
 
     public let model: String
     public let messages: [Message]
-    public let maxTokens: Int
     public let temperature: Double
     public let reasoning: Reasoning
 
     public init(
         model: String,
         messages: [Message],
-        maxTokens: Int,
         temperature: Double,
         reasoning: Reasoning
     ) {
         self.model = model
         self.messages = messages
-        self.maxTokens = maxTokens
         self.temperature = temperature
         self.reasoning = reasoning
     }
 
     enum CodingKeys: String, CodingKey {
         case model, messages, temperature, reasoning
-        case maxTokens = "max_tokens"
     }
 }
 

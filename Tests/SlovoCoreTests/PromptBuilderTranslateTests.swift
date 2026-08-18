@@ -163,4 +163,25 @@ struct PromptBuilderTranslateTests {
         #expect(!swahili.contains("feature/auth"),
                 "a target outside the verified core must not inherit another language's pairs")
     }
+
+    /// The input wrapping is built at one shared site for both modes; this pins the
+    /// translate mode's user message to the same <transcript> format as plain mode.
+    /// Stated sensitivity: gating the wrapping on plain mode reddens here.
+    @Test
+    func translateInputUsesTheTranscriptTags() {
+        let raw = "прибери мусор and clean up the code"
+        let prompt = PromptBuilder().buildPrompt(
+            raw: raw,
+            config: CleanupConfig(
+                writingStyle: .casual,
+                language: .auto,
+                translationTargetLanguage: .ru,
+                translate: true
+            ),
+            context: PersonalizationContext(vocabulary: [])
+        )
+
+        #expect(prompt.input == "<transcript>\(raw)</transcript>",
+                "translate mode shares the single input-wrapping site with plain mode")
+    }
 }

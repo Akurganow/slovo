@@ -30,9 +30,10 @@ struct OpenRouterCleanerTests {
     }
 
     /// Stated sensitivity: using the old OpenAI Responses endpoint/body, omitting
-    /// the configured routed model, sending an unauthenticated request, or letting
+    /// the configured routed model, sending an unauthenticated request, letting
     /// the provider's default reasoning mode stand (no `reasoning.effort: none` in
-    /// the body) makes the recorded request-shape assertions go RED.
+    /// the body), or sending any `max_tokens` in the body makes the recorded
+    /// request-shape assertions go RED.
     @Test
     func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
@@ -57,7 +58,8 @@ struct OpenRouterCleanerTests {
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         #expect(json["model"] as? String == "openai/gpt-5.6-luna")
         #expect(json["temperature"] as? Double == 0)
-        #expect(json["max_tokens"] as? Int == 1_024)
+        #expect(json["max_tokens"] == nil,
+                "no max_tokens: the response ceiling is the model's own, never a silent truncation point")
         let reasoning = try #require(
             json["reasoning"] as? [String: Any],
             "reasoning must be pinned off; provider defaults enable it on some models"
@@ -66,7 +68,7 @@ struct OpenRouterCleanerTests {
         let messages = try #require(json["messages"] as? [[String: String]])
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
-        #expect(messages.last?["content"] == "raw transcript")
+        #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
     }
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or

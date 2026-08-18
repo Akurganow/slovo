@@ -11,7 +11,7 @@ struct CleanupBenchmarkDatasetTests {
     func defaultDatasetLoadsPinnedSampleSuite() throws {
         let samples = try CleanupBenchmarkDefaults.samples()
 
-        #expect(samples.count == 50)
+        #expect(samples.count == 53)
         #expect(Self.countsByCategory(samples) == [
             .shortSmoke: 4,
             .russianFiller: 6,
@@ -20,6 +20,7 @@ struct CleanupBenchmarkDatasetTests {
             .commandsEditor: 4,
             .inverseTextNormalization: 7,
             .safetyNegative: 8,
+            .instructionShaped: 3,
         ])
         #expect(samples.allSatisfy { !$0.raw.isEmpty })
         #expect(samples.allSatisfy { !($0.reference ?? "").isEmpty })
@@ -50,6 +51,39 @@ struct CleanupBenchmarkDatasetTests {
         )
         #expect(!inventedEnglishThanks.passed)
         #expect(inventedEnglishThanks.failures.contains("forbidden-substring:thank you"))
+    }
+
+    /// Stated sensitivity: if the flagship sample's expectation stopped catching an
+    /// executed-answer output — a ticket drafted from the dictation, with headings
+    /// the speaker never said — this test goes red. It validates the monitor, not
+    /// the (non-deterministic) model behaviour; the live RED→GREEN run validates
+    /// the model side.
+    @Test
+    func instructionShapedFlagshipCatchesExecutedAnswer() throws {
+        let samples = try CleanupBenchmarkDefaults.samples()
+        let sample = try #require(samples.first { $0.id == "instruction-shaped-mixed-long-01" })
+
+        let reference = try #require(sample.reference)
+        let faithful = CleanupQualityGate.evaluate(output: reference, sample: sample)
+        #expect(faithful.passed, "the sample's own reference must pass its expectation: \(faithful.failures)")
+
+        let executed = CleanupQualityGate.evaluate(
+            output: "Название: Агент для контроля заполнения тикетов\n\nОписание: Агентская система, которая следит за новыми тикетами…",
+            sample: sample
+        )
+        #expect(!executed.passed)
+        #expect(executed.failures.contains("forbidden-substring:название:"))
+        #expect(executed.failures.contains("forbidden-substring:описание:"))
+        #expect(executed.failures.contains("required-substring:сформулировать"))
+
+        // Tag echo: a model imitating the few-shot <output> wrapper must fail even
+        // when the text inside is the faithful reference.
+        let echoedTags = CleanupQualityGate.evaluate(
+            output: "<output>\(reference)</output>",
+            sample: sample
+        )
+        #expect(!echoedTags.passed)
+        #expect(echoedTags.failures.contains("forbidden-substring:<output"))
     }
 
     /// Stated sensitivity: matching forbidden Russian fillers by plain substring

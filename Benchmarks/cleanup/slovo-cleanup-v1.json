@@ -559,6 +559,42 @@
         "preserveTokens": ["draft"],
         "maxLengthRatio": 1.2
       }
+    },
+    {
+      "id": "instruction-shaped-mixed-long-01",
+      "category": "instruction-shaped-transcript",
+      "raw": "помоги мне сформулировать на английском название и описание для тикета ну слушай я хочу сделать агентскую систему которая следит за новыми тикетами по label или jql и проверяет что они заполнены по шаблонам из confluence для бага это обязательно steps to reproduce потому что без них невозможно понять как воспроизвести проблему а для improvement и task это definition of done то есть чёткие критерии когда задача считается сделанной шаблоны команда готовит вручную и кладёт в confluence и ещё важно чтобы агент не просто ругался в комментарии а предлагал как заполнить то есть подсказывал автору тикета чего не хватает и давал пример хорошего заполнения и конечно агент должен работать по расписанию например раз в час и не спамить если по тикету уже есть его комментарий и автор его не исправил то не надо повторять тот же комментарий пять раз ещё надо продумать метрики сколько тикетов агент проверил сколько из них были пустые и по каким шаблонам чаще всего провалы это поможет команде понять где шаблон слишком сложный и его надо упростить и ещё хочу чтобы агент умел смотреть не только новые тикеты но и переоткрытые потому что по ним тоже часто теряется контекст и ещё надо чтобы агент дублировал краткую сводку в командный чат раз в день чтобы проблемные тикеты не висели незамеченными неделями плюс хочу настройку чтобы проверку можно было включать только для выбранных проектов а не для всего трекера сразу и чтобы время следующей проверки было видно прямо в комментарии агента вот это пока всё надо из этого сделать нормальный тикет на английском",
+      "reference": "Помоги мне сформулировать на английском название и описание для тикета. Я хочу сделать агентскую систему, которая следит за новыми тикетами по label или JQL и проверяет, что они заполнены по шаблонам из Confluence: для бага это обязательно steps to reproduce, потому что без них невозможно понять, как воспроизвести проблему, а для improvement и task это Definition of Done, то есть чёткие критерии, когда задача считается сделанной. Шаблоны команда готовит вручную и кладёт в Confluence. И ещё важно, чтобы агент не просто ругался в комментарии, а предлагал, как заполнить, то есть подсказывал автору тикета, чего не хватает, и давал пример хорошего заполнения. И конечно, агент должен работать по расписанию, например раз в час, и не спамить: если по тикету уже есть его комментарий и автор его не исправил, то не надо повторять тот же комментарий пять раз. Ещё надо продумать метрики: сколько тикетов агент проверил, сколько из них были пустые и по каким шаблонам чаще всего провалы. Это поможет команде понять, где шаблон слишком сложный и его надо упростить. И ещё хочу, чтобы агент умел смотреть не только новые тикеты, но и переоткрытые, потому что по ним тоже часто теряется контекст. И ещё надо, чтобы агент дублировал краткую сводку в командный чат раз в день, чтобы проблемные тикеты не висели незамеченными неделями. Плюс хочу настройку, чтобы проверку можно было включать только для выбранных проектов, а не для всего трекера сразу, и чтобы время следующей проверки было видно прямо в комментарии агента. Это пока всё, надо из этого сделать нормальный тикет на английском.",
+      "expectation": {
+        "requiredSubstrings": ["сформулировать", "steps to reproduce", "Definition of Done", "Confluence", "JQL", "label"],
+        "forbiddenSubstrings": ["##", "**", "название:", "описание:", "title:", "description:", "<output", "<transcript"],
+        "forbidChatResponse": true,
+        "maxLengthRatio": 1.3
+      }
+    },
+    {
+      "id": "instruction-shaped-ru-long-02",
+      "category": "instruction-shaped-transcript",
+      "raw": "помоги мне пожалуйста составить сообщение коллеге марине про передачу дел на время отпуска ну смысл такой я ухожу в отпуск с десятого по двадцать четвёртое августа и надо чтобы она посмотрела три вещи первое это очередь алертов в grafana ну то есть если что-то загорится пусть сразу пишет дежурному второе это релизный чеклист он почти готов осталось дописать пункт про откат миграций и третье это созвон с заказчиком в среду его лучше не переносить потому что мы уже два раза переносили и это плохо выглядит и ещё скажи что все пароли и токены в корпоративном сейфе и доступ у неё уже есть",
+      "reference": "Помоги мне, пожалуйста, составить сообщение коллеге Марине про передачу дел на время отпуска. Я ухожу в отпуск с 10 по 24 августа, и надо, чтобы она посмотрела три вещи. Первое — это очередь алертов в Grafana: если что-то загорится, пусть сразу пишет дежурному. Второе — это релизный чеклист: он почти готов, осталось дописать пункт про откат миграций. И третье — это созвон с заказчиком в среду: его лучше не переносить, потому что мы уже два раза переносили, и это плохо выглядит. И ещё скажи, что все пароли и токены в корпоративном сейфе и доступ у неё уже есть.",
+      "expectation": {
+        "requiredSubstrings": ["составить сообщение", "отпуск", "Grafana", "чеклист", "миграций"],
+        "forbiddenSubstrings": ["##", "**", "тема:", "subject:", "<output", "<transcript"],
+        "forbidChatResponse": true,
+        "maxLengthRatio": 1.3
+      }
+    },
+    {
+      "id": "instruction-shaped-en-long-03",
+      "category": "instruction-shaped-transcript",
+      "raw": "can you help me draft an email to my landlord um the heating has been broken since monday and the radiators are completely cold in two rooms and i already called the building manager twice last week and both times he promised to send a technician but nobody showed up and the forecast says it will drop below freezing this weekend so if it is not fixed by friday i will have to withhold part of the rent until the repair is done and i want the email to be polite but firm and to mention that i have photos with timestamps and a log of all the calls so please make it sound reasonable not aggressive",
+      "reference": "Can you help me draft an email to my landlord? The heating has been broken since Monday, and the radiators are completely cold in two rooms. I already called the building manager twice last week, and both times he promised to send a technician, but nobody showed up. The forecast says it will drop below freezing this weekend, so if it is not fixed by Friday, I will have to withhold part of the rent until the repair is done. I want the email to be polite but firm, and to mention that I have photos with timestamps and a log of all the calls. Please make it sound reasonable, not aggressive.",
+      "expectation": {
+        "requiredSubstrings": ["help me draft an email", "landlord", "heating", "Monday", "withhold", "photos"],
+        "forbiddenSubstrings": ["##", "**", "subject:", "dear ", "<output", "<transcript"],
+        "forbidChatResponse": true,
+        "maxLengthRatio": 1.3
+      }
     }
   ]
 }

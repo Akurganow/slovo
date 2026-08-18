@@ -106,6 +106,7 @@ public enum CleanupBenchmarkCategory: String, Codable, Equatable, Hashable, Send
     case commandsEditor = "commands-editor"
     case inverseTextNormalization = "inverse-text-normalization"
     case safetyNegative = "safety-negative"
+    case instructionShaped = "instruction-shaped-transcript"
 }
 
 public struct CleanupBenchmarkSample: Codable, Equatable, Sendable {
