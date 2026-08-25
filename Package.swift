@@ -21,7 +21,7 @@ let package = Package(
         // mirror groue/GRDB.swift): the personalization DB is encrypted at rest.
         .package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.11.1"),
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
-        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.0"),
+        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
         .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
         // Modern (SMAppService-based) launch-at-login, for macOS 13+. Consumed by
         // the app target only — never SlovoCore, which must stay UI/login-free.
