@@ -1,111 +1,56 @@
 # Working unattended
 
 Rules for any unattended run whose whole job is reading, judging and
-reporting, whoever or whatever scheduled it. A session that *implements*
-a change follows AGENTS.md and CONTRIBUTING.md instead. Vendor-specific
-details below name themselves; running elsewhere, skip the detail, keep
-the rule.
+reporting — whoever scheduled it, wherever it runs. A session that
+*implements* a change follows AGENTS.md and CONTRIBUTING.md instead.
 
-## There is no Mac here
+## Claim only what you ran
 
-Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md); an
-unattended cloud session runs on Linux with no Swift toolchain — no
-`swift`, no SwiftLint plugin, no `Scripts/diagnose.sh` or
-`Scripts/lint.sh`. So:
+Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md). Before
+claiming any build, test, or lint result, prove that toolchain exists
+where you are running; without it, evidence is reading the code, reading
+history, and reading CI results, and a conclusion that would need a
+build or a run to confirm is `plausible`, never `confirmed` — say which.
+A check that was not run is reported as not run, together with what
+substituted for it.
 
-- Evidence is reading, history, and GitHub. Nothing can be compiled,
-  tested, linted, or run here.
-- The compiled-and-tested signal is CI's: `swift.yml` runs
-  `swift test --disable-automatic-resolution` on a macOS runner for every
-  pull request into `main` and every release build. Read its runs via
-  REST instead of guessing at build state.
-- A claim that would need a build or a run to confirm is `plausible`,
-  never `confirmed`. Say which.
-- Never report a check as run that cannot run here; name what substituted
-  for it (code read, CI run read, callers traced).
+## GitHub
 
-## GitHub: REST, and probe what you need
+- Use the GitHub REST API through whichever client the session has.
+  Confirm access with a real request — fetch the repository — before
+  relying on it, and trust that over any auth-status helper. If no
+  available client reaches the API, stop and say so in the report.
+- An issues listing includes pull requests; filter them out.
+- Creating a label that already exists is success; any other creation
+  failure is real. Create every label before its first use.
+- Read CI state for a commit from the API instead of guessing at build
+  state.
 
-In an Anthropic cloud session the GraphQL endpoint serves only a pinned
-set of PR-review operations; everything else answers 403. That breaks
-`gh issue list`, `gh issue view`, `gh issue edit`, `gh repo view`. Prefer
-the session's built-in GitHub tools; otherwise `gh api` (REST). Take the
-repository from the clone:
+## History
 
-    # ERE has no lazy quantifier: two substitutions, or SSH remotes keep ".git"
-    R=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[:/]([^/]+/[^/]+)$#\1#')
+Make sure the clone carries full history before drawing any conclusion
+from history; if full history cannot be fetched, say so in the report
+and treat every history-based conclusion as drawn from a truncated one.
+Most features land on `main` as squash merges — the commit message often
+carries the whole change's reasoning; read it, not just the diff.
 
-    # REST /issues returns pull requests too — the select() is required.
-    # For the whole open list (the do-not-report pass in tracker.md needs
-    # it), run the same call without `-f labels=<label>`.
-    gh api -X GET repos/$R/issues --paginate -f state=open -f labels=<label> \
-      --jq '.[] | select(.pull_request | not)
-            | {number, title, body, created_at, html_url, labels: [.labels[].name]}'
+## Run state
 
-    gh api -X GET repos/$R/issues --paginate -f state=closed -f labels=<label> \
-      --jq '.[] | select(.pull_request | not) | {number, title, body, state_reason}'
-
-    gh api repos/$R/issues/<n>/comments --paginate --jq '.[] | {user: .user.login, body, created_at}'
-
-    gh api -X POST repos/$R/issues            --input issue.json     # {"title":…,"body":…,"labels":[…]}
-    gh api -X POST repos/$R/issues/<n>/comments --input comment.json # {"body":…}
-    gh api -X POST repos/$R/issues/<n>/labels -f 'labels[]=<label>'
-    gh api -X POST repos/$R/labels -f name=<label> -f color=<hex> -f description=<text>
-
-CI state at a commit:
-
-    gh api repos/$R/commits/<sha>/check-runs --jq '.check_runs[] | {name, status, conclusion}'
-    gh api -X GET repos/$R/actions/runs -f head_sha=<sha> --jq '.workflow_runs[] | {name, status, conclusion, html_url}'
-
-A label create can answer `422` for more than one reason: treat it as
-success only when the body's `errors[].code` says `already_exists`; any
-other `422` is a real failure. Create every label before its first use.
-
-Never gate a run on `gh auth status`: in a cloud session `GH_TOKEN` holds
-a placeholder and the real credential lives outside the container, so the
-status check can fail while access is fine. Probe the thing needed:
-
-    gh api repos/$R --jq .full_name
-
-If that fails — or `gh` is missing and the session has no built-in GitHub
-tools — stop and say so in the report.
-
-## The clone is shallow
-
-Before anything that reads history (`git log --since=…`, `git blame`,
-churn ranking):
-
-    git fetch --unshallow --quiet || true
-    test -e .git/shallow && echo "STILL SHALLOW: unshallow failed, history is truncated"
-
-The second line matters: `|| true` also swallows a real fetch failure.
-If the marker file remains, say so in the report and treat every
-history-based conclusion as drawn from truncated history. Most features
-land on `main` as squash merges — the commit message often carries the
-whole change's reasoning; read it, not just the diff stat.
-
-## Keep run state in files, not in context
-
-Long runs get their context compacted. Anything that must still be true
-at the end — a do-not-report list, candidates, verdicts — goes to disk
-the moment it is learned, outside the working tree, in a per-run
-directory (never a fixed shared path — sibling sessions can share the
-machine):
-
-    RUN=$(mktemp -d /tmp/run.XXXXXX)
-
-Re-read those files immediately before acting on them, and hand a
-subagent the path to a long record rather than its text.
+Anything that must still be true at the end of a long run — lists,
+candidates, verdicts — goes to a file the moment it is learned, in a
+private per-run directory outside the working tree (the `$RUN` other
+rules refer to), and is re-read immediately before it is used. Hand a
+subagent the path to a long record, never its text.
 
 ## Leave no trace
 
-Throwaway files go under `$RUN`, never the working tree. An analysis run
-must not commit, stage, push, or leave any modification behind: it
-finishes with `git status --porcelain` empty and says so in its report.
+Throwaway files go to the per-run directory, never the working tree. An
+analysis run must not commit, stage, push, or add any modification of
+its own: record `git status --porcelain` before starting, require the
+final output to match it exactly, and say so in the report. Pre-existing
+changes are preserved, never cleaned up.
 
 ## Reporting a result
 
-Name the command and show what it printed. A check that was not run is
-reported as not run — here that is most checks, so the report says what
-substituted for each. Never invent a path, a line number or command
-output.
+Name the command and show what it printed. Never invent a path, a line
+number, or command output.

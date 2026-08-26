@@ -14,9 +14,11 @@ doubt, the doubt goes in the report, not the tracker.
 
 ## Before analysing: the do-not-report list
 
-Load what the tracker already holds (REST calls per
-`.agents/rules/unattended.md`): every issue with the run's own label,
-open **and** closed, plus the whole open list. Read full bodies — the
+Load what the tracker already holds (the GitHub rules in
+`.agents/rules/unattended.md` apply): every issue with the run's own label,
+open **and** closed, plus the whole open list — the complete lists, not
+the first page of them; a fingerprint missed to truncation becomes a
+duplicate issue. Read full bodies — the
 HTML fingerprint comment at the end of each automated issue is its
 identity. Write the list to `$RUN/do-not-report.md` before any analysis:
 
