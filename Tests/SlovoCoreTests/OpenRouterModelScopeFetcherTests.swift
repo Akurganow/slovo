@@ -31,7 +31,7 @@ struct OpenRouterModelScopeFetcherTests {
     @Test
     func non200Throws() async {
         let scenario = StubScenario(response: .http(status: 401, headers: [:], body: Data()))
-        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
+        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.apiError(status: 401)) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
@@ -39,7 +39,7 @@ struct OpenRouterModelScopeFetcherTests {
     @Test
     func transportErrorThrowsOffline() async {
         let scenario = StubScenario(response: .transportError(URLError(.notConnectedToInternet)))
-        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
+        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.offline) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
@@ -47,7 +47,7 @@ struct OpenRouterModelScopeFetcherTests {
     @Test
     func malformedJsonThrows() async {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data("not json".utf8)))
-        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
+        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.malformedResponse) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
@@ -55,7 +55,7 @@ struct OpenRouterModelScopeFetcherTests {
     @Test
     func missingKeyThrowsWithoutRequest() async {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data()))
-        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
+        await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.missingKey) {
             _ = try await fetcher(scenario, key: NoKey()).fetchScopeIds()
         }
         #expect(scenario.recordedRequests.isEmpty)

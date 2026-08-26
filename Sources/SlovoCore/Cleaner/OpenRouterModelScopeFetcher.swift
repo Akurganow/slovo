@@ -5,7 +5,7 @@ import Foundation
 /// Metadata only: carries the key, sends NO user content, consumes no credits.
 /// Never logs response bodies — they can carry a `user_id` identity string (K7).
 public struct OpenRouterModelScopeFetcher: Sendable {
-    public enum ScopeFetchError: Error, Sendable {
+    public enum ScopeFetchError: Error, Equatable, Sendable {
         case missingKey
         case offline
         case apiError(status: Int)

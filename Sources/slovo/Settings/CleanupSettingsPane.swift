@@ -107,7 +107,11 @@ struct CleanupSettingsPane: View {
     }
 
     private var modelSelection: CleanupModelSelection.Result {
-        actions.currentModelSelection()
+        // Read the observed scope so the repaint dependency is explicit (and the
+        // write-only property cannot trip unused_declaration); the VALUE still
+        // comes from the funnel's one derivation (K6).
+        _ = scopeModel.scope
+        return actions.currentModelSelection()
     }
 
     @ViewBuilder private var modelRow: some View {
