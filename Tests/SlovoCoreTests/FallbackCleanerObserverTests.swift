@@ -30,7 +30,8 @@ struct FallbackCleanerObserverTests {
         func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String { raw }
     }
 
-    @Test func observerReceivesTheCleanupErrorOnFailure() async throws {
+    @Test
+    func observerReceivesTheCleanupErrorOnFailure() async throws {
         let box = ErrorBox()
         let cleaner = FallbackCleaner(
             chain: [Failing(error: .apiError(status: 404)), PassThrough()],
@@ -47,7 +48,8 @@ struct FallbackCleanerObserverTests {
         }
     }
 
-    @Test func observerSilentOnSuccess() async throws {
+    @Test
+    func observerSilentOnSuccess() async throws {
         let box = ErrorBox()
         let cleaner = FallbackCleaner(
             chain: [Succeeding(), PassThrough()],
@@ -63,7 +65,8 @@ struct FallbackCleanerObserverTests {
     // closure, so this is a source pin — the v5-verification's G1: drop the
     // threading and every behavioral test stays green while the K4d self-heal
     // ships dead. Sensitivity: remove the argument from PipelineFactory → RED.
-    @Test func factoryThreadsTheObserverIntoTheFallback() throws {
+    @Test
+    func factoryThreadsTheObserverIntoTheFallback() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let factory = try String(

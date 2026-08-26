@@ -23,7 +23,8 @@ struct CleanupScopeReducerTests {
 
     // K4a + K10 ordering: availability alone must NOT fetch (hotkey has not
     // started); pipelineStarted then does.
-    @Test func launchFetchWaitsForPipelineStart() {
+    @Test
+    func launchFetchWaitsForPipelineStart() {
         let (s1, c1) = reduce(CleanupScopeState(), .availabilityChanged(isOn: true))
         #expect(!hasFetch(c1))
         let (s2, c2) = reduce(s1, .pipelineStarted)
@@ -37,7 +38,8 @@ struct CleanupScopeReducerTests {
     // from the raw preference. Sensitivity: drop the same-value no-op guard →
     // the s1 == s assertion goes RED; drop the re-push → the c2 assertion goes
     // RED (v3-verification B3, the silent K6 regression).
-    @Test func pipelineRestartWithKnownScopeRepushesWithoutReset() {
+    @Test
+    func pipelineRestartWithKnownScopeRepushesWithoutReset() {
         let s = known(["a/b"])
         let (s1, c1) = reduce(s, .availabilityChanged(isOn: true))  // redundant edge
         #expect(s1 == s)
@@ -51,19 +53,22 @@ struct CleanupScopeReducerTests {
     // K10: the reducer's ordering gate holds on EVERY fetch-emitting arm,
     // including K4d. Sensitivity: drop the pipelineHasStarted conjunct from
     // .cleanupFailed → RED (v3-verification B6).
-    @Test func cleanupFailedBeforePipelineStartIsIgnored() {
+    @Test
+    func cleanupFailedBeforePipelineStartIsIgnored() {
         let s = reduce(CleanupScopeState(), .availabilityChanged(isOn: true)).state
         #expect(reduce(s, .cleanupFailed(.apiError(status: 404))).commands.isEmpty)
     }
 
     // K10 corner: a key save before hotkey start (pending onboarding) never fetches.
-    @Test func keySavedBeforePipelineStartDoesNotFetch() {
+    @Test
+    func keySavedBeforePipelineStartDoesNotFetch() {
         let s = reduce(CleanupScopeState(), .availabilityChanged(isOn: true)).state
         #expect(!hasFetch(reduce(s, .keySaved).commands))
     }
 
     // K4a restart arm, POSITIVE half: a restart with .on + unknown scope DOES fetch.
-    @Test func pipelineRestartWithUnknownScopeFetches() {
+    @Test
+    func pipelineRestartWithUnknownScopeFetches() {
         var s = ready()
         s.fetchInFlight = false  // the launch fetch failed silently
         let (s2, c) = reduce(s, .pipelineStarted)
@@ -72,7 +77,8 @@ struct CleanupScopeReducerTests {
 
     // K4b: key save resets FIRST, bumps the generation, then fetches.
     // Sensitivity: fetch without reset → the scope assertion goes RED.
-    @Test func keySavedResetsBumpsThenFetches() {
+    @Test
+    func keySavedResetsBumpsThenFetches() {
         let s = known(["a/b"])
         let (s2, c) = reduce(s, .keySaved)
         #expect(s2.scope == .unknown)
@@ -82,7 +88,8 @@ struct CleanupScopeReducerTests {
     }
 
     // K4 generations: a stale in-flight result landing AFTER a key-save reset is discarded.
-    @Test func staleResultAfterKeySaveIsDiscarded() {
+    @Test
+    func staleResultAfterKeySaveIsDiscarded() {
         var s = ready()                                  // launch fetch in flight
         let staleGen = s.generation
         s = reduce(s, .keySaved).state                   // gen bumped, new fetch
@@ -92,7 +99,8 @@ struct CleanupScopeReducerTests {
     }
 
     // K4 generations, §6's "same for a result landing after K4c's reset".
-    @Test func staleResultAfterKeyRemovalIsDiscarded() {
+    @Test
+    func staleResultAfterKeyRemovalIsDiscarded() {
         var s = ready()                                  // launch fetch in flight
         let staleGen = s.generation
         s = reduce(s, .keyRemoved).state
@@ -102,7 +110,8 @@ struct CleanupScopeReducerTests {
     }
 
     // K4 generations: every availability TRANSITION bumps; a non-transition does not.
-    @Test func availabilityTransitionsBumpGeneration() {
+    @Test
+    func availabilityTransitionsBumpGeneration() {
         let s1 = reduce(CleanupScopeState(), .availabilityChanged(isOn: true)).state
         #expect(reduce(s1, .availabilityChanged(isOn: true)).state.generation == s1.generation)
         let s2 = reduce(s1, .availabilityChanged(isOn: false)).state
@@ -112,7 +121,8 @@ struct CleanupScopeReducerTests {
 
     // K4c: key removal / leaving .on resets to .unknown and pushes the repaint.
     // Sensitivity: drop the reset → old scope keeps filtering → RED.
-    @Test func keyRemovedAndAvailabilityOffReset() {
+    @Test
+    func keyRemovedAndAvailabilityOffReset() {
         for event in [CleanupScopeEvent.keyRemoved, .availabilityChanged(isOn: false)] {
             let (s2, c) = reduce(known(["a/b"]), event)
             #expect(s2.scope == .unknown)
@@ -123,7 +133,8 @@ struct CleanupScopeReducerTests {
 
     // K4d: only apiError(404) triggers the refresh; the WHOLE filter is reducer-owned (K11).
     // Sensitivity: widen the filter to any apiError → the 403 case goes RED.
-    @Test func only404TriggersRefresh() {
+    @Test
+    func only404TriggersRefresh() {
         let s = known(["a/b"])
         let (s2, c) = reduce(s, .cleanupFailed(.apiError(status: 404)))
         #expect(c == [.fetch(generation: s2.generation)])
@@ -135,13 +146,15 @@ struct CleanupScopeReducerTests {
     }
 
     // K4d single-flight: a second 404 while the refresh is in flight coalesces.
-    @Test func refreshInFlightCoalesces() {
+    @Test
+    func refreshInFlightCoalesces() {
         let mid = reduce(known(["a/b"]), .cleanupFailed(.apiError(status: 404))).state
         #expect(reduce(mid, .cleanupFailed(.apiError(status: 404))).commands.isEmpty)
     }
 
     // K4d: a FAILED refresh of a known scope fails open to .unknown.
-    @Test func failedRefreshFailsOpen() {
+    @Test
+    func failedRefreshFailsOpen() {
         let s = reduce(known(["a/b"]), .cleanupFailed(.apiError(status: 404))).state
         let (s2, c) = reduce(s, .fetchCompleted(generation: s.generation, ids: nil))
         #expect(s2.scope == .unknown)
@@ -150,7 +163,8 @@ struct CleanupScopeReducerTests {
 
     // K6: a successful fetch pushes the effective config and rebuilds the menu.
     // Sensitivity: drop either command → RED (the rev 1 review's 404-loop finding).
-    @Test func successfulFetchPushesAndRebuilds() {
+    @Test
+    func successfulFetchPushesAndRebuilds() {
         let s = ready()
         let (s2, c) = reduce(s, .fetchCompleted(generation: s.generation, ids: ["a/b"]))
         #expect(s2.scope == .known(["a/b"]))
@@ -158,7 +172,8 @@ struct CleanupScopeReducerTests {
     }
 
     // K10 gating: raw mode stays zero-network — key events while off never fetch.
-    @Test func keySavedWhileOffDoesNotFetch() {
+    @Test
+    func keySavedWhileOffDoesNotFetch() {
         let (s, c) = reduce(CleanupScopeState(), .keySaved)
         #expect(s.scope == .unknown)
         #expect(!hasFetch(c))

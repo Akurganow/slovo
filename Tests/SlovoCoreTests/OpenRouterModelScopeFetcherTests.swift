@@ -16,7 +16,8 @@ struct OpenRouterModelScopeFetcherTests {
         OpenRouterModelScopeFetcher(session: scenario.makeSession(), keyProvider: key)
     }
 
-    @Test func requestShapeAndHappyPath() async throws {
+    @Test
+    func requestShapeAndHappyPath() async throws {
         let body = Data(#"{"data":[{"id":"a/b"},{"id":"c/d"}]}"#.utf8)
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: body))
         let ids = try await fetcher(scenario).fetchScopeIds()
@@ -27,28 +28,32 @@ struct OpenRouterModelScopeFetcherTests {
         #expect(request.value(forHTTPHeaderField: "authorization") == "Bearer sk-test")
     }
 
-    @Test func non200Throws() async {
+    @Test
+    func non200Throws() async {
         let scenario = StubScenario(response: .http(status: 401, headers: [:], body: Data()))
         await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
 
-    @Test func transportErrorThrowsOffline() async {
+    @Test
+    func transportErrorThrowsOffline() async {
         let scenario = StubScenario(response: .transportError(URLError(.notConnectedToInternet)))
         await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
 
-    @Test func malformedJsonThrows() async {
+    @Test
+    func malformedJsonThrows() async {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data("not json".utf8)))
         await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
             _ = try await fetcher(scenario).fetchScopeIds()
         }
     }
 
-    @Test func missingKeyThrowsWithoutRequest() async {
+    @Test
+    func missingKeyThrowsWithoutRequest() async {
         let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data()))
         await #expect(throws: OpenRouterModelScopeFetcher.ScopeFetchError.self) {
             _ = try await fetcher(scenario, key: NoKey()).fetchScopeIds()
@@ -70,7 +75,8 @@ struct ScopeFetcherSourceGuardTests {
     // line interpolates the response.
     // Sensitivity (demonstrated once, then reverted): add
     // `log.event("body: \(data)")` → both the count and interpolation pins go RED.
-    @Test func fetcherLogsExactlyThePinnedEvents() throws {
+    @Test
+    func fetcherLogsExactlyThePinnedEvents() throws {
         let fetcher = try Self.source("Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift")
         #expect(fetcher.components(separatedBy: "log.event(").count - 1 == 5)
         #expect(fetcher.contains(#"log.event("scope fetched n=\(ids.count)")"#))
@@ -86,7 +92,8 @@ struct ScopeFetcherSourceGuardTests {
 
     // D4: the scope layer persists nothing. Sensitivity: add a UserDefaults write
     // to either file → RED.
-    @Test func scopeLayerPersistsNothing() throws {
+    @Test
+    func scopeLayerPersistsNothing() throws {
         for file in ["Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift",
                      "Sources/SlovoCore/Cleaner/CleanupScopeReducer.swift"] {
             let source = try Self.source(file)
