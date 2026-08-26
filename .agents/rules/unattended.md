@@ -1,16 +1,15 @@
 # Working unattended
 
 Rules for any unattended run whose whole job is reading, judging and
-reporting, whoever or whatever scheduled it. A session that *implements*
-a change follows AGENTS.md and CONTRIBUTING.md instead. Vendor-specific
-details below name themselves; running elsewhere, skip the detail, keep
-the rule.
+reporting — whoever or whatever scheduled it, on whatever platform it
+runs. A session that *implements* a change follows AGENTS.md and
+CONTRIBUTING.md instead.
 
 ## There is no Mac here
 
-Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md); an
-unattended cloud session runs on Linux with no Swift toolchain — no
-`swift`, no SwiftLint plugin, no `Scripts/diagnose.sh` or
+Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md), and an
+unattended runner is almost never that Mac. Without the toolchain there
+is no `swift`, no SwiftLint plugin, no `Scripts/diagnose.sh` or
 `Scripts/lint.sh`. So:
 
 - Evidence is reading, history, and GitHub. Nothing can be compiled,
@@ -26,15 +25,15 @@ unattended cloud session runs on Linux with no Swift toolchain — no
 
 ## GitHub: REST, and probe what you need
 
-In an Anthropic cloud session, GitHub traffic goes through a proxy that
-serves only a pinned set of pull-request GraphQL operations, and the
-container may carry no GitHub CLI at all. So these rules are stated at
-the protocol level: satisfy each with whichever client the session has —
-its built-in GitHub tools first, a CLI or plain HTTPS otherwise. What
-matters is the request, not the tool.
+No GitHub client is guaranteed here, and a proxied environment may serve
+only a fraction of the API — GraphQL is the part most often missing. So
+these rules are stated at the protocol level, in plain REST, which every
+environment serves: satisfy each with whichever client the session has —
+built-in GitHub tools, a CLI, plain HTTPS. What matters is the request,
+not the tool.
 
-- REST, never GraphQL: anything riding GraphQL beyond the pinned
-  pull-request set answers 403.
+- REST, never GraphQL: helpers riding GraphQL can fail wholesale behind
+  a proxy; the REST requests below work everywhere.
 - Take owner/repo from the clone's `origin` remote, never from a
   "current repository" helper.
 - Issues: `GET /repos/{owner}/{repo}/issues` with `state` and `labels`
@@ -52,9 +51,10 @@ matters is the request, not the tool.
   first use.
 - CI at a commit: `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`
   and `GET /repos/{owner}/{repo}/actions/runs?head_sha={sha}`.
-- Never gate the run on an auth-status check: the real credential lives
-  outside the container (a placeholder token in the environment is
-  normal), so such a check can fail while access is fine. Probe the
+- Never gate the run on an auth-status check: in a proxied environment
+  the real credential lives outside the process (a placeholder token in
+  the environment variables is normal), so such a check can fail while
+  access is fine. Probe the
   thing actually needed — `GET /repos/{owner}/{repo}` — and only if that
   fails with every client the session has, stop and say so in the
   report.
