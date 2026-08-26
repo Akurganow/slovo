@@ -176,6 +176,9 @@ Slovo has two different data paths:
   available. OpenRouter routes the request to the selected model id.
   Translation, when used, adds no new data category: the same transcript text,
   plus the target-language name in the request. Raw audio still never leaves.
+  While cleanup is on, Slovo also makes one metadata request to OpenRouter —
+  `GET /api/v1/models/user` — so the model pickers only offer models your key
+  can actually call.
   With **Clean Up Dictation** off (or no key configured) this path is not
   taken at all: the entire dictation stays on-device with zero network
   requests, and the raw final transcript is inserted once at key-up.

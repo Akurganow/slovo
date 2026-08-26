@@ -1,7 +1,9 @@
 # Privacy And Security
 
 Slovo is designed around a narrow data boundary: raw audio stays local, and only
-transcript text may leave the machine when OpenRouter cleanup is attempted.
+transcript text may leave the machine when OpenRouter cleanup is attempted (plus a
+key-scope metadata request that carries the API key and no dictated content — see
+Data Paths).
 
 ## Data Paths
 
@@ -10,6 +12,7 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 | Raw microphone audio | Local process memory | Never sent |
 | Whisper ASR model | App-owned cache under Application Support | Downloaded once from Hugging Face on first use, then fully local |
 | Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts (plus a target-language name when translating) |
+| Key model scope | OpenRouter account metadata | One `GET /api/v1/models/user` per launch/key change while cleanup is on; carries the API key, no dictated content |
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Used as prompt/context terms, never logged |
@@ -23,8 +26,10 @@ The OpenRouter key is stored as a macOS Keychain generic-password item:
 
 - `slovo` / `openrouter-api-key`
 
-The key is read lazily when cleanup runs. Updating the key through the app writes
-the new value to Keychain.
+The key is read in exactly two places: the key-scope metadata fetch (shortly
+after the hotkey is ready, and on the K4 refresh triggers — see Data Paths) and
+lazily when cleanup runs. Updating the key through the app writes the new value
+to Keychain.
 
 Stable code signing matters. macOS Keychain and privacy permissions use the app's
 identity when deciding whether the current binary is trusted. Ad-hoc builds or
@@ -147,6 +152,14 @@ language. Raw audio still never leaves.
 If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
 unusable response, Slovo falls back to the direct, untranslated transcript and
 shows a transient error glyph instead of dropping the dictation.
+
+While cleanup is on, Slovo also makes one metadata request to OpenRouter —
+`GET /api/v1/models/user` — so the model pickers only offer models your key can
+actually call. It fires at startup, whenever the API key changes, when the
+recognition pipeline restarts before the list has been fetched, and once more
+after a cleanup request is refused for a policy-blocked model (to refresh the
+list). It carries the API key and no dictated content, consumes no credits, and
+never runs while cleanup is off or before the hotkey is ready.
 
 ## Automatic Updates
 

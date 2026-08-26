@@ -103,6 +103,7 @@ extension AppDelegate: SettingsActions {
         // rebuild and never re-warms ASR.
         do {
             try openRouterKeyProvider.store(key)
+            applyScopeEvent(.keySaved)      // BEFORE the existing push (K4b)
             // A key appearing (or changing) can flip the effective state from
             // offNoKey: refresh the menu and re-push through the single funnel.
             installStatusMenu()
@@ -118,6 +119,7 @@ extension AppDelegate: SettingsActions {
         // funnel — the observed model repaints the pane from there.
         do {
             try openRouterKeyProvider.removeKey()
+            applyScopeEvent(.keyRemoved)    // BEFORE the existing push (K4c)
             installStatusMenu()
             pushEffectiveCleanupConfig()
         } catch {

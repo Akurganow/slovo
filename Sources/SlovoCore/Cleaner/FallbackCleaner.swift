@@ -11,14 +11,21 @@
 /// only synchronously from within `clean(...)` (never concurrently), and keeping
 /// it a plain closure lets existing tests pass an ordinary capturing reporter (a
 /// `@Sendable` reporter would forbid that). The chain of `Cleaner`s is genuinely
-/// `Sendable`.
+/// `Sendable`. The `onCleanupFailure` observer, like `statusReporter`, is invoked
+/// only synchronously from within `clean(...)`.
 public struct FallbackCleaner: Cleaner, @unchecked Sendable {
     private let chain: [any Cleaner]
     private let statusReporter: (StatusMessage) -> Void
+    private let onCleanupFailure: ((CleanupError) -> Void)?
 
-    public init(chain: [any Cleaner], statusReporter: @escaping (StatusMessage) -> Void) {
+    public init(
+        chain: [any Cleaner],
+        statusReporter: @escaping (StatusMessage) -> Void,
+        onCleanupFailure: ((CleanupError) -> Void)? = nil
+    ) {
         self.chain = chain
         self.statusReporter = statusReporter
+        self.onCleanupFailure = onCleanupFailure
     }
 
     public func clean(
@@ -42,6 +49,7 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
             } catch let error as CleanupError {
                 // Only CleanupError degrades; report the visible cases, then advance.
                 report(error)
+                onCleanupFailure?(error)
                 lastError = error
                 continue
             }

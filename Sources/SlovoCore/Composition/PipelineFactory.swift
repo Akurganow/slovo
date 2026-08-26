@@ -65,7 +65,8 @@ public enum PipelineFactory {
             chain: fallbackChain,
             statusReporter: { status in
                 dependencies.reportStatus(status)
-            }
+            },
+            onCleanupFailure: dependencies.onCleanupFailure
         )
         var assembled = dependencies
         assembled.cleaner = fallback

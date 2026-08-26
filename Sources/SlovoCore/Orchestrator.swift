@@ -13,6 +13,9 @@ public struct Dependencies: Sendable {
     public var cueController: any DictationCueController
     public var log: RedactionSafeLog
     public var statusReporter: @Sendable (StatusMessage) -> Void
+    /// Cleanup-failure observer (spec K8): assigned at composition, invoked by
+    /// FallbackCleaner beside its degrade path. Optional and nil by default.
+    public var onCleanupFailure: (@Sendable (CleanupError) -> Void)?
     /// Optional on-device hint seams (Workstream 3). Nil in composition/tests that
     /// do not gather hints, in which case the cleaner receives empty `CleanupHints`.
     public var inputSourceLanguage: (any InputSourceLanguageReading)?

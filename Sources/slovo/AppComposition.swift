@@ -17,7 +17,8 @@ enum AppComposition {
         defaults: UserDefaults = .standard,
         openRouterKeyProvider: KeychainOpenRouterKeyProvider,
         fileManager: FileManager = .default,
-        statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
+        statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
+        onCleanupFailure: (@Sendable (CleanupError) -> Void)? = nil
     ) throws -> Live {
         let config = ConfigStore.load(from: defaults)
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
@@ -59,7 +60,7 @@ enum AppComposition {
             isEnabled: config.playsDictationSoundCues,
             log: log
         )
-        let dependencies = Dependencies(
+        var dependencies = Dependencies(
             transcriber: transcriber,
             cleaner: cleaner,
             injector: injector,
@@ -73,6 +74,7 @@ enum AppComposition {
             spellCheckHints: SystemSpellCheckHintProvider(),
             termMissRecorder: GRDBTermMissStore(database: database, log: log)
         )
+        dependencies.onCleanupFailure = onCleanupFailure
 
         // The ONE effective-on definition (CleanupAvailability.derive), applied
         // at build time so the first dictation never races a push. The

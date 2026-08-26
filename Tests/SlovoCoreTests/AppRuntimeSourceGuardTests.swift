@@ -108,6 +108,14 @@ struct AppRuntimeSourceGuardTests {
         }
     }
 
+    /// The launch boundary as AMENDED by the key-scope change (spec §9.1): nothing
+    /// BEFORE `hotkeyMonitor.start()` may read the Keychain SECRET — the pipeline
+    /// must become usable without a cleanup key, and without a Keychain prompt
+    /// racing the hotkey tap. What the amendment adds is that the post-start scope
+    /// fetch MAY read it: the fetcher carries the key, and it is reached only from
+    /// the events ordered after the start call (pinned by
+    /// `scopeEventsFireOnlyAfterHotkeyStart` below).
+    /// Stated sensitivity: preload/decrypt the key on the pre-start path → RED.
     @Test
     func readyPipelineDoesNotRequireCleanupKeyBeforeHotkeyStart() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -121,6 +129,76 @@ struct AppRuntimeSourceGuardTests {
                 "launch must not read the Keychain secret; cleanup reads it lazily when needed")
     }
 
+    // K10 ordering (spec §9.1): the scope events — and therefore the first possible
+    // Keychain-secret read via the fetcher — sit strictly AFTER hotkey start, and
+    // INSIDE the do block (the catch/recovery path must not fire them).
+    // Sensitivity: move either call above hotkeyMonitor.start(), or below the
+    // catch, → RED.
+    @Test
+    func scopeEventsFireOnlyAfterHotkeyStart() throws {
+        let app = try Self.code("Sources/slovo/AppDelegate.swift")
+        let body = try Self.functionBody(named: "startPipeline", in: app)
+        let hotkey = try #require(body.range(of: "hotkeyMonitor.start()"))
+        let edge = try #require(body.range(of: "feedAvailabilityEdge()"))
+        let started = try #require(body.range(of: "applyScopeEvent(.pipelineStarted)"))
+        let catchMark = try #require(body.range(of: "} catch"))
+        #expect(hotkey.lowerBound < edge.lowerBound)
+        #expect(edge.lowerBound < started.lowerBound)
+        #expect(started.lowerBound < catchMark.lowerBound)
+        // The amended launch boundary (spec §9.1), tightened beyond re-documenting:
+        // nothing in the launch entry point touches the scope machinery directly —
+        // the only route to a Keychain-secret read is the post-start event pair above.
+        let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: app)
+        #expect(!launch.contains("applyScopeEvent"))
+        #expect(!launch.contains("fetchScopeIds"))
+    }
+
+    // Single writer (spec §4 Components, mirroring pushFunnelIsTheOnlyModelWriter):
+    // exactly one scope-model write and one scopeState assignment, both in the
+    // funnel. K1 wiring half: the funnel file contains no config-write call.
+    // Sensitivity: add a second update()/assignment anywhere in Sources/slovo,
+    // or a ConfigStore.save/setCleanupModel call to the funnel file, → RED.
+    @Test
+    func scopeFunnelIsTheSingleScopeWriterAndNeverWritesConfig() throws {
+        var updateCount = 0
+        var assignCount = 0
+        var fetchCallCount = 0
+        for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
+            let source = try Self.code(file)
+            updateCount += source.components(separatedBy: "cleanupModelScopeModel.update(").count - 1
+            assignCount += source.components(separatedBy: "self.scopeState = ").count - 1
+            fetchCallCount += source.components(separatedBy: "fetchScopeIds(").count - 1
+        }
+        #expect(updateCount == 1)
+        #expect(assignCount == 1)
+        #expect(fetchCallCount == 1)   // the fetch is reachable ONLY via the funnel (K10/§9.1)
+        let funnel = try Self.code("Sources/slovo/AppDelegate+CleanupScope.swift")
+        #expect(!funnel.contains("ConfigStore.save"))
+        #expect(!funnel.contains("applyCleanupModel("))
+        #expect(!funnel.contains("setCleanupModel("))
+        // K8 chain, links (b) and (c) — the v5-verification's G1: without these,
+        // dropping either wiring line leaves every suite green while the 404
+        // self-heal never fires. Link (a) is pinned beside the seam's tests.
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        #expect(composition.contains("dependencies.onCleanupFailure = onCleanupFailure"))
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        #expect(delegate.contains("onCleanupFailure: scopeFailureObserver()"))
+    }
+
+    // K4's "NEVER on the key-up path": the dictation-side core never references
+    // the scope machinery — the only SlovoCore→app channel is the K8 observer,
+    // which hops to the main actor after the failure is already degraded.
+    // Sensitivity: reference the reducer or fetcher from the orchestrator/FSM → RED.
+    @Test
+    func hotPathNeverTouchesTheScopeMachinery() throws {
+        for file in ["Sources/SlovoCore/Orchestrator.swift", "Sources/SlovoCore/FSM/DictationFsm.swift"] {
+            let source = try Self.code(file)
+            #expect(!source.contains("CleanupScopeReducer"))
+            #expect(!source.contains("OpenRouterModelScopeFetcher"))
+            #expect(!source.contains("applyScopeEvent"))
+        }
+    }
+
     @Test
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
@@ -130,7 +208,8 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("selectedModel: modelId"))
-        #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
+        #expect(modelMenuBody.contains("currentModelSelection()"))
+        #expect(modelMenuBody.contains("selection.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
         #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))

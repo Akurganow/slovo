@@ -15,6 +15,11 @@ protocol SettingsActions: AnyObject {
     /// live — the app's push funnel is its only writer (spec D1), and no
     /// snapshot/poll accessor exists so a pane cannot hold a stale copy.
     var cleanupAvailabilityModel: CleanupAvailabilityModel { get }
+    /// The observable key-scope holder behind the pane's model row (repaint
+    /// subscription; the push funnel is its only writer, as with availability).
+    var cleanupModelScopeModel: CleanupModelScopeModel { get }
+    /// The ONE K2 derivation both pickers render (Settings and the menu).
+    func currentModelSelection() -> CleanupModelSelection.Result
     /// The live Sound Cues preference shared by General Settings and the menu.
     var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel { get }
     /// Whether Slovo is registered to open at login (reads the system login-item

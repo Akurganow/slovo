@@ -97,6 +97,8 @@ identifier_name:
   excluded:
     - ac
     - c
+    - c1
+    - c2
     - db
     - e
     - en
@@ -108,7 +110,11 @@ identifier_name:
     - p5
     - p7
     - p9
+    - r
     - ru
+    - s
+    - s1
+    - s2
     - t
     - t1
     - t2

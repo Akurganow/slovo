@@ -26,7 +26,9 @@ Scripts/diagnose.sh
 
 ## Project Rules
 
-- Keep raw audio local. Only transcript text may leave the machine for cleanup.
+- Keep raw audio local. Only transcript text may leave the machine for cleanup —
+  plus the key-scope metadata request to OpenRouter (`/models/user`), which
+  carries the API key and no user content.
 - Store API keys only in Keychain or development-only environment variables.
 - Never commit `.env`, signing keys, credential files, local databases, or seed
   files.
