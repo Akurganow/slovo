@@ -227,7 +227,8 @@ a real trap already caught once: Lightning-SimulWhisper).
 
 - Run `Scripts/diagnose.sh` (build, tests, and strict lint as independent stages).
 - Keep raw audio local; only transcript text may leave the machine, and only for
-  cleanup.
+  cleanup — plus the key-scope metadata request to OpenRouter (`/models/user`),
+  which carries the API key and no user content.
 - Never commit secrets, local databases, seed files, or signing material.
 - Update the docs when user-visible behavior, setup, privacy, or the release
   workflow changes.

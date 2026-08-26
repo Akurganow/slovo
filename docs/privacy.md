@@ -148,6 +148,14 @@ If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
 unusable response, Slovo falls back to the direct, untranslated transcript and
 shows a transient error glyph instead of dropping the dictation.
 
+While cleanup is on, Slovo also makes one metadata request to OpenRouter —
+`GET /api/v1/models/user` — so the model pickers only offer models your key can
+actually call. It fires at startup, whenever the API key changes, when the
+recognition pipeline restarts before the list has been fetched, and once more
+after a cleanup request is refused for a policy-blocked model (to refresh the
+list). It carries the API key and no dictated content, consumes no credits, and
+never runs while cleanup is off or before the hotkey is ready.
+
 ## Automatic Updates
 
 When automatic updates are enabled (the default), Slovo checks GitHub about once
