@@ -45,9 +45,10 @@ subagent the path to a long record, never its text.
 ## Leave no trace
 
 Throwaway files go to the per-run directory, never the working tree. An
-analysis run must not commit, stage, push, or leave any modification
-behind: it finishes with `git status --porcelain` empty and says so in
-its report.
+analysis run must not commit, stage, push, or add any modification of
+its own: record `git status --porcelain` before starting, require the
+final output to match it exactly, and say so in the report. Pre-existing
+changes are preserved, never cleaned up.
 
 ## Reporting a result
 
