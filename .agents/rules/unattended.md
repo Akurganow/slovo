@@ -26,49 +26,38 @@ unattended cloud session runs on Linux with no Swift toolchain — no
 
 ## GitHub: REST, and probe what you need
 
-In an Anthropic cloud session the GraphQL endpoint serves only a pinned
-set of PR-review operations; everything else answers 403. That breaks
-`gh issue list`, `gh issue view`, `gh issue edit`, `gh repo view`. Prefer
-the session's built-in GitHub tools; otherwise `gh api` (REST). Take the
-repository from the clone:
+In an Anthropic cloud session, GitHub traffic goes through a proxy that
+serves only a pinned set of pull-request GraphQL operations, and the
+container may carry no GitHub CLI at all. So these rules are stated at
+the protocol level: satisfy each with whichever client the session has —
+its built-in GitHub tools first, a CLI or plain HTTPS otherwise. What
+matters is the request, not the tool.
 
-    # ERE has no lazy quantifier: two substitutions, or SSH remotes keep ".git"
-    R=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[:/]([^/]+/[^/]+)$#\1#')
-
-    # REST /issues returns pull requests too — the select() is required.
-    # For the whole open list (the do-not-report pass in tracker.md needs
-    # it), run the same call without `-f labels=<label>`.
-    gh api -X GET repos/$R/issues --paginate -f state=open -f labels=<label> \
-      --jq '.[] | select(.pull_request | not)
-            | {number, title, body, created_at, html_url, labels: [.labels[].name]}'
-
-    gh api -X GET repos/$R/issues --paginate -f state=closed -f labels=<label> \
-      --jq '.[] | select(.pull_request | not) | {number, title, body, state_reason}'
-
-    gh api repos/$R/issues/<n>/comments --paginate --jq '.[] | {user: .user.login, body, created_at}'
-
-    gh api -X POST repos/$R/issues            --input issue.json     # {"title":…,"body":…,"labels":[…]}
-    gh api -X POST repos/$R/issues/<n>/comments --input comment.json # {"body":…}
-    gh api -X POST repos/$R/issues/<n>/labels -f 'labels[]=<label>'
-    gh api -X POST repos/$R/labels -f name=<label> -f color=<hex> -f description=<text>
-
-CI state at a commit:
-
-    gh api repos/$R/commits/<sha>/check-runs --jq '.check_runs[] | {name, status, conclusion}'
-    gh api -X GET repos/$R/actions/runs -f head_sha=<sha> --jq '.workflow_runs[] | {name, status, conclusion, html_url}'
-
-A label create can answer `422` for more than one reason: treat it as
-success only when the body's `errors[].code` says `already_exists`; any
-other `422` is a real failure. Create every label before its first use.
-
-Never gate a run on `gh auth status`: in a cloud session `GH_TOKEN` holds
-a placeholder and the real credential lives outside the container, so the
-status check can fail while access is fine. Probe the thing needed:
-
-    gh api repos/$R --jq .full_name
-
-If that fails — or `gh` is missing and the session has no built-in GitHub
-tools — stop and say so in the report.
+- REST, never GraphQL: anything riding GraphQL beyond the pinned
+  pull-request set answers 403.
+- Take owner/repo from the clone's `origin` remote, never from a
+  "current repository" helper.
+- Issues: `GET /repos/{owner}/{repo}/issues` with `state` and `labels`
+  filters, paginated. The endpoint returns pull requests too — drop
+  every item carrying a `pull_request` key. The whole open list (the
+  do-not-report pass in tracker.md needs it) is the same call without
+  the `labels` filter.
+- Comments: `GET`/`POST /repos/{owner}/{repo}/issues/{n}/comments`.
+- Filing: `POST .../issues` (title, body, labels); labels via
+  `POST .../labels` (name, color, description) and
+  `POST .../issues/{n}/labels`.
+- A label create can answer `422` for more than one reason: treat it as
+  success only when the body's `errors[].code` says `already_exists`;
+  any other `422` is a real failure. Create every label before its
+  first use.
+- CI at a commit: `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`
+  and `GET /repos/{owner}/{repo}/actions/runs?head_sha={sha}`.
+- Never gate the run on an auth-status check: the real credential lives
+  outside the container (a placeholder token in the environment is
+  normal), so such a check can fail while access is fine. Probe the
+  thing actually needed — `GET /repos/{owner}/{repo}` — and only if that
+  fails with every client the session has, stop and say so in the
+  report.
 
 ## The clone is shallow
 
