@@ -26,8 +26,10 @@ The OpenRouter key is stored as a macOS Keychain generic-password item:
 
 - `slovo` / `openrouter-api-key`
 
-The key is read lazily when cleanup runs. Updating the key through the app writes
-the new value to Keychain.
+The key is read in exactly two places: the key-scope metadata fetch (shortly
+after the hotkey is ready, and on the K4 refresh triggers — see Data Paths) and
+lazily when cleanup runs. Updating the key through the app writes the new value
+to Keychain.
 
 Stable code signing matters. macOS Keychain and privacy permissions use the app's
 identity when deciding whether the current binary is trusted. Ad-hoc builds or
