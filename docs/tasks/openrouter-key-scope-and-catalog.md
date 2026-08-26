@@ -1,9 +1,12 @@
-# Spec 2026-08-26 rev 2 — key-scoped cleanup models
+# Spec 2026-08-26 rev 3 — key-scoped cleanup models
 
 Status: **spec, approved directions; implementation not started.** Rev 2
-incorporates an independent adversarial review (2026-08-26, verdict REWORK on
-rev 1); every finding is addressed below, and the two judgment calls the rework
-introduced were decided by the owner on 2026-08-26 (§9). The research phase is done (live
+incorporated the first independent adversarial review (verdict REWORK on
+rev 1); the two judgment calls it introduced were decided by the owner (§9).
+Rev 3 incorporates a second independent review of rev 2 (verdict APPROVE WITH
+CHANGES): fetch generations replace the ambiguous coalescing rule (K4), the
+transition logic moves into a testable SlovoCore reducer (K11), and the K2/K3
+edge cases it caught are closed. No owner decision is reopened. The research phase is done (live
 two-key verification 2026-08-26: personal unrestricted + corporate restricted
 with an exhausted org budget). Part B (the market refresh of the catalog
 itself) remains a separate, benchmark-driven change — see §8.
@@ -67,8 +70,8 @@ its output. `catalog` is `CleanupModelCatalog.options` in declaration order;
 
 | scope | preference | options | effective | note |
 | --- | --- | --- | --- | --- |
-| `.unknown` | any | full catalog | preference | none |
-| `.known`, catalog ∩ scope **= ∅** (incl. empty `data[]`) | any | full catalog | preference | none — a scope that would empty the picker is degenerate and treated exactly as `.unknown` (fail open; K5) |
+| `.unknown` | any | full catalog (+ custom row when preference ∉ catalog, K3) | preference | none |
+| `.known`, catalog ∩ scope **= ∅** (incl. empty `data[]`) | any | full catalog (+ custom row when preference ∉ catalog, K3) | preference | none — a scope that would empty the picker is degenerate and treated exactly as `.unknown` (fail open; K5) |
 | `.known`, intersection non-empty | catalog id ∈ scope | catalog ∩ scope | preference | none |
 | `.known`, intersection non-empty | catalog id ∉ scope | catalog ∩ scope | default if ∈ scope, else first of catalog ∩ scope | substitution note |
 | `.known`, intersection non-empty | custom id ∈ scope | catalog ∩ scope (+ custom row, K3) | preference | none |
@@ -84,10 +87,12 @@ A `note` is displayed whenever it is non-nil — including the custom-warning
 case where effective == preference (rev 2 fix: rev 1 tied display to
 "effective ≠ preference", which made the D3 warning undisplayable). Placement:
 the substitution note is the caption under the model picker; the custom
-warning is the caption under the custom-id field. Exact copy (tests pin
-strings): substitution — `"Your key can't use <preferred display name> —
-using <effective display name>."`; custom warning — `"Your key can't use this
-model. Dictations will insert the raw transcript."`
+warning REPLACES the informational caption under the custom-id field ("Any
+model id from openrouter.ai/models…") while it applies — the two never stack.
+Exact copy (tests pin strings): substitution — `"Your key can't use
+<preferred display name> — using <effective display name>."`; custom warning
+— `"Your key can't use this model. Dictations may insert the raw
+transcript."` ("may", not "will": the cache D3 tolerates can be stale).
 
 ### Invariants
 
@@ -98,7 +103,10 @@ model. Dictations will insert the raw transcript."`
 - **K3** Surfaces are projections of K2. The Settings picker's selection
   displays the EFFECTIVE model; a stored non-catalog custom id keeps its extra
   row (current behavior). The menu-bar submenu checkmark and the
-  `"Cleanup Model: …"` title both show the EFFECTIVE model's display name.
+  `"Cleanup Model: …"` title both show the EFFECTIVE model's display name;
+  when the effective model is a custom id, no submenu row carries the
+  checkmark (the submenu lists catalog ∩ scope only — today's behavior for
+  non-catalog ids).
   **Programmatic re-seeds never write**: the pane's seed/re-seed paths
   (`init`, `onAppear`, scope-driven repaints) must not call
   `setCleanupModel`; only a user-initiated picker change does. (Rev 2 fix for
@@ -109,14 +117,26 @@ model. Dictations will insert the raw transcript."`
   K1's regression test asserts it.)
 - **K4** Scope transitions happen only at:
   - (a) cleanup availability entering `.on` (app launch with a key present
-    and cleanup enabled counts; see K10 for the gating rationale);
+    and cleanup enabled counts; see K10), and any pipeline (re)start —
+    recognition-language change, onboarding retry, permission grant — while
+    availability is `.on` and the scope is still `.unknown`. Idempotent: a
+    rebuild with a `.known` scope does not refetch.
   - (b) key save — the scope resets to `.unknown` FIRST, then refetches
-    (rev 2 fix: the old key's scope must never filter the new key's picker);
+    (the old key's scope must never filter the new key's picker);
   - (c) key removal / availability leaving `.on` → reset to `.unknown`;
-  - (d) a cleanup failure with HTTP status 404 → invalidate and refetch in
-    the background (the policy changed under our cache) — at most one
-    refetch per failed dictation, and a single in-flight fetch at any time
-    (later triggers coalesce into it).
+  - (d) a cleanup failure with HTTP status 404 → a background REFRESH: the
+    stale scope stays applied until the fresh result replaces it (no interim
+    reversion, no picker flicker); if the refresh itself fails, the scope
+    resets to `.unknown` (fail open — the cache is now known-doubtful). At
+    most one refresh per failed dictation.
+  **Fetch generations** (rev 3, replacing rev 2's bare "coalesce" rule,
+  which could install an old key's in-flight result after a key save): the
+  scope state carries a generation, bumped by every (b)/(c) reset and every
+  availability transition. A fetch is tagged with its start generation; a
+  completing fetch whose generation is no longer current is DISCARDED.
+  Within one generation at most one fetch is in flight and duplicate
+  triggers coalesce into it; a reset never coalesces — it discards the old
+  generation's future result and starts its own fetch.
   NEVER on the key-up path: a dictation reads the already-pushed effective
   config (K6).
 - **K5** Fail open. `.unknown` — and any degenerate scope per K2 — must
@@ -129,9 +149,14 @@ model. Dictations will insert the raw transcript."`
   (`pushEffectiveCleanupConfig`), and rebuilds the status menu
   (`installStatusMenu`). (Rev 2 fix: rev 1 named no propagation trigger, so
   an asynchronously arriving scope would never have reached the orchestrator's
-  held config or the baked NSMenu — the feature's core effect. The funnel
-  already rebuilds both for every settings mutation; scope transitions ride
-  the identical path, no new mechanism.)
+  held config or the baked NSMenu — the feature's core effect. Precisely: the
+  app's push idiom is PAIRED `pushEffectiveCleanupConfig()` +
+  `installStatusMenu()` call sites, not one shared path; a scope transition
+  adds one such site that always does both, and `pushEffectiveCleanupConfig`
+  itself starts pushing the K2-derived effective model. Acceptance note: this
+  is the first non-user-initiated `installStatusMenu()` caller — verify once
+  on the dev Mac that reassigning the menu while the dropdown is open is
+  harmless; the expected behavior is the swap landing at the next open.)
 - **K7** The fetch is `GET https://openrouter.ai/api/v1/models/user` with the
   Keychain key as Bearer; parse `data[].id` only. Logging stays
   redaction-safe events ("scope fetched n=…", "scope fetch failed: offline");
@@ -144,10 +169,13 @@ model. Dictations will insert the raw transcript."`
   ambiguous by status and text is not a contract). Mechanically, K4d needs
   the failure STATUS to reach the app layer, which today it does not:
   `FallbackCleaner` collapses `CleanupError` into a payload-free
-  `StatusMessage`. The channel is a new optional observer seam injected at
-  composition — `onCleanupFailure: (CleanupError) -> Void` — invoked by
-  `FallbackCleaner` beside its existing degrade path; the app layer maps
-  `apiError(status: 404)` to K4d and ignores everything else.
+  `StatusMessage`. The channel is a new optional observer seam —
+  `onCleanupFailure: (CleanupError) -> Void` — invoked by `FallbackCleaner`
+  beside its existing degrade path. Wiring: `FallbackCleaner` is constructed
+  inside `PipelineFactory.assemble`, so the observer threads through
+  `Dependencies` (or a factory parameter) and hops to the main actor the
+  same way the existing `statusReporter` does. The app layer maps
+  `apiError(status: 404)` to a K4d event and ignores everything else.
   `StatusMessage`, the FSM, and all user-visible behavior stay untouched.
   (Rev 2: rev 1 claimed "two additions only" and under-counted; this seam is
   the honest third.)
@@ -166,13 +194,25 @@ model. Dictations will insert the raw transcript."`
   same change to pin the new boundary, never silently outgrown. Owner-approved
   2026-08-26 (§9), with the Keychain-prompt acceptance check it carries.
 
+- **K11** The transition logic — reset-first, fetch generations,
+  single-flight, the 404 filter, and the fetch/push/rebuild commands
+  themselves — is a pure, synchronous reducer in SlovoCore:
+  `(state, event) → (state, [command])`, effects as data (directive 4). The
+  app funnel's only role is executing emitted commands (run the fetch, push
+  the effective config, rebuild the menu) and feeding completions back as
+  events. This is what makes §6's behavioral tests real: no test target
+  links `Sources/slovo`, so any invariant left in `AppDelegate` would
+  silently degrade to a string-scanning source guard —
+  `CleanupAvailabilityModel` in SlovoCore is the existing precedent.
+
 ### Components
 
 - **SlovoCore**: `CleanupModelScope` value; the K2 derivation (pure,
-  `CleanupModelCatalog`-adjacent); `OpenRouterModelScopeFetcher` (URLSession +
-  `OpenRouterKeyProvider` → `Set<String>`, same seam style as
-  `OpenRouterCleaner`); the `onCleanupFailure` observer seam on
-  `FallbackCleaner` (K8).
+  `CleanupModelCatalog`-adjacent); the K11 transition reducer;
+  `OpenRouterModelScopeFetcher` (URLSession + `OpenRouterKeyProvider` →
+  `Set<String>`, same seam style as `OpenRouterCleaner`); the
+  `onCleanupFailure` observer seam on `FallbackCleaner` (K8), threaded
+  through `PipelineFactory`/`Dependencies`.
 - **App layer**: an observable scope holder written only by the availability
   funnel (mirroring `CleanupAvailabilityModel`); `CleanupSettingsPane` and
   `AppDelegate+CleanupMenu` switch from `CleanupModelCatalog.options` to the
@@ -203,14 +243,24 @@ model. Dictations will insert the raw transcript."`
   normalize to fail-open (mutate to fail-closed / empty options → RED).
 - K3 seed-guard: a programmatic re-seed with effective ≠ preference must NOT
   invoke `setCleanupModel` (remove the guard → preference rewritten → RED).
-- K4b: key save resets scope before refetch (mutate to fetch-without-reset →
-  stale-scope assertion RED).
-- K4d/K8: `apiError(404)` reaches the observer and triggers exactly one
-  invalidate+refetch; 403/offline/`missingKey` do not (mutate the status
-  filter → RED); at most one in-flight fetch (coalescing test).
-- K6: a scope transition re-pushes the effective config to the orchestrator
-  and rebuilds the menu (remove the re-push → orchestrator still holds the
-  preference → RED).
+- K11 reducer, behaviorally in SlovoCoreTests (this is why K11 exists):
+  - K4b: key save resets scope before refetch (mutate to fetch-without-reset
+    → stale-scope assertion RED).
+  - K4 generations: an in-flight fetch started before a key save completes
+    AFTER it — its result is discarded, the new generation's fetch stands
+    (mutate to accept stale results → RED). Same for a result landing after
+    K4c's reset.
+  - K4c: key removal / availability leaving `.on` resets to `.unknown`
+    (drop the reset → old scope keeps filtering → RED).
+  - K4d/K8: `apiError(404)` yields exactly one refresh command;
+    403/offline/`missingKey` yield none (mutate the status filter → RED);
+    the stale scope stays applied during the refresh; a failed refresh
+    resets to `.unknown`; duplicate triggers within a generation coalesce.
+  - K6: every scope transition emits the push-config and rebuild-menu
+    commands (drop them → the orchestrator-side config still carries the
+    preference → RED).
+- D4/K9: a source guard forbids persistence (`UserDefaults` writes) in the
+  reducer and fetcher — a silently persisted scope must redden.
 - K7: the positively-anchored logging guard described in K7.
 - K10: fetch is gated on availability `.on` and ordered strictly after
   hotkey start; the amended launch guard pins the new boundary.
@@ -226,7 +276,10 @@ Full gates before integration: `Scripts/diagnose.sh`; owner hand-check via
 `SIGNING_IDENTITY=… Scripts/build_and_run.sh --verify` per the standing
 directives. Docs in the same change (pre-PR checklist): the privacy note —
 the scope fetch sends the API key and NO user content, and fires only while
-cleanup is on — lands in `docs/privacy.md` and the README privacy section.
+cleanup is on — lands in `docs/privacy.md`, the README privacy section, AND
+the CLAUDE.md invariant sentence ("only transcript text may leave the
+machine") is amended in the same change to name the metadata scope fetch,
+so the standing brief never contradicts the shipped behavior.
 
 ## 7. Behavior walk-through (the owner's two keys)
 
