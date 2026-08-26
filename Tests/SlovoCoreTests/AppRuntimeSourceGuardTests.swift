@@ -137,7 +137,7 @@ struct AppRuntimeSourceGuardTests {
     @Test
     func scopeEventsFireOnlyAfterHotkeyStart() throws {
         let app = try Self.code("Sources/slovo/AppDelegate.swift")
-        let body = try #require(Self.functionBody(named: "startPipeline", in: app))
+        let body = try Self.functionBody(named: "startPipeline", in: app)
         let hotkey = try #require(body.range(of: "hotkeyMonitor.start()"))
         let edge = try #require(body.range(of: "feedAvailabilityEdge()"))
         let started = try #require(body.range(of: "applyScopeEvent(.pipelineStarted)"))
@@ -148,7 +148,7 @@ struct AppRuntimeSourceGuardTests {
         // The amended launch boundary (spec §9.1), tightened beyond re-documenting:
         // nothing in the launch entry point touches the scope machinery directly —
         // the only route to a Keychain-secret read is the post-start event pair above.
-        let launch = try #require(Self.functionBody(named: "applicationDidFinishLaunching", in: app))
+        let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: app)
         #expect(!launch.contains("applyScopeEvent"))
         #expect(!launch.contains("fetchScopeIds"))
     }
