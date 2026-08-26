@@ -19,6 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
     // Settings pane can never observe a value the funnel did not publish.
     lazy var cleanupAvailabilityModel = CleanupAvailabilityModel(availability: currentCleanupAvailability())
+    var scopeState = CleanupScopeState()
+    lazy var cleanupModelScopeModel = CleanupModelScopeModel(scope: .unknown)
     /// One observed projection feeds both Sound Cues surfaces. The apply path is
     /// its only writer after this persisted seed.
     lazy var dictationSoundCuePreferenceModel = DictationSoundCuePreferenceModel(
@@ -121,7 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     Task { @MainActor [weak self] in
                         self?.showStatus(status)
                     }
-                }
+                },
+                onCleanupFailure: scopeFailureObserver()
             )
             composition = live
             guard live.onboardingSteps == [.ready] else {
@@ -171,6 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             do {
                 try live.hotkeyMonitor.start()
+                feedAvailabilityEdge()
+                applyScopeEvent(.pipelineStarted)
                 logger.info("production composition started")
             } catch {
                 presentHotkeyRecovery()
@@ -446,6 +451,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func pushEffectiveCleanupConfig() {
         let config = ConfigStore.load(from: defaults)
         var cleanupConfig = config.cleanupConfig
+        // The pushed model is the DERIVED effective id; the stored preference is
+        // never rewritten (K1) — the derivation is read here, not persisted.
+        cleanupConfig.model = currentModelSelection().effective
         // The effective-on rule has ONE definition (CleanupAvailability.derive);
         // this site only CALLS it — never re-spell the predicate here.
         let availability = CleanupAvailability.derive(
@@ -459,6 +467,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { @MainActor in
             await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
         }
+        feedAvailabilityEdge()
     }
 
     /// Persists the preference and applies it to the NEXT dictation live — the
