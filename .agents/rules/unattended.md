@@ -35,7 +35,9 @@ repository from the clone:
     # ERE has no lazy quantifier: two substitutions, or SSH remotes keep ".git"
     R=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[:/]([^/]+/[^/]+)$#\1#')
 
-    # REST /issues returns pull requests too — the select() is required
+    # REST /issues returns pull requests too — the select() is required.
+    # For the whole open list (the do-not-report pass in tracker.md needs
+    # it), run the same call without `-f labels=<label>`.
     gh api -X GET repos/$R/issues --paginate -f state=open -f labels=<label> \
       --jq '.[] | select(.pull_request | not)
             | {number, title, body, created_at, html_url, labels: [.labels[].name]}'
@@ -55,8 +57,9 @@ CI state at a commit:
     gh api repos/$R/commits/<sha>/check-runs --jq '.check_runs[] | {name, status, conclusion}'
     gh api -X GET repos/$R/actions/runs -f head_sha=<sha> --jq '.workflow_runs[] | {name, status, conclusion, html_url}'
 
-A label create answering `422` means it already exists — treat as
-success. Create every label before its first use.
+A label create can answer `422` for more than one reason: treat it as
+success only when the body's `errors[].code` says `already_exists`; any
+other `422` is a real failure. Create every label before its first use.
 
 Never gate a run on `gh auth status`: in a cloud session `GH_TOKEN` holds
 a placeholder and the real credential lives outside the container, so the
