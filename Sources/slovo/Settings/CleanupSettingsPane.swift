@@ -9,7 +9,6 @@ struct CleanupSettingsPane: View {
     // singleton that always outlives this pane, matching DictationMenuBuilder's
     // `unowned let target: AppDelegate`.
     unowned let actions: any SettingsActions
-    @State private var selectedModelId: String
     @State private var customModelId: String = ""
     @State private var writingStyle: WritingStyle
     @State private var translationLanguage: String
@@ -23,16 +22,19 @@ struct CleanupSettingsPane: View {
     // repaints the pane on any funnel write in the same runloop — no re-fetch
     // sites, nothing to go stale.
     @ObservedObject private var availabilityModel: CleanupAvailabilityModel
+    // The repaint subscription (observation invariant): body re-renders on every
+    // scope transition; the VALUES render through the funnel's one derivation.
+    @ObservedObject private var scopeModel: CleanupModelScopeModel
 
     init(actions: any SettingsActions) {
         self.actions = actions
         let config = actions.currentConfig()
-        _selectedModelId = State(initialValue: config.openRouterModel)
         _writingStyle = State(initialValue: config.writingStyle)
         _translationLanguage = State(initialValue: config.translationTargetLanguage.rawValue)
         _useSpellCheckHints = State(initialValue: config.useSpellCheckHints)
         _hotkeys = State(initialValue: config.hotkeyConfiguration)
         _availabilityModel = ObservedObject(wrappedValue: actions.cleanupAvailabilityModel)
+        _scopeModel = ObservedObject(wrappedValue: actions.cleanupModelScopeModel)
     }
 
     private var availability: CleanupAvailability { availabilityModel.availability }
@@ -41,8 +43,6 @@ struct CleanupSettingsPane: View {
     // so the observed availability is the single truthful key-presence signal —
     // no manual snapshot to drift after a failed save or remove.
     private var hasKey: Bool { availability != .offNoKey }
-
-    private var catalogIds: [String] { CleanupModelCatalog.options.map(\.id) }
 
     private var trimmedCustomModelId: String {
         customModelId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,7 +67,6 @@ struct CleanupSettingsPane: View {
             // Re-seed on every reappearance — the Settings window is cached, so a
             // change made from the dropdown must not read stale here.
             let config = actions.currentConfig()
-            selectedModelId = config.openRouterModel
             writingStyle = config.writingStyle
             translationLanguage = config.translationTargetLanguage.rawValue
             useSpellCheckHints = config.useSpellCheckHints
@@ -107,17 +106,28 @@ struct CleanupSettingsPane: View {
         }
     }
 
+    private var modelSelection: CleanupModelSelection.Result {
+        actions.currentModelSelection()
+    }
+
     @ViewBuilder private var modelRow: some View {
-        Picker("Model", selection: $selectedModelId) {
-            ForEach(CleanupModelCatalog.options, id: \.id) { option in
+        let selection = modelSelection
+        Picker("Model", selection: Binding(
+            get: { selection.effective },
+            set: { newValue in actions.setCleanupModel(newValue) }  // user picks — the ONLY write (K3)
+        )) {
+            ForEach(selection.options, id: \.id) { option in
                 Text(option.displayName).tag(option.id)
             }
-            if !catalogIds.contains(selectedModelId) {
-                Text(selectedModelId).tag(selectedModelId)
+            if let custom = selection.customRow {
+                Text(custom.displayName).tag(custom.id)
             }
         }
-        .onChange(of: selectedModelId) { _, newValue in actions.setCleanupModel(newValue) }
-
+        if case .substitution(let preferred, let effective) = selection.note {
+            Text("Your key can't use \(CleanupModelCatalog.displayName(for: preferred)) — using \(CleanupModelCatalog.displayName(for: effective)).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 TextField("openrouter/model-id", text: $customModelId)
@@ -125,7 +135,10 @@ struct CleanupSettingsPane: View {
                 Button("Use", action: useCustomModel)
                     .disabled(trimmedCustomModelId.isEmpty)
             }
-            Text("Any model id from openrouter.ai/models. Needs your key below.")
+            // The warning REPLACES the informational caption while it applies (spec K2).
+            Text(selection.note == .customOutsideScope
+                 ? "Your key can't use this model. Dictations may insert the raw transcript."
+                 : "Any model id from openrouter.ai/models. Needs your key below.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -222,7 +235,6 @@ struct CleanupSettingsPane: View {
 
     private func useCustomModel() {
         guard !trimmedCustomModelId.isEmpty else { return }
-        selectedModelId = trimmedCustomModelId
         actions.setCleanupModel(trimmedCustomModelId)
         customModelId = ""
     }

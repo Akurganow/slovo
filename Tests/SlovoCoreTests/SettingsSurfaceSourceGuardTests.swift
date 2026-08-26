@@ -35,13 +35,33 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(general.contains("Toggle(isOn: $usesVocabularyBias)"))
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
-        #expect(cleanup.contains("CleanupModelCatalog.options"))
+        // The single-derivation invariant (K6): the pane renders the funnel's
+        // projection; it does NOT derive inline and no longer enumerates the
+        // catalog's options (displayName lookups in captions remain) — this pin
+        // deliberately supersedes the retired :38 CleanupModelCatalog.options pin.
+        #expect(cleanup.contains("actions.currentModelSelection()"))
+        #expect(!cleanup.contains("CleanupModelSelection.derive("))
         #expect(cleanup.contains("actions.setCleanupModel("))
         #expect(cleanup.contains("actions.setWritingStyle("))
         #expect(cleanup.contains("actions.saveOpenRouterKey("))
-        // Sensitivity: drop the hints Toggle's `onChange` wiring → this `#expect`
-        // goes RED, proving the spell/grammar hints switch no longer reaches the app.
         #expect(cleanup.contains("actions.setSpellCheckHints("))
+        // K3 seed-guard, source form (no test target links Sources/slovo): the pane
+        // has no selection @State to re-seed — the property is gone entirely, so no
+        // programmatic path can write the preference back. Structural pins beside
+        // the name-coupled one: no State seed from the stored model, and the ONLY
+        // preference write is the Picker binding's user-interaction set.
+        // Sensitivity: restore the selectedModelId re-seed → onChange wiring → RED.
+        #expect(!cleanup.contains("selectedModelId"))
+        #expect(!cleanup.contains("State(initialValue: config.openRouterModel)"))
+        #expect(cleanup.contains("set: { newValue in actions.setCleanupModel(newValue) }"))
+        // The observation invariant, mirroring the availability model's pin:
+        #expect(cleanup.contains("@ObservedObject private var scopeModel: CleanupModelScopeModel"))
+        // The pinned caption copy (spec K2 rev 3) — the substitution caption is
+        // pinned as its FULL code literal (a bare prefix would be satisfied by the
+        // custom warning alone; v3-verification L1):
+        #expect(cleanup.contains(
+            #"Your key can't use \(CleanupModelCatalog.displayName(for: preferred)) — using \(CleanupModelCatalog.displayName(for: effective))."#))
+        #expect(cleanup.contains(#"Your key can't use this model. Dictations may insert the raw transcript."#))
 
         let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
         #expect(vocabulary.contains("actions.listVocabulary()"))
@@ -83,7 +103,6 @@ struct SettingsSurfaceSourceGuardTests {
 
         let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains(".onAppear"))
-        #expect(cleanup.contains("selectedModelId = config.openRouterModel"))
         #expect(cleanup.contains("writingStyle = config.writingStyle"))
         // Key presence is NOT re-seeded here: the pane derives it live from the
         // observed availability model, so there is no snapshot to refresh.
@@ -499,7 +518,7 @@ struct SettingsSurfaceSourceGuardTests {
         let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
         let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
         #expect(makeMenu.contains("hotkeys: config.hotkeyConfiguration"))
-        #expect(makeMenu.contains("selectedModelId: config.openRouterModel"))
+        #expect(makeMenu.contains("selectedModelId: currentModelSelection().effective"))
     }
 
     private static func containsInOrder(_ needles: [String], in source: String) -> Bool {

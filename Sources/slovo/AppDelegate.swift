@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let built = DictationMenuBuilder(target: self).make(
             hotkeys: config.hotkeyConfiguration,
             cleanup: DictationMenuCleanupConfiguration(
-                selectedModelId: config.openRouterModel,
+                selectedModelId: currentModelSelection().effective,
                 translationLanguage: config.translationTargetLanguage.rawValue,
                 availability: currentCleanupAvailability()
             ),

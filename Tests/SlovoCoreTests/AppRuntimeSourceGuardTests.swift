@@ -208,7 +208,8 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("selectedModel: modelId"))
-        #expect(modelMenuBody.contains("CleanupModelCatalog.options"))
+        #expect(modelMenuBody.contains("currentModelSelection()"))
+        #expect(modelMenuBody.contains("selection.options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
         #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))
