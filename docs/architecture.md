@@ -21,7 +21,8 @@ key up   -> stop capture -> restore output -> queue End -> finalize -> clean -> 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
 (Whisper large-v3 turbo; the speech engine of the Argmax OSS SDK, formerly the
 standalone WhisperKit package); only transcript text ever leaves the machine,
-and only for the OpenRouter cleanup attempt.
+and only for the OpenRouter cleanup attempt — plus the key-scope metadata request
+to OpenRouter (`/models/user`), which carries the API key and no user content.
 
 ## Core Components
 

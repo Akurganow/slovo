@@ -1,7 +1,9 @@
 # Privacy And Security
 
 Slovo is designed around a narrow data boundary: raw audio stays local, and only
-transcript text may leave the machine when OpenRouter cleanup is attempted.
+transcript text may leave the machine when OpenRouter cleanup is attempted (plus a
+key-scope metadata request that carries the API key and no dictated content — see
+Data Paths).
 
 ## Data Paths
 
@@ -10,6 +12,7 @@ transcript text may leave the machine when OpenRouter cleanup is attempted.
 | Raw microphone audio | Local process memory | Never sent |
 | Whisper ASR model | App-owned cache under Application Support | Downloaded once from Hugging Face on first use, then fully local |
 | Transcript text | Local process memory | Sent only to OpenRouter for cleanup attempts (plus a target-language name when translating) |
+| Key model scope | OpenRouter account metadata | One `GET /api/v1/models/user` per launch/key change while cleanup is on; carries the API key, no dictated content |
 | Cleaned text | Local process memory and target app field | Not logged |
 | OpenRouter API key | macOS Keychain | Used only as an authorization header |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Used as prompt/context terms, never logged |
