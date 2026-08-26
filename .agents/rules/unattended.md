@@ -2,10 +2,9 @@
 
 How an **analysis run** works in this repository when nobody is present to
 answer: any unattended run whose whole job is reading, judging and
-reporting — a scheduled routine included, whose own prompt names this file
-as its instructions. An autonomous session that *implements* a change is a
-different animal: it follows AGENTS.md and CONTRIBUTING.md, and this file
-does not govern it.
+reporting, whoever or whatever scheduled it. An autonomous session that
+*implements* a change is a different animal: it follows AGENTS.md and
+CONTRIBUTING.md, and this file does not govern it.
 
 The other documents say what is true of Slovo; this one says what is true
 of running in it alone. Where a detail below is specific to one vendor's
