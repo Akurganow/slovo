@@ -233,23 +233,3 @@ a real trap already caught once: Lightning-SimulWhisper).
   workflow changes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
-
-## Scheduled analysis routines (owner decision, 2026-08-26)
-
-The owner runs scheduled Claude cloud routines against this repository from
-his claude.ai account, the same fleet shape as on his other repositories:
-weekly police runs — Logic, Abstraction, Sanity, and Dependency Police —
-that may file issues, and a daily Issue Court that reviews one open issue
-per run and posts one technical comment on it.
-
-They analyse and write to the tracker only. None may modify code, commit,
-push, or open a pull request; a run that files or comments nothing is a
-normal, successful run. Their shared mechanics are recorded in
-`.agents/rules/unattended.md` (working alone in a cloud session, where no
-macOS toolchain exists) and `.agents/rules/tracker.md` (the filing
-discipline); each routine's own prompt lives in the routine configuration
-outside the repository, which is the same owner decision as on the other
-repositories. The labels they use — `logic-police`, `abstraction-police`,
-`sanity-police`, `dependency-police`, `bug`, `tech-debt`, `dependencies`,
-`court/tried`, `court/skipped`, `triage/*` — are created by the runs
-themselves on first use.
