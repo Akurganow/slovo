@@ -94,8 +94,10 @@ struct ScopeFetcherSourceGuardTests {
     // to either file → RED.
     @Test
     func scopeLayerPersistsNothing() throws {
-        for file in ["Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift",
-                     "Sources/SlovoCore/Cleaner/CleanupScopeReducer.swift"] {
+        for file in [
+            "Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift",
+            "Sources/SlovoCore/Cleaner/CleanupScopeReducer.swift",
+        ] {
             let source = try Self.source(file)
             #expect(!source.contains("UserDefaults"))
             #expect(!source.contains("FileManager"))

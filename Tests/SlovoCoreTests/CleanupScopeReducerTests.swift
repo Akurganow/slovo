@@ -139,8 +139,10 @@ struct CleanupScopeReducerTests {
         let (s2, c) = reduce(s, .cleanupFailed(.apiError(status: 404)))
         #expect(c == [.fetch(generation: s2.generation)])
         #expect(s2.scope == .known(["a/b"]))  // stale-until-replaced: no interim reversion
-        for error in [CleanupError.apiError(status: 403), .offline, .missingKey,
-                      .rateLimited(retryAfter: nil), .refused] {
+        for error in [
+            CleanupError.apiError(status: 403), .offline, .missingKey,
+            .rateLimited(retryAfter: nil), .refused,
+        ] {
             #expect(reduce(s, .cleanupFailed(error)).commands.isEmpty)
         }
     }
