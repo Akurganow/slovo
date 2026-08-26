@@ -2,8 +2,8 @@
 
 Status: **spec, approved directions; implementation not started.** Rev 2
 incorporates an independent adversarial review (2026-08-26, verdict REWORK on
-rev 1); every finding is addressed below and the two judgment calls the rework
-introduced are flagged for the owner in §9. The research phase is done (live
+rev 1); every finding is addressed below, and the two judgment calls the rework
+introduced were decided by the owner on 2026-08-26 (§9). The research phase is done (live
 two-key verification 2026-08-26: personal unrestricted + corporate restricted
 with an exhausted org budget). Part B (the market refresh of the catalog
 itself) remains a separate, benchmark-driven change — see §8.
@@ -163,8 +163,8 @@ model. Dictations will insert the raw transcript."`
   (`AppRuntimeSourceGuardTests.readyPipelineDoesNotRequireCleanupKeyBeforeHotkeyStart`):
   the amended invariant is "nothing before hotkey start reads the Keychain
   secret; the post-start scope fetch may" — the guard test is updated in the
-  same change to pin the new boundary, never silently outgrown. Flagged for
-  owner sign-off in §9.
+  same change to pin the new boundary, never silently outgrown. Owner-approved
+  2026-08-26 (§9), with the Keychain-prompt acceptance check it carries.
 
 ### Components
 
@@ -252,20 +252,19 @@ fast-cleanup tier stays queued: candidates in, `slovo-cleanup-benchmark`
 migration updated in the winning change. Not blocked by, and not blocking,
 this spec.
 
-## 9. Flagged for owner sign-off (introduced by the rev 2 rework)
+## 9. Owner decisions on the rev 2 judgment calls (2026-08-26)
 
-1. **K10 amends a pinned invariant**: today's guard says launch never reads
-   the Keychain secret; the scope fetch (async, strictly post-start, only
-   with cleanup on) will. The alternative — deferring the first fetch to the
-   first Settings/menu interaction — keeps the invariant intact but leaves
-   the menu unfiltered until then. Rev 2 chooses the amendment; veto here
-   reverts to the deferred variant with no other spec changes. Open
-   verification item either way: confirm on the dev Mac that the Keychain
-   read never raises a user prompt after a re-sign/update (if it can, the
-   fetch must move behind the first user interaction regardless, to honor
-   the no-focus-stealing rule).
-2. **K8's observer seam** is the one genuinely new cross-layer mechanism in
-   this spec (rev 1 hid it). It is one optional closure injected at
-   composition; if even that is unwanted, K4d can be dropped entirely — the
-   cost is that a policy tightened mid-session keeps failing until the next
-   launch or key save.
+1. **K10 launch-fetch amendment — APPROVED.** The scope fetch runs right
+   after hotkey start (async, only with cleanup effectively on), and the
+   pinned invariant is deliberately amended to "nothing before hotkey start
+   reads the Keychain secret", with the guard test updated in the same
+   change. Acceptance check carried into §6: verify on the dev Mac that the
+   Keychain read never raises a user prompt after a re-sign/update. If it
+   ever does, the fetch moves behind the first user interaction (Settings or
+   menu open) — the pre-agreed fallback, honoring the no-focus-stealing rule
+   with no other spec changes.
+2. **K8 observer seam / K4d self-heal — APPROVED.** The single
+   `onCleanupFailure` closure injected at composition stays; one failed
+   dictation on a policy-tightened model re-reads the scope in the
+   background, so the second one works. Directive 5 trade accepted: the
+   smallest mechanism that buys the reliability.
