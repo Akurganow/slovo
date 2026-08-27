@@ -56,7 +56,12 @@ struct PackageDependencyTests {
         )
         let compactPackageCode = packageCode.filter { !$0.isWhitespace }
 
-        #expect(compactPackageCode.contains(#".package(url:"https://github.com/SimplyDanny/SwiftLintPlugins",exact:"0.65.0")"#))
+        // The pin STYLE must stay `exact:` — with every SwiftLint rule opted in,
+        // a floating version would change lint behaviour on its own. Which version
+        // is pinned is the manifest's business alone (Package.resolved plus
+        // --disable-automatic-resolution already enforce it), so bots bump it
+        // without touching this test.
+        #expect(compactPackageCode.contains(#".package(url:"https://github.com/SimplyDanny/SwiftLintPlugins",exact:""#))
         #expect(compactPackageCode.contains(#".plugin(name:"SwiftLintBuildToolPlugin",package:"SwiftLintPlugins")"#))
         let targetBlocks = Self.swiftTargetBlocks(in: packageCode)
         #expect(!targetBlocks.isEmpty)
