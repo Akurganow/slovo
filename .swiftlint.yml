@@ -133,58 +133,16 @@ file_length:
   # Count code mass, not documentation — the house style is comment-dense.
   ignore_comment_only_lines: true
 
-# Generator residue that a regex can name, so it never reaches main. The
-# catalogue behind these rules, and what stays a judgment call for a
-# reviewer, is `.agents/rules/slop.md`. Syntax-kind filters keep the
-# comment rules out of string literals; CI is strict, so a warning fails.
+# Generator residue as a shape, not a phrase. Words have legitimate readings,
+# so no rule here keys on vocabulary; each names a construct with none. The
+# catalogue behind the split, and what stays a judgment call for a reviewer,
+# is `.agents/rules/slop.md`. CI is strict, so a warning fails the build.
 custom_rules:
-  slop_hedging_comment:
-    name: "Hedging comment"
-    regex: '(?i)\b(should work|for now|just in case|hopefully|not sure|probably fine|quick fix|temporary fix|good enough for now)\b'
-    match_kinds: [comment, doccomment]
-    message: "A comment that hedges records a doubt instead of a fact: resolve it or state the invariant."
-    severity: warning
-
-  slop_changelog_comment:
-    name: "Changelog in a comment"
-    regex: '(?i)(^\s*//+\s*(updated|changed|refactored|renamed|moved|migrated|switched|reverted) (to|from)\b|\b(as requested|as discussed|per (the )?review|in this (PR|commit|change)\b|this (PR|commit|change) (adds|fixes|removes|updates|introduces|changes))\b)'
-    match_kinds: [comment, doccomment]
-    message: "History lives in git; a comment describes the code as it is, not the change that produced it."
-    severity: warning
-
-  slop_narrator_comment:
-    name: "Narrating comment"
-    regex: "^\\s*//+\\s*(Now|Here|Next|Then|Finally|First|Let's|Let us|We),? (we |can |need |just |simply |will |must )"
-    match_kinds: [comment, doccomment]
-    message: "A comment that narrates the next line adds no information; delete it or state why."
-    severity: warning
-
   slop_section_banner:
     name: "Section banner"
     regex: '^\s*//+\s*[-=*#~_]{5,}\s*([\w ]+\s*[-=*#~_]{5,}\s*)?$'
     match_kinds: [comment, doccomment]
-    message: "Decorative separators are a generator habit; use MARK or nothing."
-    severity: warning
-
-  slop_attribution_comment:
-    name: "Tool attribution in source"
-    regex: '(?i)\b(generated (by|with) (an? )?(AI|LLM|assistant|model|agent|ChatGPT|Claude|Copilot|Codex|Cursor|Gemini|Devin)|co-authored-by:)'
-    match_kinds: [comment, doccomment]
-    message: "Attribution belongs in the commit trailer, never in the source."
-    severity: warning
-
-  slop_filler_name:
-    name: "Filler or snake-versioned declaration name"
-    regex: '\b(class|struct|enum|actor|protocol|typealias|func)\s+\w+(_v[0-9]+|_new|_old|Impl|Helper|Utils|Util|Manager)\b'
-    match_kinds: [keyword, identifier, typeidentifier]
-    message: "Impl/Helper/Utils/Manager and _v2/_new/_old say nothing about the job; name the thing."
-    severity: warning
-
-  slop_vague_error_string:
-    name: "Vague error string"
-    regex: '(?i)(something went wrong|an (unexpected |unknown )?error (has )?occurred|unknown error)'
-    match_kinds: [string]
-    message: "An error string names what failed."
+    message: "A line that is only a separator carries nothing; use MARK or nothing."
     severity: warning
 
   slop_print_leftover:
@@ -192,5 +150,33 @@ custom_rules:
     included: "Sources/.*\\.swift"
     regex: '^\s*(print|debugPrint|dump|NSLog)\('
     match_kinds: [identifier]
-    message: "Sources/ logs through the logger; print-family calls are debugging leftovers (command-line tools live under Tools/)."
+    message: "Sources/ logs through the redaction-safe logger; print-family calls bypass it and can leak transcript text (command-line tools live under Tools/)."
+    severity: warning
+
+  slop_empty_catch:
+    name: "Empty catch"
+    regex: '\bcatch\b[^{\n]*\{\s*\}'
+    excluded_match_kinds: [comment, doccomment, string]
+    message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces."
+    severity: warning
+
+  slop_tautological_expectation:
+    name: "Tautological expectation"
+    regex: '#(expect|require)\(\s*(true|false|(\w+)\s*==\s*\3)\s*[,)]'
+    excluded_match_kinds: [comment, doccomment, string]
+    message: "This expectation cannot fail; assert the behaviour instead."
+    severity: warning
+
+  slop_placeholder_trap:
+    name: "Placeholder trap"
+    regex: '(?i)\b(fatalError|preconditionFailure|assertionFailure)\(\s*"(todo|fixme|not implemented|unimplemented|stub|placeholder)'
+    excluded_match_kinds: [comment, doccomment]
+    message: "A trap that says the code is unfinished is a stub shipped as done; implement it or delete the path."
+    severity: warning
+
+  slop_empty_test:
+    name: "Empty test"
+    regex: '@Test\b[^\n]*\n\s*func\s+\w+\([^)]*\)[^{\n]*\{\s*\}'
+    excluded_match_kinds: [comment, doccomment, string]
+    message: "A test with no body proves nothing and counts as coverage; write the assertion or delete the test."
     severity: warning

@@ -88,10 +88,7 @@ Five, each with the measurement that makes a finding a finding.
 
 ## What is protected
 
-Never a review finding, whatever the detectors say. The fence below is
-narrower than a finding: it names phrases, not classes, and it still
-applies inside a protected comment — a recorded reason or a sensitivity
-note states its fact without hedging, so it never needs one of them.
+Never a review finding, whatever the detectors say:
 
 - **Recorded reasons.** A comment that states why a shape exists, what
   invariant holds, or which trade AGENTS.md chose. Every other review
@@ -108,17 +105,23 @@ note states its fact without hedging, so it never needs one of them.
 
 ## The fence: what the linter owns
 
-`.swiftlint.yml` carries the deterministic tells as `custom_rules`, so
-they cannot reach `main`: hedging comments, change narration at the
-start of a comment, first-person narration, banner lines, attribution
-to a generator, filler suffixes and snake-case version suffixes on
-declarations, vague error strings, print-family calls under `Sources/`.
-Each names a phrase or a shape that has no legitimate reading; what has
-one — a `V2` type beside a real second format, a "temporarily" that
-describes behaviour, a model name in a comment about the cleanup step —
-stays with the reader. CI is strict, so each rule is a build failure. A
-tell the linter names is not a review finding; a tell that recurs and
-can be written as a regex is a proposal for a new rule.
+Slop is ephemeral: what counts shifts with the generators, and almost
+every phrase a generator overuses has a legitimate reading somewhere —
+"for now" in a recorded deadline, a model name in a comment about the
+cleanup step, `Manager` on a type that wraps one. A deterministic gate
+that keys on vocabulary therefore blocks legitimate text sooner or
+later, and CI here is strict, so a warning is a build failure. The
+`custom_rules` in `.swiftlint.yml` name no words. They name constructs
+that have no legitimate reading in any year: a line that is only a
+separator, a print-family call under `Sources/` (the logger is
+redaction-safe; stdout is not), an empty `catch`, an expectation that
+cannot fail (`#expect(true)`, `x == x`), a trap whose message says the
+code is unfinished, a test with no body.
+
+Everything phrased in words — hedges, change narration, attribution,
+filler names, vague error strings — is judged by a reader against the
+one test above, never by a regex. A shape that recurs and has no
+legitimate reading is a proposal for a new rule.
 
 ## Neighbours
 
