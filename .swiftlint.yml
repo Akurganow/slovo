@@ -160,15 +160,6 @@ custom_rules:
     message: "This expectation cannot fail; assert the behaviour instead."
     severity: warning
 
-  slop_placeholder_trap:
-    name: "Placeholder trap"
-    included: "Sources/.*\\.swift"
-    excluded: ".*TestSupport.*"
-    regex: '(?i)\b(fatalError|preconditionFailure|assertionFailure)\(\s*"(todo|fixme|not implemented|unimplemented|stub|placeholder)'
-    excluded_match_kinds: [comment, doccomment]
-    message: "A trap that says the code is unfinished is a stub shipped as done; implement it or delete the path (test fakes may trap on purpose)."
-    severity: warning
-
   slop_empty_test:
     name: "Empty test"
     regex: '@Test\b[^\n]*\n\s*func\s+\w+\([^)]*\)[^{\n]*\{\s*\}'

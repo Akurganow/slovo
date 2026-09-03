@@ -118,9 +118,10 @@ logger is redaction-safe; stdout is not; command-line tools live under
 `Tools/`), an empty `catch` (a reason written inside the braces passes,
 and swallowing `CancellationError` is exempt), `#expect(true)` (while
 `#expect(false, "unreachable")` is a legitimate fail marker and
-`a == a` a legitimate reflexivity test), a trap whose message says the
-code is unfinished (test fakes trap on purpose and are exempt), a test
-with no body. What a rule meets that it should not is silenced with
+`a == a` a legitimate reflexivity test), a test with no body. A stub
+has no vocabulary-free shape — `fatalError("not implemented")` is also
+how an unsupported platform is refused — so stubs stay with the reader.
+What a rule meets that it should not is silenced with
 `swiftlint:disable:next` and the reason on the line above — a visible
 mark, never a quiet bypass.
 
