@@ -132,3 +132,65 @@ type_body_length:
 file_length:
   # Count code mass, not documentation — the house style is comment-dense.
   ignore_comment_only_lines: true
+
+# Generator residue that a regex can name, so it never reaches main. The
+# catalogue behind these rules, and what stays a judgment call for a
+# reviewer, is `.agents/rules/slop.md`. Syntax-kind filters keep the
+# comment rules out of string literals; CI is strict, so a warning fails.
+custom_rules:
+  slop_hedging_comment:
+    name: "Hedging comment"
+    regex: '(?i)\b(should work|for now|just in case|hopefully|not sure|probably fine|quick fix|temporary fix|temporarily)\b'
+    match_kinds: [comment, doccomment]
+    message: "A comment that hedges records a doubt instead of a fact: resolve it or state the invariant."
+    severity: warning
+
+  slop_changelog_comment:
+    name: "Changelog in a comment"
+    regex: '(?i)\b(updated to|previously,|changed from|refactored to|renamed from|moved from|as requested|as discussed|this (PR|commit|change) (adds|fixes|removes|updates|introduces))\b'
+    match_kinds: [comment, doccomment]
+    message: "History lives in git; a comment describes the code as it is, not the change that produced it."
+    severity: warning
+
+  slop_narrator_comment:
+    name: "Narrating comment"
+    regex: "^\\s*//(?!/)\\s*(Now|Here|Next|Then|Finally|Let's|Let us|We) (we |can |need |just |simply |will )"
+    match_kinds: [comment]
+    message: "A comment that narrates the next line adds no information; delete it or state why."
+    severity: warning
+
+  slop_section_banner:
+    name: "Section banner"
+    regex: '//\s*[-=*#]{5,}'
+    match_kinds: [comment]
+    message: "Decorative separators are a generator habit; use MARK or nothing."
+    severity: warning
+
+  slop_attribution_comment:
+    name: "Tool attribution in source"
+    regex: '\b(Generated (by|with)|Co-authored-by|ChatGPT|Copilot|Codex)\b'
+    match_kinds: [comment, doccomment]
+    message: "Attribution belongs in the commit trailer, never in the source."
+    severity: warning
+
+  slop_versioned_name:
+    name: "Versioned or filler declaration name"
+    regex: '\b(class|struct|enum|actor|protocol|typealias|func)\s+\w+(V2|_v2|_new|New|Impl|Helper|Utils|Util|Manager)\b'
+    match_kinds: [keyword, identifier, typeidentifier]
+    message: "V2/New/Impl/Helper/Utils/Manager say nothing about the job; name the thing."
+    severity: warning
+
+  slop_vague_error_string:
+    name: "Vague error string"
+    regex: '(Something went wrong|An error occurred|Unknown error occurred)'
+    match_kinds: [string]
+    message: "An error string names what failed."
+    severity: warning
+
+  slop_print_leftover:
+    name: "print() in app code"
+    included: "Sources/(SlovoCore|slovo)/.*\\.swift"
+    regex: '^\s*print\('
+    match_kinds: [identifier]
+    message: "App code logs through the logger; print() is a debugging leftover."
+    severity: warning

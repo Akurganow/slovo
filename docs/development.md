@@ -62,7 +62,8 @@ The lint script runs:
 - explicit target dependency import checks
 - shell syntax checks
 - plist and entitlements linting
-- strict SwiftLint
+- strict SwiftLint, including the `custom_rules` that fence generator
+  residue (catalogue: `.agents/rules/slop.md`)
 - SwiftLint analyzer checks backed by a compiler log
 
 ## Gate Self-Test
