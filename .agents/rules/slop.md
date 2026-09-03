@@ -109,12 +109,16 @@ note states its fact without hedging, so it never needs one of them.
 ## The fence: what the linter owns
 
 `.swiftlint.yml` carries the deterministic tells as `custom_rules`, so
-they cannot reach `main`: hedging and changelog comments, narration,
-section banners, tool attribution, versioned and filler declaration
-names, vague error strings, `print()` in app code. CI is strict, so each
-is a build failure. A tell the linter names is not a review finding; a
-tell that recurs and can be written as a regex is a proposal for a new
-rule.
+they cannot reach `main`: hedging comments, change narration at the
+start of a comment, first-person narration, banner lines, attribution
+to a generator, filler suffixes and snake-case version suffixes on
+declarations, vague error strings, print-family calls under `Sources/`.
+Each names a phrase or a shape that has no legitimate reading; what has
+one — a `V2` type beside a real second format, a "temporarily" that
+describes behaviour, a model name in a comment about the cleanup step —
+stays with the reader. CI is strict, so each rule is a build failure. A
+tell the linter names is not a review finding; a tell that recurs and
+can be written as a regex is a proposal for a new rule.
 
 ## Neighbours
 

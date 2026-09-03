@@ -140,57 +140,57 @@ file_length:
 custom_rules:
   slop_hedging_comment:
     name: "Hedging comment"
-    regex: '(?i)\b(should work|for now|just in case|hopefully|not sure|probably fine|quick fix|temporary fix|temporarily)\b'
+    regex: '(?i)\b(should work|for now|just in case|hopefully|not sure|probably fine|quick fix|temporary fix|good enough for now)\b'
     match_kinds: [comment, doccomment]
     message: "A comment that hedges records a doubt instead of a fact: resolve it or state the invariant."
     severity: warning
 
   slop_changelog_comment:
     name: "Changelog in a comment"
-    regex: '(?i)\b(updated to|previously,|changed from|refactored to|renamed from|moved from|as requested|as discussed|this (PR|commit|change) (adds|fixes|removes|updates|introduces))\b'
+    regex: '(?i)(^\s*//+\s*(updated|changed|refactored|renamed|moved|migrated|switched|reverted) (to|from)\b|\b(as requested|as discussed|per (the )?review|in this (PR|commit|change)\b|this (PR|commit|change) (adds|fixes|removes|updates|introduces|changes))\b)'
     match_kinds: [comment, doccomment]
     message: "History lives in git; a comment describes the code as it is, not the change that produced it."
     severity: warning
 
   slop_narrator_comment:
     name: "Narrating comment"
-    regex: "^\\s*//(?!/)\\s*(Now|Here|Next|Then|Finally|Let's|Let us|We) (we |can |need |just |simply |will )"
-    match_kinds: [comment]
+    regex: "^\\s*//+\\s*(Now|Here|Next|Then|Finally|First|Let's|Let us|We),? (we |can |need |just |simply |will |must )"
+    match_kinds: [comment, doccomment]
     message: "A comment that narrates the next line adds no information; delete it or state why."
     severity: warning
 
   slop_section_banner:
     name: "Section banner"
-    regex: '//\s*[-=*#]{5,}'
-    match_kinds: [comment]
+    regex: '^\s*//+\s*[-=*#~_]{5,}\s*([\w ]+\s*[-=*#~_]{5,}\s*)?$'
+    match_kinds: [comment, doccomment]
     message: "Decorative separators are a generator habit; use MARK or nothing."
     severity: warning
 
   slop_attribution_comment:
     name: "Tool attribution in source"
-    regex: '\b(Generated (by|with)|Co-authored-by|ChatGPT|Copilot|Codex)\b'
+    regex: '(?i)\b(generated (by|with) (an? )?(AI|LLM|assistant|model|agent|ChatGPT|Claude|Copilot|Codex|Cursor|Gemini|Devin)|co-authored-by:)'
     match_kinds: [comment, doccomment]
     message: "Attribution belongs in the commit trailer, never in the source."
     severity: warning
 
-  slop_versioned_name:
-    name: "Versioned or filler declaration name"
-    regex: '\b(class|struct|enum|actor|protocol|typealias|func)\s+\w+(V2|_v2|_new|New|Impl|Helper|Utils|Util|Manager)\b'
+  slop_filler_name:
+    name: "Filler or snake-versioned declaration name"
+    regex: '\b(class|struct|enum|actor|protocol|typealias|func)\s+\w+(_v[0-9]+|_new|_old|Impl|Helper|Utils|Util|Manager)\b'
     match_kinds: [keyword, identifier, typeidentifier]
-    message: "V2/New/Impl/Helper/Utils/Manager say nothing about the job; name the thing."
+    message: "Impl/Helper/Utils/Manager and _v2/_new/_old say nothing about the job; name the thing."
     severity: warning
 
   slop_vague_error_string:
     name: "Vague error string"
-    regex: '(Something went wrong|An error occurred|Unknown error occurred)'
+    regex: '(?i)(something went wrong|an (unexpected |unknown )?error (has )?occurred|unknown error)'
     match_kinds: [string]
     message: "An error string names what failed."
     severity: warning
 
   slop_print_leftover:
-    name: "print() in app code"
-    included: "Sources/(SlovoCore|slovo)/.*\\.swift"
-    regex: '^\s*print\('
+    name: "print() in library or app code"
+    included: "Sources/.*\\.swift"
+    regex: '^\s*(print|debugPrint|dump|NSLog)\('
     match_kinds: [identifier]
-    message: "App code logs through the logger; print() is a debugging leftover."
+    message: "Sources/ logs through the logger; print-family calls are debugging leftovers (command-line tools live under Tools/)."
     severity: warning
