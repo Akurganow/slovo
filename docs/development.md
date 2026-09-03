@@ -64,6 +64,9 @@ The lint script runs:
 - plist and entitlements linting
 - strict SwiftLint, including the `custom_rules` that fence generator
   residue (catalogue: `.agents/rules/slop.md`)
+- a self-test that lints `Tests/GateChecksTests/Fixtures/Lint/SlopRules.swifttext`
+  with the real configuration and fails unless every custom rule fires
+  exactly as the fixture counts
 - SwiftLint analyzer checks backed by a compiler log
 
 ## Gate Self-Test

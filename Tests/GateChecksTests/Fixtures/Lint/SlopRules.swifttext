@@ -1,0 +1,26 @@
+// FIXTURE (not compiled): the RED proof for the slop custom rules in
+// `.swiftlint.yml`. `Scripts/lint.sh` copies this file to
+// `Sources/SelfTest/SlopRules.swift` in a scratch package root and lints it
+// with the real configuration; the stage passes only when every rule fires
+// exactly as counted below and nothing under "must NOT trip" fires.
+//
+// Expected: slop_print_leftover ×2, slop_empty_catch ×2, nothing else.
+import Foundation
+
+func mustTrip() {
+    print("debug")
+    NSLog("transcript: %@", text)
+    do { try run() } catch {}
+    do { try run() } catch let error as NSError {
+    }
+}
+
+func mustNotTrip() {
+    do { try run() } catch { logger.error("run failed: \(error)") }
+    do { try run() } catch {
+        // best effort: the cue is fire-and-forget, a failure must never delay key-up
+    }
+    do { try await work() } catch is CancellationError {}
+    // a comment that mentions print("x") and catch {} changes nothing
+    let text = "print(\"inside a string literal\")"
+}

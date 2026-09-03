@@ -124,6 +124,36 @@ run_swiftlint_analyze() {
     return 1
 }
 
+# RED proof for the slop custom rules: every rule must fire on the fixture,
+# and only on the lines meant to trip it. A rule that cannot fail proves
+# nothing, so a missing binary or a wrong count fails the stage loudly.
+run_slop_rules_selftest() {
+    swiftlint_bin=$(find "$package_root/.build/artifacts" -type f -name swiftlint -perm -u+x 2>/dev/null | head -n 1)
+    if [ -z "$swiftlint_bin" ]; then
+        echo "swiftlint binary not found under .build/artifacts; run the swiftlint-strict stage first"
+        return 1
+    fi
+    selftest_root="$package_root/.build/slop-selftest"
+    rm -rf "$selftest_root"
+    mkdir -p "$selftest_root/Sources/SelfTest"
+    cp "$package_root/Tests/GateChecksTests/Fixtures/Lint/SlopRules.swifttext" \
+        "$selftest_root/Sources/SelfTest/SlopRules.swift"
+    report="$selftest_root/report.json"
+    (cd "$selftest_root" && "$swiftlint_bin" lint --quiet --config "$package_root/.swiftlint.yml" \
+        --reporter json > "$report" 2>/dev/null) || true
+    actual=$(grep -o '"rule_id" *: *"slop_[a-z_]*"' "$report" | sed 's/.*"\(slop_[a-z_]*\)"/\1/' | sort | uniq -c | awk '{print $2"="$1}' | tr '\n' ' ')
+    expected="slop_empty_catch=2 slop_print_leftover=2 "
+    if [ "$actual" = "$expected" ]; then
+        echo "slop rules fired as expected: $actual"
+        return 0
+    fi
+    echo "slop rules self-test FAILED"
+    echo "  expected: $expected"
+    echo "  actual:   ${actual:-<no slop_* violations>}"
+    echo "  report:   $report"
+    return 1
+}
+
 run_stage "explicit-target-imports" swift_build_resolved \
     --explicit-target-dependency-import-check error
 
@@ -135,6 +165,7 @@ done
 run_stage "plist-lint" plutil -lint Resources/Info.plist slovo.entitlements
 
 run_stage "swiftlint-strict" swift_package_plugin swiftlint
+run_stage "swiftlint-slop-selftest" run_slop_rules_selftest
 run_stage "swiftlint-compiler-log" generate_swiftlint_compiler_log
 run_stage "swiftlint-analyze" run_swiftlint_analyze
 
