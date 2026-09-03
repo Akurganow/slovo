@@ -133,10 +133,9 @@ file_length:
   # Count code mass, not documentation — the house style is comment-dense.
   ignore_comment_only_lines: true
 
-# Generator residue as a shape, not a phrase. Words have legitimate readings,
-# so no rule here keys on vocabulary; each names a construct with none. The
-# catalogue behind the split, and what stays a judgment call for a reviewer,
-# is `.agents/rules/slop.md`. CI is strict, so a warning fails the build.
+# Two constructs with no legitimate reading in this code base, fenced so
+# they never reach main; everything phrased in words is a reviewer's call
+# (`.agents/rules/slop.md`). CI is strict, so a warning fails the build.
 custom_rules:
   slop_print_leftover:
     name: "print() in library or app code"
@@ -151,18 +150,4 @@ custom_rules:
     regex: '\bcatch\b(?![^{\n]*CancellationError)[^{\n]*\{\s*\}'
     excluded_match_kinds: [comment, doccomment, string]
     message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces (swallowing CancellationError is exempt)."
-    severity: warning
-
-  slop_tautological_expectation:
-    name: "Tautological expectation"
-    regex: '#(expect|require)\(\s*true\s*[,)]'
-    excluded_match_kinds: [comment, doccomment, string]
-    message: "This expectation cannot fail; assert the behaviour instead."
-    severity: warning
-
-  slop_empty_test:
-    name: "Empty test"
-    regex: '@Test\b[^\n]*\n\s*func\s+\w+\([^)]*\)[^{\n]*\{\s*\}'
-    excluded_match_kinds: [comment, doccomment, string]
-    message: "A test with no body proves nothing and counts as coverage; write the assertion or delete the test."
     severity: warning

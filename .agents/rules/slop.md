@@ -111,24 +111,22 @@ every phrase a generator overuses has a legitimate reading somewhere —
 cleanup step, `Manager` on a type that wraps one. A deterministic gate
 that keys on vocabulary therefore blocks legitimate text sooner or
 later, and CI here is strict, so a warning is a build failure. The
-`custom_rules` in `.swiftlint.yml` name no words. They name constructs
-that have no legitimate reading in any year, each with its one known
-legitimate cousin carved out: a print-family call under `Sources/` (the
-logger is redaction-safe; stdout is not; command-line tools live under
-`Tools/`), an empty `catch` (a reason written inside the braces passes,
-and swallowing `CancellationError` is exempt), `#expect(true)` (while
-`#expect(false, "unreachable")` is a legitimate fail marker and
-`a == a` a legitimate reflexivity test), a test with no body. A stub
-has no vocabulary-free shape — `fatalError("not implemented")` is also
-how an unsupported platform is refused — so stubs stay with the reader.
+`custom_rules` in `.swiftlint.yml` name no words, and there are two,
+each for a construct that does real harm here and has no legitimate
+reading: a print-family call under `Sources/` (the logger is
+redaction-safe, stdout is not, and command-line tools live under
+`Tools/`), and an empty `catch` (errors here must reach the glyph; a
+reason written inside the braces passes, and swallowing
+`CancellationError` is exempt). A rule that would catch nothing anyone
+writes is itself residue and is not added.
+
+Everything phrased in words — hedges, change narration, attribution,
+filler names, vague error strings, stubs — is judged by a reader
+against the one test above, never by a regex. A shape that recurs,
+does harm, and has no legitimate reading is a proposal for a new rule.
 What a rule meets that it should not is silenced with
 `swiftlint:disable:next` and the reason on the line above — a visible
 mark, never a quiet bypass.
-
-Everything phrased in words — hedges, change narration, attribution,
-filler names, vague error strings — is judged by a reader against the
-one test above, never by a regex. A shape that recurs and has no
-legitimate reading is a proposal for a new rule.
 
 ## Neighbours
 
