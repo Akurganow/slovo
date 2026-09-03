@@ -12,8 +12,10 @@ unattended run; the deterministic part lives in `.swiftlint.yml`.
 A comment, a doc comment, a name, a test name, a log string, a README
 paragraph: no fact left over is noise; a false fact is a lie. Judge the
 sentence, not the block: a comment that states a reason and adds one
-empty sentence is a reason, not a finding. One finding has one kind —
-the kind its fix names.
+empty sentence is a reason, not a finding, and so is a reason with a
+hedge or a reassurance word inside it. One excerpt can hold several
+findings; each has one kind, and when two kinds fit, the later in the
+list below wins — its measurement is the stronger evidence.
 
 ## The kinds
 
