@@ -112,11 +112,17 @@ cleanup step, `Manager` on a type that wraps one. A deterministic gate
 that keys on vocabulary therefore blocks legitimate text sooner or
 later, and CI here is strict, so a warning is a build failure. The
 `custom_rules` in `.swiftlint.yml` name no words. They name constructs
-that have no legitimate reading in any year: a line that is only a
-separator, a print-family call under `Sources/` (the logger is
-redaction-safe; stdout is not), an empty `catch`, an expectation that
-cannot fail (`#expect(true)`, `x == x`), a trap whose message says the
-code is unfinished, a test with no body.
+that have no legitimate reading in any year, each with its one known
+legitimate cousin carved out: a print-family call under `Sources/` (the
+logger is redaction-safe; stdout is not; command-line tools live under
+`Tools/`), an empty `catch` (a reason written inside the braces passes,
+and swallowing `CancellationError` is exempt), `#expect(true)` (while
+`#expect(false, "unreachable")` is a legitimate fail marker and
+`a == a` a legitimate reflexivity test), a trap whose message says the
+code is unfinished (test fakes trap on purpose and are exempt), a test
+with no body. What a rule meets that it should not is silenced with
+`swiftlint:disable:next` and the reason on the line above — a visible
+mark, never a quiet bypass.
 
 Everything phrased in words — hedges, change narration, attribution,
 filler names, vague error strings — is judged by a reader against the

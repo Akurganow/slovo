@@ -138,13 +138,6 @@ file_length:
 # catalogue behind the split, and what stays a judgment call for a reviewer,
 # is `.agents/rules/slop.md`. CI is strict, so a warning fails the build.
 custom_rules:
-  slop_section_banner:
-    name: "Section banner"
-    regex: '^\s*//+\s*[-=*#~_]{5,}\s*([\w ]+\s*[-=*#~_]{5,}\s*)?$'
-    match_kinds: [comment, doccomment]
-    message: "A line that is only a separator carries nothing; use MARK or nothing."
-    severity: warning
-
   slop_print_leftover:
     name: "print() in library or app code"
     included: "Sources/.*\\.swift"
@@ -155,23 +148,25 @@ custom_rules:
 
   slop_empty_catch:
     name: "Empty catch"
-    regex: '\bcatch\b[^{\n]*\{\s*\}'
+    regex: '\bcatch\b(?![^{\n]*CancellationError)[^{\n]*\{\s*\}'
     excluded_match_kinds: [comment, doccomment, string]
-    message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces."
+    message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces (swallowing CancellationError is exempt)."
     severity: warning
 
   slop_tautological_expectation:
     name: "Tautological expectation"
-    regex: '#(expect|require)\(\s*(true|false|(\w+)\s*==\s*\3)\s*[,)]'
+    regex: '#(expect|require)\(\s*true\s*[,)]'
     excluded_match_kinds: [comment, doccomment, string]
     message: "This expectation cannot fail; assert the behaviour instead."
     severity: warning
 
   slop_placeholder_trap:
     name: "Placeholder trap"
+    included: "Sources/.*\\.swift"
+    excluded: ".*TestSupport.*"
     regex: '(?i)\b(fatalError|preconditionFailure|assertionFailure)\(\s*"(todo|fixme|not implemented|unimplemented|stub|placeholder)'
     excluded_match_kinds: [comment, doccomment]
-    message: "A trap that says the code is unfinished is a stub shipped as done; implement it or delete the path."
+    message: "A trap that says the code is unfinished is a stub shipped as done; implement it or delete the path (test fakes may trap on purpose)."
     severity: warning
 
   slop_empty_test:
