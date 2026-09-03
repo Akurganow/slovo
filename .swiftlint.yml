@@ -132,3 +132,22 @@ type_body_length:
 file_length:
   # Count code mass, not documentation — the house style is comment-dense.
   ignore_comment_only_lines: true
+
+# Two constructs with no legitimate reading in this code base, fenced so
+# they never reach main; everything phrased in words is a reviewer's call
+# (`.agents/rules/slop.md`). CI is strict, so a warning fails the build.
+custom_rules:
+  slop_print_leftover:
+    name: "print() in library or app code"
+    included: "Sources/.*\\.swift"
+    regex: '(?<![.\w])(?:Swift\.)?(?:print|debugPrint|dump|NSLog)\('
+    match_kinds: [identifier]
+    message: "Sources/ logs through the redaction-safe logger; print-family calls bypass it and can leak transcript text (command-line tools live under Tools/)."
+    severity: warning
+
+  slop_empty_catch:
+    name: "Empty catch"
+    regex: '\bcatch\b(?![^{\n]*\bCancellationError\b)[^{\n]*\{\s*\}'
+    excluded_match_kinds: [comment, doccomment, string]
+    message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces (swallowing CancellationError is exempt)."
+    severity: warning
