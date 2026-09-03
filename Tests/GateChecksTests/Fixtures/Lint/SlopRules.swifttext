@@ -4,15 +4,19 @@
 // with the real configuration; the stage passes only when every rule fires
 // exactly as counted below and nothing under "must NOT trip" fires.
 //
-// Expected: slop_print_leftover ×2, slop_empty_catch ×2, nothing else.
+// Expected: slop_print_leftover ×5, slop_empty_catch ×3, nothing else.
 import Foundation
 
 func mustTrip() {
     print("debug")
     NSLog("transcript: %@", text)
+    if enabled { print("inline, not at line start") }
+    run(); debugPrint(value)
+    Swift.print("qualified")
     do { try run() } catch {}
     do { try run() } catch let error as NSError {
     }
+    do { try await work() } catch is NotCancellationError {}
 }
 
 func mustNotTrip() {
@@ -21,6 +25,7 @@ func mustNotTrip() {
         // best effort: the cue is fire-and-forget, a failure must never delay key-up
     }
     do { try await work() } catch is CancellationError {}
+    formatter.print(line)
     // a comment that mentions print("x") and catch {} changes nothing
     let text = "print(\"inside a string literal\")"
 }

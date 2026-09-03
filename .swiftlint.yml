@@ -140,14 +140,14 @@ custom_rules:
   slop_print_leftover:
     name: "print() in library or app code"
     included: "Sources/.*\\.swift"
-    regex: '^\s*(print|debugPrint|dump|NSLog)\('
+    regex: '(?<![.\w])(?:Swift\.)?(?:print|debugPrint|dump|NSLog)\('
     match_kinds: [identifier]
     message: "Sources/ logs through the redaction-safe logger; print-family calls bypass it and can leak transcript text (command-line tools live under Tools/)."
     severity: warning
 
   slop_empty_catch:
     name: "Empty catch"
-    regex: '\bcatch\b(?![^{\n]*CancellationError)[^{\n]*\{\s*\}'
+    regex: '\bcatch\b(?![^{\n]*\bCancellationError\b)[^{\n]*\{\s*\}'
     excluded_match_kinds: [comment, doccomment, string]
     message: "An empty catch swallows the failure; handle it, rethrow it, or write the reason inside the braces (swallowing CancellationError is exempt)."
     severity: warning

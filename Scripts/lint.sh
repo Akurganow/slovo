@@ -142,7 +142,7 @@ run_slop_rules_selftest() {
     (cd "$selftest_root" && "$swiftlint_bin" lint --quiet --config "$package_root/.swiftlint.yml" \
         --reporter json > "$report" 2>/dev/null) || true
     actual=$(grep -o '"rule_id" *: *"slop_[a-z_]*"' "$report" | sed 's/.*"\(slop_[a-z_]*\)"/\1/' | sort | uniq -c | awk '{print $2"="$1}' | tr '\n' ' ')
-    expected="slop_empty_catch=2 slop_print_leftover=2 "
+    expected="slop_empty_catch=3 slop_print_leftover=5 "
     if [ "$actual" = "$expected" ]; then
         echo "slop rules fired as expected: $actual"
         return 0
