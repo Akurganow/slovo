@@ -86,36 +86,61 @@ swift_package_plugin() {
 }
 
 generate_swiftlint_compiler_log() {
-    if swift build \
+    compiler_log="$package_root/.build/swiftlint-compiler.log"
+
+    # `swiftlint analyze` takes a file's compiler arguments from the
+    # `swiftc … -module-name …` line SwiftPM prints for that file's module, and
+    # runs NO analyzer rule on a file whose line is missing — silently under
+    # --quiet. SwiftPM prints a compile command only when it runs it, and after
+    # the stages above every module is up to date, so a bare `swift build -v`
+    # would log nothing and the analyze stage would pass empty. Touching the
+    # package's own sources makes every one of its modules recompile (llbuild
+    # invalidates on mtime); dependencies stay warm, since only these files are
+    # analyzed. `--build-tests`, because a plain `swift build` skips the test
+    # targets and the analyzer would then skip every file under Tests/.
+    find Sources Tests Tools -name '*.swift' -exec touch {} +
+
+    if ! swift build \
         --cache-path "$package_root/.build/swiftpm-cache" \
         --config-path "$package_root/.build/swiftpm-config" \
         --security-path "$package_root/.build/swiftpm-security" \
         --disable-automatic-resolution \
-        -v > "$package_root/.build/swiftlint-compiler.log" 2>&1; then
-        return 0
-    fi
-
-    if grep -q "sandbox_apply: Operation not permitted" "$package_root/.build/swiftlint-compiler.log"; then
-        echo "--- WARN: SwiftPM build sandbox is unavailable in this host sandbox; retrying compiler log without SwiftPM subprocess sandbox" >> "$package_root/.build/swiftlint-compiler.log"
+        --build-tests \
+        -v > "$compiler_log" 2>&1; then
+        if ! grep -q "sandbox_apply: Operation not permitted" "$compiler_log"; then
+            cat "$compiler_log"
+            return 1
+        fi
+        echo "--- WARN: SwiftPM build sandbox is unavailable in this host sandbox; retrying compiler log without SwiftPM subprocess sandbox" >> "$compiler_log"
         swift build \
             --cache-path "$package_root/.build/swiftpm-cache" \
             --config-path "$package_root/.build/swiftpm-config" \
             --security-path "$package_root/.build/swiftpm-security" \
             --disable-automatic-resolution \
             --disable-sandbox \
-            -v >> "$package_root/.build/swiftlint-compiler.log" 2>&1
-        return $?
+            --build-tests \
+            -v >> "$compiler_log" 2>&1 || { cat "$compiler_log"; return 1; }
     fi
-    return 1
+
+    # A log SwiftLint cannot read must fail HERE, not let the analyze stage pass
+    # vacuously. The module list is what the analyzer will cover.
+    echo "modules with a swiftc invocation in $compiler_log:"
+    sed -n 's/.*swiftc .* -module-name \([^ ]*\) .*/\1/p' "$compiler_log" | sort | uniq -c
+    echo "swift-frontend lines: $(grep -c 'swift-frontend' "$compiler_log")"
+    if ! grep -q 'swiftc .*-module-name ' "$compiler_log"; then
+        echo "--- no swiftc invocation in $compiler_log; swiftlint analyze would skip every file"
+        return 1
+    fi
 }
 
 run_swiftlint_analyze() {
     analyze_log="$package_root/.build/swiftlint-analyze.log"
     if swift_package_plugin swiftlint analyze \
-        --quiet \
         --strict \
         --force-exclude \
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" > "$analyze_log" 2>&1; then
+        # Everything but the per-file progress: skipped files and issues.
+        grep -v -E '^(Collecting|Linting) ' "$analyze_log"
         echo "SwiftLint analyze passed; full log: $analyze_log"
         return 0
     fi
@@ -127,8 +152,7 @@ run_swiftlint_analyze() {
 run_stage "explicit-target-imports" swift_build_resolved \
     --explicit-target-dependency-import-check error
 
-for script in Scripts/*.sh script/*.sh; do
-    [ -f "$script" ] || continue
+for script in Scripts/*.sh; do
     run_stage "bash-syntax:$script" bash -n "$script"
 done
 
