@@ -121,7 +121,7 @@ generate_swiftlint_compiler_log() {
     # file — thousands of lines hiding the findings. Drop the flag from the log
     # (a copy, not `sed -i`: BSD and GNU sed disagree on its syntax, and the
     # GitHub runner puts GNU tools first on PATH).
-    sed 's/ -v / /' "$compiler_log" > "$compiler_log.tmp" && mv "$compiler_log.tmp" "$compiler_log"
+    sed -E 's/ -v( |$)/\1/' "$compiler_log" > "$compiler_log.tmp" && mv "$compiler_log.tmp" "$compiler_log"
 
     # The module list is what the analyzer will cover.
     echo "modules with a swiftc invocation in $compiler_log:"
@@ -141,8 +141,8 @@ run_swiftlint_analyze() {
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
         $analyzed_files > "$analyze_log" 2>&1
     analyze_status=$?
-    # Everything but the per-file progress: the findings.
-    grep -v -E '^Analyzing ' "$analyze_log"
+    # Everything but the per-file progress and SourceKit's banner: the findings.
+    grep -v -E '^(Analyzing |Apple Swift version|Target: )' "$analyze_log"
     [ "$analyze_status" -eq 0 ] || return "$analyze_status"
 
     # A file whose compiler arguments are missing from the log is skipped
