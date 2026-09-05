@@ -123,7 +123,10 @@ generate_swiftlint_compiler_log() {
     fi
 
     # A log SwiftLint cannot read must fail HERE, not let the analyze stage pass
-    # vacuously.
+    # vacuously. The module list is what the analyzer will cover.
+    echo "modules with a swiftc invocation in $compiler_log:"
+    sed -n 's/.*swiftc .* -module-name \([^ ]*\) .*/\1/p' "$compiler_log" | sort | uniq -c
+    echo "swift-frontend lines: $(grep -c 'swift-frontend' "$compiler_log")"
     if ! grep -q 'swiftc .*-module-name ' "$compiler_log"; then
         echo "--- no swiftc invocation in $compiler_log; swiftlint analyze would skip every file"
         return 1
@@ -133,10 +136,11 @@ generate_swiftlint_compiler_log() {
 run_swiftlint_analyze() {
     analyze_log="$package_root/.build/swiftlint-analyze.log"
     if swift_package_plugin swiftlint analyze \
-        --quiet \
         --strict \
         --force-exclude \
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" > "$analyze_log" 2>&1; then
+        # Everything but the per-file progress: skipped files and issues.
+        grep -v -E '^(Collecting|Linting) ' "$analyze_log"
         echo "SwiftLint analyze passed; full log: $analyze_log"
         return 0
     fi
