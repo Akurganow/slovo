@@ -528,15 +528,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let config = ConfigStore.load(from: defaults)
         applyMuteWhileDictating(!config.mutesSystemAudioWhileDictating)
     }
-
-    private static func title(for step: OnboardingStep) -> String {
-        switch step {
-        case .requestMicrophone:
-            return "Microphone permission"
-        case .requestAccessibility:
-            return "Accessibility permission"
-        case .ready:
-            return "Ready"
-        }
-    }
 }

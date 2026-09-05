@@ -1,4 +1,4 @@
-import AVFoundation
+import AVFAudio
 
 /// Pure gate that decides whether an input format is safe to install a tap on.
 ///

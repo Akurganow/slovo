@@ -25,18 +25,15 @@ run_stage() {
 
 swift_build_resolved() {
     build_log="$package_root/.build/swift-build-sandbox.log"
-    if swift build \
+    swift build \
         --cache-path "$package_root/.build/swiftpm-cache" \
         --config-path "$package_root/.build/swiftpm-config" \
         --security-path "$package_root/.build/swiftpm-security" \
         --disable-automatic-resolution \
-        "$@" > "$build_log" 2>&1; then
-        cat "$build_log"
-        return 0
-    fi
-
+        "$@" > "$build_log" 2>&1
     build_status=$?
     cat "$build_log"
+    [ "$build_status" -eq 0 ] && return 0
     if grep -q "sandbox_apply: Operation not permitted" "$build_log"; then
         echo "--- WARN: SwiftPM build sandbox is unavailable in this host sandbox; retrying without SwiftPM subprocess sandbox"
         swift build \
@@ -48,12 +45,12 @@ swift_build_resolved() {
             "$@"
         return $?
     fi
-    return $build_status
+    return "$build_status"
 }
 
 swift_package_plugin() {
     plugin_log="$package_root/.build/swiftpm-plugin-sandbox.log"
-    if swift package \
+    swift package \
         --cache-path "$package_root/.build/swiftpm-cache" \
         --config-path "$package_root/.build/swiftpm-config" \
         --security-path "$package_root/.build/swiftpm-security" \
@@ -61,13 +58,10 @@ swift_package_plugin() {
         plugin \
         --allow-writing-to-package-directory \
         --allow-network-connections none \
-        "$@" > "$plugin_log" 2>&1; then
-        cat "$plugin_log"
-        return 0
-    fi
-
+        "$@" > "$plugin_log" 2>&1
     plugin_status=$?
     cat "$plugin_log"
+    [ "$plugin_status" -eq 0 ] && return 0
     if grep -q "sandbox_apply: Operation not permitted" "$plugin_log"; then
         echo "--- WARN: SwiftPM plugin sandbox is unavailable in this host sandbox; retrying without SwiftPM subprocess sandbox"
         swift package \
@@ -82,7 +76,7 @@ swift_package_plugin() {
             "$@"
         return $?
     fi
-    return $plugin_status
+    return "$plugin_status"
 }
 
 generate_swiftlint_compiler_log() {
@@ -96,19 +90,20 @@ generate_swiftlint_compiler_log() {
     # would log nothing and the analyze stage would pass empty. Touching the
     # package's own sources makes every one of its modules recompile (llbuild
     # invalidates on mtime); dependencies stay warm, since only these files are
-    # analyzed. `--build-tests`, because a plain `swift build` skips the test
-    # targets and the analyzer would then skip every file under Tests/.
-    find Sources Tests Tools -name '*.swift' -exec touch {} +
+    # analyzed. Tests/ is left out on purpose: SourceKit crashes (exit 11)
+    # expanding the Swift Testing peer macros while type-checking a test file
+    # for the analyzer, so the test targets are neither built here nor analyzed.
+    find Sources Tools -name '*.swift' -exec touch {} +
 
     if ! swift build \
         --cache-path "$package_root/.build/swiftpm-cache" \
         --config-path "$package_root/.build/swiftpm-config" \
         --security-path "$package_root/.build/swiftpm-security" \
         --disable-automatic-resolution \
-        --build-tests \
         -v > "$compiler_log" 2>&1; then
         if ! grep -q "sandbox_apply: Operation not permitted" "$compiler_log"; then
-            cat "$compiler_log"
+            grep -E '(^|: )(error|warning):' "$compiler_log" | sort -u
+            tail -n 20 "$compiler_log"
             return 1
         fi
         echo "--- WARN: SwiftPM build sandbox is unavailable in this host sandbox; retrying compiler log without SwiftPM subprocess sandbox" >> "$compiler_log"
@@ -118,35 +113,55 @@ generate_swiftlint_compiler_log() {
             --security-path "$package_root/.build/swiftpm-security" \
             --disable-automatic-resolution \
             --disable-sandbox \
-            --build-tests \
-            -v >> "$compiler_log" 2>&1 || { cat "$compiler_log"; return 1; }
+            -v >> "$compiler_log" 2>&1 || { grep -E '(^|: )(error|warning):' "$compiler_log" | sort -u; return 1; }
     fi
 
-    # A log SwiftLint cannot read must fail HERE, not let the analyze stage pass
-    # vacuously. The module list is what the analyzer will cover.
+    # SwiftPM's verbose build passes `-v` to swiftc, and SwiftLint hands those
+    # arguments to SourceKit, which then prints the toolchain banner twice per
+    # file — thousands of lines hiding the findings. Drop the flag from the log
+    # (a copy, not `sed -i`: BSD and GNU sed disagree on its syntax, and the
+    # GitHub runner puts GNU tools first on PATH).
+    sed -E 's/ -v( |$)/\1/' "$compiler_log" > "$compiler_log.tmp" && mv "$compiler_log.tmp" "$compiler_log"
+
+    # The module list is what the analyzer will cover.
     echo "modules with a swiftc invocation in $compiler_log:"
-    sed -n 's/.*swiftc .* -module-name \([^ ]*\) .*/\1/p' "$compiler_log" | sort | uniq -c
-    echo "swift-frontend lines: $(grep -c 'swift-frontend' "$compiler_log")"
-    if ! grep -q 'swiftc .*-module-name ' "$compiler_log"; then
-        echo "--- no swiftc invocation in $compiler_log; swiftlint analyze would skip every file"
-        return 1
-    fi
+    sed -n 's/.*swiftc .*-module-name \([^ ]*\).*/\1/p' "$compiler_log" | sort | uniq -c
 }
 
 run_swiftlint_analyze() {
     analyze_log="$package_root/.build/swiftlint-analyze.log"
-    if swift_package_plugin swiftlint analyze \
+    # The files, not their directories: with `included:` in .swiftlint.yml a
+    # directory argument stands for the whole included set, and two arguments
+    # analyzed every file twice.
+    analyzed_files=$(find "$package_root/Sources" "$package_root/Tools" -name '*.swift')
+    expected_count=$(printf '%s\n' "$analyzed_files" | wc -l | tr -d ' ')
+    # One argument per line of `find`: split on newlines only, and no globbing,
+    # so a path with a space or a glyph stays whole (this is POSIX sh, no arrays).
+    saved_ifs=$IFS
+    IFS='
+'
+    set -f
+    swift_package_plugin swiftlint analyze \
         --strict \
         --force-exclude \
-        --compiler-log-path "$package_root/.build/swiftlint-compiler.log" > "$analyze_log" 2>&1; then
-        # Everything but the per-file progress: skipped files and issues.
-        grep -v -E '^(Collecting|Linting) ' "$analyze_log"
-        echo "SwiftLint analyze passed; full log: $analyze_log"
-        return 0
-    fi
+        --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
+        $analyzed_files > "$analyze_log" 2>&1
+    analyze_status=$?
+    set +f
+    IFS=$saved_ifs
+    # Everything but the per-file progress and SourceKit's banner: the findings.
+    grep -v -E '^(Analyzing |Apple Swift version|Target: )' "$analyze_log"
+    [ "$analyze_status" -eq 0 ] || return "$analyze_status"
 
-    cat "$analyze_log"
-    return 1
+    # A file whose compiler arguments are missing from the log is skipped
+    # without a word and without a violation, so a pass is a pass only when
+    # SwiftLint's own count matches the files it was given.
+    analyzed_count=$(grep -o 'Done analyzing!.* in [0-9]* files\{0,1\}\.' "$analyze_log" | sed 's/.* in \([0-9]*\) file.*/\1/' | tail -1)
+    if [ "$analyzed_count" != "$expected_count" ]; then
+        echo "--- swiftlint analyze read ${analyzed_count:-0} of $expected_count files; the rest had no compiler arguments in the log"
+        return 1
+    fi
+    echo "SwiftLint analyze passed on $analyzed_count files; full log: $analyze_log"
 }
 
 run_stage "explicit-target-imports" swift_build_resolved \

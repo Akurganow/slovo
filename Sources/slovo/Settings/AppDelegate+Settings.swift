@@ -2,7 +2,6 @@ import AppKit
 import LaunchAtLogin
 import Settings
 import SlovoCore
-import SwiftUI
 
 extension AppDelegate: SettingsActions {
     func currentConfig() -> Config {

@@ -1,5 +1,3 @@
-import Foundation
-
 /// Where Slovo's status item asks to sit in the menu bar.
 ///
 /// AppKit exposes no public API for status-item placement: it resolves an item's

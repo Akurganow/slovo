@@ -1,4 +1,4 @@
-import Foundation
+import CoreFoundation
 
 /// Reports whether macOS has assigned the fn key to a system action of its own.
 /// A seam, so the menu model can be tested without the real preferences store.

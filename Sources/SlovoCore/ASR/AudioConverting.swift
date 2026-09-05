@@ -1,5 +1,3 @@
-import Foundation
-
 /// Converts one live microphone chunk into the decoder's raw sample format. The
 /// concrete target policy lives inside the conforming type so the streaming
 /// transcriber stays format-agnostic.
