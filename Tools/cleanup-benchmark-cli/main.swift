@@ -3,6 +3,8 @@ import Foundation
 
 @main
 enum CleanupBenchmarkCommand {
+    // The runtime calls this through `@main`; nothing in the module references it.
+    // swiftlint:disable:next unused_declaration
     static func main() async {
         let result = await CleanupBenchmarkCommandDriver().run(
             arguments: Array(CommandLine.arguments.dropFirst()),
