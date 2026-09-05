@@ -120,14 +120,9 @@ generate_swiftlint_compiler_log() {
     # file — thousands of lines hiding the findings. Drop the flag from the log.
     sed -i '' 's/ -v / /' "$compiler_log"
 
-    # A log SwiftLint cannot read must fail HERE, not let the analyze stage pass
-    # vacuously. The module list is what the analyzer will cover.
+    # The module list is what the analyzer will cover.
     echo "modules with a swiftc invocation in $compiler_log:"
     sed -n 's/.*swiftc .*-module-name \([^ ]*\).*/\1/p' "$compiler_log" | sort | uniq -c
-    if ! grep -q 'swiftc .*-module-name ' "$compiler_log"; then
-        echo "--- no swiftc invocation in $compiler_log; swiftlint analyze would skip every file"
-        return 1
-    fi
 }
 
 run_swiftlint_analyze() {
@@ -135,20 +130,27 @@ run_swiftlint_analyze() {
     # The files, not their directories: with `included:` in .swiftlint.yml a
     # directory argument stands for the whole included set, and two arguments
     # analyzed every file twice.
-    if swift_package_plugin swiftlint analyze \
+    analyzed_files=$(find "$package_root/Sources" "$package_root/Tools" -name '*.swift')
+    expected_count=$(printf '%s\n' "$analyzed_files" | wc -l | tr -d ' ')
+    swift_package_plugin swiftlint analyze \
         --strict \
         --force-exclude \
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
-        $(find "$package_root/Sources" "$package_root/Tools" -name '*.swift') > "$analyze_log" 2>&1; then
-        # Everything but the per-file progress: skipped files and issues.
-        grep -v -E '^Analyzing ' "$analyze_log"
-        echo "SwiftLint analyze passed; full log: $analyze_log"
-        return 0
-    fi
-
-    # The findings without the per-file progress.
+        $analyzed_files > "$analyze_log" 2>&1
+    analyze_status=$?
+    # Everything but the per-file progress: the findings.
     grep -v -E '^Analyzing ' "$analyze_log"
-    return 1
+    [ "$analyze_status" -eq 0 ] || return "$analyze_status"
+
+    # A file whose compiler arguments are missing from the log is skipped
+    # without a word and without a violation, so a pass is a pass only when
+    # SwiftLint's own count matches the files it was given.
+    analyzed_count=$(grep -o 'Done analyzing!.* in [0-9]* files\{0,1\}\.' "$analyze_log" | sed 's/.* in \([0-9]*\) file.*/\1/' | tail -1)
+    if [ "$analyzed_count" != "$expected_count" ]; then
+        echo "--- swiftlint analyze read ${analyzed_count:-0} of $expected_count files; the rest had no compiler arguments in the log"
+        return 1
+    fi
+    echo "SwiftLint analyze passed on $analyzed_count files; full log: $analyze_log"
 }
 
 run_stage "explicit-target-imports" swift_build_resolved \

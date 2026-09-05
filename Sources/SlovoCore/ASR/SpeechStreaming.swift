@@ -1,4 +1,3 @@
-
 /// One live recognition session owned by the speech engine.
 public protocol SpeechStreamingSession: Sendable {
     /// Starts recognition and returns only when the stream is ready for samples.
