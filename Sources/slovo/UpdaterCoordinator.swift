@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 import Sparkle
 import SlovoCore
 

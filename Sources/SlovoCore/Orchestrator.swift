@@ -1,4 +1,3 @@
-import Foundation
 import os
 
 /// The seam instances the orchestrator drives. Lets a test inject fakes while

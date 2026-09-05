@@ -1,4 +1,3 @@
-import Foundation
 
 /// Builds the single configured `Transcriber` (ship one winner, no runtime
 /// multi-backend switch).

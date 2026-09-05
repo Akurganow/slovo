@@ -1,5 +1,5 @@
-import AVFoundation
-import AudioToolbox
+import AVFAudio
+import CoreAudio
 import Foundation
 import SlovoObjC
 

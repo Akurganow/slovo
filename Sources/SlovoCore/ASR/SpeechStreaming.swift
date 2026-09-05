@@ -1,4 +1,3 @@
-import Foundation
 
 /// One live recognition session owned by the speech engine.
 public protocol SpeechStreamingSession: Sendable {

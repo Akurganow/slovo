@@ -1,4 +1,4 @@
-@preconcurrency import AVFoundation
+@preconcurrency import AVFAudio
 import CoreML
 import Foundation
 import os

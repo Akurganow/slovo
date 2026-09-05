@@ -132,11 +132,14 @@ generate_swiftlint_compiler_log() {
 
 run_swiftlint_analyze() {
     analyze_log="$package_root/.build/swiftlint-analyze.log"
+    # The files, not their directories: with `included:` in .swiftlint.yml a
+    # directory argument stands for the whole included set, and two arguments
+    # analyzed every file twice.
     if swift_package_plugin swiftlint analyze \
         --strict \
         --force-exclude \
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
-        "$package_root/Sources" "$package_root/Tools" > "$analyze_log" 2>&1; then
+        $(find "$package_root/Sources" "$package_root/Tools" -name '*.swift') > "$analyze_log" 2>&1; then
         # Everything but the per-file progress: skipped files and issues.
         grep -v -E '^Analyzing ' "$analyze_log"
         echo "SwiftLint analyze passed; full log: $analyze_log"

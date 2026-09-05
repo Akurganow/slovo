@@ -1,4 +1,4 @@
-import AVFoundation
+import AVFAudio
 
 // Authoritative value types for the dictation pipeline. These are
 // plain data carriers shared across the seam protocols; behavior lives in the

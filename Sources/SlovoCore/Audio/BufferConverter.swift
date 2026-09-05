@@ -1,4 +1,5 @@
-import AVFoundation
+import AVFAudio
+import Foundation
 
 /// A single reused `AVAudioConverter` that converts source PCM buffers to a fixed
 /// target format. One converter handles sample format (Int16/Float32), channel

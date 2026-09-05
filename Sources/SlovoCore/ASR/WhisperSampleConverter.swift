@@ -1,4 +1,4 @@
-import AVFoundation
+import AVFAudio
 
 /// Production `AudioConverting`: a thin wrapper over the single reused
 /// `BufferConverter`, pinned to WhisperKit's 16 kHz mono Float32 target. Not

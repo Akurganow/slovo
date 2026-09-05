@@ -1,4 +1,4 @@
-import AVFoundation
+import AVFAudio
 import Foundation
 
 /// Withholds the frames captured across the readiness cue; delivery is open

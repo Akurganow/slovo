@@ -79,6 +79,11 @@ disabled_rules:
   - unused_parameter
   - variable_shadowing
 
+  # Needs every reference in view, and `swiftlint analyze` cannot read Tests/
+  # (SourceKit crashes expanding the Swift Testing macros), so a helper used
+  # only by a test reads as dead. Off until the analyzer can see the tests.
+  - unused_declaration
+
 opt_in_rules:
   - all
 

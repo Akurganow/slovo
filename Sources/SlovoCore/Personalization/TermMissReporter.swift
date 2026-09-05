@@ -1,4 +1,3 @@
-import Foundation
 
 /// Owns the fire-and-forget detection/recording task. `Task.detached` is
 /// deliberate rather than incidental: it pins the work to `.utility` priority
