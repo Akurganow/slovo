@@ -7,11 +7,12 @@ reporting — whoever scheduled it, wherever it runs. A session that
 ## Claim only what you ran
 
 Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md), and an
-unattended run gets a Linux container: nothing is ever built, tested,
-linted or run here. That is the standing condition of every run, not a
-fault of this one. Before claiming any build, test, or lint result,
-prove that toolchain exists where you are running; without it, evidence
-is reading the code, reading history, and reading CI results, and a
+unattended run gets a Linux container: nothing that needs that
+toolchain is ever built, tested, linted or run here. That is the
+standing condition of every run, not a fault of this one. Before
+claiming any build, test, or lint result, prove that toolchain exists
+where you are running; without it, evidence is reading the code,
+reading history, and reading CI results, and a
 conclusion that would need a build or a run to confirm is `plausible`,
 never `confirmed` — say which. A check that was not run is reported as
 not run, together with what substituted for it.
@@ -28,9 +29,11 @@ covering a given commit is found by where the commit sits:
 - a pull request head — the **Swift** run for that sha.
 
 Cite that run, by number and conclusion, as the baseline. It does not
-cover `swiftlint analyze`, `plutil -lint`, the shell-syntax stage or the
-explicit-target-import check: those live in `Scripts/lint.sh` and run
-only on a Mac, so a claim resting on one of them stays `plausible`.
+cover the `Scripts/lint.sh` stages. Three of them — `swiftlint analyze`,
+`plutil -lint` and the explicit-target-import check — need the Apple
+toolchain, so a claim resting on one of those stays `plausible`. The
+fourth is the shell-syntax stage, `bash -n` over each script: that runs
+here, so a claim about shell syntax is one this container can confirm.
 
 ## GitHub
 
