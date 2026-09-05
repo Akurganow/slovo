@@ -8,7 +8,7 @@ import Testing
 // built from that source — each must be rejected (AGENTS.md, "Tests must be able
 // to fail"; issue #38).
 @Suite("Brief-glyph reset supersede")
-struct BriefStatusResetSupersedeSourceGuardTests {
+struct BriefGlyphResetSourceGuardTests {
     static let sleepStatement = "try? await Task.sleep(for: .seconds(1))"
     static let abortStatement = "guard !Task.isCancelled, let self else { return }"
     static let abortPattern = #"guard !Task\.isCancelled, let self else \{ return \}"#
