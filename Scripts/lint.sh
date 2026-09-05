@@ -96,7 +96,8 @@ generate_swiftlint_compiler_log() {
     # would log nothing and the analyze stage would pass empty. Touching the
     # package's own sources makes every one of its modules recompile (llbuild
     # invalidates on mtime); dependencies stay warm, since only these files are
-    # analyzed.
+    # analyzed. `--build-tests`, because a plain `swift build` skips the test
+    # targets and the analyzer would then skip every file under Tests/.
     find Sources Tests Tools -name '*.swift' -exec touch {} +
 
     if ! swift build \
@@ -104,6 +105,7 @@ generate_swiftlint_compiler_log() {
         --config-path "$package_root/.build/swiftpm-config" \
         --security-path "$package_root/.build/swiftpm-security" \
         --disable-automatic-resolution \
+        --build-tests \
         -v > "$compiler_log" 2>&1; then
         if ! grep -q "sandbox_apply: Operation not permitted" "$compiler_log"; then
             cat "$compiler_log"
@@ -116,6 +118,7 @@ generate_swiftlint_compiler_log() {
             --security-path "$package_root/.build/swiftpm-security" \
             --disable-automatic-resolution \
             --disable-sandbox \
+            --build-tests \
             -v >> "$compiler_log" 2>&1 || { cat "$compiler_log"; return 1; }
     fi
 

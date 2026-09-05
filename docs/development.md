@@ -70,7 +70,8 @@ The lint script runs:
 - SwiftLint analyzer checks backed by a compiler log. The log must carry a
   `swiftc` invocation for every module the analyzer reads, and SwiftPM logs
   only what it actually compiles, so the stage touches the package's own
-  sources first to force those modules to rebuild (dependencies stay warm),
+  sources first to force those modules, tests included, to rebuild
+  (dependencies stay warm),
   then fails outright if the log still holds no invocation
 
 ## Gate Self-Test
