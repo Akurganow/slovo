@@ -135,12 +135,20 @@ run_swiftlint_analyze() {
     # analyzed every file twice.
     analyzed_files=$(find "$package_root/Sources" "$package_root/Tools" -name '*.swift')
     expected_count=$(printf '%s\n' "$analyzed_files" | wc -l | tr -d ' ')
+    # One argument per line of `find`: split on newlines only, and no globbing,
+    # so a path with a space or a glyph stays whole (this is POSIX sh, no arrays).
+    saved_ifs=$IFS
+    IFS='
+'
+    set -f
     swift_package_plugin swiftlint analyze \
         --strict \
         --force-exclude \
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
         $analyzed_files > "$analyze_log" 2>&1
     analyze_status=$?
+    set +f
+    IFS=$saved_ifs
     # Everything but the per-file progress and SourceKit's banner: the findings.
     grep -v -E '^(Analyzing |Apple Swift version|Target: )' "$analyze_log"
     [ "$analyze_status" -eq 0 ] || return "$analyze_status"
