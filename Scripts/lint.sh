@@ -115,6 +115,11 @@ generate_swiftlint_compiler_log() {
             -v >> "$compiler_log" 2>&1 || { cat "$compiler_log"; return 1; }
     fi
 
+    # SwiftPM's verbose build passes `-v` to swiftc, and SwiftLint hands those
+    # arguments to SourceKit, which then prints the toolchain banner twice per
+    # file — thousands of lines hiding the findings. Drop the flag from the log.
+    sed -i '' 's/ -v / /' "$compiler_log"
+
     # A log SwiftLint cannot read must fail HERE, not let the analyze stage pass
     # vacuously. The module list is what the analyzer will cover.
     echo "modules with a swiftc invocation in $compiler_log:"
@@ -133,12 +138,13 @@ run_swiftlint_analyze() {
         --compiler-log-path "$package_root/.build/swiftlint-compiler.log" \
         "$package_root/Sources" "$package_root/Tools" > "$analyze_log" 2>&1; then
         # Everything but the per-file progress: skipped files and issues.
-        grep -v -E '^(Collecting|Linting) ' "$analyze_log"
+        grep -v -E '^Analyzing ' "$analyze_log"
         echo "SwiftLint analyze passed; full log: $analyze_log"
         return 0
     fi
 
-    cat "$analyze_log"
+    # The findings without the per-file progress.
+    grep -v -E '^Analyzing ' "$analyze_log"
     return 1
 }
 
