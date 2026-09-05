@@ -314,10 +314,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         briefStatusResetTask?.cancel()
         briefStatusResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            guard let self else { return }
+            // The order below IS the mechanism; each step is load-bearing.
+            // 1. A cancelled sleep resumes by THROWING (SE-0304) and the `try?`
+            //    above discards that, so the cancel alone stops nothing: without
+            //    this the superseded reset runs on and clears the newer flash.
+            guard !Task.isCancelled, let self else { return }
+            // 2. Unconditionally, and before any other exit: this line is the ONLY
+            //    writer that clears the latch, and settleToIdle, the model gate and
+            //    the update menu all read it as a do-not-repaint-idle veto — a return
+            //    above it strands the latch set and suppresses idle indefinitely.
             self.isShowingBriefStatus = false
+            // 3. The PAINT alone is gated: a dictation that began inside the window
+            //    owns the glyph, and idle here would blank its recording glyph until
+            //    key-up. Its own settleToIdle repaints idle, the latch now cleared.
+            guard !self.isPipelineActive else { return }
             self.paintIdleGlyph(on: self.statusItem?.button)
-            if !self.isPipelineActive, !status.isPersistentNotice {
+            if !status.isPersistentNotice {
                 self.statusTextItem?.title = self.idleStatusTitle
             }
         }
