@@ -68,12 +68,13 @@ The lint script runs:
 - plist and entitlements linting
 - strict SwiftLint, including the `custom_rules` that fence generator
   residue (catalogue: `.agents/rules/slop.md`)
-- SwiftLint analyzer checks backed by a compiler log. The log must carry a
-  `swiftc` invocation for every module the analyzer reads, and SwiftPM logs
-  only what it actually compiles, so the stage touches the package's own
-  sources first to force those modules, tests included, to rebuild
-  (dependencies stay warm),
-  then fails outright if the log still holds no invocation
+- SwiftLint analyzer checks over `Sources/` and `Tools/`, backed by a
+  compiler log. The log must carry a `swiftc` invocation for every module
+  the analyzer reads, and SwiftPM logs only what it actually compiles, so the
+  stage touches those sources first to force their modules to rebuild
+  (dependencies stay warm), then fails outright if the log still holds no
+  invocation. `Tests/` is not analyzed: SourceKit crashes expanding the
+  Swift Testing macros when it type-checks a test file for the analyzer
 
 ## Gate Self-Test
 
