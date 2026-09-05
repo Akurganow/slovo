@@ -49,7 +49,10 @@ Scripts/diagnose.sh
 ```
 
 The gate runs build, tests, a cleanup-benchmark CLI smoke check, and strict
-lint as separate stages. This keeps one failure from hiding another.
+lint as separate stages. This keeps one failure from hiding another. CI runs
+this same script ([swift.yml](../.github/workflows/swift.yml)) on every pull
+request, release, and dev build, so what passes here is exactly what passes
+there.
 
 ## Lint And Static Checks
 
@@ -64,7 +67,11 @@ The lint script runs:
 - plist and entitlements linting
 - strict SwiftLint, including the `custom_rules` that fence generator
   residue (catalogue: `.agents/rules/slop.md`)
-- SwiftLint analyzer checks backed by a compiler log
+- SwiftLint analyzer checks backed by a compiler log. The log must carry a
+  `swiftc` invocation for every module the analyzer reads, and SwiftPM logs
+  only what it actually compiles, so the stage touches the package's own
+  sources first to force those modules to rebuild (dependencies stay warm),
+  then fails outright if the log still holds no invocation
 
 ## Gate Self-Test
 

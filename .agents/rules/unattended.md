@@ -18,22 +18,23 @@ never `confirmed` — say which. A check that was not run is reported as
 not run, together with what substituted for it.
 
 What substitutes is a real macOS run that has already happened.
-`swift.yml` runs `swift test --disable-automatic-resolution` on a
-`macos-26` runner, and SwiftLint rides inside that build as a SwiftPM
-build-tool plugin, so a lint violation there is a build failure. The run
-covering a given commit is found by where the commit sits:
+`swift.yml` runs `Scripts/diagnose.sh` on a `macos-26` runner — the whole
+local gate: build, `swift test --disable-automatic-resolution`, the
+cleanup-benchmark smoke check, and every `Scripts/lint.sh` stage, with
+SwiftLint also riding inside the build as a SwiftPM build-tool plugin.
+The run covering a given commit is found by where the commit sits:
 
 - on `main` — the **Release** run for that sha, which calls `swift.yml`
   as its `test` job and names the gate at that exact sha in
   `referenced_workflows`;
 - a pull request head — the **Swift** run for that sha.
 
-Cite that run, by number and conclusion, as the baseline. It does not
-cover the `Scripts/lint.sh` stages. Three of them — `swiftlint analyze`,
-`plutil -lint` and the explicit-target-import check — need the Apple
-toolchain, so a claim resting on one of those stays `plausible`. The
-fourth is the shell-syntax stage, `bash -n` over each script: that runs
-here, so a claim about shell syntax is one this container can confirm.
+Cite that run, by number and conclusion, as the baseline: a green run
+is the evidence for every stage of the gate at that commit. What this
+container can confirm on its own is only the shell-syntax stage, `bash
+-n` over each script, which runs anywhere; every other stage needs the
+Apple toolchain, so a claim resting on one of those at a commit no run
+covers stays `plausible`.
 
 ## GitHub
 

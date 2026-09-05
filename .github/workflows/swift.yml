@@ -1,9 +1,10 @@
 name: Swift
 
-# Reusable Swift test gate. Pull requests into main run it directly; the release
-# pipeline (release.yml) calls it via workflow_call before it builds, signs,
-# notarizes, staples, and publishes the app, so every packaged trunk build and
-# every tagged release is gated by these tests.
+# Reusable gate: the same `Scripts/diagnose.sh` a contributor runs before
+# opening a pull request, so CI and the local gate cannot drift apart. Pull
+# requests into main run it directly; the release pipeline (release.yml) and the
+# dev build (dev-build.yml) call it via workflow_call before they build and sign
+# the app, so every packaged trunk build and every tagged release is gated by it.
 on:
   pull_request:
     branches: [ "main" ]
@@ -48,10 +49,12 @@ jobs:
             ${{ runner.os }}-spm-${{ env.ImageVersion }}-
       - name: Toolchain
         run: swift --version && xcodebuild -version
-      - name: Run Swift tests
-        # --disable-automatic-resolution pins to the committed Package.resolved,
-        # matching the local gate in Scripts/diagnose.sh.
-        run: swift test --disable-automatic-resolution
+      - name: Run the full gate
+        # Build, tests, the cleanup-benchmark CLI smoke check, and every
+        # Scripts/lint.sh stage (explicit-import check, shell syntax, plist
+        # lint, strict SwiftLint, `swiftlint analyze` over a compiler log).
+        # Stages never fail fast: the complete failure set is printed at the end.
+        run: Scripts/diagnose.sh
       - name: Prove the test gate can fail
         # The gate-integrity probe records a failure only when armed; assert the
         # armed run exits non-zero so a no-op gate would be caught here, not shipped.

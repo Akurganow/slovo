@@ -43,15 +43,17 @@ set, so a docs-only push never cuts a release.
 | `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch, or labeling a PR `dev-build` | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
 
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
-(the same one that guards pull requests), so every packaged build is gated by the
-full Swift test suite. The pipeline never runs on `pull_request`, so fork code
-never sees signing secrets.
+(the same one that guards pull requests), which runs the full local gate,
+`Scripts/diagnose.sh` — build, tests, the cleanup-benchmark smoke check, and
+every `Scripts/lint.sh` stage — so every packaged build is gated by exactly what
+a contributor runs before a pull request. The pipeline never runs on
+`pull_request`, so fork code never sees signing secrets.
 
 ## Jobs and least privilege
 
 | Job | Runner | Permissions | Secrets | Does |
 | --- | --- | --- | --- | --- |
-| `test` | macOS | `contents: read` | none | reusable Swift test gate |
+| `test` | macOS | `contents: read` | none | reusable gate (`Scripts/diagnose.sh`) |
 | `decide` | Linux | `contents: read` | none | run the guard, compute the version |
 | `package` | macOS | `contents: read`, `environment: release` | signing secrets | stamp version, build, sign, notarize, staple, verify, upload artifact |
 | `publish` | macOS | `contents: write` | none (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
