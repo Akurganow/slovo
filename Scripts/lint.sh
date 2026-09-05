@@ -102,7 +102,8 @@ generate_swiftlint_compiler_log() {
         --disable-automatic-resolution \
         -v > "$compiler_log" 2>&1; then
         if ! grep -q "sandbox_apply: Operation not permitted" "$compiler_log"; then
-            cat "$compiler_log"
+            grep -E '(^|: )(error|warning):' "$compiler_log" | sort -u
+            tail -n 20 "$compiler_log"
             return 1
         fi
         echo "--- WARN: SwiftPM build sandbox is unavailable in this host sandbox; retrying compiler log without SwiftPM subprocess sandbox" >> "$compiler_log"
@@ -112,13 +113,15 @@ generate_swiftlint_compiler_log() {
             --security-path "$package_root/.build/swiftpm-security" \
             --disable-automatic-resolution \
             --disable-sandbox \
-            -v >> "$compiler_log" 2>&1 || { cat "$compiler_log"; return 1; }
+            -v >> "$compiler_log" 2>&1 || { grep -E '(^|: )(error|warning):' "$compiler_log" | sort -u; return 1; }
     fi
 
     # SwiftPM's verbose build passes `-v` to swiftc, and SwiftLint hands those
     # arguments to SourceKit, which then prints the toolchain banner twice per
-    # file — thousands of lines hiding the findings. Drop the flag from the log.
-    sed -i '' 's/ -v / /' "$compiler_log"
+    # file — thousands of lines hiding the findings. Drop the flag from the log
+    # (a copy, not `sed -i`: BSD and GNU sed disagree on its syntax, and the
+    # GitHub runner puts GNU tools first on PATH).
+    sed 's/ -v / /' "$compiler_log" > "$compiler_log.tmp" && mv "$compiler_log.tmp" "$compiler_log"
 
     # The module list is what the analyzer will cover.
     echo "modules with a swiftc invocation in $compiler_log:"
