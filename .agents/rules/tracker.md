@@ -101,8 +101,8 @@ Every run ends with a report in this fixed shape:
 4. **Filed** — the issues with URLs, or the single line `Filed nothing.`
 5. **Strongest rejected** — the two or three best unfiled candidates,
    with reasons. The most useful section of a quiet week.
-6. **Blockers** — missing tools, denied network, GitHub errors, and the
-   `git status --porcelain` result.
+6. **Blockers** — what `unattended.md` calls a blocker (the absent Apple
+   toolchain is not one), and the `git status --porcelain` result.
 
 Filing nothing is stated in one line, without apology.
 

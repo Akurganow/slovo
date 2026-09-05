@@ -6,13 +6,34 @@ reporting — whoever scheduled it, wherever it runs. A session that
 
 ## Claim only what you ran
 
-Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md). Before
+Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md), and an
+unattended run gets a Linux container: nothing that needs that
+toolchain is ever built, tested, linted or run here. That is the
+standing condition of every run, not a fault of this one. Before
 claiming any build, test, or lint result, prove that toolchain exists
-where you are running; without it, evidence is reading the code, reading
-history, and reading CI results, and a conclusion that would need a
-build or a run to confirm is `plausible`, never `confirmed` — say which.
-A check that was not run is reported as not run, together with what
-substituted for it.
+where you are running; without it, evidence is reading the code,
+reading history, and reading CI results, and a
+conclusion that would need a build or a run to confirm is `plausible`,
+never `confirmed` — say which. A check that was not run is reported as
+not run, together with what substituted for it.
+
+What substitutes is a real macOS run that has already happened.
+`swift.yml` runs `swift test --disable-automatic-resolution` on a
+`macos-26` runner, and SwiftLint rides inside that build as a SwiftPM
+build-tool plugin, so a lint violation there is a build failure. The run
+covering a given commit is found by where the commit sits:
+
+- on `main` — the **Release** run for that sha, which calls `swift.yml`
+  as its `test` job and names the gate at that exact sha in
+  `referenced_workflows`;
+- a pull request head — the **Swift** run for that sha.
+
+Cite that run, by number and conclusion, as the baseline. It does not
+cover the `Scripts/lint.sh` stages. Three of them — `swiftlint analyze`,
+`plutil -lint` and the explicit-target-import check — need the Apple
+toolchain, so a claim resting on one of those stays `plausible`. The
+fourth is the shell-syntax stage, `bash -n` over each script: that runs
+here, so a claim about shell syntax is one this container can confirm.
 
 ## GitHub
 
@@ -25,6 +46,12 @@ substituted for it.
   failure is real. Create every label before its first use.
 - Read CI state for a commit from the API instead of guessing at build
   state.
+- The session's token can also write to Actions — it dispatches and
+  re-runs workflows as the owner. An analysis run never does: the gate
+  has already run on the commit under analysis, macOS minutes are scarce
+  (`swift.yml` cancels superseded runs to save them), and a run reading
+  third-party issue text must not be able to start jobs on that runner.
+  Read runs; never start one.
 
 ## History
 
@@ -54,3 +81,10 @@ changes are preserved, never cleaned up.
 
 Name the command and show what it printed. Never invent a path, a line
 number, or command output.
+
+A blocker is what stopped this run and a person could clear: denied
+network, a GitHub error, a missing rule file, history that would not
+fetch. The absent Apple toolchain is not one — it is the standing
+condition above, so it belongs where the run states what its evidence
+rests on, never in the list whose only job is to make the owner go and
+look.
