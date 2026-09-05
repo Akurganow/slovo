@@ -51,8 +51,9 @@ Scripts/diagnose.sh
 The gate runs build, tests, a cleanup-benchmark CLI smoke check, and strict
 lint as separate stages. This keeps one failure from hiding another. CI runs
 this same script ([swift.yml](../.github/workflows/swift.yml)) on every pull
-request, release, and dev build, so what passes here is exactly what passes
-there.
+request, release, and dev build: the same stages, on a GitHub macOS runner
+(one wall-clock test skips there — see "Keep the pipeline latency guard
+local" in the history).
 
 ## Lint And Static Checks
 

@@ -45,8 +45,8 @@ set, so a docs-only push never cuts a release.
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
 (the same one that guards pull requests), which runs the full local gate,
 `Scripts/diagnose.sh` — build, tests, the cleanup-benchmark smoke check, and
-every `Scripts/lint.sh` stage — so every packaged build is gated by exactly what
-a contributor runs before a pull request. The pipeline never runs on
+every `Scripts/lint.sh` stage — so every packaged build passes the same gate
+stages a contributor runs before a pull request. The pipeline never runs on
 `pull_request`, so fork code never sees signing secrets.
 
 ## Jobs and least privilege
