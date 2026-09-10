@@ -18,9 +18,10 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `commands-editor` | 4 | Action-like editor and system commands; dictated edit commands stay content, never applied |
 | `inverse-text-normalization` | 7 | Time, percent, version, and date normalization with values unchanged; idiomatic number phrases stay words |
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
+| `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations whose expectations reject an executed answer |
 
-Total: **50 samples**. A full run is samples × repetitions, so "500 runs" =
-50 × 10. Compare runs by PASS RATE, not raw counts.
+Total: **53 samples**. A full run is samples × repetitions, so "530 runs" =
+53 × 10. Compare runs by PASS RATE, not raw counts.
 
 ## Upstream Research
 
