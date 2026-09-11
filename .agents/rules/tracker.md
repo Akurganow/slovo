@@ -85,8 +85,8 @@ back. An empty shortlist is a normal outcome.
 
 ## Filing
 
-Labels first, created per `.agents/rules/unattended.md`. One issue per
-finding, never bundled, never more than the cap, each ending with an
+Labels per `issues.md` — names already on the repository's list, never
+a create. One issue per finding, never bundled, never more than the cap, each ending with an
 HTML-comment fingerprint stable enough for the next run to recognise.
 Consult the do-not-report file once more immediately before each create.
 
