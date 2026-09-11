@@ -43,8 +43,9 @@ covers stays `plausible`.
   relying on it, and trust that over any auth-status helper. If no
   available client reaches the API, stop and say so in the report.
 - An issues listing includes pull requests; filter them out.
-- Creating a label that already exists is success; any other creation
-  failure is real. Create every label before its first use.
+- Labels are the owner's: apply names already on the repository's
+  list and never create one. The vocabulary and who applies what are
+  in `issues.md`.
 - Read CI state for a commit from the API instead of guessing at build
   state.
 - The session's token can also write to Actions — it dispatches and
