@@ -48,6 +48,8 @@ id_rsa*
 /tmp/
 /.claude/*
 !/.claude/rules
+!/.claude/agents
+!/.claude/skills
 
 # Browser-automation artifacts (Playwright MCP page snapshots) — never commit.
 /.playwright-mcp/
