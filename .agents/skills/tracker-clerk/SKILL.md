@@ -127,10 +127,19 @@ Then dispose of the source:
 
 ## The marker
 
-Every source you processed gets one marker line, in the closing comment for
-a police report and in a comment of its own otherwise:
+Every source you processed gets one marker line:
 
     <!-- slovo-clerk: sha=<the issue-court sha> action=<converted|acquitted|deferred|respecified> work=#<n>,… -->
+
+Where it goes follows whether you closed the issue, not what kind of issue
+it is. **A report you closed carries the marker in its closing comment. A
+source that stays open gets a comment of its own.** The second case is the
+one to watch, because a police report can land in it: a not-proven verdict
+leaves the report open, so there is no closing comment for the marker to
+ride, and a marker that never gets written leaves the verdict eligible on
+every later run — the same report processed and commented again and again.
+Write that one as its own comment, with `action=deferred`, saying the
+police cannot answer and the owner decides.
 
 The newest marker wins; do not edit older ones. It is the skip guard that
 keeps every verdict executed exactly once.
