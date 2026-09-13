@@ -248,16 +248,25 @@ and the established facts, and writes the comment:
 
       <!-- issue-court: sha=<trial commit> verdict=<verdict> -->
 
-**Check it before it is posted.** The comment and the label are the only
-things this role writes, and once written they are the machine's state.
-Refuse to post, and say so in the report, unless all three hold: the
-verdict is one of the five the judge may return; every factual claim in the
-comment traces to an established fact in the record, with the exhibit that
-backs it; and the marker is exactly the shape printed above, with the
-trial commit in it. A malformed or missing marker is the worst of the three — it is the
-court's only record, so without it the next run walks the whole queue again
-and comments a second time. Do not repair a bad verdict by writing a
-plausible one: report it unwritten.
+**Check it before anything is written.** The comment and the label are the
+only things this role writes, and once written they are the machine's
+state. All three of these must hold: the verdict is one of the five the
+judge may return; every factual claim in the comment traces to an
+established fact in the record, with the exhibit that backs it; and the
+marker is exactly the shape printed above, with the trial commit in it.
+
+**If any one of them fails, write nothing at all** — no comment, and no
+label either. Say so in the report and stop there. The two writes fail
+together because a label without its comment is worse than neither: the
+owner reads the open list by the state labels
+(`.agents/rules/issues.md`), so he would find a verdict he cannot read,
+and with no marker behind it the next run tries the issue again and
+comments over the top. Do not repair a bad verdict by writing a plausible
+one: report it unwritten.
+
+Of the three, a malformed or missing marker is the one that costs most. It
+is the court's only record, so without it the next run walks the whole
+queue again.
 
 Then post. **One comment per trial** — never two for the same trial, so if
 this issue already carries a marker for this trial, do nothing. A payload
@@ -266,7 +275,9 @@ posted alongside the old one rather than over it.
 
 ## Labelling the verdict
 
-Per `.agents/rules/issues.md`. Your part of the vocabulary:
+Only once the comment is posted — the check above governs this step too,
+and a run that wrote no comment applies no label. Per
+`.agents/rules/issues.md`. Your part of the vocabulary:
 
 - sustained or partially-sustained → the kind of the confirmed finding,
   where the issue lacks one: `bug` for misbehaviour, `tech-debt` for code
