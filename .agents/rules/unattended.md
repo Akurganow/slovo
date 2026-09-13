@@ -7,12 +7,11 @@ reporting — whoever scheduled it, wherever it runs. A session that
 This file states what a run needs and never which tool serves it. The
 route to GitHub, the network a session is given, what is installed there,
 whether an Apple toolchain is present, how a clone is made and widened:
-those are measured facts of an environment. They belong to the routine
-that fires a run, which carries them, and the run reads them there.
-Another person clones this repository into an environment of their own, so
-none of it is written down here.
+those are measured facts of an environment. Whatever fires a run carries
+them, and the run reads them there. Another person clones this repository
+into an environment of their own, so none of it is written down here.
 
-**A routine that carries none of it is a report line.** Say so, and treat
+**A fire that carries none of it is a report line.** Say so, and treat
 every check that depended on those facts as not run rather than guessing
 at one.
 

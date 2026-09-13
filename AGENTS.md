@@ -260,13 +260,12 @@ labelled (`issues.md`), and the slop catalogue (`slop.md`). `.claude/rules`
 and `.claude/skills/` are symlinks into `.agents/`, so there is one text
 rather than two that drift apart.
 
-A role lives here rather than in the routine that fires it, so that changing
-one is a pull request with a review and a history, and so another person can
-run the same role in an environment of their own.
+A role lives here rather than in whatever fires it, so that changing one is a
+pull request with a review and a history.
 
-**The routines that fire them are not in this repository and never will be.**
-A routine carries what a role never does: the measured facts of its
-environment, the clone sequence that environment needs, and how often it
-fires. Another person cloning this repository works in an environment of their
-own. So a document here states the action and never the instrument — what has
-to be done with GitHub, never which client does it.
+**Nothing here says what fires a role, or how often.** Whatever does carries
+the facts of the environment it runs in — what the network refuses, what is
+installed, how a clone is made, how often it happens — and the role reads
+them there. That is what lets another person run the same role in an
+environment of their own, so a document here states the action and never the
+instrument: what has to be done with GitHub, never which client does it.

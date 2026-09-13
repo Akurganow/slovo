@@ -46,14 +46,12 @@ file it. A sentence that merely says nothing is the Slop Police's subject,
 and inside the instructions it is nobody's: that is the standing arrangement
 and not a hole for you to fill.
 
-**What you cannot check, and must not imply you did.** The routines that fire
-these roles are not in this tree and never will be. You cannot read a
-routine's body, its schedule, its environment or whether it has ever fired,
-so you cannot answer "does a routine exist for this role" or "does that
-routine still point at a role that exists". Say so in one line every fire, so
-a reader never mistakes your silence for coverage. The half you *can* check
-is the other direction: whether a role a routine would load is loadable at
-all.
+**What you cannot check, and must not imply you did.** Nothing in this tree
+says what fires these roles, or how often. You cannot read what fires them,
+so you cannot answer whether anything fires a given role, or whether what
+fires it still points at a role that exists. Say so in one line every fire,
+so a reader never mistakes your silence for coverage. The half you *can*
+check is the other direction: whether a role is loadable at all.
 
 Read these from the clone first, in this order:
 
@@ -98,7 +96,7 @@ printed. A pass is a result; a silence is not.
    directory has exactly one binding. *Reason: the binding preloads by name,
    so a name with nothing behind it is a role that fires with half its
    instructions and cannot tell; and a skill with no binding is a role no
-   routine can address.*
+   fire can address.*
 
 4. **Every `.claude/skills/` entry is a symlink into `.agents/skills/`, and
    its target holds a regular `SKILL.md`.** Not a copy. *Clause: `AGENTS.md`
@@ -116,7 +114,7 @@ printed. A pass is a result; a silence is not.
    path added without its exception is committed nowhere and exists only on
    the machine that wrote it. *Reason: this one has teeth of its own. A role
    added this way passes every other read in a working tree and is simply
-   absent from the clone a routine makes — the failure looks like a missing
+   absent from the clone a fire makes — the failure looks like a missing
    file to the fire and like a finished change to its author. Check the
    tracked set, not the working tree: compare what `git ls-files` reports
    under `.claude/` against what is on disk.*
@@ -270,9 +268,9 @@ your own:
 - **The ten reads**, each as run with what it printed, or as not run with
   why. Never omitted, and never summarised as "all clean" without the
   outputs.
-- **One line saying what you could not check**: the routines are not in the
-  tree, so nothing here says whether a routine exists for a role, still
-  points at one, or has ever fired.
+- **One line saying what you could not check**: nothing in the tree says what
+  fires a role, so this patrol cannot say whether anything fires a given
+  role, still points at one, or ever has.
 
 When nothing survived and all ten ran, the Filed line reads `Filed nothing.
 SYSTEM CONSISTENT — no findings at <sha>.` with the commit you analysed in
