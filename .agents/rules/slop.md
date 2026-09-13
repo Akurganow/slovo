@@ -56,8 +56,10 @@ Never a finding:
 - **House style.** Capitalised emphasis (NOT, ONLY, NEVER), em-dashes,
   long `///` doc comments, numbered comments that state an ordered
   protocol.
-- **The instructions.** AGENTS.md, `.agents/rules/`,
-  `docs/architecture.md`.
+- **The instructions.** AGENTS.md, `.agents/`, `.claude/agents/` and
+  `docs/architecture.md`. Read, never judged. Whether those documents
+  still agree with each other is the Agent Police's subject, and this
+  exemption is what keeps it the only role on that ground.
 
 ## The fence
 

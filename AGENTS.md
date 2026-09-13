@@ -234,3 +234,39 @@ a real trap already caught once: Lightning-SimulWhisper).
   workflow changes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
+
+## This repository's own machinery
+
+Roles run over this repository unattended, as skills under
+`.agents/skills/`, each with one thin binding under `.claude/agents/` that
+names its skill and holds no instruction of its own. Read the set from the
+tree rather than from a count written here, which the next role added would
+falsify.
+
+Five review the code and what it says: the Logic, Abstraction, Sanity and
+Slop Police, plus a Dependency Police that verifies the update bot's pull
+requests rather than hunting for updates itself. The Issue Court tries one
+open issue and records a verdict on it. The Clerk executes those verdicts,
+cutting work issues the owner can start from and closing the reports that
+have been tried. The Agent Police patrols the others, and itself, for
+documents that have begun to describe two machines instead of one.
+
+None of them changes code, and the chain ends at a `ready` issue: a person
+writes every pull request here.
+
+What they share is in `.agents/rules/`: how a run works alone
+(`unattended.md`), how an automated run files (`tracker.md`), how issues are
+labelled (`issues.md`), and the slop catalogue (`slop.md`). `.claude/rules`
+and `.claude/skills/` are symlinks into `.agents/`, so there is one text
+rather than two that drift apart.
+
+A role lives here rather than in the routine that fires it, so that changing
+one is a pull request with a review and a history, and so another person can
+run the same role in an environment of their own.
+
+**The routines that fire them are not in this repository and never will be.**
+A routine carries what a role never does: the measured facts of its
+environment, the clone sequence that environment needs, and how often it
+fires. Another person cloning this repository works in an environment of their
+own. So a document here states the action and never the instrument — what has
+to be done with GitHub, never which client does it.

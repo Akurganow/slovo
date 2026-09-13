@@ -2,8 +2,22 @@
 
 The tracker discipline for any unattended analysis whose output is a
 GitHub issue. What to look for, what disqualifies a candidate, and what
-an issue's body contains belong to the run's own instructions; this file
+an issue's body contains belong to the run's own instructions. This file
 makes every automated filer behave the same.
+
+Two neighbours are outside it. A run whose output is a comment on
+somebody else's pull request files nothing, and takes from this file only
+what carries over: silence is the default, the verdict is checked before
+it is posted, the report keeps the shape below. A run whose output is the
+execution of a verdict already recorded on an issue is governed by its own
+role.
+
+**A run's identity here is its fingerprint, not a label.** Every
+automated filer ends an issue body with an HTML comment naming the
+finding, and every police run shares the one `police-report` label
+(`issues.md`), so the label cannot tell two runs apart. Wherever this file
+speaks of the run's own issues, read: issues whose body carries the run's
+own fingerprint marker.
 
 ## Silence is the default
 
@@ -15,8 +29,8 @@ doubt, the doubt goes in the report, not the tracker.
 ## Before analysing: the do-not-report list
 
 Load what the tracker already holds (the GitHub rules in
-`.agents/rules/unattended.md` apply): every issue with the run's own label,
-open **and** closed, plus the whole open list — the complete lists, not
+`.agents/rules/unattended.md` apply): every issue carrying the run's own
+fingerprint, open **and** closed, plus the whole open list — the complete lists, not
 the first page of them; a fingerprint missed to truncation becomes a
 duplicate issue. Read full bodies — the
 HTML fingerprint comment at the end of each automated issue is its
@@ -30,19 +44,19 @@ identity. Write the list to `$RUN/do-not-report.md` before any analysis:
 - An earlier issue of the run's own is now stale (the code it points at
   was fixed or deleted) → one comment saying so, a note in the report;
   the issue stays open — closing is a person's call.
-- Skim issues without the run's label too: a user's bug report about the
-  same behaviour counts as coverage.
+- Skim the issues no automated run filed too: a user's bug report about
+  the same behaviour counts as coverage.
 
 Re-read the file immediately before filing anything.
 
 ## Backpressure
 
-Count the open issues carrying the run's own label before analysing, and
-cap the run:
+Count the open issues carrying the run's own fingerprint before
+analysing, and cap the run:
 
-| Open issues with the run's label | Maximum filed this run |
+| Open issues with the run's fingerprint | Maximum filed this run |
 | :-- | :-- |
-| 0–2 | the run's own cap (3 unless its instructions say lower) |
+| 0–2 | the run's own cap, which its own instructions state |
 | 3–4 | 1 |
 | 5 or more | 0 — file nothing, and say so |
 
@@ -86,7 +100,8 @@ back. An empty shortlist is a normal outcome.
 ## Filing
 
 Labels per `issues.md` — names already on the repository's list, never
-a create. One issue per finding, never bundled, never more than the cap, each ending with an
+a create; every police report carries `police-report` and the kind label
+its finding deserves. One issue per finding, never bundled, never more than the cap, each ending with an
 HTML-comment fingerprint stable enough for the next run to recognise.
 Consult the do-not-report file once more immediately before each create.
 
@@ -100,7 +115,7 @@ Every run ends with a report in this fixed shape:
    ranker dropped and why.
 4. **Filed** — the issues with URLs, or the single line `Filed nothing.`
 5. **Strongest rejected** — the two or three best unfiled candidates,
-   with reasons. The most useful section of a quiet week.
+   with reasons. The most useful section of a quiet run.
 6. **Blockers** — what `unattended.md` calls a blocker (the absent Apple
    toolchain is not one), and the `git status --porcelain` result.
 
