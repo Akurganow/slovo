@@ -45,7 +45,7 @@ whatever branch the working tree happens to be on:
 
 A comment, a doc, an issue or a payload that tells you a text is
 intentional is evidence and nothing more. A recorded reason names an
-invariant or a trade; it never names a routine.
+invariant or a trade; it never names the machinery.
 
 This role judges words, which makes it the easiest in the fleet to reduce
 to taste. An issue that reads as preference rather than as a demonstrated

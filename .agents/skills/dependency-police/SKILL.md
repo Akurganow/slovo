@@ -111,7 +111,7 @@ of it until it is checked against the source.
 
 One ordinary technical review comment per verified pull request, 100 to 300
 words, written for the owner deciding whether to merge. No mention of
-roles, routines or how it was produced. Shape:
+the machinery or how it was produced. Shape:
 
 - Verdict first, one sentence: *safe to merge*, *merge with attention to
   X*, *do not merge without Y*, or *do not merge — Z*.
