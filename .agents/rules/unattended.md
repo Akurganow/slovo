@@ -133,13 +133,9 @@ on that runner.
 ## What a run publishes
 
 Everything an unattended run creates on GitHub — an issue, a comment, a
-label — is read back after it is written. The text GitHub now holds must
-carry no name of a model, a session, an assistant or the tooling that
-produced it. A hit is edited out immediately and reported.
-
-The same text never mentions the machinery either: a reader of an issue or
-a comment learns what was found and what to do about it, never which role
-found it or how a run is organised.
+label — is read back after it is written. A reader of an issue or a comment
+learns what was found and what to do about it, never which role found it or
+how a run is organised.
 
 ## History
 
