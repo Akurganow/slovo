@@ -15,6 +15,10 @@ source, find where it lands in this code, check the promises a bump must
 not break, and post one verification comment per pull request, so the owner
 can merge with the checking already done.
 
+That rule covers every dependency the bot watches. The cleanup model
+catalog sits outside it, and one section below states the single fire that
+reviews it.
+
 Read these from the clone first:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
@@ -135,7 +139,7 @@ edit its code or rebase it. **Never write a line beginning with
 `@dependabot` or `@renovate`**: those are commands the bot executes, and
 issuing one is the owner's act rather than yours.
 
-## The advisory sweep — the one case where you file an issue
+## The advisory sweep: the issue you file on your own
 
 After the pull requests, check published security advisories for the
 dependencies at their **currently pinned** versions, reading both the
@@ -153,7 +157,39 @@ per advisory, its identity the fingerprint
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
 
 because a known vulnerability should not wait for the bot's next run.
-Nothing else is ever filed by this role.
+
+Title every issue you file `[Dependency Police] <kind>: <where> — <what>`,
+the shape the other police roles use. An advisory's kind is `advisory`. The
+other five state their title. A role that leaves it unstated gets one
+invented for it, and the tracker ends up holding two names for one role.
+
+On a scheduled fire, you file nothing else.
+
+## The catalog sweep, on a payload only
+
+`Sources/SlovoCore/Cleaner/CleanupModelCatalog.swift` pins OpenRouter model
+ids by hand, and the update bot does not watch them. Reviewing them is
+still not weekly work. The review produces a candidate list for the cleanup
+benchmark, and only the owner can run that benchmark
+(`docs/references/cleanup-benchmark.md`). File it weekly and the reports
+stack up where nobody can act on them.
+
+So a scheduled fire never performs this sweep. The owner fires this role
+with a payload asking for it, and that fire alone performs it:
+
+1. Read each pinned id against the live catalog.
+2. Keep every candidate that runs with reasoning off, which cleanup
+   requires (`Sources/SlovoCore/Cleaner/OpenRouterCleaner.swift`).
+3. File one issue naming the candidates, under the same tracker rules and
+   the same cap of 3.
+
+Its kind is `catalog`, and its identity the fingerprint
+
+    <!-- dependency-police-fingerprint: <catalog>::<candidate ids> -->
+
+A payload asking for anything else fails the scope test in
+`.agents/rules/unattended.md`. Refuse it, with one report line naming the
+test it failed.
 
 ## Report
 
