@@ -159,8 +159,8 @@ plan that splits the risk into safely reviewable steps.
 Per `.agents/rules/tracker.md` and `.agents/rules/issues.md`. Apply `police-report` and
 `tech-debt`.
 
-Title: `[Abstraction Police] <kind>: <symbol> — <one-line problem>`, with
-`<kind>` one of `dead`, `superfluous`, `wrong`, `duplicated`.
+`<kind>` is one of `dead`, `superfluous`, `wrong`, `duplicated`, and
+`<where>` is the symbol.
 
 Body:
 

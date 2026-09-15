@@ -153,7 +153,7 @@ per advisory, its identity the fingerprint
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
 
 because a known vulnerability should not wait for the bot's next run.
-Nothing else is ever filed by this role.
+`<kind>` is `advisory`. Nothing else is ever filed by this role.
 
 ## Report
 

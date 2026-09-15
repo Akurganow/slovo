@@ -105,6 +105,10 @@ its finding deserves. One issue per finding, never bundled, never more than the 
 HTML-comment fingerprint stable enough for the next run to recognise.
 Consult the do-not-report file once more immediately before each create.
 
+Title an issue `[<Role>] <kind>: <where> — <what>`, the role naming itself
+in the brackets. A role with its own vocabulary for a slot states it in its
+own text.
+
 ## The report
 
 Every run ends with a report in this fixed shape:

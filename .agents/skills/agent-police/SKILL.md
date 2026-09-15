@@ -221,8 +221,6 @@ in motion rather than a document in disagreement.
 paths and lines, or a read with its output. A finding you cannot exhibit is a
 report line, never an issue.
 
-Title: `[Agent Police] <kind>: <where> — <what disagrees with what>`
-
 Body:
 
     ## What disagrees
