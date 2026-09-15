@@ -182,8 +182,6 @@ not an issue.
 Per `.agents/rules/tracker.md` and `.agents/rules/issues.md`. Apply `police-report` and
 `tech-debt`.
 
-Title: `[Sanity Police] <kind>: <where> — <what is out of proportion>`
-
 Body:
 
     ## What this code is for

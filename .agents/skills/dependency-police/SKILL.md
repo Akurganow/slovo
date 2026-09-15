@@ -135,7 +135,7 @@ edit its code or rebase it. **Never write a line beginning with
 `@dependabot` or `@renovate`**: those are commands the bot executes, and
 issuing one is the owner's act rather than yours.
 
-## The advisory sweep: the issue you file on your own
+## The advisory sweep — the one case where you file an issue
 
 After the pull requests, check published security advisories for the
 dependencies at their **currently pinned** versions, reading both the
@@ -153,11 +153,7 @@ per advisory, its identity the fingerprint
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
 
 because a known vulnerability should not wait for the bot's next run.
-
-Title every issue you file `[Dependency Police] <kind>: <where> — <what>`,
-the shape the other police roles use. An advisory's kind is `advisory`.
-
-Nothing else is ever filed by this role.
+`<kind>` is `advisory`. Nothing else is ever filed by this role.
 
 ## Report
 

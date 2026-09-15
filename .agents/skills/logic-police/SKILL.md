@@ -173,7 +173,7 @@ criticals and never drops one.
 Per `.agents/rules/tracker.md` and `.agents/rules/issues.md`. Apply `police-report` and
 `bug`.
 
-Title: `[Logic Police] <severity>: <file> — <one-line wrong behaviour>`
+`<kind>` is the severity, and `<where>` the file.
 
 Body:
 

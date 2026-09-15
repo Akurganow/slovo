@@ -234,8 +234,8 @@ The do-not-report list needs closed issues too: list the open ones in full,
 and for closed ones search for the fingerprint in the body, then read each
 hit's body to confirm the marker.
 
-Title: `[Slop Police] <kind>: <where> — <the missing fact, the false fact,
-the mutation that stays green, or the leftover>`
+`<what>` is the missing fact, the false fact, the mutation that stays
+green, or the leftover.
 
 Body:
 
