@@ -54,9 +54,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// Key-down before the ASR model is resident must not open a session: a cold
-    /// start opens the mic and mutes system audio for the whole model load (the
-    /// stranded-mute incident shape, log 2026-07-02 22:45). Killing mutation:
-    /// remove the readiness guard from the `.down` arm -> RED.
+    /// start opens the mic and then sits inside `begin` for the whole model load,
+    /// with the key-up queued behind it. Killing mutation: remove the readiness
+    /// guard from the `.down` arm -> RED.
     @Test
     func keyDownIsGatedOnModelReadiness() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -167,8 +167,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The model warm-up must be an observable gate end to end: the composition
     /// exposes the preload as an awaitable task; the delegate enters the loading
     /// state in startPipeline and opens the gate (stopping the pulse) when the
-    /// warm-up completes. Killing mutation: return to fire-and-forget preload,
-    /// or never flip isModelReady -> RED.
+    /// warm-up completes — and only for the composition still wired, so a
+    /// superseded preload's outcome cannot answer for the current one.
+    /// Killing mutation: return to fire-and-forget preload, never flip
+    /// isModelReady, or delete the currency comparison from the gate task -> RED.
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
@@ -184,10 +186,11 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         #expect(Self.containsInOrder([
             "showModelLoadingState",
             "modelWarmUp",
+            "self.composition?.modelWarmUp",
             "isModelReady = true",
             "stopModelLoadingPulse",
         ], in: gate),
-        "warm-up completion must open the gate and stop the loading pulse")
+        "the CURRENT composition's warm-up must open the gate and stop the loading pulse")
     }
 
     /// The speech model is built ONCE for the process and injected into every

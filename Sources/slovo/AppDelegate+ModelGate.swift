@@ -2,9 +2,9 @@ import AppKit
 import SlovoCore
 
 // Dictation is gated until the ASR model is resident: a key-down during the cold
-// load would open the mic and mute system audio for the whole model load (the
-// stranded-mute incident, log 2026-07-02 22:45). While loading, the status bar
-// pulses the Glagolitic Zhivete glyph instead of accepting input.
+// load would open the mic and then sit inside `begin` for the whole load, with the
+// key-up queued behind it. While loading, the status bar pulses the Glagolitic
+// Zhivete glyph instead of accepting input.
 extension AppDelegate {
     func prepareModelGate(for live: AppComposition.Live) {
         isModelReady = false
@@ -12,6 +12,11 @@ extension AppDelegate {
         Task { @MainActor [weak self] in
             await live.modelWarmUp.value
             guard let self else { return }
+            // Only the composition now wired may open its gate. Compositions share
+            // one speech model but preload it separately, so a superseded warm-up
+            // can still fail while the current one is retrying the load — and the
+            // gate must report the retry's outcome, not the attempt it replaced.
+            guard live.modelWarmUp == self.composition?.modelWarmUp else { return }
             // A failed preload opens the gate too: `begin` retries the load and
             // surfaces the honest error through the normal status path.
             self.isModelReady = true

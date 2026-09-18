@@ -70,7 +70,8 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
   so Whisper never gets the chance to hallucinate into silence. The model remains resident
-  between dictations.
+  between dictations, and the recognition language reaches the decoder per session
+  rather than the model load, so changing it costs no reload.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223
   iterations shared between prefill and sampled output, leaving ~219 sampled
   tokens even with no prompt, while fast Russian speech (~180 wpm at the
@@ -105,7 +106,11 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   `HotkeyEdgeSequencer` orders production key edges, and per-session identity
   prevents a resumed readiness continuation from mutating its replacement.
 
-The app target owns OS-specific adapters and production composition. `SlovoCore`
+The app target owns OS-specific adapters and production composition. The speech
+model is built once per process and injected into every composition, so rebuilding
+the pipeline — a granted permission, Retry Setup, the hotkey retry — never loads or
+downloads it again; each composition starts its own warm-up of that one model, and
+only the composition still wired may open the dictation gate. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
 injection behavior.
 

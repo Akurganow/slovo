@@ -105,6 +105,15 @@ xcrun stapler validate .build/dist/Slovo.dmg
   releasing the key stops recording immediately rather than after the sound.
 - Speaking while the speech model is still loading ("Preparing Speech Model" on a
   cold start) still reaches the transcript — that audio is not dropped.
+- First run with an empty model cache: granting Microphone and then Accessibility
+  while the model downloads starts NO second download (watch the model directory
+  for a second writer), the progress does not restart, and the first dictation
+  afterwards works.
+- With the model already cached, Retry Setup twice in quick succession performs no
+  second load and the next dictation is immediate.
+- Changing the recognition language in Settings → General while idle applies to the
+  next dictation with no "Preparing Speech Model" pulse and no model reload, and
+  that dictation recognises in the new language.
 - With Sound Cues on, Start plays once capture and recognition are ready, and does
   not appear in the transcript. Output is muted after it, not before.
 - End is queued at key-up — it marks the end of AUDIO RECORDING, not a successful

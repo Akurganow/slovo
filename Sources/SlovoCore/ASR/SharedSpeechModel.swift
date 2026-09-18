@@ -26,7 +26,7 @@ public struct SharedSpeechModel: Sendable {
     /// unlike the recognition language, which is pushed live into the running
     /// transcriber.
     public init(config: Config) {
-        self.init(transcriber: WhisperKitTranscriber(
+        transcriber = WhisperKitTranscriber(
             configuration: WhisperKitTranscriber.Configuration(
                 keepWarmSeconds: config.keepWarmSeconds,
                 language: config.language
@@ -34,7 +34,7 @@ public struct SharedSpeechModel: Sendable {
             engine: WhisperKitEngine(model: config.asrModel),
             converter: WhisperSampleConverter(),
             clock: MonotonicClock()
-        ))
+        )
     }
 
     /// Starts this composition's preload, so the first dictation after it skips the
