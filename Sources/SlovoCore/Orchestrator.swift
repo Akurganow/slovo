@@ -3,6 +3,11 @@ import os
 /// The seam instances the orchestrator drives. Lets a test inject fakes while
 /// production injects the real adapters.
 public struct Dependencies: Sendable {
+    // Cue attribution, on the subsystem/category the rest of the dictation timeline
+    // uses: every Error cue the user hears has a line naming the status that queued
+    // it. The status text itself stays on the redaction-safe log.
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
+
     public var transcriber: any Transcriber
     public var cleaner: any Cleaner
     public var injector: any Injector
@@ -55,6 +60,7 @@ public struct Dependencies: Sendable {
     public func reportStatus(_ status: StatusMessage) {
         if status.isFailureNotice {
             cueController.enqueue(.error)
+            Self.diagnosticLog.info("cue.error reason=\(status.logToken, privacy: .public)")
         }
         statusReporter(status)
         log.event("status.\(status)")

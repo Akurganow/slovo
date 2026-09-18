@@ -93,6 +93,13 @@ public enum StatusMessage: Equatable, Sendable {
     public var isNoSpeechNotice: Bool {
         self == .noSpeechDetected
     }
+
+    /// The case name, for the diagnostic log. Every case of this enum is a fixed
+    /// token with no associated value, so it names a condition and can never carry
+    /// a transcript, a term or a key.
+    public var logToken: String {
+        String(describing: self)
+    }
 }
 
 /// A stage failure routed into the FSM.
