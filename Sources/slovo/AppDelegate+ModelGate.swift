@@ -27,6 +27,16 @@ extension AppDelegate {
         }
     }
 
+    /// Leaves the loading state WITHOUT opening the gate, for a composition that
+    /// will never be gated: `startPipeline` returns at the onboarding guard before
+    /// `prepareModelGate`, so no gate task exists to stop the pulse, and the
+    /// superseded composition's task now stops at the currency guard above. Without
+    /// this the infinite pulse runs for the rest of the launch.
+    func clearModelLoadingState() {
+        stopModelLoadingPulse(on: statusItem?.button)
+        paintIdleGlyph(on: statusItem?.button)
+    }
+
     func showModelLoadingState() {
         setStatusGlyph(status: .preparingSpeechModel, on: statusItem?.button)
         statusTextItem?.title = Self.title(for: .preparingSpeechModel)

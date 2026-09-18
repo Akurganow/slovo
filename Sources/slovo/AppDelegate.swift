@@ -222,6 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // on the shrinking set of still-pending steps.
         onboardingSteps = steps
         isPresentingOnboarding = true
+        // This composition is not gated (startPipeline returned above
+        // prepareModelGate), so nothing else would ever stop a pulse inherited from
+        // the composition it replaced.
+        clearModelLoadingState()
         statusTextItem?.title = "Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
     }
@@ -400,9 +404,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let previousSequencer = hotkeyEdgeSequencer
         Task { @MainActor in
             await previousSequencer?.stop()
-            // startPipeline() through isRebuildingPipeline = false must stay synchronous: an
-            // await here could let a rapid language change persist to Config after the read
-            // yet drop its own retry via the guard above, pinning a stale language.
+            // startPipeline() through isRebuildingPipeline = false must stay synchronous:
+            // an await between them would hold the re-entrancy guard across a suspension,
+            // and a Retry Setup arriving there — a permission granted just after this
+            // composition read the preflight — would be dropped by the guard above with
+            // nothing left to rebuild for it.
             startPipeline()
             isRebuildingPipeline = false
         }

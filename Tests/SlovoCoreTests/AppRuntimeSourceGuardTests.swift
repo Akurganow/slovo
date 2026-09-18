@@ -428,9 +428,10 @@ struct AppRuntimeSourceGuardTests {
     /// (empty terms, or a tokenizer closure that always yields nothing) would
     /// otherwise leave every test green — the false-green shape this repo has already
     /// been burned by, one floor up.
-    /// Stated sensitivity: pass `biasTerms: []`, or hand it `{ _ in [] }` instead of
-    /// the engine's tokenizer → the matching `#expect` goes RED. Both tokens appear
-    /// exactly once in the file, inside this call.
+    /// Stated sensitivity: pass `biasTerms: []`, hand it `{ _ in [] }` instead of
+    /// the engine's tokenizer, or decode a literal language (`language: .auto`)
+    /// instead of the session's own → the matching `#expect` goes RED. Each token
+    /// appears exactly once in the file, inside this call.
     @Test
     func speechSessionFactoryFeedsDecodingOptionsItsTermsAndTokenizer() throws {
         let engine = try Self.code("Sources/SlovoCore/ASR/WhisperKitEngine.swift")
@@ -438,6 +439,8 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(factoryBody.contains("biasTerms: biasTerms"),
                 "the session's own terms must reach the decoding options, not a literal")
+        #expect(factoryBody.contains("language: language"),
+                "the session's own language must reach the decoding options, not a literal")
         #expect(factoryBody.contains("engine.tokenizer?.encode(text: text)"),
                 "the loaded model's tokenizer must measure the prompt, not a stub closure")
     }

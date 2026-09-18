@@ -108,9 +108,10 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
 
 The app target owns OS-specific adapters and production composition. The speech
 model is built once per process and injected into every composition, so rebuilding
-the pipeline — a granted permission, Retry Setup, the hotkey retry — never loads or
-downloads it again; each composition starts its own warm-up of that one model, and
-only the composition still wired may open the dictation gate. `SlovoCore`
+the pipeline — a granted permission, Retry Setup, the hotkey retry — never starts a
+second concurrent load: each composition starts its own warm-up of that one model,
+which joins the load already in flight or retries a failed one, and only the
+composition still wired may open the dictation gate. `SlovoCore`
 owns the seams, value types, state machine, storage, cleanup, transcription, and
 injection behavior.
 

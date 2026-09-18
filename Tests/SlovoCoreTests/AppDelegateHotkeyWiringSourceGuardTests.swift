@@ -193,6 +193,31 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "the CURRENT composition's warm-up must open the gate and stop the loading pulse")
     }
 
+    /// A composition that is never gated must leave no pulse behind. The onboarding
+    /// early return happens before `prepareModelGate`, so no gate task exists to stop
+    /// the pulse, and the superseded composition's task now returns at the currency
+    /// guard — the infinite loading animation would run for the rest of the launch
+    /// with dictation refused. Reachable by hitting Retry Setup, or losing a
+    /// permission, while the first download is still going.
+    /// Killing mutation: drop the loading-state clear from `presentOnboarding`, or
+    /// move the early return below `prepareModelGate` → RED.
+    @Test
+    func aCompositionThatSkipsTheGateClearsTheLoadingState() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let presentOnboarding = try Self.functionBody(named: "presentOnboarding", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "guard live.onboardingSteps == [.ready] else",
+            "presentOnboarding(live.onboardingSteps)",
+            "return",
+            "prepareModelGate",
+        ], in: startPipeline),
+        "the onboarding return is the path that reaches no model gate")
+        #expect(presentOnboarding.contains("clearModelLoadingState()"),
+                "an ungated composition must stop the loading pulse it inherited")
+    }
+
     /// The speech model is built ONCE for the process and injected into every
     /// composition — the ownership inversion the key provider already uses. A
     /// composition that builds its own engine starts its own load, so a permission

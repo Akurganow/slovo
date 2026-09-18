@@ -12,14 +12,19 @@ struct SharedSpeechModelTests {
         SharedSpeechModel(transcriber: TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil))
     }
 
-    /// A rebuild while the model is still loading joins the one load in flight. This
-    /// is the first-run case: a Microphone or Accessibility grant lands in the middle
-    /// of the download and used to start a second one against the same cache.
-    /// Stated sensitivity: give each composition its own transcriber (the shape this
-    /// type replaces — one `WhisperKitTranscriber` per `makeLive` call) → the second
-    /// warm-up loads on its own instance → loadCount == 2 → RED. Dropping the
-    /// single-flight join in `WhisperKitTranscriber.ensureModelLoaded` reddens it the
-    /// same way.
+    /// A rebuild while the model is still loading gets its OWN warm-up task and
+    /// joins the one load in flight. This is the first-run case: a Microphone or
+    /// Accessibility grant lands in the middle of the download and used to start a
+    /// second one against the same cache. The per-composition task is what the gate
+    /// awaits, so it must be a task of this composition's own, not a shared one.
+    /// Stated sensitivity: store one warm-up task on this type instead of minting one
+    /// per composition → both compositions receive the same task → the identity
+    /// assertion goes RED (and `aRebuildAfterAFailedPreloadRetriesTheLoad` shows what
+    /// that costs). Drop the single-flight join in
+    /// `WhisperKitTranscriber.ensureModelLoaded` → the rebuild's warm-up parks a
+    /// second gated load → loadCount == 2 → RED. The neighbouring mutation — a
+    /// transcriber built per composition — cannot be written against this test, which
+    /// injects one; the guard in `AppDelegateHotkeyWiringSourceGuardTests` catches it.
     @Test
     func aRebuildDuringTheLoadJoinsTheOneLoadInFlight() async {
         let engine = FakeSpeechEngine()
@@ -35,6 +40,7 @@ struct SharedSpeechModelTests {
         await launch.value
         await rebuild.value
 
+        #expect(launch != rebuild, "every composition must preload through a warm-up task of its own")
         #expect(engine.loadCount == 1, "a rebuild mid-load must join that load, never start a second one")
     }
 
