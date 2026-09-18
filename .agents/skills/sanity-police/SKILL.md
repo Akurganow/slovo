@@ -67,9 +67,9 @@ The build compiles with `-warnings-as-errors`,
 `-strict-concurrency=complete` and `-enable-actor-data-race-checks`, and
 SwiftLint rides inside it as a build-tool plugin. `Scripts/lint.sh` then
 runs SwiftLint strict again and `swiftlint analyze` over a compiler log,
-and CI runs that whole gate through `Scripts/diagnose.sh`. Three further
-gates are tests that scan the source tree: dependency direction, redaction
-lint, and the single relaunch call site.
+and CI runs that whole gate through `Scripts/diagnose.sh`. Further gates
+are tests that scan the source tree — count them from `Tests/`, starting
+with `Tests/GateChecksTests/`.
 
 Anything one of those names cannot exist on `main`, and reporting one means
 you misread. Two qualifications are worth holding, because they mark where

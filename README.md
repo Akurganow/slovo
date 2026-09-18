@@ -230,9 +230,10 @@ Run the full gate locally when you want it before pushing:
 Scripts/diagnose.sh
 ```
 
-`Scripts/diagnose.sh` runs build, tests, and strict lint as independent
-stages so one failure does not hide another. CI runs this same script on a
-macOS runner for every pull request into `main` — that run is the gate.
+`Scripts/diagnose.sh` runs build, tests, a cleanup-benchmark CLI smoke check,
+and strict lint as independent stages so one failure does not hide another. CI
+runs this same script on a macOS runner for every pull request into `main` —
+that run is the gate.
 
 Compare cleanup latency and quality with the non-product benchmark:
 

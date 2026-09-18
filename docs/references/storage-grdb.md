@@ -391,7 +391,6 @@ already implements and tests. `PRAGMA rekey` rewrites the live file instead.
 slovo marks the derivation scheme with a `-v1` suffix in its HKDF info string, so
 a future scheme is distinguishable from the current one. slovo's own policy — the
 HKDF constants, the wrong-key handling, the set-aside convention — lives in
-`docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md` and
 the code doc comments, not in this vendor reference.
 
 ## Full sources

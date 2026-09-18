@@ -27,9 +27,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
 ## Core Components
 
 - `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
-  default, or a right-hand modifier); `HotkeyDecisionCore` is the pure,
-  unit-tested policy that turns key events into start / stop (plain or
-  translate) / silent-cancel decisions.
+  default, one side of ⌘, ⌥, ⇧, or ⌃ for either Control key);
+  `HotkeyDecisionCore` is the pure, unit-tested policy that turns key events
+  into start / stop (plain or translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
   the "Mute Audio While Dictating" menu setting is on (the default).
   Known limitation: a restore that the audio device rejects (for example, the
@@ -146,8 +146,7 @@ Slovo uses SQLite through GRDB for local personalization data:
 
 The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
 SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
-identifier and stored nowhere; see
-`docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md`.
+identifier and stored nowhere.
 
 The repository tracks only schema and migrations. Local databases and seed files
 are never committed.
@@ -169,10 +168,11 @@ language; while no OpenRouter key is saved the whole block collapses to a single
 vocabulary quick-add with adjacent mute-while-dictating and Sound Cues switches, and a bottom section
 with **Settings…**, **About**, and quit; first-run setup actions replace the
 dropdown until permissions are granted. The **Settings…** window covers the
-push-to-talk key, recognition language, Sound Cues, launch at login, automatic
-updates, cleanup model and style, translation target, OpenRouter key, and vocabulary; the
-**About** window carries a quick guide and the running version. All
-configuration is native windows — there are no modal alerts.
+push-to-talk key, the translate key, recognition language, Sound Cues, launch at
+login, automatic updates, cleanup model and style, translation target,
+OpenRouter key, and vocabulary; the **About** window carries a quick guide and
+the running version. All configuration is native windows — there are no modal
+alerts.
 
 ## Build Boundaries
 

@@ -24,7 +24,8 @@ You run unattended, one fire at a time, and you change no file.
 
 Your subject is the tree under `.agents/` and `.claude/`, plus `AGENTS.md`
 and the symlink that points at it: the rule files, the skills, the agent
-bindings and the vendor symlinks. Count them from the tree each run and never
+bindings and the vendor symlinks. `docs/architecture.md` is yours too, as
+`.agents/rules/slop.md` records. Count them from the tree each run and never
 from a sentence written here — a count written down goes stale the next time
 a role is added. One question over all of it:
 
