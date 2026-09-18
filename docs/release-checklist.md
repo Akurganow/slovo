@@ -13,7 +13,7 @@ merged to `main`, so that the automated release it may trigger is sound.
 runner for every pull request into `main`: build, tests, the cleanup-benchmark
 CLI smoke check, and strict lint (including analyzer checks), followed by a
 `SLOVO_GATE_SELFTEST=red` run that proves the gate can still fail. Check that
-the Swift `test` run on your pull-request head is green before merging.
+the Swift `test` run on your pull request's merge result is green before merging.
 
 ## Conventional commits drive the release
 
