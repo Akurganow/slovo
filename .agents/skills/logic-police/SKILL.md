@@ -133,8 +133,9 @@ For each survivor: the minimal correct fix, file by file, as a fenced
 proposal and never a commit. A regression test in Swift Testing that would
 fail before and pass after, written out, documenting the concrete breakage
 it catches as AGENTS.md requires. Side effects, including callers relying
-on the buggy behaviour. The verification the fix needs on a Mac, named as
-what must be run and never as something this run ran.
+on the buggy behaviour. The verification the fix needs — the pull request's
+Swift check, and anything only a Mac can do — named as what must be run and
+never as something this run ran.
 
 Severity: `critical` for a crash on a common path, data loss, a security
 defect, or a privacy-promise violation; `high` for wrong results on a
@@ -212,8 +213,8 @@ Body:
     Behaviour changes, affected callers.
 
     ## Verification
-    Scripts/diagnose.sh and the test above, on a Mac. State what this run
-    ran and what it did not.
+    The pull request's Swift check green, with the test above. State what
+    this run ran and what it did not.
 
     ## Severity
     critical|high|medium|low — Effort: S|M|L

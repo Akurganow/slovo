@@ -9,21 +9,11 @@ merged to `main`, so that the automated release it may trigger is sound.
 
 ## Automated gate
 
-Run the full local gate:
-
-```sh
-Scripts/diagnose.sh
-```
-
-The gate must pass build, tests, the cleanup-benchmark CLI smoke check, and
-strict lint (including analyzer checks). Also verify the gate can fail
-intentionally:
-
-```sh
-SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution
-```
-
-The self-test command is expected to exit non-zero.
+[swift.yml](../.github/workflows/swift.yml) runs the whole gate on a macOS
+runner for every pull request into `main`: build, tests, the cleanup-benchmark
+CLI smoke check, and strict lint (including analyzer checks), followed by a
+`SLOVO_GATE_SELFTEST=red` run that proves the gate can still fail. Check that
+the Swift `test` run on your pull-request head is green before merging.
 
 ## Conventional commits drive the release
 

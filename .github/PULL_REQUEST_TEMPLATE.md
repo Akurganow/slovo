@@ -4,7 +4,7 @@
 
 ## Test Plan
 
-- [ ] `Scripts/diagnose.sh`
+- [ ] The Swift check — `Scripts/diagnose.sh` on a macOS runner — is green on this pull request.
 
 ## Privacy / Security
 

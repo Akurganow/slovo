@@ -20,9 +20,10 @@ have to be repeated. Every agent and contributor follows them without being aske
    corpses, no "delete later" comments. The change that makes something legacy
    deletes it.
 3. **The owner manually verifies every deliverable.** After independent audit,
-   integrate the verified work into local main and produce the dev build via the
-   approved launcher (see below), then hand it to the owner for a manual check.
-   Work is not done until the owner has a runnable dev build.
+   integrate the verified work into local main and produce the dev build — from
+   the `dev-build` label on the pull request, or via the approved launcher on a
+   Mac that can build (see below) — then hand it to the owner for a check of the
+   behaviour. Work is not done until the owner has a runnable dev build.
 4. **Design attractor: data-driven.** Prefer directions that centralize state as
    data and derive views/effects as projections of it (reducers/selectors idiom:
    view = f(state), a single mutation path, effects as data). An attractor, not a
@@ -182,6 +183,11 @@ verify that `.build/dev-run/Slovo.app` passes strict code-sign validation, is
 signed by team `ZN8H5SF4R7`, has bundle identifier `com.slovo.app`, and that the
 running `slovo` process executes from that exact bundle.
 
+When nothing is building on this Mac, the `dev-build` label on the pull request
+produces a signed (not notarized) dev build in CI — same team `ZN8H5SF4R7`,
+same `com.slovo.app`, verified the same way — and is how the owner gets a build
+to test.
+
 ### Gate RED→GREEN by Cynefin
 
 Before starting a RED→GREEN cycle, classify the change with Cynefin and decide
@@ -208,9 +214,10 @@ breakage each regression test catches.
 
 A feature is DONE only when it lands as a verified commit on LOCAL main —
 implementer branches → independent audit (correctness, complexity, design,
-test sensitivity) → full gates (`Scripts/diagnose.sh`) on the integrated
-result → merge into local main. Parked branches are not a deliverable.
-Pushing to any remote remains a separate act, triggered only by the owner.
+test sensitivity) → the full gate green on the integrated result (CI's Swift
+`test` run — `Scripts/diagnose.sh` on a macOS runner) → merge into local
+main. Parked branches are not a deliverable. Pushing to any remote remains a
+separate act, triggered only by the owner.
 
 ### License compliance is part of every change
 
@@ -225,7 +232,11 @@ a real trap already caught once: Lightning-SimulWhisper).
 
 ### Before you open a pull request
 
-- Run `Scripts/diagnose.sh` (build, tests, and strict lint as independent stages).
+- Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
+  macOS runner — on the pull-request head, cited by number and conclusion. A
+  local `Scripts/diagnose.sh` is a convenience for whoever is already at a Mac,
+  never something to ask the owner for; all it adds is the six tests that skip
+  whenever `CI` is set.
 - Keep raw audio local; only transcript text may leave the machine, and only for
   cleanup — plus the key-scope metadata request to OpenRouter (`/models/user`),
   which carries the API key and no user content.

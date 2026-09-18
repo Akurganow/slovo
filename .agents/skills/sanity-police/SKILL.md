@@ -206,7 +206,7 @@ Body:
     paths, and whether this was compiled.
 
     ## Risk
-    Behaviour that changes, if any. Scripts/diagnose.sh green on a Mac.
+    Behaviour that changes, if any. The pull request's Swift check green.
     State what this run ran and what it did not.
 
     ## Cost / risk

@@ -75,9 +75,10 @@ opening the sources:
   commit;
 - **Acceptance criteria** — checkable statements, each testable on a
   Mac;
-- **Verification** — what must run and pass: `Scripts/diagnose.sh` and
-  the CI suite, plus any regression test proposed. Written where
-  nothing was built, it says so;
+- **Verification** — what must run and pass: the pull request's Swift
+  check, which is `Scripts/diagnose.sh` in full on a macOS runner, plus
+  any regression test proposed. Written where nothing was built, it says
+  so;
 - **Sources** — the issue it was cut from and the review it rests on.
 
 A `ready` issue is a work item, never a report: it carries no

@@ -133,7 +133,7 @@ costs the team's trust.
 For each survivor: the exact ordered edits, file by file; one pull request
 or a split into deprecate, migrate, remove; blast radius across targets,
 public surface and tests; what proves no regression, meaning existing
-tests, tests to write first, and `Scripts/diagnose.sh` green on a Mac,
+tests, tests to write first, and the pull request's Swift check green,
 named as what must be run; the rollback story; honest effort (S, M, L) and
 risk (low, medium, high). If the safe plan is to leave it and document why,
 say that instead of inventing a refactor.
@@ -186,8 +186,8 @@ Body:
     Targets touched, public surface, tests.
 
     ## Regression safety
-    Existing coverage; tests to add first; Scripts/diagnose.sh green on a
-    Mac; rollback. State what this run ran and what it did not.
+    Existing coverage; tests to add first; the pull request's Swift check
+    green; rollback. State what this run ran and what it did not.
 
     ## Cost / risk
     Effort: S|M|L — Risk: low|medium|high — Confidence: high|medium
