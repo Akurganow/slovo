@@ -61,8 +61,11 @@ struct AppShellPackagingTests {
         // Auto — this call is the single point where the persisted recognition
         // language enters the process → RED.
         #expect(speechModel.contains("language: config.language"))
-        #expect(speechModel.contains("warmUp()"),
-                "the shared speech model must expose the preload of the resident ASR engine")
+        // Stated sensitivity: let `startWarmUp` stop calling the transcriber — every
+        // first dictation then pays the cold load — → RED. The bare needle "warmUp()"
+        // would not catch it: it matches inside "startWarmUp()".
+        #expect(speechModel.contains("transcriber.warmUp()"),
+                "the shared speech model must preload the resident ASR engine")
         #expect(composition.contains("speechModel.startWarmUp()"),
                 "every composition must preload the model it was handed")
         #expect(composition.contains("statusReporter: statusReporter"))

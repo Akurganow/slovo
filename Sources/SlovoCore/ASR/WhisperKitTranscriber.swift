@@ -84,9 +84,11 @@ public actor WhisperKitTranscriber: Transcriber {
         }
     }
 
-    /// Applies a new recognition language to the NEXT session — `begin` latches the
-    /// value it saw at key-down, so a push landing during its cold load cannot
-    /// redefine the dictation already opening. The loaded model is
+    /// Applies a new recognition language to the next session `begin` opens. `begin`
+    /// latches the value it is entered with, so a push landing during its model load
+    /// cannot redefine the dictation already opening. A push landing earlier, inside
+    /// `Orchestrator.beginCapture`, still reaches that dictation — the window its own
+    /// `sessionRunsCleaner` latch already declares accepted. The loaded model is
     /// language-independent — the language reaches only the decoder's per-session
     /// options — so a change costs no reload and no rebuilt pipeline.
     public func setRecognitionLanguage(_ language: Language) {

@@ -95,14 +95,17 @@ xcrun stapler validate .build/dist/Slovo.dmg
   releasing the key stops recording immediately rather than after the sound.
 - Speaking while the speech model is still loading ("Preparing Speech Model" on a
   cold start) still reaches the transcript — that audio is not dropped.
-- First run with an empty model cache: granting Microphone and then Accessibility
-  while the model downloads starts NO second download, the progress does not
-  restart, and the first dictation afterwards works. Count the loads with
-  `log stream --predicate 'subsystem == "com.slovo.app"'`: exactly one
-  `asr.modelLoad state=started`, followed by one `state=finished ms=…`.
-- With the model already cached, Retry Setup twice in quick succession performs no
-  second load — no further `asr.modelLoad state=started` in the same stream — and
-  the next dictation is immediate.
+- The model loads once per launch, however often the pipeline is rebuilt. Count the
+  loads in a stream opened before launch:
+  - `log stream --level info --predicate 'subsystem == "com.slovo.app"'`
+  - First run, empty model cache: launch, then grant Microphone and Accessibility
+    while the model downloads.
+  - Exactly one `asr.modelLoad state=started`, then one `state=finished ms=…`. The
+    download progress does not restart, and the first dictation afterwards works.
+  - With the model already cached, hit Retry Setup twice: no further
+    `asr.modelLoad state=started`, and the next dictation is immediate.
+- Retry Setup, or a revoked permission, while the first download runs: the menu bar
+  settles to the idle glyph with "Setup Required". It never keeps pulsing.
 - Changing the recognition language in Settings → General while idle applies to the
   next dictation with no "Preparing Speech Model" pulse and no model reload, and
   that dictation recognises in the new language.
