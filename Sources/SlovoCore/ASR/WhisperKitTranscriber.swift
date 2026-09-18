@@ -84,7 +84,9 @@ public actor WhisperKitTranscriber: Transcriber {
         }
     }
 
-    /// Applies a new recognition language to the NEXT session. The loaded model is
+    /// Applies a new recognition language to the NEXT session — `begin` latches the
+    /// value it saw at key-down, so a push landing during its cold load cannot
+    /// redefine the dictation already opening. The loaded model is
     /// language-independent — the language reaches only the decoder's per-session
     /// options — so a change costs no reload and no rebuilt pipeline.
     public func setRecognitionLanguage(_ language: Language) {
@@ -92,6 +94,10 @@ public actor WhisperKitTranscriber: Transcriber {
     }
 
     public func begin(biasTerms: [Term]) async throws {
+        // Latched BEFORE the first suspension: `ensureModelLoaded()` can park for a
+        // whole cold load, and the actor admits `setRecognitionLanguage` there — read
+        // afterwards, a push would silently redefine the session already opening.
+        let sessionLanguage = recognitionLanguage
         supersedePendingRelease()
         if let speechSession {
             self.speechSession = nil
@@ -106,7 +112,7 @@ public actor WhisperKitTranscriber: Transcriber {
         do {
             let speechSession = try engine.makeSpeechStreamingSession(
                 biasTerms: biasTerms,
-                language: recognitionLanguage
+                language: sessionLanguage
             )
             try await speechSession.start()
             self.speechSession = speechSession

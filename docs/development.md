@@ -51,7 +51,8 @@ Scripts/diagnose.sh
 The gate runs build, tests, a cleanup-benchmark CLI smoke check, and strict
 lint as separate stages. This keeps one failure from hiding another. CI runs
 this same script ([swift.yml](../.github/workflows/swift.yml)) on every pull
-request, release, and dev build: the same stages, on a GitHub macOS runner.
+request into `main`, and on every release and dev build: the same stages, on a
+GitHub macOS runner.
 That run is the pull-request gate; a local run adds only the six tests that
 skip whenever `CI` is set — the ones that need a real NSSpellChecker or real
 Text Input Sources.

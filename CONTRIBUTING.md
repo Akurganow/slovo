@@ -19,7 +19,7 @@ swift build --disable-automatic-resolution
 ```
 
 Run the full gate locally when you want it before pushing — CI runs this same
-script on every pull request:
+script on every pull request into `main`:
 
 ```sh
 Scripts/diagnose.sh
@@ -80,7 +80,7 @@ request — which produces a signed (but not notarized) DMG; see
 
 - [ ] The change is scoped to one behavior or documentation goal.
 - [ ] The Swift check — CI's `test` job, `Scripts/diagnose.sh` on a macOS
-      runner — is green on the pull-request head.
+      runner — is green on the pull request's merge result.
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
 - [ ] Security or privacy boundary changes are called out explicitly.

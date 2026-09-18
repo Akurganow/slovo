@@ -232,7 +232,7 @@ Scripts/diagnose.sh
 
 `Scripts/diagnose.sh` runs build, tests, and strict lint as independent
 stages so one failure does not hide another. CI runs this same script on a
-macOS runner for every pull request — that run is the gate.
+macOS runner for every pull request into `main` — that run is the gate.
 
 Compare cleanup latency and quality with the non-product benchmark:
 

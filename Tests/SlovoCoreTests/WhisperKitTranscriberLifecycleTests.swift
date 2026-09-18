@@ -84,6 +84,32 @@ struct WhisperKitTranscriberLifecycleTests {
         #expect(engine.loadCount == 1, "warmUp + concurrent begin must load the model exactly once (single-flight)")
     }
 
+    /// A language pushed while `begin` is parked in the cold load belongs to the NEXT
+    /// session: the actor admits the setter at that suspension, so the session being
+    /// opened must decode the value latched at key-down.
+    /// Stated sensitivity: read `recognitionLanguage` at the
+    /// `makeSpeechStreamingSession` call instead of the value latched before the
+    /// first await → the parked session opens in `.ru` → the recorded languages are
+    /// [.ru, .ru] → RED. Without the interleaving this test performs, that mutation
+    /// survives the whole suite.
+    @Test
+    func aLanguagePushedDuringTheLoadReachesOnlyTheNextSession() async throws {
+        let engine = FakeSpeechEngine()
+        engine.gateLoad()
+        let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil)
+
+        async let begun: Void = transcriber.begin(biasTerms: [])
+        await engine.waitForLoadSuspended()          // begin is parked inside load()
+        await transcriber.setRecognitionLanguage(.ru)
+        engine.releaseLoad()
+        try await begun
+        _ = try await transcriber.finish()
+        try await transcriber.begin(biasTerms: [])
+
+        #expect(engine.sessionLanguages == [.auto, .ru],
+                "the parked session keeps the language it began with; the push lands on the next one")
+    }
+
     // MARK: - clock-driven keep-warm release
 
     /// keepWarm 5 s: after finish the model releases once the CLOCK advances past the

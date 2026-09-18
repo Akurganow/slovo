@@ -183,10 +183,12 @@ verify that `.build/dev-run/Slovo.app` passes strict code-sign validation, is
 signed by team `ZN8H5SF4R7`, has bundle identifier `com.slovo.app`, and that the
 running `slovo` process executes from that exact bundle.
 
-When nothing is building on this Mac, the `dev-build` label on the pull request
-produces a signed (not notarized) dev build in CI — same team `ZN8H5SF4R7`,
-same `com.slovo.app`, verified the same way — and is how the owner gets a build
-to test.
+When nothing is building on this Mac, the `dev-build` label on a pull request
+from this repository produces a signed (not notarized) dev build in CI — same
+team `ZN8H5SF4R7`, same `com.slovo.app`, verified the same way — and is how the
+owner gets a build to test. The packaging job runs only when the pull request's
+head is in this repository, so a fork's pull request takes the launcher above
+instead.
 
 ### Gate RED→GREEN by Cynefin
 
@@ -233,7 +235,8 @@ a real trap already caught once: Lightning-SimulWhisper).
 ### Before you open a pull request
 
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
-  macOS runner — on the pull-request head, cited by number and conclusion. A
+  macOS runner — on the pull request's merge result, cited by number and
+  conclusion. A
   local `Scripts/diagnose.sh` is a convenience for whoever is already at a Mac,
   never something to ask the owner for; all it adds is the six tests that skip
   whenever `CI` is set.
