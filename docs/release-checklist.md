@@ -95,17 +95,37 @@ xcrun stapler validate .build/dist/Slovo.dmg
   releasing the key stops recording immediately rather than after the sound.
 - Speaking while the speech model is still loading ("Preparing Speech Model" on a
   cold start) still reaches the transcript — that audio is not dropped.
-- The model loads once per launch, however often the pipeline is rebuilt. Count the
-  loads in a stream opened before launch:
-  - `log stream --level info --predicate 'subsystem == "com.slovo.app"'`
-  - First run, empty model cache: launch, then grant Microphone and Accessibility
-    while the model downloads.
-  - Exactly one `asr.modelLoad state=started`, then one `state=finished ms=…`. The
-    download progress does not restart, and the first dictation afterwards works.
-  - With the model already cached, hit Retry Setup twice: no further
-    `asr.modelLoad state=started`, and the next dictation is immediate.
-- Retry Setup, or a revoked permission, while the first download runs: the menu bar
-  settles to the idle glyph with "Setup Required". It never keeps pulsing.
+- Never revoke a permission while Slovo is running. Revoking Accessibility blocks
+  keyboard input for the whole session (issue #73). Reset permissions before launch
+  instead, with `tccutil`.
+- **First run downloads the model once.** Every step below is read from one stream,
+  opened before Slovo launches:
+  `log stream --level info --predicate 'subsystem == "com.slovo.app"'`.
+  - Quit Slovo. Remove `~/Library/Application Support/slovo/models`. Run
+    `tccutil reset Microphone com.slovo.app` and
+    `tccutil reset Accessibility com.slovo.app`.
+  - Launch. The menu bar shows "Slovo Setup Required" and the log shows
+    `onboarding pending`.
+  - Grant Microphone, then Accessibility, from that menu while the model downloads.
+    Accessibility opens System Settings; grant it there, then open the Slovo menu
+    again.
+  - The log shows exactly one `asr.modelLoad state=started` and one
+    `state=finished ms=…`, then `production composition started`.
+  - The first dictation afterwards inserts text.
+- **A rebuild reuses the model already loaded.** Same stream, model left in the
+  cache from the check above:
+  - Quit Slovo. Run `tccutil reset Accessibility com.slovo.app`. Launch.
+  - The log shows one `asr.modelLoad state=started`, one `state=finished ms=…`, and
+    `onboarding pending`.
+  - Click "Retry Setup" in the "Slovo Setup Required" menu. Wait for the next
+    `onboarding pending` line, then click it once more.
+  - Neither click logs a new `asr.modelLoad state=started`.
+  - Grant Accessibility from that menu and open the Slovo menu again. The log shows
+    `production composition started` and still no new `asr.modelLoad` line.
+  - The next dictation starts immediately, with no "Preparing Speech Model" pulse.
+- The stuck loading pulse — a gated pipeline replaced by one that needs setup —
+  requires losing a permission while Slovo runs, so it is not checked by hand. The
+  source guard `aCompositionThatSkipsTheGateClearsTheLoadingState` pins it.
 - Changing the recognition language in Settings → General while idle applies to the
   next dictation with no "Preparing Speech Model" pulse and no model reload, and
   that dictation recognises in the new language.
@@ -128,6 +148,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
   clipboard.
 - Offline, refused, unavailable, or misconfigured cleanup falls back to
   `PassThrough` and preserves the user's words.
+- An Error cue on a dictation that DID insert text means cleanup failed and the raw
+  transcript was used. The same stream names the cause:
+  `cleanup.failure kind=… status=… ms=…`, then
+  `cue.error reason=cleanupUnavailableInsertedAsSpoken`.
 - The OpenRouter key is read from Keychain lazily when cleanup runs.
 - `biasTerms` reach the transcriber path on a real on-device run. The switch ships
   OFF, so this needs Settings → General → "Vocabulary bias (experimental)" turned
