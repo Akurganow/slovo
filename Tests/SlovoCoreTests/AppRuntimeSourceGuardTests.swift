@@ -477,6 +477,38 @@ struct AppRuntimeSourceGuardTests {
                 "the orchestrator must expose a live vocabulary-bias update so no rebuild is needed")
     }
 
+    /// A recognition-language change applies live to the NEXT dictation, like the
+    /// vocabulary-bias switch: persist, push the language to the running
+    /// orchestrator, and never rebuild. The loaded model decodes any language — the
+    /// language reaches only the decoder's per-session options — so a rebuild would
+    /// re-warm ASR and show the loading pulse for a change that costs neither.
+    /// Stated sensitivity, one per assertion — no test target links `Sources/slovo`,
+    /// so these are the only guards on the app-layer chain: route the change back
+    /// through a rebuild (retrySetup/startPipeline/prepareModelGate/
+    /// showModelLoadingState) → RED; delete the `guard persist(config)` line (the
+    /// language works for the session and is lost at relaunch) → RED; write a
+    /// different config field → RED; push a literal instead of the chosen language →
+    /// RED.
+    @Test
+    func changingRecognitionLanguageAppliesLiveWithoutPipelineRebuild() throws {
+        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
+        let setterBody = try Self.functionBody(named: "setRecognitionLanguage", in: settings)
+
+        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
+            #expect(!setterBody.contains(forbidden),
+                    "a recognition-language change must not \(forbidden): that re-warms ASR and shows the loading pulse")
+        }
+        #expect(setterBody.contains("config.language = language"),
+                "the apply path must write THIS field, with the value it was given")
+        #expect(setterBody.contains("guard persist(config)"),
+                "the change must survive relaunch, not just the running session")
+        #expect(setterBody.contains("updateRecognitionLanguage(language)"),
+                "the change must push its own value live to the running orchestrator")
+        #expect(orchestrator.contains("func updateRecognitionLanguage"),
+                "the orchestrator must expose a live recognition-language update so no rebuild is needed")
+    }
+
     /// AC12: the FSM stays PURE — `transition` decides on (state, event) only. The
     /// mute switch is a CAPTURE-stage flag applied in the orchestrator, never
     /// threaded into the pure decision table.

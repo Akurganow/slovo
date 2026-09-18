@@ -13,14 +13,12 @@ import WhisperKit
 /// `Sendable` engine.
 public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreating, @unchecked Sendable {
     private let model: String
-    private let language: Language
     private let download: Bool
     private let lock = NSLock()
     private var loadedEngine: WhisperKit?
 
-    public init(model: String, language: Language, download: Bool = true) {
+    public init(model: String, download: Bool = true) {
         self.model = model
-        self.language = language
         self.download = download
     }
 
@@ -57,7 +55,7 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         lock.withLock { loadedEngine = nil }
     }
 
-    public func makeSpeechStreamingSession(biasTerms: [Term]) throws -> any SpeechStreamingSession {
+    public func makeSpeechStreamingSession(biasTerms: [Term], language: Language) throws -> any SpeechStreamingSession {
         guard let engine = currentEngine else {
             throw TranscriptionError.backendUnavailable
         }

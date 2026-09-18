@@ -147,6 +147,15 @@ public actor Orchestrator {
         usesVocabularyBias = enabled
     }
 
+    /// Live-pushes the recognition language to the NEXT dictation, like
+    /// `updateUsesVocabularyBias`. It travels through the orchestrator rather than
+    /// straight from the app to the transcriber so every live setting keeps ONE
+    /// mutation path; the resident model is never re-warmed, because the language
+    /// reaches only the decoder's per-session options.
+    public func updateRecognitionLanguage(_ language: Language) async {
+        await deps.transcriber.setRecognitionLanguage(language)
+    }
+
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
     public func awaitPipelineDrain() async {
         while let task = pipelineTask {

@@ -489,6 +489,8 @@ private final class ControllableTranscriber: Transcriber {
     /// How many captured chunks reached recognition.
     var fedChunkCount: Int { fedChunks.withLock { $0 } }
 
+    func setRecognitionLanguage(_ language: Language) {}
+
     func begin(biasTerms: [Term]) async throws {
         timeline?.record(.asrBeginEntered)
         await beginLatch.arrive()

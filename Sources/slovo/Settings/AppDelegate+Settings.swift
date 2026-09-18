@@ -44,16 +44,19 @@ extension AppDelegate: SettingsActions {
         var config = ConfigStore.load(from: defaults)
         config.language = language
         guard persist(config) else { return }
-        // The ASR engine binds its language at construction, so a recognition-language
-        // change is the one Settings change that re-warms the model — an honest ASR
-        // change, unlike the cleanup-model swap which must never rebuild.
-        retrySetup()
+        // Live: persist + push to the running orchestrator, no rebuild. The loaded
+        // speech model decodes any language — the language reaches only the decoder's
+        // per-session options — so the model is never re-warmed and no loading pulse
+        // appears for a change that decides what the NEXT dictation decodes.
+        Task { @MainActor in
+            await composition?.orchestrator.updateRecognitionLanguage(language)
+        }
     }
 
     func setTranslationLanguage(_ language: Language) {
         // Live: persist + push to the running orchestrator, no rebuild — the target
         // only shapes the translate-mode prompt, so the resident ASR model is never
-        // re-warmed (unlike the recognition-language change).
+        // re-warmed.
         applyTranslationLanguage(language)
     }
 

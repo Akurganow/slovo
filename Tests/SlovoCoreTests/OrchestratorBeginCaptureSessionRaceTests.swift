@@ -353,6 +353,8 @@ private actor BeginRaceTranscriber: Transcriber {
     var cancelCount: Int { recordedCancelCount }
     var finishCount: Int { recordedFinishCount }
 
+    func setRecognitionLanguage(_ language: Language) {}
+
     func begin(biasTerms: [Term]) async throws {
         let callIndex = beginCount
         beginCount += 1
@@ -400,6 +402,7 @@ private final class ResidencyRaceTranscriber: Transcriber {
         }
     }
 
+    func setRecognitionLanguage(_ language: Language) {}
     func begin(biasTerms: [Term]) async throws {}
     func feed(_ chunk: AudioChunk) async throws {}
     func finish() async throws -> String { "spoken" }

@@ -67,6 +67,11 @@ public final class FakeTranscriber: Transcriber {
         recorded.withLock { $0.cancelCount }
     }
 
+    /// Ignored: the language assertion sits on the session factory, where the real
+    /// transcriber delivers it (`OrchestratorRecognitionLanguageTests`), so a fake
+    /// that recorded it here could stay green while nothing reached the engine.
+    public func setRecognitionLanguage(_ language: Language) {}
+
     public func begin(biasTerms: [Term]) async throws {
         recorded.withLock { $0.beginCalls.append(Call(biasTerms: biasTerms)) }
     }

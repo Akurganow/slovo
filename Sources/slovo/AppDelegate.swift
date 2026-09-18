@@ -380,10 +380,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         openRouterKeyWindow?.show()
     }
 
-    // Internal (not private) so the AppDelegate+Settings extension can call it
-    // for the honest ASR rebuild on a recognition-language change.
     @objc
-    func retrySetup() {
+    private func retrySetup() {
         // A rebuild is asynchronous (it joins the previous edge consumer first); a
         // second retry arriving before it finishes must not spawn a parallel
         // teardown+rebuild that could leave a mismatched sequencer and composition.

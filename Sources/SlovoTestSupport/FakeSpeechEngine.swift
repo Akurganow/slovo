@@ -38,6 +38,7 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
         var loadSuspendedSignals: [CheckedContinuation<Void, Never>] = []
         var streamSamples: [Float] = []
         var sessionBiasTerms: [[Term]] = []
+        var sessionLanguages: [Language] = []
         var streamAppendCalls: [Int] = []
         var streamStartCount = 0
         var streamFinishCount = 0
@@ -216,14 +217,22 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
         }
     }
 
-    public func makeSpeechStreamingSession(biasTerms: [Term]) throws -> any SpeechStreamingSession {
-        state.withLock { $0.sessionBiasTerms.append(biasTerms) }
+    public func makeSpeechStreamingSession(biasTerms: [Term], language: Language) throws -> any SpeechStreamingSession {
+        state.withLock { current in
+            current.sessionBiasTerms.append(biasTerms)
+            current.sessionLanguages.append(language)
+        }
         return FakeSpeechStreamingSession(engine: self)
     }
 
     /// Every session-creation call's biasTerms, in invocation order.
     public var sessionBiasTerms: [[Term]] {
         state.withLock { $0.sessionBiasTerms }
+    }
+
+    /// Every session-creation call's language, in invocation order.
+    public var sessionLanguages: [Language] {
+        state.withLock { $0.sessionLanguages }
     }
 
     fileprivate func startStream() {

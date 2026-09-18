@@ -25,8 +25,16 @@ public actor WhisperKitTranscriber: Transcriber {
         /// window before release.
         public var keepWarmSeconds: Int?
 
-        public init(keepWarmSeconds: Int? = Config.defaults.keepWarmSeconds) {
+        /// The recognition language the first session decodes with. Later changes
+        /// arrive through `setRecognitionLanguage`, never through a new transcriber.
+        public var language: Language
+
+        public init(
+            keepWarmSeconds: Int? = Config.defaults.keepWarmSeconds,
+            language: Language = Config.defaults.language
+        ) {
             self.keepWarmSeconds = keepWarmSeconds
+            self.language = language
         }
     }
 
@@ -36,6 +44,7 @@ public actor WhisperKitTranscriber: Transcriber {
     private let clock: any Clock
     private let lifecycle: ModelLifecycle
 
+    private var recognitionLanguage: Language
     private var speechSession: (any SpeechStreamingSession)?
     private var releaseTask: Task<Void, Never>?
     private var releaseGeneration = 0
@@ -48,6 +57,7 @@ public actor WhisperKitTranscriber: Transcriber {
         clock: some Clock
     ) {
         self.configuration = configuration
+        self.recognitionLanguage = configuration.language
         self.engine = engine
         self.converter = converter
         self.clock = clock
@@ -74,6 +84,13 @@ public actor WhisperKitTranscriber: Transcriber {
         }
     }
 
+    /// Applies a new recognition language to the NEXT session. The loaded model is
+    /// language-independent — the language reaches only the decoder's per-session
+    /// options — so a change costs no reload and no rebuilt pipeline.
+    public func setRecognitionLanguage(_ language: Language) {
+        recognitionLanguage = language
+    }
+
     public func begin(biasTerms: [Term]) async throws {
         supersedePendingRelease()
         if let speechSession {
@@ -87,7 +104,10 @@ public actor WhisperKitTranscriber: Transcriber {
         }
 
         do {
-            let speechSession = try engine.makeSpeechStreamingSession(biasTerms: biasTerms)
+            let speechSession = try engine.makeSpeechStreamingSession(
+                biasTerms: biasTerms,
+                language: recognitionLanguage
+            )
             try await speechSession.start()
             self.speechSession = speechSession
         } catch {

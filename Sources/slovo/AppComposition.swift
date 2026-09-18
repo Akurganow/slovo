@@ -29,8 +29,11 @@ enum AppComposition {
         )
         let source = GRDBPersonalizationSource(database: database, log: log)
         let whisperKitTranscriber = WhisperKitTranscriber(
-            configuration: WhisperKitTranscriber.Configuration(keepWarmSeconds: config.keepWarmSeconds),
-            engine: WhisperKitEngine(model: config.asrModel, language: config.language),
+            configuration: WhisperKitTranscriber.Configuration(
+                keepWarmSeconds: config.keepWarmSeconds,
+                language: config.language
+            ),
+            engine: WhisperKitEngine(model: config.asrModel),
             converter: WhisperSampleConverter(),
             clock: MonotonicClock()
         )

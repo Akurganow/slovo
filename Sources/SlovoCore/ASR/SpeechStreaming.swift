@@ -15,6 +15,9 @@ public protocol SpeechStreamingSession: Sendable {
 
 /// Creates a fresh live recognition session for each dictation.
 public protocol SpeechStreamingSessionCreating {
-    /// Opens a session biased toward `biasTerms`; an empty list runs unbiased.
-    func makeSpeechStreamingSession(biasTerms: [Term]) throws -> any SpeechStreamingSession
+    /// Opens a session decoding `language` and biased toward `biasTerms`; an empty
+    /// list runs unbiased. The language is a per-session input because the loaded
+    /// model is language-independent: it shapes the decoder's options only, so
+    /// changing it never reloads the model.
+    func makeSpeechStreamingSession(biasTerms: [Term], language: Language) throws -> any SpeechStreamingSession
 }

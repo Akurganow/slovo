@@ -11,10 +11,11 @@ enum TranscriberFixtures {
         engine: FakeSpeechEngine,
         converter: FakeAudioConverter = FakeAudioConverter(outcomes: [.samples([0.1])]),
         keepWarmSeconds: Int? = 0,
+        language: Language = Config.defaults.language,
         clock: FakeClock = FakeClock(start: 0)
     ) -> WhisperKitTranscriber {
         WhisperKitTranscriber(
-            configuration: .init(keepWarmSeconds: keepWarmSeconds),
+            configuration: .init(keepWarmSeconds: keepWarmSeconds, language: language),
             engine: engine,
             converter: converter,
             clock: clock
