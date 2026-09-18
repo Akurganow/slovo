@@ -191,7 +191,7 @@ enum GateChecks {
     /// logged `.public` — never payload text — matched EXACTLY as captured, so
     /// any new `.public` payload (even a lookalike name) must be added here, a
     /// deliberate review step, before the gate passes it.
-    /// Entries: `decodeMs`/`drainMs`/`requestMs` are millisecond durations;
+    /// Entries: `decodeMs`/`drainMs`/`loadMs`/`requestMs` are millisecond durations;
     /// `planCase` is a decode-plan case NAME (associated values dropped at the
     /// call site); `confirmedEndSeconds` is a stream-position offset in seconds;
     /// `biasRetried ? 1 : 0` is a 0/1 flag for whether the tail decode was
@@ -200,6 +200,7 @@ enum GateChecks {
         "biasRetried ? 1 : 0",
         "decodeMs",
         "drainMs",
+        "loadMs",
         "planCase",
         "requestMs",
         "streamState.confirmedEndSeconds, format: .fixed(precision: 2)",

@@ -1,5 +1,6 @@
 import Foundation
 import WhisperKit
+import os
 
 /// The on-device WhisperKit SDK behind model loading and live-session creation,
 /// so no WhisperKit type reaches the streaming transcriber.
@@ -12,6 +13,8 @@ import WhisperKit
 /// around the loaded-model pointer, so the transcriber actor can hold it as a
 /// `Sendable` engine.
 public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreating, @unchecked Sendable {
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
+
     private let model: String
     private let download: Bool
     private let lock = NSLock()
@@ -26,17 +29,37 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         lock.withLock { loadedEngine != nil }
     }
 
+    /// Logged HERE rather than at the transcriber's single flight: this is the one
+    /// place a model is really constructed (and, on a cold cache, downloaded), so a
+    /// caller that joins a load in flight — or finds the model resident — emits no
+    /// start line, and one start line means one load.
     public func load() async throws {
         guard !isLoaded else { return }
-        let engine = try await WhisperKit(WhisperKitConfig(
-            model: model,
-            downloadBase: Self.modelDownloadBase,
-            verbose: false,
-            logLevel: .error,
-            load: true,
-            download: download
-        ))
+        Self.diagnosticLog.info("asr.modelLoad state=started")
+        let loadStartUptime = ProcessInfo.processInfo.systemUptime
+        let engine: WhisperKit
+        do {
+            engine = try await WhisperKit(WhisperKitConfig(
+                model: model,
+                downloadBase: Self.modelDownloadBase,
+                verbose: false,
+                logLevel: .error,
+                load: true,
+                download: download
+            ))
+        } catch {
+            let loadMs = Int((ProcessInfo.processInfo.systemUptime - loadStartUptime) * 1_000)
+            Self.diagnosticLog.error(
+                """
+                asr.modelLoad state=failed ms=\(loadMs, privacy: .public) \
+                error=\(error.localizedDescription, privacy: .private)
+                """
+            )
+            throw error
+        }
+        let loadMs = Int((ProcessInfo.processInfo.systemUptime - loadStartUptime) * 1_000)
         lock.withLock { loadedEngine = engine }
+        Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public)")
     }
 
     /// App-owned model cache under Application Support, overriding the WhisperKit
