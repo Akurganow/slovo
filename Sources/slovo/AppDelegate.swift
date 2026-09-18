@@ -15,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
     let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
+    /// Owned here and injected into every composition, like the key provider: the
+    /// pipeline is rebuilt on a permission grant, on Retry Setup and on the hotkey
+    /// retry, and none of those may download or load the speech model again. Lazy
+    /// only so the config read happens after `defaults` is set.
+    private lazy var speechModel = SharedSpeechModel(config: ConfigStore.load(from: defaults))
     // Lazy so the seed can run the live derivation (a phase-2 self call); after
     // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
     // Settings pane can never observe a value the funnel did not publish.
@@ -119,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let live = try AppComposition.makeLive(
                 defaults: defaults,
                 openRouterKeyProvider: openRouterKeyProvider,
+                speechModel: speechModel,
                 statusReporter: { [weak self] status in
                     Task { @MainActor [weak self] in
                         self?.showStatus(status)

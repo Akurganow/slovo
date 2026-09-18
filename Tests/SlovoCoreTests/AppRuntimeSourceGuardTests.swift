@@ -255,10 +255,10 @@ struct AppRuntimeSourceGuardTests {
     func productionAsrEngineSetsNonDocumentsModelDownloadBase() throws {
         let sources = try Self.productionAsrRuntimeSources()
         let sourceByPath = Dictionary(uniqueKeysWithValues: sources.map { ($0.relativePath, $0.contents) })
-        let composition = try #require(sourceByPath["Sources/slovo/AppComposition.swift"])
+        let speechModel = try #require(sourceByPath["Sources/SlovoCore/ASR/SharedSpeechModel.swift"])
         let engine = try #require(sourceByPath["Sources/SlovoCore/ASR/WhisperKitEngine.swift"])
 
-        #expect(composition.contains("WhisperKitTranscriber("))
+        #expect(speechModel.contains("WhisperKitTranscriber("))
         #expect(engine.contains("downloadBase"),
                 "WhisperKitEngine must set WhisperKitConfig.downloadBase to override the SDK's ~/Documents default")
         #expect(engine.contains("applicationSupportDirectory"),

@@ -172,7 +172,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        #expect(Self.containsInOrder(["modelWarmUp", "warmUp()"], in: composition),
+        #expect(Self.containsInOrder(["modelWarmUp", "startWarmUp()"], in: composition),
                 "the composition must expose the model preload as an awaitable task")
 
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -188,6 +188,33 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "stopModelLoadingPulse",
         ], in: gate),
         "warm-up completion must open the gate and stop the loading pulse")
+    }
+
+    /// The speech model is built ONCE for the process and injected into every
+    /// composition — the ownership inversion the key provider already uses. A
+    /// composition that builds its own engine starts its own load, so a permission
+    /// grant during a first run downloads the same artifact a second time while the
+    /// first download is still running.
+    /// Killing mutation: construct `WhisperKitTranscriber(` or `WhisperKitEngine(`
+    /// inside makeLive again, or build a second `SharedSpeechModel(` anywhere in the
+    /// delegate → RED. `SharedSpeechModelTests` proves what the shared model then
+    /// does; only this guard proves the production composition uses it.
+    @Test
+    func theSpeechModelIsBuiltOnceForTheProcessAndInjected() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        let makeLive = try Self.functionBody(named: "makeLive", in: composition)
+
+        #expect(delegate.components(separatedBy: "SharedSpeechModel(").count - 1 == 1,
+                "exactly one speech model may be built, and the app must own it")
+        #expect(delegate.contains("speechModel: speechModel"),
+                "the app-owned speech model must be injected into AppComposition.makeLive")
+        for forbidden in ["WhisperKitTranscriber(", "WhisperKitEngine("] {
+            #expect(!makeLive.contains(forbidden),
+                    "makeLive must receive the process's speech model, never construct \(forbidden)")
+        }
+        #expect(makeLive.contains("speechModel.transcriber"),
+                "the pipeline must be wired to the shared transcriber")
     }
 
     /// The interrupt-cancel edge must route through the sequencer sink into the

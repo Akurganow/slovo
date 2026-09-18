@@ -40,11 +40,12 @@ struct AppShellPackagingTests {
     func appShellBuildsProductionCompositionAndRoutesHotkey() throws {
         let composition = try Self.strippingComments(from: Self.source("Sources/slovo/AppComposition.swift"))
         let delegate = try Self.strippingComments(from: Self.source("Sources/slovo/AppDelegate.swift"))
+        let speechModel = try Self.strippingComments(from: Self.source("Sources/SlovoCore/ASR/SharedSpeechModel.swift"))
 
         #expect(composition.contains("ConfigStore.load(from: defaults)"))
         // Stated sensitivity: swap the production ASR off `WhisperKitTranscriber`
-        // in the composition → the assertion goes RED.
-        #expect(composition.contains("WhisperKitTranscriber("))
+        // in the process-wide speech model → the assertion goes RED.
+        #expect(speechModel.contains("WhisperKitTranscriber("))
         #expect(composition.contains("OpenRouterCleaner("))
         #expect(composition.contains("ClipboardPasteInjector("))
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
@@ -55,9 +56,11 @@ struct AppShellPackagingTests {
         // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
         // default — → this exact call text is gone → RED.
         #expect(composition.contains("PromptBuilder(examples: .bundled)"))
-        #expect(composition.contains("keepWarmSeconds: config.keepWarmSeconds"))
-        #expect(composition.contains("warmUp()"),
-                "startup composition must preload the resident ASR engine via warmUp()")
+        #expect(speechModel.contains("keepWarmSeconds: config.keepWarmSeconds"))
+        #expect(speechModel.contains("warmUp()"),
+                "the shared speech model must expose the preload of the resident ASR engine")
+        #expect(composition.contains("speechModel.startWarmUp()"),
+                "every composition must preload the model it was handed")
         #expect(composition.contains("statusReporter: statusReporter"))
         #expect(composition.contains("CGEventTapHotkeyMonitor(configuration:"))
         let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
