@@ -31,6 +31,13 @@ patch for *any* non-empty commit set, so a tiny guard,
 on whether a release is due at all. The guard and release-it agree on the trigger
 set, so a docs-only push never cuts a release.
 
+Pull requests land on `main` as squash merges, so the pull request's
+**title** is the header the guard classifies. The commits inside a branch
+never reach `main`. Their conventional headers do not count. Only the
+title does. A pull request whose title carries no `feat:` / `fix:` /
+`perf:` header merges green but releases nothing. The push runs trunk
+verification, even when every commit inside the branch was conventional.
+
 ## Trigger matrix
 
 | Trigger | Test gate | Signed + notarized + stapled app & DMG | Uploaded artifact (`slovo-macos`) | Version bump + tag + GitHub Release |
