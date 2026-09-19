@@ -143,13 +143,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
                 switch edge.phase {
                 // The stamp says an earlier key edge was still being handled when
-                // this press was made. Usually that is the previous dictation's
+                // this press was made. That is usually the previous dictation's
                 // key-up, which holds this sink across finalize, cleanup and
-                // insertion; it is also the shorter wind-down after a cancelled hold.
-                // Refused ahead of every other read: servicing it now would open the
-                // microphone after its own key was already released, and the readiness
-                // repaint below would overwrite the glyph of a dictation that is still
-                // running.
+                // insertion. It is also the shorter wind-down after a cancelled hold.
+                // The guard sits ahead of every other read. Servicing the press now
+                // would open the microphone after its own key was already released.
+                // The readiness repaint below would also overwrite the glyph of a
+                // dictation that is still running.
                 case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
                     guard await MainActor.run(body: { self?.isModelReady == true })
                     else { return await MainActor.run { self?.showModelLoadingState() } }
@@ -201,11 +201,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// A refused press changes nothing the user can see — deliberately, since it
-    /// captured no speech — so this line is the only way to tell such a press from
-    /// one the key tap never delivered at all. A method because the message does not
-    /// fit on the arm's one available line: the sink closure sits at the ceiling of
-    /// the closure-length limit, so the refusal may cost exactly one line there.
+    /// A refused press changes nothing the user can see, deliberately, since it
+    /// captured no speech. This line is the only way to tell such a press from one
+    /// the key tap never delivered at all. A method because the message does not fit
+    /// on the arm's one available line. The sink closure sits at the ceiling of the
+    /// closure-length limit, so the refusal may cost exactly one line there.
     private func logRefusedPress() {
         logger.info("press refused: earlier key edge still being handled")
     }

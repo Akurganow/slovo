@@ -11,17 +11,17 @@ public struct HotkeyEdge: Sendable {
     public let arrivedWhileBusy: Bool
 }
 
-/// Edges sent but not yet handled. Queued ones are counted too — an edge already
-/// yielded but not yet picked up is just as much an earlier edge, which is what
-/// separates this from a flag held around the sink call.
+/// Edges sent but not yet handled, queued ones included. An edge already yielded
+/// but not yet picked up is just as much an earlier edge. That is what separates
+/// this count from a flag held around the sink call.
 ///
 /// A reference box because `Mutex` is non-copyable, so the consumer task cannot
-/// take the count out of the sequencer; nor can it capture the sequencer, which is
-/// still being initialized when the task is created. `RedactionSafeLog`'s
+/// take the count out of the sequencer. Nor can the task capture the sequencer,
+/// which is still being initialized when the task is created. `RedactionSafeLog`'s
 /// `SerializedSink` is boxed for the same underlying reason.
 ///
 /// Internal rather than private so `OutstandingEdgeCountTests` can drive it
-/// directly: `depart()` runs after the sink returns and has no outward signal, so
+/// directly. `depart()` runs after the sink returns and has no outward signal, so
 /// a channel that never departs is invisible from outside the sequencer.
 final class OutstandingEdgeCount: Sendable {
     private let count = Mutex<Int>(0)
@@ -50,9 +50,9 @@ final class OutstandingEdgeCount: Sendable {
 /// leaving audio muted after the key was already released (the stuck-mute race).
 ///
 /// Run-to-completion also means a handler can occupy the channel for a long
-/// stretch — the key-up handler holds it across the whole finalize, cleanup and
+/// stretch. The key-up handler holds it across the whole finalize, cleanup and
 /// insert pipeline. Edges sent during such a stretch are still delivered, in order
-/// and exactly once, but each is stamped, so the sink can tell a press made while
+/// and exactly once. Each carries a stamp, so the sink can tell a press made while
 /// the channel was free from one made while it was not.
 public final class HotkeyEdgeSequencer: Sendable {
     private let continuation: AsyncStream<HotkeyEdge>.Continuation
@@ -78,7 +78,7 @@ public final class HotkeyEdgeSequencer: Sendable {
     }
 
     /// Enqueues an edge, stamped with what the channel was doing when it arrived.
-    /// Synchronous and thread-safe so the tap thread never blocks; edges after
+    /// Synchronous and thread-safe so the tap thread never blocks. Edges sent after
     /// `stop()` are dropped.
     public func send(_ phase: HotkeyPhase) {
         let arrivedWhileBusy = outstandingEdges.arrive()

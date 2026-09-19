@@ -54,13 +54,19 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// A press made while the previous dictation was still being handled must be
-    /// refused BEFORE the arm touches anything: ahead of the readiness gate, whose
-    /// repaint would overwrite the running dictation's glyph, ahead of
-    /// `isPipelineActive = true`, whose write would make the following key-up drive a
-    /// session that was never started, and ahead of `.startRequested`.
-    /// Killing mutations: delete the refusal guard; move it below the readiness gate
-    /// or below `isPipelineActive = true`; or add a second, decoy read of the stamp
-    /// elsewhere in the sink (the exactly-one-read count catches that) -> RED.
+    /// refused BEFORE the arm touches anything. The refusal comes ahead of three
+    /// reads:
+    /// - the readiness gate, whose repaint would overwrite the running dictation's
+    ///   glyph
+    /// - `isPipelineActive = true`, whose write would make the following key-up
+    ///   drive a session that was never started
+    /// - `.startRequested`
+    ///
+    /// Killing mutations, each one -> RED:
+    /// - delete the refusal guard
+    /// - move it below the readiness gate, or below `isPipelineActive = true`
+    /// - add a second, decoy read of the stamp elsewhere in the sink, which the
+    ///   exactly-one-read count catches
     @Test
     func keyDownMadeDuringProcessingIsRefusedBeforeAnySessionState() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -73,9 +79,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "self?.isPipelineActive = true",
             "orchestrator.handle(.startRequested)",
         ], in: startPipeline),
-        "a press stamped busy — an earlier edge was still outstanding when it was made — must be refused before any session state is touched")
+        "a press stamped busy must be refused before any session state is touched")
         #expect(startPipeline.components(separatedBy: "arrivedWhileBusy").count - 1 == 1,
-                "the stamp must be read exactly once — a decoy read could satisfy the order while a second path still starts the session")
+                "the stamp must be read exactly once. A decoy read could satisfy the order while a second path still starts the session")
     }
 
     /// Key-down before the ASR model is resident must not open a session: a cold
@@ -174,7 +180,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// A key-up whose key-down was swallowed by the readiness gate must be
     /// swallowed too. The same guard carries the release of a press refused because
-    /// the previous dictation was still processing: that press started no session
+    /// the previous dictation was still processing. That press started no session
     /// either, so its key-up must reach no state machine event.
     /// Killing mutation: drop the active-pipeline guard from the
     /// `.up` arm and an idle key-up drives stopRequested and overwrites the

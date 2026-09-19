@@ -103,11 +103,11 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   cleanup hints — the active keyboard language and system spell-check
   suggestions — as advisory context for the cleanup prompt.
 - `Orchestrator` owns the runtime state transitions (`DictationFsm`).
-  `HotkeyEdgeSequencer` orders production key edges and stamps busy each one sent
-  while an earlier edge was still queued or being handled, which is how a key-down
-  made while an earlier key edge was still being handled is refused rather than
-  serviced after it. Per-session identity prevents a resumed readiness
-  continuation from mutating its replacement.
+  `HotkeyEdgeSequencer` orders production key edges. It also stamps busy every
+  edge sent while an earlier edge was still queued or being handled. The key-down
+  arm refuses a press that carries that stamp rather than servicing it late.
+  Per-session identity prevents a resumed readiness continuation from mutating its
+  replacement.
 
 The app target owns OS-specific adapters and production composition. The speech
 model is built once per process and injected into every composition, so a rebuild —

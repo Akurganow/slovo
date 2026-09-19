@@ -14,10 +14,10 @@ import SlovoCore
 //                                        // (called from the CGEventTap run-loop thread)
 //   - func stop() async                 // teardown: consumer stops, later sends are dropped
 //
-// Every delivered edge is also stamped with whether an earlier edge was still
-// queued or still being handled when it was sent, which is how the app tells a
-// press made while an earlier key edge was still being handled from a fresh one.
-// The counter behind that stamp is driven directly in OutstandingEdgeCountTests.
+// Every delivered edge carries a stamp, set when the edge was sent: true when an
+// earlier edge was still queued or still being handled. The stamp is how the app
+// tells a press made during an earlier edge from a fresh press. The counter behind
+// it is driven directly in OutstandingEdgeCountTests.
 //
 // Async coordination follows the repo's continuation-parking style
 // (SlovoTestSupport.BlockingTranscriber): no sleeps, no timing luck — ordering is
@@ -54,10 +54,11 @@ struct HotkeyEdgeSequencerTests {
     }
 
     /// A press made while the previous dictation's key-up handler was still running
-    /// must reach the sink stamped busy — EVEN THOUGH that handler has finished by
-    /// the time the press is picked up. The single consumer guarantees the key-up
-    /// handler completes first, so nothing observable at pick-up time separates this
-    /// press from a fresh one; the fact has to be taken when the press is made.
+    /// must reach the sink stamped busy. That holds EVEN THOUGH the handler has
+    /// finished by the time the press is picked up. The single consumer guarantees
+    /// the key-up handler completes first, so nothing observable at pick-up time
+    /// separates this press from a fresh one. The fact has to be taken when the
+    /// press is made.
     /// Killing mutation: stamp no edge busy (`arrivedWhileBusy: false`). The
     /// press made during the parked handler then looks exactly like a fresh press,
     /// and the app admits it -> RED.
@@ -66,9 +67,9 @@ struct HotkeyEdgeSequencerTests {
     /// press is dequeued only after the parked handler finished and stopped being
     /// outstanding, so it arrives not stamped busy -> RED.
     /// The window in which an edge is already queued but the consumer has not yet
-    /// picked it up cannot be forced from outside the sequencer; it is pinned instead
-    /// by the two-arrivals step of `anEdgeIsStampedBusyOnlyWhileAnEarlierOneHasNotDeparted`,
-    /// which reaches the counter with no sink running at all.
+    /// picked it up cannot be forced from outside the sequencer. The two-arrivals
+    /// step of `anEdgeIsStampedBusyOnlyWhileAnEarlierOneHasNotDeparted` pins it
+    /// instead, reaching the counter with no sink running at all.
     @Test
     func pressSentWhileTheKeyUpHandlerWasRunningIsStampedThoughItFinishedFirst() async {
         let recorder = EdgeSinkRecorder()
@@ -88,14 +89,14 @@ struct HotkeyEdgeSequencerTests {
     }
 
     /// A press made with the channel free must not be stamped busy, so the app starts
-    /// a session for it. This is the half that stops an over-eager refusal: an edge
+    /// a session for it. This is the half that stops an over-eager refusal. An edge
     /// wrongly stamped busy here is a press the app would refuse, and the first press
     /// of every session is such an edge.
     /// Killing mutation: stamp every edge busy (`arrivedWhileBusy: true`, or answer
     /// `outstanding > 0` after the increment instead of `outstanding > 1`). Then the
     /// very first press is refused and dictation never starts -> RED.
     @Test
-    func anEdgeSentWithTheChannelFreeIsNotStamped() async {
+    func anEdgeSentWithTheChannelFreeIsNotStampedBusy() async {
         let recorder = EdgeSinkRecorder()
         let sequencer = HotkeyEdgeSequencer { edge in await recorder.record(edge) }
 
@@ -108,10 +109,10 @@ struct HotkeyEdgeSequencerTests {
     }
 
     /// "The next press dictates normally": once a dictation's own edges have been
-    /// handled, the press that follows them must not be stamped busy, so the app
-    /// starts a session for it. This is the product rule the refusal must not eat.
+    /// handled, the press that follows must not be stamped busy. The app then starts
+    /// a session for it. This is the product rule the refusal must not eat.
     /// Killing mutation: delete `outstandingEdges.depart()`. The count then only
-    /// grows, so every edge after the first is stamped busy and the app refuses every
+    /// grows. Every edge after the first is stamped busy, so the app refuses every
     /// press for the rest of the session -> RED.
     @Test
     func aPressMadeAfterTheEarlierDictationFinishedIsNotStampedBusy() async {
@@ -184,7 +185,7 @@ struct HotkeyEdgeSequencerTests {
 
 /// Test double for the sequencer's async sink. Records the order in which edges
 /// enter and finish handling, and can park the first edge until the test releases
-/// it — the parking is what forces ordering without sleeps.
+/// it. The parking is what forces ordering without sleeps.
 private actor EdgeSinkRecorder {
     private(set) var entered: [HotkeyEdge] = []
     private(set) var handled: [HotkeyEdge] = []
@@ -199,9 +200,10 @@ private actor EdgeSinkRecorder {
         resolveCountWaiters()
     }
 
-    /// Sink that parks the FIRST edge mid-flight until `releaseParkedEdge()`, so the
-    /// test can observe whether a later edge is (wrongly) started meanwhile, and can
-    /// send an edge that is provably made while a handler is still running.
+    /// Sink that parks the FIRST edge mid-flight until `releaseParkedEdge()`. The
+    /// parking lets the test observe whether a later edge is (wrongly) started
+    /// meanwhile. It also lets the test send an edge provably made while a handler
+    /// is still running.
     func handleParkingFirstEdge(_ edge: HotkeyEdge) async {
         entered.append(edge)
         resolveCountWaiters()
