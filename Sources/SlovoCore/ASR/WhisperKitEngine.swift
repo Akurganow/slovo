@@ -48,7 +48,7 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
                 download: download
             ))
         } catch {
-            let loadMs = Int((ProcessInfo.processInfo.systemUptime - loadStartUptime) * 1_000)
+            let loadMs = Self.elapsedMs(since: loadStartUptime)
             Self.diagnosticLog.error(
                 """
                 asr.modelLoad state=failed ms=\(loadMs, privacy: .public) \
@@ -57,9 +57,13 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
             )
             throw error
         }
-        let loadMs = Int((ProcessInfo.processInfo.systemUptime - loadStartUptime) * 1_000)
+        let loadMs = Self.elapsedMs(since: loadStartUptime)
         lock.withLock { loadedEngine = engine }
         Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public)")
+    }
+
+    private static func elapsedMs(since startUptime: TimeInterval) -> Int {
+        Int((ProcessInfo.processInfo.systemUptime - startUptime) * 1_000)
     }
 
     /// App-owned model cache under Application Support, overriding the WhisperKit

@@ -237,8 +237,8 @@ a real trap already caught once: Lightning-SimulWhisper).
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
   macOS runner — on the pull request's merge result, cited by number and
   conclusion. A local `Scripts/diagnose.sh` is a convenience for whoever is already
-  at a Mac, never something to ask the owner for. All it adds is the six tests that
-  skip whenever `CI` is set.
+  at a Mac, never something to ask the owner for. All it adds is the tests that skip
+  whenever `CI` is set.
 - Keep raw audio local; only transcript text may leave the machine, and only for
   cleanup — plus the key-scope metadata request to OpenRouter (`/models/user`),
   which carries the API key and no user content.
