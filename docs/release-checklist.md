@@ -152,14 +152,14 @@ xcrun stapler validate .build/dist/Slovo.dmg
   transcript was used. The same stream names the cause:
   `cleanup.failure kind=… status=… ms=…`, then
   `cue.error reason=cleanupUnavailableInsertedAsSpoken`.
-- The OpenRouter key's value is read from Keychain at most once per run of the
-  app, by whichever consumer asks for it first — ordinarily the key-scope
-  metadata request that goes out shortly after the hotkey is ready while Clean
-  Up Dictation is on, before any dictation; cleanup's later request for the key
-  reuses that value. That scope request is not tied to a dictation: it also
-  goes out when cleanup becomes available — a key saved, or Clean Up Dictation
-  switched back on — and when a cleanup call reports the model is outside the
-  key's scope.
+- Whichever consumer asks for the OpenRouter key first reads its value from
+  Keychain. That read happens at most once per run of the app. Ordinarily the
+  asker is the key-scope metadata request, sent shortly after the hotkey is
+  ready and before any dictation. It goes out only while Clean Up Dictation is
+  on. Cleanup asks later and reuses that value. The scope request is not tied
+  to a dictation. Slovo also sends it when cleanup becomes available, through a
+  key save or Clean Up Dictation switched back on, and when a cleanup call
+  reports the model is outside the key's scope.
 - `biasTerms` reach the transcriber path on a real on-device run. The switch ships
   OFF, so this needs Settings → General → "Vocabulary bias (experimental)" turned
   ON first; otherwise the pass exercises only the unbiased path. Efficacy and

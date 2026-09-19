@@ -119,18 +119,21 @@ storage, cleanup, transcription, and injection behavior.
 Cleanup has one runtime provider: the OpenRouter Chat Completions API. The app
 stores one OpenRouter key in Keychain and exposes model selection as curated
 OpenRouter model ids and a custom id entry. Selecting a model changes only the
-model id. The key's value is read from Keychain at most once per process and
-held in memory for the rest of it, by whichever consumer asks first — ordinarily
-the key-scope metadata request (`/models/user`) that goes out once the hotkey
-pipeline has started, not cleanup, whose later ask is served from memory. That
-scope request is not tied to a dictation: it is emitted on pipeline
-start when cleanup is already available, when cleanup becomes available
-(a key saved, or Clean Up Dictation switched back on), and when a cleanup
-call reports the model is outside the key's scope. Before
-each cleanup, Slovo adds advisory on-device hints to the prompt — the active
-keyboard language and, when enabled, system spell-check suggestions — which the
-model may use but never must; these hints travel to OpenRouter in the prompt
-alongside the transcript, and only the raw audio never leaves the Mac.
+model id. Whichever consumer asks first reads the key's value from Keychain and
+holds it in memory. That read happens at most once per process. Ordinarily the
+asker is the key-scope metadata request (`/models/user`), sent once the hotkey
+pipeline has started. Cleanup asks later and is served from memory. That scope
+request is not tied to a dictation. Slovo emits it on three occasions:
+
+- on pipeline start, when cleanup is already available
+- when cleanup becomes available, through a key save or Clean Up Dictation
+  switched back on
+- when a cleanup call reports the model is outside the key's scope
+
+Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
+active keyboard language and, when enabled, system spell-check suggestions —
+which the model may use but never must; these hints travel to OpenRouter in the
+prompt alongside the transcript, and only the raw audio never leaves the Mac.
 
 Both prompts (cleanup and translate) are built by `PromptBuilder` around a
 bundled few-shot example catalog: `PromptExampleCatalog` loads
