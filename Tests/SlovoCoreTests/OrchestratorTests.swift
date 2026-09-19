@@ -12,7 +12,7 @@ import SlovoTestSupport
 // Drives the REAL `PipelineFactory.makeOrchestrator` + `Orchestrator` over the
 // existing seam FAKES (running-composition — NEVER a hand-wired copy).
 // The suite asserts the transcriber received the resolved vocab as `biasTerms`
-// (the fold into the actor's `.endCaptureAndFinalizeTranscript`).
+// (the fold in the actor's `.beginCapture` path).
 //
 // SEED-LEAK RULE: synthetic neutral public anchors only.
 @Suite("Orchestrator pipeline")

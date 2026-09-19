@@ -123,9 +123,10 @@ model id. The key's value is read from Keychain at most once per process and
 held in memory for the rest of it, by whichever consumer asks first — ordinarily
 the key-scope metadata request (`/models/user`) that goes out once the hotkey
 pipeline has started, not cleanup, whose later ask is served from memory. That
-scope request is not tied to a dictation: it is emitted on pipeline start, when
-cleanup becomes available (a key saved, or Clean Up Dictation switched back on),
-and when a cleanup call reports the model is outside the key's scope. Before
+scope request is not tied to a dictation: it is emitted on pipeline
+start when cleanup is already available, when cleanup becomes available
+(a key saved, or Clean Up Dictation switched back on), and when a cleanup
+call reports the model is outside the key's scope. Before
 each cleanup, Slovo adds advisory on-device hints to the prompt — the active
 keyboard language and, when enabled, system spell-check suggestions — which the
 model may use but never must; these hints travel to OpenRouter in the prompt
