@@ -1,12 +1,12 @@
 import Synchronization
 
-/// One received hotkey edge: the phase, plus what the sequencer measured about its
-/// arrival. The memberwise initializer stays internal, so the only thing that can
-/// claim an edge arrived a given way is the sequencer that received it.
-public struct HotkeyEdge: Equatable, Sendable {
+/// One received hotkey edge. The memberwise initializer stays internal, so the
+/// only thing that can claim an edge arrived a given way is the sequencer that
+/// received it.
+public struct HotkeyEdge: Sendable {
     public let phase: HotkeyPhase
     /// True when an earlier edge was still queued or still being handled at the
-    /// moment this one was sent. Measured in `send`, because by the time an edge
+    /// moment this one was sent. Stamped in `send`, because by the time an edge
     /// reaches the sink the earlier one has finished and left nothing to observe.
     public let arrivedWhileBusy: Bool
 }
@@ -17,9 +17,13 @@ public struct HotkeyEdge: Equatable, Sendable {
 ///
 /// A reference box because `Mutex` is non-copyable, so the consumer task cannot
 /// take the count out of the sequencer; nor can it capture the sequencer, which is
-/// still being initialized when the task is created. Same reason as
-/// `RedactionSafeLog`'s `SerializedSink`.
-private final class OutstandingEdgeCount: Sendable {
+/// still being initialized when the task is created. `RedactionSafeLog`'s
+/// `SerializedSink` is boxed for the same underlying reason.
+///
+/// Internal rather than private so `OutstandingEdgeCountTests` can drive it
+/// directly: `depart()` runs after the sink returns and has no outward signal, so
+/// a channel that never departs is invisible from outside the sequencer.
+final class OutstandingEdgeCount: Sendable {
     private let count = Mutex<Int>(0)
 
     /// Counts an arriving edge, answering whether an earlier one was outstanding
@@ -48,8 +52,8 @@ private final class OutstandingEdgeCount: Sendable {
 /// Run-to-completion also means a handler can occupy the channel for a long
 /// stretch — the key-up handler holds it across the whole finalize, cleanup and
 /// insert pipeline. Edges sent during such a stretch are still delivered, in order
-/// and exactly once, but each carries `arrivedWhileBusy`, so the sink can tell a
-/// press made while the channel was free from one made while it was not.
+/// and exactly once, but each is stamped, so the sink can tell a press made while
+/// the channel was free from one made while it was not.
 public final class HotkeyEdgeSequencer: Sendable {
     private let continuation: AsyncStream<HotkeyEdge>.Continuation
     private let consumer: Task<Void, Never>

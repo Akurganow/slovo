@@ -59,8 +59,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// `isPipelineActive = true`, whose write would make the following key-up drive a
     /// session that was never started, and ahead of `.startRequested`.
     /// Killing mutations: delete the refusal guard; move it below the readiness gate
-    /// or below `isPipelineActive = true`; or add a second, decoy read of the arrival
-    /// fact elsewhere in the sink (the exactly-one-read count catches that) -> RED.
+    /// or below `isPipelineActive = true`; or add a second, decoy read of the stamp
+    /// elsewhere in the sink (the exactly-one-read count catches that) -> RED.
     @Test
     func keyDownMadeDuringProcessingIsRefusedBeforeAnySessionState() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -73,9 +73,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "self?.isPipelineActive = true",
             "orchestrator.handle(.startRequested)",
         ], in: startPipeline),
-        "a press that arrived while an earlier edge was still outstanding must be refused before any session state is touched")
+        "a press stamped busy — an earlier edge was still outstanding when it was made — must be refused before any session state is touched")
         #expect(startPipeline.components(separatedBy: "arrivedWhileBusy").count - 1 == 1,
-                "the arrival fact must be read exactly once — a decoy read could satisfy the order while a second path still starts the session")
+                "the stamp must be read exactly once — a decoy read could satisfy the order while a second path still starts the session")
     }
 
     /// Key-down before the ASR model is resident must not open a session: a cold
