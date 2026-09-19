@@ -61,18 +61,11 @@ Clarifications:
   text is inserted exactly once at key-up: the cleaned text while cleanup is on
   (raw only on a genuine cleanup failure), the raw final transcript in raw mode.
 - **A press made while the previous dictation is still being processed is
-  refused, not queued.** A dictation is not over at key-up: the transcript is
-  still being finalized, cleaned up and inserted while the menu bar shows
-  processing. A push-to-talk press made in that stretch does nothing at all. No
-  microphone opens, no Start or End cue plays, and no failure glyph or Error cue
-  appears for speech that was never captured. Releasing the key does nothing
-  either. A press is either serviced the moment it is made, with capture and
-  recognition starting immediately, or it is refused. Slovo judges a press by the
-  moment it was made. A press made an instant before the previous dictation
-  finished is refused even when that dictation finishes first. The same refusal
-  covers the brief moment while the app is still finishing an earlier press or
-  release. A key combination that cancels a hold leaves such a moment. A press
-  that does nothing is simply made again. The next press dictates normally.
+  refused, not queued.** Nothing happens: no microphone, no cues, no failure
+  glyph, and releasing the key does nothing either. Slovo judges a press by the
+  moment it was made, so a press made an instant before the previous dictation
+  finished is refused too. A cancelled hold leaves the same brief wind-down.
+  The next press dictates normally.
 - **Translate hold.** Translation is driven by a configurable **translate key**
   (Control by default), drawn from the same pool as the push-to-talk key and
   never the same key — the two settings are mutually exclusive. By default it is

@@ -2,27 +2,17 @@ import Testing
 
 @testable import SlovoCore
 
-// The counter behind every edge's stamp. This suite drives it directly, because
-// its other half is invisible from outside the sequencer. `depart()` runs after
-// the sink has returned and reports to nobody. A channel that never departs
-// therefore refuses every press after the first, and still passes every behaviour
-// test the sequencer has.
+// The counter behind every edge's stamp, driven here directly. Two edges can be
+// outstanding with no sink running between them, and that case cannot be reached
+// from outside the sequencer.
 @Suite("Outstanding edge count")
 struct OutstandingEdgeCountTests {
 
     /// An edge is stamped busy exactly while an earlier edge has arrived and not yet
-    /// departed. Two arrivals with no departure between them is the queued case. The
-    /// second edge is already in the channel while the first is still outstanding,
-    /// with no sink involved at all. That is why the sequencer keeps a count rather
-    /// than a flag held around the sink call.
-    /// Killing mutation: delete `depart()`. The count then only grows. The second
-    /// arrival after a departure is stamped busy, so the app refuses every press for
-    /// the rest of the session -> RED.
-    /// Killing mutation: answer `outstanding > 0` after the increment. Then the very
-    /// first arrival is stamped busy and dictation never starts -> RED.
-    /// Killing mutation: count only while a sink is running (a flag raised around the
-    /// call instead of a count of outstanding edges). The two-arrivals step then
-    /// reports not-busy, because no sink ran between them -> RED.
+    /// departed. Two arrivals with no departure between them is the queued case, and
+    /// no sink runs there. That is why the sequencer counts rather than holds a flag.
+    /// Killing mutation: delete `depart()` -> RED. Answer `outstanding > 0` after the
+    /// increment -> RED. Count only while a sink runs -> RED.
     @Test
     func anEdgeIsStampedBusyOnlyWhileAnEarlierOneHasNotDeparted() {
         let outstandingEdges = OutstandingEdgeCount()

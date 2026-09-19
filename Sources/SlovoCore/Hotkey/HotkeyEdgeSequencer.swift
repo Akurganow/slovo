@@ -1,33 +1,23 @@
 import Synchronization
 
-/// One received hotkey edge. The memberwise initializer stays internal, so the
-/// only thing that can claim an edge arrived a given way is the sequencer that
-/// received it.
+/// One received hotkey edge. The memberwise initializer stays internal, so only
+/// the sequencer that received an edge can say how it arrived.
 public struct HotkeyEdge: Sendable {
     public let phase: HotkeyPhase
-    /// True when an earlier edge was still queued or still being handled at the
-    /// moment this one was sent. Stamped in `send`, because by the time an edge
-    /// reaches the sink the earlier one has finished and left nothing to observe.
+    /// True when an earlier edge was still queued or being handled as this one was
+    /// sent. Stamped in `send`: by the time an edge reaches the sink, the earlier one
+    /// has finished and left nothing to observe.
     public let arrivedWhileBusy: Bool
 }
 
-/// Edges sent but not yet handled, queued ones included. An edge already yielded
-/// but not yet picked up is just as much an earlier edge. That is what separates
-/// this count from a flag held around the sink call.
-///
-/// A reference box because `Mutex` is non-copyable, so the consumer task cannot
-/// take the count out of the sequencer. Nor can the task capture the sequencer,
-/// which is still being initialized when the task is created. `RedactionSafeLog`'s
-/// `SerializedSink` is boxed for the same underlying reason.
-///
-/// Internal rather than private so `OutstandingEdgeCountTests` can drive it
-/// directly. `depart()` runs after the sink returns and has no outward signal, so
-/// a channel that never departs is invisible from outside the sequencer.
+/// Counts edges sent but not yet handled, queued ones included. A count, not a
+/// flag around the sink call: an edge already yielded is still an earlier edge.
+/// A class because the consumer task cannot capture the sequencer, which is still
+/// being initialized. Internal so `OutstandingEdgeCountTests` can drive `depart()`.
 final class OutstandingEdgeCount: Sendable {
     private let count = Mutex<Int>(0)
 
-    /// Counts an arriving edge, answering whether an earlier one was outstanding
-    /// when it arrived.
+    /// Counts an arriving edge. True when an earlier edge is still outstanding.
     func arrive() -> Bool {
         count.withLock { outstanding in
             outstanding += 1
@@ -49,11 +39,8 @@ final class OutstandingEdgeCount: Sendable {
 /// still-running `.down` (mic setup, model warm-up) could be overtaken by `.up`,
 /// leaving audio muted after the key was already released (the stuck-mute race).
 ///
-/// Run-to-completion also means a handler can occupy the channel for a long
-/// stretch. The key-up handler holds it across the whole finalize, cleanup and
-/// insert pipeline. Edges sent during such a stretch are still delivered, in order
-/// and exactly once. Each carries a stamp, so the sink can tell a press made while
-/// the channel was free from one made while it was not.
+/// The key-up handler holds the channel across the whole finalize, cleanup and
+/// insert pipeline. Every edge sent during that stretch arrives stamped busy.
 public final class HotkeyEdgeSequencer: Sendable {
     private let continuation: AsyncStream<HotkeyEdge>.Continuation
     private let consumer: Task<Void, Never>
