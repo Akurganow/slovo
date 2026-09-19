@@ -142,7 +142,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             prepareModelGate(for: live)
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
                 switch edge.phase {
-                case .down(let mode): guard await MainActor.run(body: { self?.isModelReady == true })
+                // An edge that arrived while an earlier one was still outstanding is a
+                // press made while the previous dictation's key-up was still being
+                // handled — that handler holds this sink across finalize, cleanup and
+                // insertion. Refused ahead of every other read: servicing it now would
+                // open the microphone after its own key was already released, and the
+                // readiness repaint below would overwrite the glyph of a dictation that
+                // is still running.
+                case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
+                    guard await MainActor.run(body: { self?.isModelReady == true })
                     else { return await MainActor.run { self?.showModelLoadingState() } }
                     await MainActor.run {
                         self?.isPipelineActive = true
@@ -190,6 +198,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             logger.error("production composition failed")
         }
+    }
+
+    /// A press refused because the previous dictation was still being processed
+    /// changes nothing the user can see — deliberately, since it captured no speech —
+    /// so this line is the only way to tell such a press from one the key tap never
+    /// delivered at all.
+    func logRefusedPress() {
+        logger.info("press refused: previous dictation still processing")
     }
 
     /// Derives and paints the recording glyph for a session's mode from the LIVE

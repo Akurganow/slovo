@@ -77,8 +77,8 @@ public final class HotkeyEdgeSequencer: Sendable {
     /// Synchronous and thread-safe so the tap thread never blocks; edges after
     /// `stop()` are dropped.
     public func send(_ phase: HotkeyPhase) {
-        _ = outstandingEdges.arrive()
-        continuation.yield(HotkeyEdge(phase: phase, arrivedWhileBusy: false))
+        let arrivedWhileBusy = outstandingEdges.arrive()
+        continuation.yield(HotkeyEdge(phase: phase, arrivedWhileBusy: arrivedWhileBusy))
     }
 
     /// Finishes the channel and joins the consumer, so a rebuilt monitor cannot
