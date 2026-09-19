@@ -53,6 +53,31 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "retrySetup must guard against a second rebuild BEFORE spawning the teardown+rebuild Task")
     }
 
+    /// A press made while the previous dictation was still being handled must be
+    /// refused BEFORE the arm touches anything: ahead of the readiness gate, whose
+    /// repaint would overwrite the running dictation's glyph, ahead of
+    /// `isPipelineActive = true`, whose write would make the following key-up drive a
+    /// session that was never started, and ahead of `.startRequested`.
+    /// Killing mutations: delete the refusal guard; move it below the readiness gate
+    /// or below `isPipelineActive = true`; or add a second, decoy read of the arrival
+    /// fact elsewhere in the sink (the exactly-one-read count catches that) -> RED.
+    @Test
+    func keyDownMadeDuringProcessingIsRefusedBeforeAnySessionState() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "case .down(let mode):",
+            "guard !edge.arrivedWhileBusy",
+            "isModelReady",
+            "self?.isPipelineActive = true",
+            "orchestrator.handle(.startRequested)",
+        ], in: startPipeline),
+        "a press that arrived while an earlier edge was still outstanding must be refused before any session state is touched")
+        #expect(startPipeline.components(separatedBy: "arrivedWhileBusy").count - 1 == 1,
+                "the arrival fact must be read exactly once — a decoy read could satisfy the order while a second path still starts the session")
+    }
+
     /// Key-down before the ASR model is resident must not open a session: a cold
     /// start opens the mic and then sits inside `begin` for the whole model load,
     /// with the key-up queued behind it. Killing mutation: remove the readiness
@@ -148,7 +173,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be
-    /// swallowed too. Killing mutation: drop the active-pipeline guard from the
+    /// swallowed too. The same guard carries the release of a press refused because
+    /// the previous dictation was still processing: that press started no session
+    /// either, so its key-up must reach no state machine event.
+    /// Killing mutation: drop the active-pipeline guard from the
     /// `.up` arm and an idle key-up drives stopRequested and overwrites the
     /// loading glyph -> RED.
     @Test

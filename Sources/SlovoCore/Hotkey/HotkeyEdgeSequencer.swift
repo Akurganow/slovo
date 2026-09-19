@@ -1,3 +1,41 @@
+import Synchronization
+
+/// One received hotkey edge: the phase, plus what the sequencer measured about its
+/// arrival. The memberwise initializer stays internal, so the only thing that can
+/// claim an edge arrived a given way is the sequencer that received it.
+public struct HotkeyEdge: Equatable, Sendable {
+    public let phase: HotkeyPhase
+    /// True when an earlier edge was still queued or still being handled at the
+    /// moment this one was sent. Measured in `send`, because by the time an edge
+    /// reaches the sink the earlier one has finished and left nothing to observe.
+    public let arrivedWhileBusy: Bool
+}
+
+/// Edges sent but not yet handled. Queued ones are counted too — an edge already
+/// yielded but not yet picked up is just as much an earlier edge, which is what
+/// separates this from a flag held around the sink call.
+///
+/// A reference box because `Mutex` is non-copyable, so the consumer task cannot
+/// take the count out of the sequencer; nor can it capture the sequencer, which is
+/// still being initialized when the task is created. Same reason as
+/// `RedactionSafeLog`'s `SerializedSink`.
+private final class OutstandingEdgeCount: Sendable {
+    private let count = Mutex<Int>(0)
+
+    /// Counts an arriving edge, answering whether an earlier one was outstanding
+    /// when it arrived.
+    func arrive() -> Bool {
+        count.withLock { outstanding in
+            outstanding += 1
+            return outstanding > 1
+        }
+    }
+
+    func depart() {
+        count.withLock { $0 -= 1 }
+    }
+}
+
 /// Serializes push-to-talk hotkey edges through a single ordered channel so a
 /// slow `.down` handler can never be overtaken by the following `.up`.
 ///
@@ -6,27 +44,41 @@
 /// before dequeuing the next. Without this, each edge ran on its own `Task` and a
 /// still-running `.down` (mic setup, model warm-up) could be overtaken by `.up`,
 /// leaving audio muted after the key was already released (the stuck-mute race).
+///
+/// Run-to-completion also means a handler can occupy the channel for a long
+/// stretch — the key-up handler holds it across the whole finalize, cleanup and
+/// insert pipeline. Edges sent during such a stretch are still delivered, in order
+/// and exactly once, but each carries `arrivedWhileBusy`, so the sink can tell a
+/// press made while the channel was free from one made while it was not.
 public final class HotkeyEdgeSequencer: Sendable {
-    private let continuation: AsyncStream<HotkeyPhase>.Continuation
+    private let continuation: AsyncStream<HotkeyEdge>.Continuation
     private let consumer: Task<Void, Never>
+    private let outstandingEdges: OutstandingEdgeCount
 
     /// - Parameter sink: invoked once per edge, in receipt order; the next edge is
     ///   dequeued only after this returns.
     @preconcurrency
-    public init(sink: @escaping @Sendable (HotkeyPhase) async -> Void) {
-        let (stream, continuation) = AsyncStream<HotkeyPhase>.makeStream()
+    public init(sink: @escaping @Sendable (HotkeyEdge) async -> Void) {
+        let (stream, continuation) = AsyncStream<HotkeyEdge>.makeStream()
+        let outstandingEdges = OutstandingEdgeCount()
         self.continuation = continuation
+        self.outstandingEdges = outstandingEdges
         self.consumer = Task {
-            for await phase in stream {
-                await sink(phase)
+            for await edge in stream {
+                await sink(edge)
+                // After the sink, never before: an edge sent while this one is being
+                // handled must find it outstanding.
+                outstandingEdges.depart()
             }
         }
     }
 
-    /// Enqueues an edge. Synchronous and thread-safe so the tap thread never
-    /// blocks; edges after `stop()` are dropped.
+    /// Enqueues an edge, stamped with what the channel was doing when it arrived.
+    /// Synchronous and thread-safe so the tap thread never blocks; edges after
+    /// `stop()` are dropped.
     public func send(_ phase: HotkeyPhase) {
-        continuation.yield(phase)
+        _ = outstandingEdges.arrive()
+        continuation.yield(HotkeyEdge(phase: phase, arrivedWhileBusy: false))
     }
 
     /// Finishes the channel and joins the consumer, so a rebuilt monitor cannot

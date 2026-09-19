@@ -140,8 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             isPresentingOnboarding = false
             prepareModelGate(for: live)
-            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
-                switch phase {
+            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
+                switch edge.phase {
                 case .down(let mode): guard await MainActor.run(body: { self?.isModelReady == true })
                     else { return await MainActor.run { self?.showModelLoadingState() } }
                     await MainActor.run {
