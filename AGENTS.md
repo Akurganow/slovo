@@ -60,6 +60,12 @@ Clarifications:
   transcript.** No overlay, no partial text on screen. In BOTH modes the final
   text is inserted exactly once at key-up: the cleaned text while cleanup is on
   (raw only on a genuine cleanup failure), the raw final transcript in raw mode.
+- **A press made while the previous dictation is still being processed is
+  refused, not queued.** Nothing happens: no microphone, no cues, no failure
+  glyph, and releasing the key does nothing either. Slovo judges a press by the
+  moment it was made, so a press made an instant before the previous dictation
+  finished is refused too. A cancelled hold leaves the same brief wind-down.
+  The next press dictates normally.
 - **Translate hold.** Translation is driven by a configurable **translate key**
   (Control by default), drawn from the same pool as the push-to-talk key and
   never the same key — the two settings are mutually exclusive. By default it is

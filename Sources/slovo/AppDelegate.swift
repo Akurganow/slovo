@@ -140,9 +140,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             isPresentingOnboarding = false
             prepareModelGate(for: live)
-            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] phase in
-                switch phase {
-                case .down(let mode): guard await MainActor.run(body: { self?.isModelReady == true })
+            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
+                switch edge.phase {
+                // A press stamped busy arrived while an earlier edge still held this
+                // sink. Servicing it now would open the microphone after its own key
+                // was released, and the repaint below would overwrite the live glyph.
+                case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
+                    guard await MainActor.run(body: { self?.isModelReady == true })
                     else { return await MainActor.run { self?.showModelLoadingState() } }
                     await MainActor.run {
                         self?.isPipelineActive = true
@@ -190,6 +194,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             logger.error("production composition failed")
         }
+    }
+
+    /// A refused press shows the user nothing, since it captured no speech. This line
+    /// is the only way to tell it from a press the key tap never delivered. A method,
+    /// not an inline call, because the sink closure sits at its length ceiling and the
+    /// refusal may cost exactly one line there.
+    private func logRefusedPress() {
+        logger.info("press refused: earlier key edge still being handled")
     }
 
     /// Derives and paints the recording glyph for a session's mode from the LIVE

@@ -9,10 +9,13 @@ import SlovoCore
 // contract; the AppDelegate wiring onto it is covered separately.
 //
 // Contract under test — `HotkeyEdgeSequencer`'s externally visible surface:
-//   - init(sink: @escaping @Sendable (HotkeyPhase) async -> Void)
+//   - init(sink: @escaping @Sendable (HotkeyEdge) async -> Void)
 //   - func send(_ phase: HotkeyPhase)   // synchronous, thread-safe, non-isolated
 //                                        // (called from the CGEventTap run-loop thread)
 //   - func stop() async                 // teardown: consumer stops, later sends are dropped
+//
+// Every edge carries a stamp set when it was sent: true when an earlier edge was
+// still queued or being handled. `OutstandingEdgeCountTests` drives that counter.
 //
 // Async coordination follows the repo's continuation-parking style
 // (SlovoTestSupport.BlockingTranscriber): no sleeps, no timing luck — ordering is
@@ -20,31 +23,88 @@ import SlovoCore
 @Suite("Hotkey edge sequencer")
 struct HotkeyEdgeSequencerTests {
 
-    /// A key-down handler that is still running MUST hold back the following key-up:
-    /// the sequencer runs one edge to completion before starting the next, in
-    /// receipt order. The .down handler parks under test control; while it is
-    /// parked the .up handler must not have begun.
-    /// Killing mutation: dispatch each edge on its own independent Task (today's
-    /// AppDelegate shape). Then .up runs while .down is parked, so `entered`
-    /// becomes [.down, .up] before release and completion order is no longer
-    /// serialized -> RED.
+    /// The sequencer runs one edge to completion before starting the next, in receipt
+    /// order. The first handler parks under test control, so the second must not have
+    /// begun while it is parked.
+    /// Killing mutation: dispatch each edge on its own Task -> RED.
     @Test
     func edgesAreHandledInReceiptOrderEvenWhenFirstHandlerIsSlow() async {
         let recorder = EdgeSinkRecorder()
-        let sequencer = HotkeyEdgeSequencer { phase in await recorder.handleParkingDown(phase) }
+        let sequencer = HotkeyEdgeSequencer { edge in await recorder.handleParkingFirstEdge(edge) }
 
         sequencer.send(.down(.plain))
         sequencer.send(.up(.plain))
 
         await recorder.awaitEntered(1)
-        #expect(await recorder.entered == [.down(.plain)],
+        #expect(await recorder.entered.map(\.phase) == [.down(.plain)],
                 "the following edge must not begin while the first handler is still running")
 
-        await recorder.releaseDown()
+        await recorder.releaseParkedEdge()
         await recorder.awaitHandled(2)
 
-        #expect(await recorder.handled == [.down(.plain), .up(.plain)],
+        #expect(await recorder.handled.map(\.phase) == [.down(.plain), .up(.plain)],
                 "edges must complete one at a time, in receipt order")
+        await sequencer.stop()
+    }
+
+    /// A press sent while the key-up handler was still running arrives stamped busy,
+    /// though that handler finishes first. Nothing at pick-up time separates it from a
+    /// fresh press, so the fact has to be taken when the press is made.
+    /// Killing mutation: stamp no edge busy -> RED. Killing mutation: read the
+    /// outstanding count at dequeue instead of at send -> RED.
+    @Test
+    func pressSentWhileTheKeyUpHandlerWasRunningIsStampedThoughItFinishedFirst() async {
+        let recorder = EdgeSinkRecorder()
+        let sequencer = HotkeyEdgeSequencer { edge in await recorder.handleParkingFirstEdge(edge) }
+
+        sequencer.send(.up(.plain))
+        await recorder.awaitEntered(1)
+        sequencer.send(.down(.plain))
+        await recorder.releaseParkedEdge()
+        await recorder.awaitHandled(2)
+
+        #expect(await recorder.handled.map(\.phase) == [.up(.plain), .down(.plain)],
+                "the key-up handler must finish before the press that arrived during it is handled")
+        #expect(await recorder.handled.map(\.arrivedWhileBusy) == [false, true],
+                "a press sent while the key-up handler was still running must arrive stamped busy, though that handler finished first")
+        await sequencer.stop()
+    }
+
+    /// A press made with the channel free must not be stamped busy, or the app refuses
+    /// the first press of every session.
+    /// Killing mutation: stamp every edge busy, or answer `outstanding > 0` after the
+    /// increment instead of `outstanding > 1` -> RED.
+    @Test
+    func anEdgeSentWithTheChannelFreeIsNotStampedBusy() async {
+        let recorder = EdgeSinkRecorder()
+        let sequencer = HotkeyEdgeSequencer { edge in await recorder.record(edge) }
+
+        sequencer.send(.down(.plain))
+
+        await recorder.awaitHandled(1)
+        #expect(await recorder.handled.map(\.arrivedWhileBusy) == [false],
+                "an edge sent while nothing else was outstanding must not be stamped busy")
+        await sequencer.stop()
+    }
+
+    /// "The next press dictates normally": once a dictation's own edges are handled,
+    /// the press that follows must not be stamped busy.
+    /// Killing mutation: delete `outstandingEdges.depart()`, so the count only grows
+    /// and every press after the first is refused -> RED.
+    @Test
+    func aPressMadeAfterTheEarlierDictationFinishedIsNotStampedBusy() async {
+        let recorder = EdgeSinkRecorder()
+        let sequencer = HotkeyEdgeSequencer { edge in await recorder.record(edge) }
+
+        sequencer.send(.down(.plain))
+        await recorder.awaitHandled(1)
+        sequencer.send(.up(.plain))
+        await recorder.awaitHandled(2)
+        sequencer.send(.down(.plain))
+        await recorder.awaitHandled(3)
+
+        #expect(await recorder.handled.map(\.arrivedWhileBusy) == [false, false, false],
+                "a dictation and the press after it must each find the channel free")
         await sequencer.stop()
     }
 
@@ -56,7 +116,7 @@ struct HotkeyEdgeSequencerTests {
     @Test
     func deliversEveryEdgeExactlyOnceInOrderForABurst() async {
         let recorder = EdgeSinkRecorder()
-        let sequencer = HotkeyEdgeSequencer { phase in await recorder.record(phase) }
+        let sequencer = HotkeyEdgeSequencer { edge in await recorder.record(edge) }
 
         sequencer.send(.down(.plain))
         sequencer.send(.up(.plain))
@@ -64,7 +124,7 @@ struct HotkeyEdgeSequencerTests {
         sequencer.send(.up(.plain))
 
         await recorder.awaitHandled(4)
-        #expect(await recorder.handled == [.down(.plain), .up(.plain), .down(.plain), .up(.plain)],
+        #expect(await recorder.handled.map(\.phase) == [.down(.plain), .up(.plain), .down(.plain), .up(.plain)],
                 "every edge in a rapid burst must be delivered exactly once, in order")
         await sequencer.stop()
     }
@@ -86,7 +146,7 @@ struct HotkeyEdgeSequencerTests {
     @Test
     func teardownStopsDeliveryOfSubsequentEdges() async {
         let handled = Mutex<[HotkeyPhase]>([])
-        let sequencer = HotkeyEdgeSequencer { phase in handled.withLock { $0.append(phase) } }
+        let sequencer = HotkeyEdgeSequencer { edge in handled.withLock { $0.append(edge.phase) } }
 
         sequencer.send(.down(.plain))
         await sequencer.stop()
@@ -101,38 +161,38 @@ struct HotkeyEdgeSequencerTests {
 }
 
 /// Test double for the sequencer's async sink. Records the order in which edges
-/// enter and finish handling, and can park the .down handler until the test
-/// releases it — the parking is what forces ordering without sleeps.
+/// enter and finish handling. The parking is what forces ordering without sleeps.
 private actor EdgeSinkRecorder {
-    private(set) var entered: [HotkeyPhase] = []
-    private(set) var handled: [HotkeyPhase] = []
-    private var downGate: CheckedContinuation<Void, Never>?
-    private var downReleased = false
+    private(set) var entered: [HotkeyEdge] = []
+    private(set) var handled: [HotkeyEdge] = []
+    private var gate: CheckedContinuation<Void, Never>?
+    private var released = false
     private var countWaiters: [(threshold: Int, useHandled: Bool, continuation: CheckedContinuation<Void, Never>)] = []
 
     /// Fast sink: an edge enters and finishes immediately.
-    func record(_ phase: HotkeyPhase) {
-        entered.append(phase)
-        handled.append(phase)
+    func record(_ edge: HotkeyEdge) {
+        entered.append(edge)
+        handled.append(edge)
         resolveCountWaiters()
     }
 
-    /// Sink that parks the .down handler mid-flight until `releaseDown()`, so the
-    /// test can observe whether the next edge is (wrongly) started meanwhile.
-    func handleParkingDown(_ phase: HotkeyPhase) async {
-        entered.append(phase)
+    /// Parks the FIRST edge until `releaseParkedEdge()`. The test can then watch for a
+    /// later edge wrongly starting, and can send an edge provably made while a handler
+    /// is still running.
+    func handleParkingFirstEdge(_ edge: HotkeyEdge) async {
+        entered.append(edge)
         resolveCountWaiters()
-        if phase == .down(.plain), !downReleased {
-            await withCheckedContinuation { downGate = $0 }
+        if entered.count == 1, !released {
+            await withCheckedContinuation { gate = $0 }
         }
-        handled.append(phase)
+        handled.append(edge)
         resolveCountWaiters()
     }
 
-    func releaseDown() {
-        downReleased = true
-        downGate?.resume()
-        downGate = nil
+    func releaseParkedEdge() {
+        released = true
+        gate?.resume()
+        gate = nil
     }
 
     /// Suspends until at least `count` edges have entered handling.

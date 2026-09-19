@@ -53,6 +53,28 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         "retrySetup must guard against a second rebuild BEFORE spawning the teardown+rebuild Task")
     }
 
+    /// A press stamped busy must be refused before the arm touches anything. Setting
+    /// `isPipelineActive` first would make the following key-up drive a session that
+    /// was never started.
+    /// Killing mutation: delete the refusal guard, or move it below the readiness gate
+    /// or below `isPipelineActive = true` -> RED. Add a second read of the stamp -> RED.
+    @Test
+    func keyDownMadeDuringProcessingIsRefusedBeforeAnySessionState() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "case .down(let mode):",
+            "guard !edge.arrivedWhileBusy",
+            "isModelReady",
+            "self?.isPipelineActive = true",
+            "orchestrator.handle(.startRequested)",
+        ], in: startPipeline),
+        "a press stamped busy must be refused before any session state is touched")
+        #expect(startPipeline.components(separatedBy: "arrivedWhileBusy").count - 1 == 1,
+                "the stamp must be read exactly once. A decoy read could satisfy the order while a second path still starts the session")
+    }
+
     /// Key-down before the ASR model is resident must not open a session: a cold
     /// start opens the mic and then sits inside `begin` for the whole model load,
     /// with the key-up queued behind it. Killing mutation: remove the readiness
@@ -148,9 +170,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be
-    /// swallowed too. Killing mutation: drop the active-pipeline guard from the
-    /// `.up` arm and an idle key-up drives stopRequested and overwrites the
-    /// loading glyph -> RED.
+    /// swallowed too, and so must the release of a refused press.
+    /// Killing mutation: drop the active-pipeline guard from the `.up` arm and an
+    /// idle key-up drives stopRequested and overwrites the loading glyph -> RED.
     @Test
     func keyUpPairsWithTheGatedKeyDown() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
