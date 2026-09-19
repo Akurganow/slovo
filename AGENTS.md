@@ -236,10 +236,11 @@ a real trap already caught once: Lightning-SimulWhisper).
 
 - Title the pull request as a Conventional Commit header — `feat:`, `fix:`,
   `perf:` — whenever it carries release-worthy changes. Every pull request
-  lands as a squash merge, so the title becomes the release commit's
-  header. The release guard classifies that header alone. Any other title
-  merges green and releases nothing: the push runs trunk verification,
-  with no version, no tag, and no GitHub Release
+  lands as a squash merge. GitHub pre-fills the merged commit's header from
+  the pull request title, or from the single commit's message on a
+  one-commit branch. Give both the same conventional header. Any other
+  header merges green and releases nothing: the push runs trunk
+  verification, with no version, no tag, and no GitHub Release
   ([docs/release-ci.md](docs/release-ci.md)).
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
   macOS runner — on the pull request's merge result, cited by number and
