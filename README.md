@@ -59,10 +59,13 @@ tuned.
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
   then sends them to OpenRouter with the transcript as advisory context. Grammar
   hints are English-only, as macOS ships grammar rules for English alone.
-- OpenRouter API key stored in macOS Keychain and read only when cleanup
-  runs — added through the menu-bar **Add OpenRouter Key…** window or
-  **Settings → Cleanup**; a **Remove Key…** button in **Settings → Cleanup**
-  deletes it (cleanup then turns off until you add a key again).
+- OpenRouter API key stored in macOS Keychain and read at most once per run of
+  the app, by whichever part of it asks first: normally the key-scope metadata
+  request Slovo makes shortly after the hotkey is ready, before any dictation —
+  not cleanup, which reuses that same value later. Add the key through the
+  menu-bar **Add OpenRouter Key…** window or **Settings → Cleanup**; a **Remove
+  Key…** button in **Settings → Cleanup** deletes it (cleanup then turns off
+  until you add a key again).
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore.
 - Local SQLite personalization store for vocabulary hints, encrypted at rest

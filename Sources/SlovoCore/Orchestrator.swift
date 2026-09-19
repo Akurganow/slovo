@@ -466,7 +466,7 @@ public actor Orchestrator {
         }
         guard ownsRecordingSession(recordingSession) else { return }
 
-        // Folded vocab→biasTerms wiring (the retired BiasTermsWiring's seat):
+        // Folded vocab→biasTerms wiring:
         // resolve the personalization vocabulary once and derive both consumers
         // from it — the cleaner context and, behind the experimental switch, the
         // recognizer's bias prompt.
