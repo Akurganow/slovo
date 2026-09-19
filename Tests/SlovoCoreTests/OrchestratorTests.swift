@@ -11,9 +11,8 @@ import SlovoTestSupport
 //
 // Drives the REAL `PipelineFactory.makeOrchestrator` + `Orchestrator` over the
 // existing seam FAKES (running-composition — NEVER a hand-wired copy).
-// This ABSORBS the retired `BiasTermsWiring` coverage: the suite asserts the
-// transcriber received the resolved vocab as `biasTerms` (the fold into the
-// actor's `.endCaptureAndFinalizeTranscript`).
+// The suite asserts the transcriber received the resolved vocab as `biasTerms`.
+// The fold sits in the actor's `.beginCapture` path.
 //
 // SEED-LEAK RULE: synthetic neutral public anchors only.
 @Suite("Orchestrator pipeline")
@@ -262,7 +261,7 @@ struct OrchestratorTests {
 
     /// A transcription failure yields no text, so nothing is injected and the
     /// FSM contains the failure back to idle.
-    /// Stated sensitivity: swallowing transcription failure in `transcribeAndContinue`
+    /// Stated sensitivity: swallowing transcription failure in `finishAndContinue`
     /// without feeding `.failed` leaves the actor stuck in `.processing` → RED.
     @Test
     func transcriptionFailureDoesNotInjectAndReturnsToIdle() async {

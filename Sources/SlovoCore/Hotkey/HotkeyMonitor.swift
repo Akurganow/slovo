@@ -12,8 +12,9 @@ public enum HotkeyPhase: Equatable, Sendable {
     case cancel
 }
 
-/// The Start/Stop source. The real `CGEventTap` implementation is hardware-only;
-/// this seam keeps the wiring testable with a synthetic driver.
+/// The Start/Stop source. The real `CGEventTap` implementation is hardware-only.
+/// Source guards (`AppDelegateHotkeyWiringSourceGuardTests`) pin the wiring it
+/// drives. No test feeds edges through this type.
 public protocol HotkeyMonitor {
     /// Installs the tap / monitor.
     func start() throws
