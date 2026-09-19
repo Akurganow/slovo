@@ -81,11 +81,12 @@ request — which produces a signed (but not notarized) DMG; see
 - [ ] The change is scoped to one behavior or documentation goal.
 - [ ] The Swift check — CI's `test` job, `Scripts/diagnose.sh` on a macOS
       runner — is green on the pull request's merge result.
-- [ ] The title is a Conventional Commit header (`feat:`, `fix:`, `perf:`) when
-      the change is release-worthy. Pull requests land as squash merges, so
-      the title becomes the release commit's header. The release guard
-      classifies it. Any other title merges green but releases nothing
-      ([docs/release-ci.md](docs/release-ci.md)).
+- [ ] The title is a Conventional Commit header (`feat:`, `fix:`, `perf:`)
+      when the change is release-worthy, and the branch's commits carry the
+      same header. GitHub pre-fills the squash commit's header from the
+      title, or from the single commit's message. The release guard
+      classifies that header. Any other header merges green but releases
+      nothing ([docs/release-ci.md](docs/release-ci.md)).
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
 - [ ] Security or privacy boundary changes are called out explicitly.
