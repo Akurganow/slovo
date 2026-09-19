@@ -128,6 +128,10 @@ Logs must not contain:
 - raw Accessibility context
 
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
+In the clear it carries elapsed times in milliseconds, the model-load state token,
+and the Error cue's reason token. A cleanup failure adds its kind and the
+provider's HTTP status. Error text is logged privately; transcripts, cleaned text
+and keys never reach the log.
 
 ## Clipboard
 

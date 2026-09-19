@@ -191,7 +191,10 @@ enum GateChecks {
     /// logged `.public` — never payload text — matched EXACTLY as captured, so
     /// any new `.public` payload (even a lookalike name) must be added here, a
     /// deliberate review step, before the gate passes it.
-    /// Entries: `decodeMs`/`drainMs`/`requestMs` are millisecond durations;
+    /// Entries: `decodeMs`/`drainMs`/`failureMs`/`loadMs`/`requestMs` are millisecond
+    /// durations; `failureKind` and `failureStatus` are a fixed cleanup-failure token
+    /// and an HTTP status code, never a response body; `status.logToken` is a
+    /// `StatusMessage` case name, an enum with no associated values;
     /// `planCase` is a decode-plan case NAME (associated values dropped at the
     /// call site); `confirmedEndSeconds` is a stream-position offset in seconds;
     /// `biasRetried ? 1 : 0` is a 0/1 flag for whether the tail decode was
@@ -200,8 +203,13 @@ enum GateChecks {
         "biasRetried ? 1 : 0",
         "decodeMs",
         "drainMs",
+        "failureKind",
+        "failureMs",
+        "failureStatus",
+        "loadMs",
         "planCase",
         "requestMs",
+        "status.logToken",
         "streamState.confirmedEndSeconds, format: .fixed(precision: 2)",
     ]
 

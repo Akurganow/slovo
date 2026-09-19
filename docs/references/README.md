@@ -1,7 +1,8 @@
 # slovo — Development Reference Library
 
 Curated, source-verified API/documentation references for the platform APIs
-Slovo depends on, kept as maintenance material. Each doc:
+Slovo depends on, kept as maintenance material. Each doc but the decision
+record `asr-engine-selection.md`:
 
 - cites the **canonical full source(s)** (Apple Developer docs, official repos,
   model cards) — links are mandatory;
@@ -44,11 +45,10 @@ depends on. The personalization seed data lives under `../../data/` and is
 
 ## Verification status
 
-All current docs were independently verified against live canonical sources
-(author ≠ verifier). **7 PASS, 3 PARTIAL, 0 FAIL** — every PARTIAL was *corrected in-file*,
-so all docs are now source-accurate. Each doc's full verdict (corrections
-before→after, validated URLs, residual SDK/device-only gaps) is in its own
-`## Verification` section.
+The docs below were independently verified against live canonical sources
+(author ≠ verifier). Every PARTIAL was *corrected in-file*, so each is now
+source-accurate. Each doc's full verdict (corrections before→after, validated
+URLs, residual SDK/device-only gaps) is in its own `## Verification` section.
 
 | Doc | Verdict | Notable correction by the verifier |
 |---|---|---|

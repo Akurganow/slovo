@@ -16,6 +16,7 @@ enum AppComposition {
     static func makeLive(
         defaults: UserDefaults = .standard,
         openRouterKeyProvider: KeychainOpenRouterKeyProvider,
+        speechModel: SharedSpeechModel,
         fileManager: FileManager = .default,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         onCleanupFailure: (@Sendable (CleanupError) -> Void)? = nil
@@ -28,21 +29,14 @@ enum AppComposition {
             passphrase: PersonalizationDatabasePassphrase.derive
         )
         let source = GRDBPersonalizationSource(database: database, log: log)
-        let whisperKitTranscriber = WhisperKitTranscriber(
-            configuration: WhisperKitTranscriber.Configuration(keepWarmSeconds: config.keepWarmSeconds),
-            engine: WhisperKitEngine(model: config.asrModel, language: config.language),
-            converter: WhisperSampleConverter(),
-            clock: MonotonicClock()
-        )
-        // Preload the model at startup so the FIRST dictation skips the cold load.
-        // Exposed as a task so the app can gate dictation until the model is
-        // resident; a failed preload still completes the gate — `begin` then
-        // retries and surfaces the honest error.
-        let modelWarmUp = Task { _ = try? await whisperKitTranscriber.warmUp() }
+        // Every composition preloads the ONE speech model it was handed, so this
+        // rebuild joins a load already in flight or retries a failed one, and the
+        // app can gate dictation on its own warm-up either way.
+        let modelWarmUp = speechModel.startWarmUp()
         let transcriber = TranscriberFactory.makeTranscriber(for: config.asrBackend) { backend in
             switch backend {
             case .whisperKit:
-                whisperKitTranscriber
+                speechModel.transcriber
             }
         }
         let cleaner = OpenRouterCleaner(

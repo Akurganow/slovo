@@ -48,6 +48,7 @@ public struct OpenRouterCleaner: Cleaner {
         do {
             key = try keyProvider.apiKey()
         } catch {
+            Self.logFailure(failureKind: "missingKey", failureStatus: "none", failureMs: 0)
             throw CleanupError.missingKey
         }
 
@@ -82,9 +83,14 @@ public struct OpenRouterCleaner: Cleaner {
             (data, response) = try await session.data(for: urlRequest)
         } catch is URLError {
             log.event("cleanup failed: offline")
+            Self.logFailure(
+                failureKind: "offline",
+                failureStatus: "none",
+                failureMs: Self.elapsedMs(since: requestStartUptime)
+            )
             throw CleanupError.offline
         }
-        let requestMs = Int((ProcessInfo.processInfo.systemUptime - requestStartUptime) * 1_000)
+        let requestMs = Self.elapsedMs(since: requestStartUptime)
         Self.diagnosticLog.info(
             """
             cleanup.request ms=\(requestMs, privacy: .public)
@@ -93,16 +99,19 @@ public struct OpenRouterCleaner: Cleaner {
 
         guard let http = response as? HTTPURLResponse else {
             log.event("cleanup failed: offline")
+            Self.logFailure(failureKind: "offline", failureStatus: "none", failureMs: requestMs)
             throw CleanupError.offline
         }
 
         if http.statusCode == 429 {
             let retryAfter = http.value(forHTTPHeaderField: "retry-after").flatMap(TimeInterval.init)
             log.event("cleanup failed: rateLimited")
+            Self.logFailure(failureKind: "rateLimited", failureStatus: "\(http.statusCode)", failureMs: requestMs)
             throw CleanupError.rateLimited(retryAfter: retryAfter)
         }
         if http.statusCode >= 400 {
             log.event("cleanup failed: apiError")
+            Self.logFailure(failureKind: "apiError", failureStatus: "\(http.statusCode)", failureMs: requestMs)
             throw CleanupError.apiError(status: http.statusCode)
         }
 
@@ -110,11 +119,31 @@ public struct OpenRouterCleaner: Cleaner {
               let cleaned = decoded.firstText
         else {
             log.event("cleanup failed: apiError")
+            Self.logFailure(failureKind: "undecodable", failureStatus: "\(http.statusCode)", failureMs: requestMs)
             throw CleanupError.apiError(status: http.statusCode)
         }
 
         log.event("cleanup ok")
         log.logLength(of: cleaned)
         return cleaned
+    }
+
+    /// Names a cleanup failure on the readable log: which failure, the provider's
+    /// HTTP status when it answered, and how long the attempt took. The outcome
+    /// lines on `log` are redacted, and `cleanup.request` is emitted before the
+    /// status is known, so without this a refused or rate-limited request reads
+    /// exactly like a fast success. The response body, the prompt, the transcript
+    /// and the key never reach here.
+    private static func logFailure(failureKind: String, failureStatus: String, failureMs: Int) {
+        diagnosticLog.error(
+            """
+            cleanup.failure kind=\(failureKind, privacy: .public) \
+            status=\(failureStatus, privacy: .public) ms=\(failureMs, privacy: .public)
+            """
+        )
+    }
+
+    private static func elapsedMs(since startUptime: TimeInterval) -> Int {
+        Int((ProcessInfo.processInfo.systemUptime - startUptime) * 1_000)
     }
 }

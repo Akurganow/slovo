@@ -18,6 +18,11 @@ public protocol Transcriber: Sendable {
     /// notice.
     var isModelResident: Bool { get async }
 
+    /// Applies a new recognition language to the NEXT session. Part of the seam
+    /// because the language is session state, not model state: the loaded model
+    /// decodes any language, so a change must never cost a reload.
+    func setRecognitionLanguage(_ language: Language) async
+
     /// Opens a recognition session biased toward `biasTerms`. Throws if the
     /// backend, locale assets, or engine cannot be brought up.
     func begin(biasTerms: [Term]) async throws

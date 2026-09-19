@@ -32,7 +32,8 @@ What substitutes is a real macOS run that has already happened.
 `swift.yml` runs `Scripts/diagnose.sh` on a `macos-26` runner — the whole
 local gate: build, `swift test --disable-automatic-resolution`, the
 cleanup-benchmark smoke check, and every `Scripts/lint.sh` stage, with
-SwiftLint also riding inside the build as a SwiftPM build-tool plugin.
+SwiftLint also riding inside the build as a SwiftPM build-tool plugin — then
+an armed gate-integrity run that must fail.
 The run covering a given commit is found by where the commit sits:
 
 - on `main` — the **Release** run for that sha, which calls `swift.yml`
@@ -41,7 +42,8 @@ The run covering a given commit is found by where the commit sits:
 - a pull request head — the **Swift** run for that sha.
 
 Cite that run, by number and conclusion, as the baseline: a green run is
-the evidence for every stage of the gate at that commit. The shell-syntax
+the evidence for every stage of the gate at that revision — for a pull
+request, the merge result of that head. The shell-syntax
 stage, `bash -n` over each script, needs no Apple toolchain and runs
 anywhere. Every other stage needs one, so a claim resting on one of those
 at a commit no run covers stays `plausible`.

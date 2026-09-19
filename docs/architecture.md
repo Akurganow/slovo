@@ -27,9 +27,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
 ## Core Components
 
 - `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
-  default, or a right-hand modifier); `HotkeyDecisionCore` is the pure,
-  unit-tested policy that turns key events into start / stop (plain or
-  translate) / silent-cancel decisions.
+  default, one side of ⌘, ⌥, ⇧, or ⌃ for either Control key);
+  `HotkeyDecisionCore` is the pure, unit-tested policy that turns key events
+  into start / stop (plain or translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
   the "Mute Audio While Dictating" menu setting is on (the default).
   Known limitation: a restore that the audio device rejects (for example, the
@@ -70,7 +70,8 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
   so Whisper never gets the chance to hallucinate into silence. The model remains resident
-  between dictations.
+  between dictations, and the recognition language reaches the decoder per session
+  rather than the model load, so changing it costs no reload.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223
   iterations shared between prefill and sampled output, leaving ~219 sampled
   tokens even with no prompt, while fast Russian speech (~180 wpm at the
@@ -105,9 +106,13 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   `HotkeyEdgeSequencer` orders production key edges, and per-session identity
   prevents a resumed readiness continuation from mutating its replacement.
 
-The app target owns OS-specific adapters and production composition. `SlovoCore`
-owns the seams, value types, state machine, storage, cleanup, transcription, and
-injection behavior.
+The app target owns OS-specific adapters and production composition. The speech
+model is built once per process and injected into every composition, so a rebuild —
+a granted permission, Retry Setup, the hotkey retry — starts no second concurrent
+load. Each composition starts its own warm-up of that one model, which joins the
+load already in flight or retries a failed one. Only the composition still wired may
+open the dictation gate. `SlovoCore` owns the seams, value types, state machine,
+storage, cleanup, transcription, and injection behavior.
 
 ## Cleanup Mechanism
 
@@ -141,8 +146,7 @@ Slovo uses SQLite through GRDB for local personalization data:
 
 The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
 SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
-identifier and stored nowhere; see
-`docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md`.
+identifier and stored nowhere.
 
 The repository tracks only schema and migrations. Local databases and seed files
 are never committed.
@@ -164,10 +168,11 @@ language; while no OpenRouter key is saved the whole block collapses to a single
 vocabulary quick-add with adjacent mute-while-dictating and Sound Cues switches, and a bottom section
 with **Settings…**, **About**, and quit; first-run setup actions replace the
 dropdown until permissions are granted. The **Settings…** window covers the
-push-to-talk key, recognition language, Sound Cues, launch at login, automatic
-updates, cleanup model and style, translation target, OpenRouter key, and vocabulary; the
-**About** window carries a quick guide and the running version. All
-configuration is native windows — there are no modal alerts.
+push-to-talk key, the translate key, recognition language, Sound Cues, launch at
+login, automatic updates, cleanup model and style, translation target,
+OpenRouter key, and vocabulary; the **About** window carries a quick guide and
+the running version. All configuration is native windows — there are no modal
+alerts.
 
 ## Build Boundaries
 

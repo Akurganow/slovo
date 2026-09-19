@@ -264,7 +264,7 @@ Body:
 
     ## Risk
     Behaviour that changes, if any: a rename changes none, a test rewrite
-    changes what CI proves. Scripts/diagnose.sh green on a Mac. State what
+    changes what CI proves. The pull request's Swift check green. State what
     this run ran and what it did not.
 
     ## Cost / risk

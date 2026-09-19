@@ -121,7 +121,7 @@ the machinery or how it was produced. Shape:
   with paths.
 - The promises checked: one line when all hold, specifics when one does
   not.
-- CI state on the head, quoted.
+- CI state for that head's Swift run, which gates the merge result, quoted.
 - What was not verified here, honestly, in one line.
 - Ends with exactly:
 

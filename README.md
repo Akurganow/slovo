@@ -224,14 +224,16 @@ swift build --disable-automatic-resolution
 swift test --disable-automatic-resolution
 ```
 
-Run the full local gate before shipping changes:
+Run the full gate locally when you want it before pushing:
 
 ```sh
 Scripts/diagnose.sh
 ```
 
-`Scripts/diagnose.sh` runs build, tests, and strict lint as independent
-stages so one failure does not hide another.
+`Scripts/diagnose.sh` runs build, tests, a cleanup-benchmark CLI smoke check,
+and strict lint as independent stages so one failure does not hide another. CI
+runs this same script on a macOS runner for every pull request into `main` —
+that run is the gate.
 
 Compare cleanup latency and quality with the non-product benchmark:
 
@@ -323,8 +325,8 @@ key.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes
-small, run `Scripts/diagnose.sh`, do not commit secrets or local
-personalization data, and document behavior changes in English.
+small, see the Swift check green on your pull request, do not commit secrets
+or local personalization data, and document behavior changes in English.
 
 ## What Slovo Is Not
 

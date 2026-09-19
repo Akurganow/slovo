@@ -232,6 +232,8 @@ private final class ResidencyGateTranscriber: Transcriber, Sendable {
         }
     }
 
+    func setRecognitionLanguage(_ language: Language) {}
+
     func begin(biasTerms: [Term]) async throws {
         state.withLock { $0.beginBiasTerms.append(biasTerms) }
     }

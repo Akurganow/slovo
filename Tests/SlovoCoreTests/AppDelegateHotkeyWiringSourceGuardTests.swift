@@ -54,9 +54,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// Key-down before the ASR model is resident must not open a session: a cold
-    /// start opens the mic and mutes system audio for the whole model load (the
-    /// stranded-mute incident shape, log 2026-07-02 22:45). Killing mutation:
-    /// remove the readiness guard from the `.down` arm -> RED.
+    /// start opens the mic and then sits inside `begin` for the whole model load,
+    /// with the key-up queued behind it. Killing mutation: remove the readiness
+    /// guard from the `.down` arm -> RED.
     @Test
     func keyDownIsGatedOnModelReadiness() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -167,12 +167,14 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The model warm-up must be an observable gate end to end: the composition
     /// exposes the preload as an awaitable task; the delegate enters the loading
     /// state in startPipeline and opens the gate (stopping the pulse) when the
-    /// warm-up completes. Killing mutation: return to fire-and-forget preload,
-    /// or never flip isModelReady -> RED.
+    /// warm-up completes — and only for the composition still wired, so a
+    /// superseded preload's outcome cannot answer for the current one.
+    /// Killing mutation: return to fire-and-forget preload, never flip
+    /// isModelReady, or delete the currency comparison from the gate task -> RED.
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
         let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        #expect(Self.containsInOrder(["modelWarmUp", "warmUp()"], in: composition),
+        #expect(Self.containsInOrder(["modelWarmUp", "startWarmUp()"], in: composition),
                 "the composition must expose the model preload as an awaitable task")
 
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -184,10 +186,63 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         #expect(Self.containsInOrder([
             "showModelLoadingState",
             "modelWarmUp",
+            "self.composition?.modelWarmUp",
             "isModelReady = true",
             "stopModelLoadingPulse",
         ], in: gate),
-        "warm-up completion must open the gate and stop the loading pulse")
+        "the CURRENT composition's warm-up must open the gate and stop the loading pulse")
+    }
+
+    /// A composition that is never gated must leave no pulse behind. The onboarding
+    /// early return happens before `prepareModelGate`, so no gate task exists to stop
+    /// the pulse, and the superseded composition's task now returns at the currency
+    /// guard — the infinite loading animation would run for the rest of the launch
+    /// with dictation refused. Reachable by hitting Retry Setup, or losing a
+    /// permission, while the first download is still going.
+    /// Killing mutation: drop the loading-state clear from `presentOnboarding`, or
+    /// move the early return below `prepareModelGate` → RED.
+    @Test
+    func aCompositionThatSkipsTheGateClearsTheLoadingState() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let presentOnboarding = try Self.functionBody(named: "presentOnboarding", in: delegate)
+
+        #expect(Self.containsInOrder([
+            "guard live.onboardingSteps == [.ready] else",
+            "presentOnboarding(live.onboardingSteps)",
+            "return",
+            "prepareModelGate",
+        ], in: startPipeline),
+        "the onboarding return is the path that reaches no model gate")
+        #expect(presentOnboarding.contains("clearModelLoadingState()"),
+                "an ungated composition must stop the loading pulse it inherited")
+    }
+
+    /// The speech model is built ONCE for the process and injected into every
+    /// composition — the ownership inversion the key provider already uses. A
+    /// composition that builds its own engine starts its own load, so a permission
+    /// grant during a first run downloads the same artifact a second time while the
+    /// first download is still running.
+    /// Killing mutation: construct `WhisperKitTranscriber(` or `WhisperKitEngine(`
+    /// inside makeLive again, or build a second `SharedSpeechModel(` anywhere in the
+    /// delegate → RED. `SharedSpeechModelTests` proves what the shared model then
+    /// does; only this guard proves the production composition uses it.
+    @Test
+    func theSpeechModelIsBuiltOnceForTheProcessAndInjected() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        let makeLive = try Self.functionBody(named: "makeLive", in: composition)
+
+        #expect(delegate.components(separatedBy: "SharedSpeechModel(").count - 1 == 1,
+                "exactly one speech model may be built, and the app must own it")
+        #expect(delegate.contains("speechModel: speechModel"),
+                "the app-owned speech model must be injected into AppComposition.makeLive")
+        for forbidden in ["WhisperKitTranscriber(", "WhisperKitEngine("] {
+            #expect(!makeLive.contains(forbidden),
+                    "makeLive must receive the process's speech model, never construct \(forbidden)")
+        }
+        #expect(makeLive.contains("speechModel.transcriber"),
+                "the pipeline must be wired to the shared transcriber")
     }
 
     /// The interrupt-cancel edge must route through the sequencer sink into the

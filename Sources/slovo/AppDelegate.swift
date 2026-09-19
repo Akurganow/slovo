@@ -15,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
     let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
+    /// Owned here and injected into every composition, like the key provider: the
+    /// pipeline is rebuilt on a permission grant, on Retry Setup and on the hotkey
+    /// retry, and none of those may download or load the speech model again. Lazy
+    /// only so the config read happens after `defaults` is set.
+    private lazy var speechModel = SharedSpeechModel(config: ConfigStore.load(from: defaults))
     // Lazy so the seed can run the live derivation (a phase-2 self call); after
     // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
     // Settings pane can never observe a value the funnel did not publish.
@@ -119,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let live = try AppComposition.makeLive(
                 defaults: defaults,
                 openRouterKeyProvider: openRouterKeyProvider,
+                speechModel: speechModel,
                 statusReporter: { [weak self] status in
                     Task { @MainActor [weak self] in
                         self?.showStatus(status)
@@ -216,6 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // on the shrinking set of still-pending steps.
         onboardingSteps = steps
         isPresentingOnboarding = true
+        // This composition is not gated (startPipeline returned above
+        // prepareModelGate), so nothing else would ever stop a pulse inherited from
+        // the composition it replaced.
+        clearModelLoadingState()
         statusTextItem?.title = "Setup Required"
         statusItem?.menu = makeOnboardingMenu(for: steps)
     }
@@ -380,10 +390,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         openRouterKeyWindow?.show()
     }
 
-    // Internal (not private) so the AppDelegate+Settings extension can call it
-    // for the honest ASR rebuild on a recognition-language change.
     @objc
-    func retrySetup() {
+    private func retrySetup() {
         // A rebuild is asynchronous (it joins the previous edge consumer first); a
         // second retry arriving before it finishes must not spawn a parallel
         // teardown+rebuild that could leave a mismatched sequencer and composition.
@@ -396,9 +404,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let previousSequencer = hotkeyEdgeSequencer
         Task { @MainActor in
             await previousSequencer?.stop()
-            // startPipeline() through isRebuildingPipeline = false must stay synchronous: an
-            // await here could let a rapid language change persist to Config after the read
-            // yet drop its own retry via the guard above, pinning a stale language.
+            // startPipeline() through isRebuildingPipeline = false must stay synchronous:
+            // an await between them would hold the re-entrancy guard across a suspension,
+            // and a Retry Setup arriving there — a permission granted just after this
+            // composition read the preflight — would be dropped by the guard above with
+            // nothing left to rebuild for it.
             startPipeline()
             isRebuildingPipeline = false
         }
