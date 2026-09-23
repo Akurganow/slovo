@@ -62,11 +62,14 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   End sent into muted output would not be heard — and later failures append Error
   behind it. macOS alert volume owns loudness; Slovo stores no volume value.
 - `WhisperKitTranscriber` feeds audio into WhisperKit's live transcriber and
-  finalizes only its unfinished tail at key-up. On a short final pass with a
-  non-empty live result and no confirmed prefix, Slovo rejects a terminal
-  addition only when the final decode is the exact normalized live result plus
-  an anomalous suffix timestamped strictly beyond the recorded audio. When a
-  bias-prompted final decode composes to empty, Slovo decodes once more
+  finalizes only its unfinished tail at key-up. Slovo guards that tail against
+  a hallucinated ending when it is shorter than one model window and live
+  recognition already holds text for it. The condition concerns the tail, not
+  the whole recording, so a long dictation confirmed up to its last few seconds
+  is still guarded. The guard rejects a terminal addition only when the final
+  decode is the exact normalized live tail text plus an anomalous suffix. Every
+  word of that suffix must also start strictly after the recorded audio ends.
+  When a bias-prompted final decode composes to empty, Slovo decodes once more
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
   so Whisper never gets the chance to hallucinate into silence. The model remains resident
