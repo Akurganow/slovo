@@ -50,7 +50,8 @@ Never a finding:
 
 - **Recorded reasons.** A comment stating why a shape exists, what
   invariant holds, or which trade AGENTS.md chose. Other reviews read
-  these as evidence.
+  these as evidence. In `docs/architecture.md`, a claim of fact inside a
+  reason is still the Agent Police's to judge against the code.
 - **Test sensitivity notes.** The "Stated sensitivity: … → RED" lines
   AGENTS.md requires on regression tests.
 - **House style.** Capitalised emphasis (NOT, ONLY, NEVER), em-dashes,
@@ -58,7 +59,8 @@ Never a finding:
   protocol.
 - **The instructions.** AGENTS.md, `.agents/`, `.claude/agents/` and
   `docs/architecture.md`. Read, never judged. Whether those documents
-  still agree with each other is the Agent Police's subject, and this
+  still agree with each other is the Agent Police's subject. So is whether
+  a claim in `docs/architecture.md` is still true of the code. This
   exemption is what keeps it the only role on that ground.
 
 ## The fence

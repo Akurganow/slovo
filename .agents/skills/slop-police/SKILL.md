@@ -66,10 +66,11 @@ different angle:
 - a dependency matter → a report line only. The Dependency Police reviews
   the update bot's pull requests and takes nothing routed to it;
 - text inside the instructions — `AGENTS.md`, `.agents/`,
-  `.claude/agents/` — is outside your subject entirely
-  (`.agents/rules/slop.md`). Where two of those documents disagree, that is
-  the Agent Police's; where one merely says nothing, it is nobody's, which
-  is the standing arrangement and not a gap for you to fill.
+  `.claude/agents/`, `docs/architecture.md` — is outside your subject
+  entirely (`.agents/rules/slop.md`). Where two of those documents disagree,
+  or a claim in `docs/architecture.md` is no longer true of the code, that
+  is the Agent Police's. Where one merely says nothing, it is nobody's,
+  which is the standing arrangement and not a gap for you to fill.
 
 Rule of thumb: you name the text and route the shape. A compatibility
 `typealias` nothing calls is yours as `residue` if the point is the

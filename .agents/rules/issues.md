@@ -39,12 +39,12 @@ issue, set by whoever reviews it.
 
 | Label | Meaning |
 | :-- | :-- |
-| *(none)* | Not yet reviewed |
+| *(none)* | Not yet reviewed, or reviewed under a verdict that applies none. The review comment says which |
 | `question` | Further information is requested: from the reporter on a person's report; on an automated report, a decision from the owner, since the run cannot answer |
 | `ready` | Specified to the standard below — a person can start the work from the issue alone |
 | `invalid` | Reviewed and found wrong |
 | `duplicate` | Duplicate of the issue the review names |
-| `wontfix` | Out of scope. Applied by the owner it is final: an automated run never touches such an issue |
+| `wontfix` | Out of scope. Applied only by the owner, and final: an automated run never touches such an issue |
 
 The owner's own: `good first issue`, `help wanted`; `dev-build` is a
 pull-request button (`docs/release-ci.md`). An automated run never
@@ -56,10 +56,12 @@ applies them.
 - `question` — a person must answer.
 - `invalid`, `duplicate` or `wontfix` on a person's issue — reviewed;
   closing is the owner's call.
-- `police-report` with no state label — awaiting review.
+- `police-report` with no state label — awaiting review, or tried and
+  awaiting the Clerk's close.
 - no state label and no `police-report` — a person's report awaiting
-  review, or one already converted: a review comment on it names the
-  `ready` issue that carries the work.
+  review, or one already reviewed. A review comment on a reviewed one
+  names the `ready` issue that carries the work, or says why the tracker
+  will not act on it.
 
 ## The `ready` standard
 
