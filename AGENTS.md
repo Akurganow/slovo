@@ -276,7 +276,8 @@ requests rather than hunting for updates itself. The Issue Court tries one
 open issue and records a verdict on it. The Clerk executes those verdicts,
 cutting work issues the owner can start from and closing the reports that
 have been tried. The Agent Police patrols the others, and itself, for
-documents that have begun to describe two machines instead of one.
+documents that have begun to describe two machines instead of one. It also
+checks `docs/architecture.md` against the code.
 
 None of them changes code, and the chain ends at a `ready` issue: a person
 writes every pull request here.

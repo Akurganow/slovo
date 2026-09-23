@@ -39,7 +39,7 @@ issue, set by whoever reviews it.
 
 | Label | Meaning |
 | :-- | :-- |
-| *(none)* | Not yet reviewed |
+| *(none)* | Not yet reviewed, or reviewed under a verdict that applies none. The review comment says which |
 | `question` | Further information is requested: from the reporter on a person's report; on an automated report, a decision from the owner, since the run cannot answer |
 | `ready` | Specified to the standard below — a person can start the work from the issue alone |
 | `invalid` | Reviewed and found wrong |
@@ -56,7 +56,8 @@ applies them.
 - `question` — a person must answer.
 - `invalid`, `duplicate` or `wontfix` on a person's issue — reviewed;
   closing is the owner's call.
-- `police-report` with no state label — awaiting review.
+- `police-report` with no state label — awaiting review, or tried and
+  awaiting the Clerk's close.
 - no state label and no `police-report` — a person's report awaiting
   review, or one already reviewed. A review comment on a reviewed one
   names the `ready` issue that carries the work, or says why the tracker
