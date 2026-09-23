@@ -58,7 +58,8 @@ Never a finding:
   protocol.
 - **The instructions.** AGENTS.md, `.agents/`, `.claude/agents/` and
   `docs/architecture.md`. Read, never judged. Whether those documents
-  still agree with each other is the Agent Police's subject, and this
+  still agree with each other is the Agent Police's subject. So is whether
+  a claim in `docs/architecture.md` is still true of the code. This
   exemption is what keeps it the only role on that ground.
 
 ## The fence
