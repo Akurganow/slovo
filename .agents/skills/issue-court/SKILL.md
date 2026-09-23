@@ -282,12 +282,17 @@ and a run that wrote no comment applies no label. Per
 - sustained or partially-sustained → the kind of the confirmed finding,
   where the issue lacks one: `bug` for misbehaviour, `tech-debt` for code
   that works but costs more to keep than it should.
-- not-proven → `question`. Dismissed → `invalid`. Out-of-scope →
-  `wontfix`. A duplicate → `duplicate`.
+- not-proven → `question`. Dismissed → `invalid`. A duplicate →
+  `duplicate`.
+- out-of-scope → no label. Your marker already carries the verdict, and
+  the Clerk executes it. `wontfix` is the owner's veto alone, so a role
+  never applies it.
 
-These are the state labels the owner reads the open list by, so a verdict
-without its label is invisible. A work issue tried on a payload keeps its
-labels: `ready` is the Clerk's, and your comment is the record.
+These are the state labels the owner reads the open list by, so any other
+verdict without its label is invisible. An out-of-scope verdict shows in
+your comment, and on a police report in the Clerk's close on its next run.
+A work issue tried on a payload keeps its labels: `ready` is the Clerk's,
+and your comment is the record.
 
 Never touch a label a human set. Never close, reopen, retitle, edit, assign
 or milestone an issue. Never edit comments you did not write. Never touch a
