@@ -206,8 +206,10 @@ this role is a police and not a script.
   `.agents/rules/slop.md` calls this `lying`. Its measurement is the two
   quotes side by side: the claim and the Swift it describes, each with its
   path and line. A recorded reason there is never a finding: why a shape
-  exists, what invariant holds, which trade `AGENTS.md` chose. The other
-  roles and every verifier close candidates on it.
+  exists, which trade `AGENTS.md` chose. The other roles and every verifier
+  close candidates on it. A claim of fact inside a reason is judged like any
+  other: what the code does, what invariant holds. When the Swift disproves
+  one, that is `lying`.
 
 ## You patrol yourself
 
