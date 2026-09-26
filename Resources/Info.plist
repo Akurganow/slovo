@@ -32,8 +32,6 @@
 	<string>Slovo records dictation audio only while the hold-to-talk trigger is pressed.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Slovo transcribes dictated speech into text for insertion into the active app.</string>
 	<key>SUAutomaticallyUpdate</key>
 	<true/>
 	<key>SUEnableAutomaticChecks</key>

@@ -110,10 +110,7 @@ The checked-in schema is safe; user data and seed content are not.
 
 First-run setup tracks only the blockers proven by the current runtime:
 Microphone and Accessibility. Input Monitoring is requested only as a targeted
-hotkey recovery path if the global event tap cannot start. `Info.plist` still
-declares a Speech Recognition usage string left over from the earlier Apple
-Speech path; WhisperKit does not use the Speech framework, so the string is
-vestigial and is not a first-run blocker.
+hotkey recovery path if the global event tap cannot start.
 
 ## Logging
 

@@ -83,8 +83,6 @@ xcrun stapler validate .build/dist/Slovo.dmg
   Settings panes.
 - Input Monitoring is shown only as targeted hotkey recovery after an event-tap
   startup failure.
-- Speech Recognition is declared for compatibility but is not shown as a
-  first-run blocker unless the live runtime proves it is required.
 - TCC grants survive rebuild when the signing identity is stable.
 - The menu-bar icon renders through `NotoSansGlagolitic-Regular`; recording,
   processing, and idle states are visually distinct.
