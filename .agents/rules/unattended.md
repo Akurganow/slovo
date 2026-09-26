@@ -1,7 +1,9 @@
 # Working unattended
 
 Rules for any unattended run whose whole job is reading, judging and
-reporting — whoever scheduled it, wherever it runs. A session that
+reporting — whoever scheduled it, wherever it runs. A role whose output is
+more than issues, comments and labels is governed by this file too, except
+where that role names the rule it is excepted from. A session that
 *implements* a change follows AGENTS.md and CONTRIBUTING.md instead.
 
 This file states what a run needs and never which tool serves it. The
@@ -140,7 +142,9 @@ Read CI state for a commit rather than guessing at build state.
 The gate has already run on the commit under analysis, every macOS job
 draws on one small pool of parallel runners the owner's pull requests
 need, and a run reading third-party issue text must not be able to start
-jobs on that runner.
+jobs on that runner. The Specifier's draft pull request is the one
+exception; its role says why, and AGENTS.md says what the push may
+contain.
 
 ## What a run publishes
 

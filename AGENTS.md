@@ -224,8 +224,9 @@ A feature is DONE only when it lands as a verified commit on LOCAL main —
 implementer branches → independent audit (correctness, complexity, design,
 test sensitivity) → the full gate green on the integrated result (CI's Swift
 `test` run — `Scripts/diagnose.sh` on a macOS runner) → merge into local
-main. Parked branches are not a deliverable. Pushing to any remote remains a
-separate act, triggered only by the owner.
+main. Parked branches are not a deliverable. Pushing a change to any remote
+remains a separate act, triggered only by the owner. The one push a role
+makes changes no file: see "This repository's own machinery".
 
 ### License compliance is part of every change
 
@@ -275,12 +276,19 @@ Slop Police, plus a Dependency Police that verifies the update bot's pull
 requests rather than hunting for updates itself. The Issue Court tries one
 open issue and records a verdict on it. The Clerk executes those verdicts,
 cutting work issues the owner can start from and closing the reports that
-have been tried. The Agent Police patrols the others, and itself, for
-documents that have begun to describe two machines instead of one. It also
-checks `docs/architecture.md` against the code.
+have been tried. The Specifier takes a `ready` issue the Clerk cut, has a
+specification drafted and argued for and against, and opens it as a draft
+pull request only when the argument shows it adds something the issue does
+not already give; otherwise it says why on the issue. The Agent Police
+patrols the others, and itself, for documents that have begun to describe
+two machines instead of one. It also checks `docs/architecture.md` against
+the code.
 
-None of them changes code, and the chain ends at a `ready` issue: a person
-writes every pull request here.
+None of them changes code. The chain ends at a `ready` issue and, for the
+few a review finds worth one, at a draft pull request whose body is the
+specification and whose single commit changes no file. A person writes
+every change a pull request here carries, and only a person takes one out
+of draft or merges it.
 
 What they share is in `.agents/rules/`: how a run works alone
 (`unattended.md`), how an automated run files (`tracker.md`), how issues are
