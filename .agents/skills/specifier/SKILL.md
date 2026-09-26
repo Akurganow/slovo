@@ -129,9 +129,7 @@ The round's subagent ceiling is **5**: none on a fire with no candidate;
 with a candidate, four — the drafter, the prosecutor, the advocate and the
 judge — and at most one more, either the fresh drafter of a `must_change`
 edit or one expert the judge commissions, never both.
-`.agents/rules/evidence.md` makes the ceiling a hard stop. The judge's
-re-reads of an edit, and the fresh drafter's second edit, are each the
-same subagent answering once more, not another subagent.
+`.agents/rules/evidence.md` makes the ceiling a hard stop.
 
 ## Upkeep, first in every fire
 
@@ -246,17 +244,12 @@ The verdict's rules:
   `REFUSE` on a payload, or a `must_change` beside `REFUSE`. A second
   malformed block writes nothing: a report line, and the candidate comes
   back.
-- A non-empty `must_change` gets one edit by a fresh drafter. The judge
-  then re-reads the edited sections once and confirms each item. The items
-  it does not confirm get one more edit by the same drafter, limited to
-  those items, and the judge re-reads those items once more. An item still
-  unconfirmed then means no draft: a report line, and the candidate comes
-  back. There is no third pass and no second round.
+- A non-empty `must_change` gets one edit by a fresh drafter, and the draft
+  is opened. There is no second round.
 - **On a payload** the question of worth is not asked. The round checks
   quality alone, through `must_change`; the judge may not return `REFUSE`,
   and the marker carries `via=payload`. `OPEN` then needs neither the
-  confidence floor nor a non-empty `adds`; an unconfirmed `must_change`
-  item still opens nothing.
+  confidence floor nor a non-empty `adds`.
 
 **A refusal** is one comment on the issue:
 
@@ -393,8 +386,7 @@ that files nothing:
    schedule or a payload brought it, or that there was none; every
    precondition that failed, one line each, naming the test.
 2. **Verdict** — `OPEN` or `REFUSE`, the confidence, `adds`, and whether a
-   `must_change` edit ran, how many passes it took and which items each
-   pass confirmed; or why nothing was written.
+   `must_change` edit ran; or why nothing was written.
 3. **Actions** — every branch pushed or deleted, every pull request opened
    or closed and every comment written, with links, each read back.
 4. **Open drafts** — every open draft of yours not yet picked up, with its
