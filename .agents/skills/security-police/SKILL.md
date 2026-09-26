@@ -132,13 +132,15 @@ could not be run as **not run**, never guessed.
 - A scanner's finding is evidence with the scanner named and its output
   quoted, and it goes through triage like everything else.
 
-Where neither can run, do the core checks by hand and say the coverage is
-thinner: search the workflows for `${{` inside `run:` with event-controlled
+When the workflow scanner cannot run, do the workflow checks by hand:
+search the workflows for `${{` inside `run:` with event-controlled
 fields — issue and pull-request titles and bodies, branch names, label
 names, comment text; list each workflow's `permissions:` and `secrets.`
 uses against what its job needs; list third-party actions and how each is
-pinned; search the history for the classic credential shapes (`-----BEGIN`,
-`sk-`, `ghp_`, `github_pat_`, `AKIA`, bearer strings in URLs).
+pinned. When the secrets scanner cannot run, search the history by hand
+for the classic credential shapes (`-----BEGIN`, `sk-`, `ghp_`,
+`github_pat_`, `AKIA`, bearer strings in URLs). Each fallback stands on
+its own, and the report names the surface whose coverage is thinner.
 
 ## The sweep — five surfaces, in this order
 
@@ -229,9 +231,11 @@ Threshold, on top of the floor in `.agents/rules/tracker.md`:
 high}, or medium with a one-line fix. `low` never survives. A found
 credential that the verifier holds `real` and not a placeholder or revoked
 takes the exception whatever its severity. A candidate that takes the
-exception — by clearing the threshold, or as a found credential — goes to
-the report, and to a draft advisory where that is served, and never to the
-ranker. The ranker's ceiling is the backpressure cap.
+exception — the verifier's `critical` with the path confirmed and no
+missed guard, or a found credential — goes to the report, and to a draft
+advisory where that is served, and never to the ranker. Every other
+survivor — `high`, and `medium` with a one-line fix — goes to the ranker
+for a capped public issue. The ranker's ceiling is the backpressure cap.
 
 ## Filing
 
