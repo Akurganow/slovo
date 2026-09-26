@@ -216,7 +216,8 @@ whether the cycle is warranted at all:
 Whenever a test is written (either path above), it must be demonstrably able to go
 red on broken code. A test that stays green on both the correct and a mutated
 implementation proves nothing — prove RED before GREEN, and document the concrete
-breakage each regression test catches.
+breakage each regression test catches. The rest of what a test must earn is in
+`.agents/rules/tests.md`.
 
 ### The endpoint of feature work is a verified commit on local main
 
@@ -272,9 +273,10 @@ tree rather than from a count written here, which the next role added would
 falsify.
 
 These review the code and what it says: the Logic, Abstraction, Sanity and
-Slop Police; a Dependency Police that verifies the update bot's pull
-requests rather than hunting for updates itself; and a Security Police
-that looks for what an outside party could exploit. The Issue Court tries one
+Slop Police; a Test Police that asks what each test protects and at what
+price; a Dependency Police that verifies the update bot's pull requests
+rather than hunting for updates itself; and a Security Police that looks
+for what an outside party could exploit. The Issue Court tries one
 open issue and records a verdict on it. The Clerk executes those verdicts,
 cutting work issues the owner can start from and closing the reports that
 have been tried. The Specifier takes a `ready` issue the Clerk cut, has a
@@ -294,9 +296,10 @@ of draft or merges it.
 What they share is in `.agents/rules/`: how a run works alone
 (`unattended.md`), how an automated run files, within which bounds and under
 which role (`tracker.md`), how issues are labelled (`issues.md`), how a claim
-is proved in a judged round (`evidence.md`), and the slop catalogue
-(`slop.md`). `.claude/rules` and `.claude/skills/` are symlinks into
-`.agents/`, so there is one text rather than two that drift apart.
+is proved in a judged round (`evidence.md`), the slop catalogue
+(`slop.md`), and what a test must earn (`tests.md`). `.claude/rules` and
+`.claude/skills/` are symlinks into `.agents/`, so there is one text rather
+than two that drift apart.
 
 A role lives here rather than in whatever fires it, so that changing one is a
 pull request with a review and a history.

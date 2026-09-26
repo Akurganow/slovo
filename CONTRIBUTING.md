@@ -42,7 +42,8 @@ Scripts/diagnose.sh
 
 Slovo uses Swift Testing and source-tree gate checks. New behavior should have a
 test that can fail on a concrete broken implementation, not just pass on the
-current code.
+current code. What else a test must earn here is in
+[.agents/rules/tests.md](.agents/rules/tests.md).
 
 Useful commands:
 
