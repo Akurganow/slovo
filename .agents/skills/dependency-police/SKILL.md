@@ -93,10 +93,13 @@ of it until it is checked against the source.
   with the claimed version pair, and a bump of an `exact` pin must move the
   pin rather than loosen it. For an Actions bump, check that the new
   reference is the version claimed and that no step's inputs changed
-  meaning under it. For an npm bump, the `package.json` and
-  `package-lock.json` entries must agree with the claimed version pair,
-  and check whether `package.json`, `.release-it.json` or the release
-  workflow names an API the update removes.
+  meaning under it. For an npm bump of a direct dependency, its
+  `package.json` constraint and its `package-lock.json` entry must agree
+  with the claimed version pair; a transitive one has no `package.json`
+  line, so check its resolved `package-lock.json` entry and that the
+  lockfile still agrees with the manifest. Either way, check whether
+  `package.json`, `.release-it.json` or the release workflow names an API
+  the update removes.
 - **The promises a bump must not break.**
   - The GRDB dependency is the SQLCipher-enabled distribution, and the
     personalization database is encrypted at rest. A migration to plain

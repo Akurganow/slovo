@@ -111,19 +111,23 @@ writes your marker with `action=duplicate work=#N`, #N being the surviving
 issue the court's `duplicate_of` names. A `duplicate_of` on any verdict
 takes this path, and no work issue is cut from the source. A source that
 is a person's issue is left open with the same comment and marker; closing
-it is the owner's call.
+it is the owner's call. The close written here is the report's disposal:
+"Then dispose of the source" below does not run again for it, so a report
+gets one closing comment.
 
 **A work issue of your own** — its body carries `<!-- slovo-clerk-work:`,
 and the court tries one only on a payload — is never re-filed, whatever the
 verdict: the do-not-create list already holds its fingerprint. A sustained
-or partially-sustained verdict there re-specifies rather than re-opens: the
-corrections that stand go into your marker comment with
-`action=respecified`, and `ready` stays on. Any other verdict gets the
-marker, and `ready` comes off: read the issue's whole label set and write
-it back without `ready`, because a work issue the court no longer backs
-must not read as work to start. A verdict that sustains nothing and carries
-`duplicate_of` does both: it takes the duplicate path above, and `ready`
-comes off.
+or partially-sustained verdict there re-specifies rather than re-opens:
+first rewrite the issue's own body, its Requirement and Acceptance criteria
+to what the second trial sustained, so the owner can still start from the
+issue alone as the `ready` standard requires; then your marker comment with
+`action=respecified` says what changed, and `ready` stays on. Any other
+verdict gets the marker, and `ready` comes off: read the issue's whole
+label set and write it back without `ready`, because a work issue the court
+no longer backs must not read as work to start. A verdict that sustains
+nothing and carries `duplicate_of` does both: it takes the duplicate path
+above, and `ready` comes off.
 
 Then dispose of the source:
 
