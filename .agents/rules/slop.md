@@ -28,7 +28,10 @@ list below wins — its measurement is the stronger evidence.
 2. **`lying`** — text that contradicts the code: a name false since a
    rename, a comment for a branch that no longer exists, a doc comment
    promising what the body does not keep, a test name claiming more
-   than the body checks. Measurement: the two quotes side by side.
+   than the body checks, a number nobody re-measured after the tree
+   moved. Measurement: the two quotes side by side, with the commit
+   that wrote the text and the commit that changed the code out from
+   under it.
 3. **`naming`** — a name that says nothing about the job: generic
    (`data`, `temp`, `helper`), filler suffixes (`Manager`, `Helper`,
    `Utils`, `Impl`), the type's own name stuttered into every member,
@@ -41,8 +44,10 @@ list below wins — its measurement is the stronger evidence.
 5. **`residue`** — what the process left behind: changelog in
    comments, attribution of a tool, debug output, compatibility aliases
    nothing calls, `_v2` beside `_v1`, a scenario duplicated under a
-   second name. Measurement: `git log -S` for when it arrived and what
-   made it moot.
+   second name. Measurement: `git log -S` for the commit that brought
+   it and the commit that made it moot — or, for what was moot on
+   arrival, the introducing commit alone and the statement that nothing
+   ever used it.
 
 ## What is protected
 
@@ -81,4 +86,7 @@ error or hidden fallback with a reachable wrong result is a logic
 defect; a guard for an impossible state or a mechanism out of
 proportion is a proportion defect; a thin wrapper, a one-conformer
 protocol or a duplicated helper is an abstraction defect. Slop names
-the text; the shape is judged on its own terms.
+the text; the shape is judged on its own terms. A comment describing
+behaviour that no longer exists is `lying` when the comment is the
+whole defect, and goes with the shape when it sits on a branch, a
+parameter or a field that is itself dead.

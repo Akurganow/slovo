@@ -42,8 +42,13 @@ identity. Write the list to `$RUN/do-not-report.md` before any analysis:
   second issue. Materially new evidence becomes a comment there; anything
   less is left alone.
 - An earlier issue of the run's own is now stale (the code it points at
-  was fixed or deleted) → one comment saying so, a note in the report;
-  the issue stays open — closing is a person's call.
+  was fixed or deleted) → one comment saying so, ending with the run's own
+  fingerprint marker, a note in the report; the issue stays open — closing
+  is a person's call.
+- Work already in flight is part of the list too: a finding somebody is
+  fixing is still visible in the code. Read the open pull requests with
+  the issues, drafts included, and add what each is fixing to the
+  do-not-report file.
 - Skim the issues no automated run filed too: a user's bug report about
   the same behaviour counts as coverage.
 

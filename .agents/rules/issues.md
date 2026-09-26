@@ -81,6 +81,8 @@ opening the sources:
   check, which is `Scripts/diagnose.sh` in full on a macOS runner, plus
   any regression test proposed. Written where nothing was built, it says
   so;
+- **Only a live run can prove** — the effects no check here can show,
+  one line each, for the owner's dev build;
 - **Sources** — the issue it was cut from and the review it rests on.
 
 A `ready` issue is a work item, never a report: it carries no

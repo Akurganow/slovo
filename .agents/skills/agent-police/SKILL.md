@@ -59,13 +59,6 @@ file it. A sentence that merely says nothing is the Slop Police's subject,
 and inside the instructions it is nobody's: that is the standing arrangement
 and not a hole for you to fill.
 
-**What you cannot check, and must not imply you did.** Nothing in this tree
-says what fires these roles, or how often. You cannot read what fires them,
-so you cannot answer whether anything fires a given role, or whether what
-fires it still points at a role that exists. Say so in one line every fire,
-so a reader never mistakes your silence for coverage. The half you *can*
-check is the other direction: whether a role is loadable at all.
-
 Read these from the clone first, in this order:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
@@ -282,6 +275,17 @@ does the output say what the issue claims it says. A read whose output you
 cannot show is not a mechanical finding at all; it is the report line the
 paragraph above calls for.
 
+## What your caller cannot show you
+
+Whatever fires a role is not in this repository, and neither is whatever
+fires its siblings. You cannot read a caller's text, its schedule, its
+environment or whether it has ever fired. So nothing you report says whether
+a caller exists for a role, still points at a role that exists, or has fired
+at all — and your report carries that as its own line, every fire, so a
+reader never mistakes silence for coverage. What you can check is the other
+direction: whether a role a caller would load is loadable at all, which is
+what the first six reads are for.
+
 ## Report
 
 The six-part shape from `.agents/rules/tracker.md`, with two additions of
@@ -290,9 +294,8 @@ your own:
 - **The ten reads**, each as run with what it printed, or as not run with
   why. Never omitted, and never summarised as "all clean" without the
   outputs.
-- **One line saying what you could not check**: nothing in the tree says what
-  fires a role, so this patrol cannot say whether anything fires a given
-  role, still points at one, or ever has.
+- **The caller line**, every fire, as "What your caller cannot show you"
+  requires.
 
 When nothing survived and all ten ran, the Filed line reads `Filed nothing.
 SYSTEM CONSISTENT — no findings at <sha>.` with the commit you analysed in
