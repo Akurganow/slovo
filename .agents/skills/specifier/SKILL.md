@@ -90,8 +90,10 @@ already references, in the sense of precondition 4.
 a report line, nothing is written on its account, and the next candidate is
 tried:
 
-1. The latest Release run on the tip of `main` is green. If it is not, the
-   fire stops here.
+1. The latest Release run on the tip of `main` has not completed red; if it
+   has, the fire stops here. A run still in progress, or none yet on that
+   tip, does not block, and the fire never waits for one: it reads the
+   state once and goes on.
 2. The issue is open, labelled `ready`, carries `<!-- slovo-clerk-work:`,
    and is labelled neither `wontfix` nor `question`.
 3. The issue carries no blocking `slovo-spec` marker of yours.
@@ -342,7 +344,8 @@ draft, and the marker with `action=opened`, `pr=#K` and `via`.
 **The checks it starts.** Opening the draft starts the pull-request checks
 on it. That is the price of a specification living in a pull request, not a
 new fact about the code: the merge result of a branch that changes nothing
-is the tip of `main`, whose green Release precondition 1 already requires.
+is the tip of `main`, so its checks are `main`'s own checks on that tip, and
+nothing more.
 It is accepted as it is. Never answer it with a skip instruction in the
 commit message, which would silently switch off the release that commit
 could otherwise trigger, with a path filter, or with a condition on draft
