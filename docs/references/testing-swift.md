@@ -55,11 +55,14 @@ concerns Swift Testing.
   [WWDC24 10195](https://developer.apple.com/videos/play/wwdc2024/10195/):
   > the order in which your tests run is randomized. This helps surface hidden
   > dependencies between tests
-  In the code, the runner iterates a dictionary whose order follows the
-  per-process `Hasher` seed
-  ([Runner.swift L362-364](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Running/Runner.swift),
-  identical at 6.3.3). Under `--no-parallel` or inside a `.serialized` subtree,
-  children run in source order (same file, L366).
+  In the code, the runner iterates `Graph.children`, a dictionary
+  ([Graph.swift L30](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Support/Graph.swift);
+  [Runner.swift L362-364](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Running/Runner.swift),
+  the same logic at L310-312 in 6.3.3), and dictionary order follows
+  [`Hasher`](https://developer.apple.com/documentation/swift/hasher), which "is
+  usually randomly seeded, which means it will return different values on every
+  new execution of your program." Under `--no-parallel` or inside a
+  `.serialized` subtree, children run in source order (Runner.swift, L366).
 
 ### 1.2 `.serialized` reaches only its own branch
 
@@ -97,7 +100,7 @@ concerns Swift Testing.
 | a parameterized test | its cases run one at a time |
 | a non-parameterized test | none |
 | a suite | its children run one at a time, recursively |
-| any test in another branch | none: it still runs concurrently with the serialized suite |
+| any test in another branch | none: it may still run concurrently with the serialized suite |
 
 ### 1.3 Process-global state is shared by every test
 
@@ -145,7 +148,8 @@ concerns Swift Testing.
 
 - `.enabled(if:)` is evaluated while the run is planned, before any test starts,
   and may be evaluated more than once
-  ([ConditionTrait.swift](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Traits/ConditionTrait.swift),
+  ([Trait.swift L35-36](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Traits/Trait.swift),
+  [ConditionTrait.swift](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Traits/ConditionTrait.swift),
   [EnablingAndDisabling.md](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Testing.docc/EnablingAndDisabling.md)).
   Its stated purpose is the environment:
   > you might want to write a test that only runs on devices with particular
@@ -182,9 +186,9 @@ concerns Swift Testing.
   `#expect(abs(a - b) <= tolerance)`.
 - UI automation and performance measurement (`measure`, `XCTMetric`) exist only
   in XCTest ([WWDC24 10179](https://developer.apple.com/videos/play/wwdc2024/10179/)).
-  Both frameworks can share a target, but cross-framework assertions are off
-  below toolchain 6.4, so an `XCTAssert` inside a `@Test` is ignored on this
-  repository's floor
+  Both frameworks can share a target (MigratingFromXCTest.md L43-45), but
+  cross-framework assertions are off below toolchain 6.4, so an `XCTAssert`
+  inside a `@Test` is ignored on this repository's floor
   ([MigratingFromXCTest.md L96-111](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Testing.docc/MigratingFromXCTest.md)).
 
 ### 1.6 A test target can import an executable target
@@ -367,9 +371,106 @@ concerns Swift Testing.
   [SWE ch. 12](https://abseil.io/resources/swe-book/html/ch12.html):
   > A little bit of duplication is OK in tests so long as that duplication makes
   > the test simpler and clearer.
-- No Google Testing Blog post on deleting tests was found; the nearest first-hand
-  statements are Eagle's "re-written or deleted" and ch. 11's "worse than no test
-  suite".
+- A test has a price to weigh at deletion as well as at birth —
+  [Picard, Cost-Benefit Analysis of a Test (2008)](https://testing.googleblog.com/2008/03/cost-benefit-analysis-of-test.html):
+  > This cost should be balanced against the benefits of the test when deciding
+  > whether a test should be deleted or whether it should be written in the first
+  > place.
+
+### 2.6 Proportion: what a test validates, and what that costs
+
+- A test's scope is the code it checks, not the code it runs —
+  [SWE ch. 11](https://abseil.io/resources/swe-book/html/ch11.html):
+  > when we talk about unit tests as being narrowly scoped, we're referring to
+  > the code that is being validated, not the code that is being executed.
+  and the smallest test that can check it is preferred:
+  > encourage engineers to always write the smallest possible test for a given
+  > piece of functionality. A test's size is determined not by its number of
+  > lines of code, but by how it runs, what it is allowed to do, and how many
+  > resources it consumes.
+- [Beck, Test Desiderata](https://testdesiderata.com/):
+  > Writable — tests should be cheap to write relative to the cost of the code
+  > being tested.
+- When only a collaborator can break it, the collaborator is what to test —
+  [JUnit 4 FAQ](https://junit.org/junit4/faq.html):
+  > The only way myMethod could break would be if myCollaborator.anotherMethod()
+  > were broken. In that case, test myCollaborator, and not the current class.
+- Humble Object: the decision moves to code a cheap test reaches, and the
+  hard-to-test adapter stays thin —
+  [Meszaros, Humble Object](http://xunitpatterns.com/Humble%20Object.html):
+  > We extract all the logic from the hard-to-test component into a component
+  > that is testable via synchronous tests.
+
+  > As a result, it requires only one or two tests to verify it does this
+  > correctly.
+  [Feathers, The Humble Dialog Box (2002)](https://martinfowler.com/articles/images/humble-dialog-box/TheHumbleDialogBox.pdf):
+  > When you do that, you end up with two classes: a smart tested class and a
+  > humble dialog class.
+  Apple teaches the same move —
+  [WWDC18 417, Testing Tips & Tricks](https://developer.apple.com/videos/play/wwdc2018/417/):
+  > I probably only need one or two tests that show that the timer delay works
+  > properly. And, for the rest of the class, I can call the show next place
+  > method directly and not need to mock a timer scheduler at all.
+
+  > we can avoid artificial delays in our tests, since they should never be
+  > necessary.
+- A platform value is the platform's, and it moves —
+  [Human Interface Guidelines, Color](https://developer.apple.com/design/human-interface-guidelines/color):
+  > Avoid hard-coding system color values in your app. Documented color values
+  > are for your reference during the app design process. The actual color
+  > values may fluctuate from release to release, based on a variety of
+  > environmental variables.
+  Rendered output depends on the platform that draws it —
+  [Android Developers, Screenshot testing](https://developer.android.com/training/testing/ui-tests/screenshot):
+  > Screenshot tests rely on low-level platform APIs to draw specific features
+  > like text or shadows, and platforms can implement those in different ways.
+- The counterweights. Where the visible result is the requirement, the same page
+  recommends screenshots, kept few:
+  > You should minimize the number of screenshot tests while maximizing the
+  > feedback and coverage for regressions.
+  A real dependency that breaks the product is a signal —
+  [SWE ch. 13](https://abseil.io/resources/swe-book/html/ch13.html):
+  > Using real implementations can cause your test to fail if there is a bug in
+  > the real implementation. This is good!
+  and one test at the seam with the real thing is defensible —
+  [Vocke, The Practical Test Pyramid (2018)](https://martinfowler.com/articles/practical-test-pyramid.html):
+  > You might argue that this is testing the framework and something that I
+  > should avoid as it's not our code that we're testing. Still, I believe
+  > having at least one integration test here is crucial.
+- None of the sources read here states "do not test the platform" as a rule in
+  those words; the statements above are the nearest primary ones.
+
+### 2.7 A regression test after its fix
+
+- A fix carries the missing case —
+  [SWE ch. 12](https://abseil.io/resources/swe-book/html/ch12.html):
+  > Fixing a bug is much like adding a new feature: the presence of the bug
+  > suggests that a case was missing from the initial test suite, and the bug fix
+  > should include that missing test case.
+- Suites change by deletion and addition more than by repair —
+  [Pinto, Sinha, Orso, Understanding myths and realities of test-suite evolution, FSE 2012](https://doi.org/10.1145/2393596.2393634)
+  (abstract; the full text was not reachable):
+  > our findings show that test repair is just one possible reason for
+  > test-suite evolution, whereas most changes involve refactorings, deletions,
+  > and additions of test cases.
+- Subsumption, and trimming over deleting —
+  [Beck, Composable Tests (2025)](https://newsletter.kentbeck.com/p/composable-tests):
+  > Notice that test2 can't pass if test1 fails. All non-compliant programs caught
+  > by test1 will also be caught by test2.
+
+  > Deleting test1 loses us another property from the Test Desiderata—tests
+  > should be specific.
+  [Vocke](https://martinfowler.com/articles/practical-test-pyramid.html):
+  > I delete high-level tests that are already covered on a lower level (given
+  > they don't provide extra value).
+- "It never failed" is not grounds —
+  [Memon et al., Taming Google-Scale Continuous Testing, ICSE-SEIP 2017](https://research.google.com/pubs/archive/45861.pdf):
+  > We found (Table II) that 91.3% PASSED at least once and never FAILED even once
+  > during their execution history.
+  and Google's answer was to run such tests less often, not to delete them.
+- No study read here follows regression tests added with fixes over time to
+  measure whether they later become redundant; the sweep over fix-born tests
+  (§5) rests on the principles above and on the reduction studies (§2.3).
 
 ---
 
@@ -420,7 +521,7 @@ Read at the commits named; licenses read from each `LICENSE` file.
 
 | Tool | License | SwiftPM | Swift Testing | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| [Muter](https://github.com/muter-mutation-testing/muter) @ `7f1f258` | MIT | yes: `swift test`, then `--skip-build` once per mutant | failure detection only on `master` since 2026-07-21; the last tag `16` (2023-09-16), which Homebrew installs, matches XCTest output only | last commit 2026-07-21 |
+| [Muter](https://github.com/muter-mutation-testing/muter) @ `7f1f258` | MIT | yes: `swift test`, then `--skip-build` once per mutant | Swift Testing's "with N issue" summary is matched only on `master` since 2026-07-21; the last tag `16` (2023-09-16), which Homebrew installs, matches only XCTest's, xcodebuild's and Buck's failure lines and scores any other non-zero exit as "mutant killed (runtime error)" | last commit 2026-07-21 |
 | [swift-mutation-testing](https://github.com/ericodx/swift-mutation-testing) @ `e2ec75c` | MIT | yes | claimed | v1.4.0 |
 | [MutantKit](https://github.com/juntaki/mutantkit) @ `3aca741` | Apache-2.0 | yes | listed as supported | v1.0.3 |
 | [swift-mutants](https://github.com/P4suta/swift-mutants) @ `5594d5c` | MIT OR Apache-2.0 | yes | yes, needs Swift 6.3 and macOS 15 | unreleased |
@@ -438,13 +539,14 @@ Read at the commits named; licenses read from each `LICENSE` file.
   GPL" and Apache-2.0 as "compatible with version 3 of the GNU GPL"
   ([license list](https://www.gnu.org/licenses/license-list.html)). A tool that
   is run and not shipped is also covered by GPLv3 §2 ("You may make, run and
-  propagate covered works that you do not convey, without conditions") and §1,
+  propagate covered works that you do not convey, without conditions so long as
+  your license otherwise remains in force") and §1,
   which excludes "general-purpose tools … used unmodified" from Corresponding
   Source ([GPLv3](https://www.gnu.org/licenses/gpl-3.0.txt), identical to this
   repository's `LICENSE`). None of these tools is a dependency of this
   repository, and adopting one is a dependency decision under AGENTS.md's
   license rule, not something this document proposes.
-- **No source describes a tool-free mutation protocol** for a reviewer: apply
+- **None of the sources read here describes a tool-free mutation protocol** for a reviewer: apply
   one mutation by hand, run, observe RED. The repository's own rule (§4.1) is
   that protocol, and where nothing can be run, a traced mutation is an argument,
   not a measurement.
@@ -465,11 +567,12 @@ The rule governs a test's birth and nothing after it. It sets no bar on
 redundancy, environment or price, and nothing removes a test once it exists.
 The measured result, at `734435a`:
 
-- 843 `@Test` lines in 149 files; 23,688 lines under `Tests/` against 12,903
+- 843 `@Test` lines in 149 files; 23,786 lines under `Tests/` against 12,902
   under `Sources/` (`find … -name "*.swift" | xargs cat | wc -l`);
 - over the first-parent history of `Tests/`, 952 `@Test` lines added and 109
-  removed; single commits added 68 (`2c084de`), 38 (`9559a79`, `b1c5543`) and
-  37 (`caa741b`, `2a2dee7`).
+  removed; the initial commit `84a016a` added 172, and after it single commits
+  added 68 (`2c084de`), 38 (`9559a79`, `b1c5543`) and 37 (`caa741b`,
+  `2a2dee7`).
 
 A sensitivity note states one mutant the test kills. It does not state whether
 another test kills the same one (§2.3), whether the mutant is a behaviour change
@@ -479,8 +582,8 @@ something no mutant of the product touches (§2.1).
 ### 4.2 Source guards
 
 Tests that read production source as text and assert on it: 25 files named
-`*SourceGuard*` or `*GuardTests*` hold 417 `contains(` calls, and `contains("`
-occurs 728 times across 58 test files. Two recorded reasons stand behind the
+`*SourceGuard*` or `*GuardTests*` hold 420 `contains(` calls, and `contains("`
+occurs 731 times across 58 test files. Two recorded reasons stand behind the
 shape:
 
 - **No behavioural seam into the app target.**
@@ -505,7 +608,9 @@ shape.
 - `GrammarHintFindingsTests.swift:32-33,44` and
   `SpellCheckHintProviderIntegrationTests.swift:9-10,21` skip real
   `NSSpellChecker` and Text Input Sources tests whenever `CI` is set, with the
-  reason "real NSSpellChecker; skipped on shared CI" — the documented use of
+  reasons "real NSSpellChecker; skipped on shared CI" and, at
+  `SpellCheckHintProviderIntegrationTests.swift:53`, "real Text Input Sources;
+  skipped on shared CI" — the documented use of
   `.enabled(if:)` (§1.4). The trade is declared: CI never runs them.
 - `KeychainKeySourceTests.swift:9-10` marks its suite `.serialized` because "the
   environment test mutates the process environment", and calls `setenv` and
@@ -519,7 +624,11 @@ shape.
 `MenuBarGlyphImageTests.errorGlyphRendersAsNonTemplateRedImage`
 (`Tests/SlovoCoreTests/MenuBarGlyphImageTests.swift:27-38`) requires every
 pixel with alpha above 0.5 to classify as red (line 36). It passes on the
-`macos-26` CI runner and was reported failing on Xcode 27 / macOS 27. The
+`macos-26` CI runner
+([Release run 36270290486](https://github.com/Akurganow/slovo/actions/runs/36270290486)
+at `734435a`: macOS 26.6.2, Xcode 26.6, Swift 6.3.3) and was reported failing
+on Xcode 27 / macOS 27 — a report from outside the repository; no issue or CI
+run records it. The
 evidence read for this document does not establish a cause. What it
 establishes:
 
@@ -528,11 +637,13 @@ establishes:
   `deprecatedAt: 27.0`:
   > This method is incompatible with resolution-independent drawing and should
   > not be used.
-  No macOS 26 or 27 release note describes a behaviour change for images,
-  bitmaps, colours or text rendering
-  ([macOS 27 release notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)).
-- `NSColor.systemRed` is resolved against the current appearance and
-  accessibility settings
+  No macOS 26, 26.1–26.6 or 27 release note mentions `NSImage`, `lockFocus`,
+  `NSBitmapImageRep`, `NSColor` or system colours, colour spaces, or
+  attributed-string drawing; their image and text items concern menu-item
+  images, `NSTextField` and TextKit 2 layout, and SwiftUI `TextRenderer`
+  ([macOS 26](https://developer.apple.com/documentation/macos-release-notes/macos-26-release-notes),
+  [macOS 27](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)).
+- `NSColor.systemRed` is not one fixed value
   ([systemRed](https://developer.apple.com/documentation/appkit/nscolor/systemred)):
   > Returns a color object for red that automatically adapts to vibrancy and
   > accessibility settings.
@@ -547,7 +658,8 @@ establishes:
   states "The underlying image cache is shared among all threads."
 - The GitHub-hosted `macos-26` image runs macOS 26.6.2 with Xcode 26.6; macOS 27
   is available only as the preview image labelled `xcode-27`
-  ([actions/runner-images README](https://raw.githubusercontent.com/actions/runner-images/main/README.md)).
+  ([macos-26-arm64-Readme.md](https://raw.githubusercontent.com/actions/runner-images/ede07f8e48022b2c00dc669c7a9d927c46e32a81/images/macos/macos-26-arm64-Readme.md),
+  [xcode-27-arm64-Readme.md](https://raw.githubusercontent.com/actions/runner-images/ede07f8e48022b2c00dc669c7a9d927c46e32a81/images/macos/xcode-27-arm64-Readme.md)).
   Both images set only `reduceMotion` and `reduceTransparency`; neither sets
   dark mode, increased contrast or font smoothing
   (`images/macos/scripts/build/configure-system.sh:19-21` at `ede07f8`).
@@ -564,7 +676,9 @@ Each kind is a way a test that **can** fail costs more than it protects. A test
 that cannot fail at all is `ceremony` in `.agents/rules/slop.md:40` and is not
 repeated here. Each criterion names the exhibit that proves it; where nothing
 can be run, the exhibit is a traced argument and the conclusion is plausible,
-never confirmed.
+never confirmed. The repository adopts these criteria in
+`.agents/rules/tests.md`, which is authoritative; this table records the
+sources behind each.
 
 | Kind | The test | The exhibit | Recorded exceptions | Sources |
 | :-- | :-- | :-- | :-- | :-- |
@@ -572,7 +686,8 @@ never confirmed.
 | change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red; and the behaviour test or compiler check that already guards the contract | The how is the requirement (a cache read, a call count or order that has side effects); no behavioural seam exists, recorded | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
 | redundant | Every mutant it kills, another test kills | The mutants its note and body imply, each with the other test that goes red on it | Deliberate redundancy with a recorded reason; a regression input distinct from what the other test feeds | §2.3, §3.1 (van Deursen, Meszaros, Shi et al., Ammann et al.) |
 | over-specified | The assertion demands more than the requirement: exact where the requirement is a property, a tolerance or a range | The requirement quoted, and an output that meets it and fails the assertion | Exactness that is the requirement: a byte-exact wire format, a prompt sent verbatim | §2.4 (Meszaros, Kent, Parry Too Restrictive Range, Dawson) |
-| suite economics | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | Both columns measured: the cost (tests, lines, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo) |
+| disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the decision's line; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Vocke) |
+| bloat | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | Both columns measured: the cost (tests, lines, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo) |
 
 Two rules hold across the kinds:
 
@@ -582,6 +697,10 @@ Two rules hold across the kinds:
   removed"; Shi et al.'s mutant-based reduction).
 - **A rewrite must not create the opposite smell.** A test written only to kill
   a mutant can pin the current implementation (Petrović et al., §2.2).
+
+Tests born with a fix are a sweep, not a kind: each is judged by the kinds above
+against what later commits did to the code it pins (§2.7). "It never failed" is
+never grounds on its own (Memon et al.).
 
 ---
 
@@ -602,7 +721,7 @@ Swift Testing and SwiftPM
 - https://raw.githubusercontent.com/swiftlang/swift-package-manager/main/CHANGELOG.md
 
 Testing literature
-- Micco 2016, Listfield 2017, Eagle 2015, Trenk 2013 (two posts), Kent 2024 —
+- Micco 2016, Eagle 2015, Trenk 2013 (two posts), Kent 2024, Picard 2008 —
   testing.googleblog.com, URLs inline
 - Luo, Hariri, Eloussi, Marinov, FSE 2014 —
   http://mir.cs.illinois.edu/marinov/publications/LuoETAL14FlakyTestsAnalysis.pdf
@@ -617,6 +736,24 @@ Testing literature
 - Shi, Gyori, Gligoric, Zaytsev, Marinov, FSE 2014 —
   http://mir.cs.illinois.edu/marinov/publications/ShiETAL14ReductionEvolution.pdf
 - Dawson 2012 — https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+
+Proportion and the life of a regression test
+- Software Engineering at Google, ch. 13 —
+  https://abseil.io/resources/swe-book/html/ch13.html
+- JUnit 4 FAQ — https://junit.org/junit4/faq.html
+- Meszaros, Humble Object — http://xunitpatterns.com/Humble%20Object.html;
+  Feathers, The Humble Dialog Box (2002) —
+  https://martinfowler.com/articles/images/humble-dialog-box/TheHumbleDialogBox.pdf
+- WWDC18 417, Testing Tips & Tricks — https://developer.apple.com/videos/play/wwdc2018/417/
+- Human Interface Guidelines, Color —
+  https://developer.apple.com/design/human-interface-guidelines/color
+- Android Developers, Screenshot testing —
+  https://developer.android.com/training/testing/ui-tests/screenshot
+- Vocke, The Practical Test Pyramid (2018) —
+  https://martinfowler.com/articles/practical-test-pyramid.html
+- Pinto, Sinha, Orso, FSE 2012 (abstract) — https://doi.org/10.1145/2393596.2393634
+- Beck, Composable Tests (2025) — https://newsletter.kentbeck.com/p/composable-tests
+- Memon et al., ICSE-SEIP 2017 — https://research.google.com/pubs/archive/45861.pdf
 
 Mutation analysis
 - Jia & Harman, IEEE TSE 2011 — http://crest.cs.ucl.ac.uk/fileadmin/crest/sebasepaper/JiaH10.pdf
