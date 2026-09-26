@@ -6,22 +6,19 @@ public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider, Cleanup
 
     public convenience init(
         service: String = "slovo",
-        account: String = "openrouter-api-key",
-        environmentKey: String = "OPENROUTER_API_KEY"
+        account: String = "openrouter-api-key"
     ) {
-        self.init(storage: KeychainAPIKeyProvider(service: service, account: account, environmentKey: environmentKey))
+        self.init(storage: KeychainAPIKeyProvider(service: service, account: account))
     }
 
     @preconcurrency
     public init(
-        environmentKey: String = "OPENROUTER_API_KEY",
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
         writeKey: @escaping @Sendable (String) throws -> Void,
         deleteKey: @escaping @Sendable () throws -> Void
     ) {
         storage = KeychainAPIKeyProvider(
-            environmentKey: environmentKey,
             readKey: readKey,
             keyExists: keyExists,
             writeKey: writeKey,

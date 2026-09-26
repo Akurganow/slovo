@@ -101,6 +101,28 @@ struct RemoveKeySourceGuardTests {
         }
     }
 
+    /// A failed key save or removal must reach the product's error surface, and
+    /// the menu and pane must re-derive from the provider whatever the outcome —
+    /// a failed save may already have deleted the old item.
+    /// Stated sensitivity: drop `flashUserActionFailure()` from either `catch` →
+    /// RED; move `installStatusMenu()` or `pushEffectiveCleanupConfig()` back inside
+    /// the `do` (a failure then leaves the pane on the pre-failure state) → RED.
+    @Test
+    func keyFailuresFlashTheGlyphAndStillRefresh() throws {
+        let settings = try Self.strippedCode(Self.settingsPath)
+        for name in ["func saveOpenRouterKey", "func removeOpenRouterKey"] {
+            let body = try Self.slice(of: settings, from: name, to: "\n    func ")
+            let catchStart = try #require(body.range(of: "} catch {"), "\(name) must catch the provider error")
+            let afterCatchStart = body[catchStart.upperBound...]
+            let catchEnd = try #require(afterCatchStart.range(of: "\n        }"), "\(name): end of the catch block")
+            let catchBody = afterCatchStart[..<catchEnd.lowerBound]
+            let afterCatch = afterCatchStart[catchEnd.upperBound...]
+            #expect(catchBody.contains("flashUserActionFailure()"), "\(name): a failure must flash the red glyph")
+            #expect(afterCatch.contains("installStatusMenu()"), "\(name): the menu must rebuild on both outcomes")
+            #expect(afterCatch.contains("pushEffectiveCleanupConfig()"), "\(name): the funnel must re-push on both outcomes")
+        }
+    }
+
     /// Stated sensitivity: any wording change to the four spec-pinned strings —
     /// including losing the button's trailing ellipsis — reddens the matching
     /// assert (the confirm-action check requires the closing quote right after

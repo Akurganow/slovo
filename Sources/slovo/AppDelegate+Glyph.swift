@@ -51,6 +51,26 @@ extension AppDelegate {
             ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
     }
 
+    /// Briefly flashes the red failure glyph (the empty-dictation pattern) when an
+    /// action the user explicitly took fails — a Restart install, a key save or a
+    /// key removal — then restores idle. Background failures stay silent.
+    func flashUserActionFailure() {
+        guard let button = statusItem?.button else { return }
+        button.title = ""
+        button.contentTintColor = nil
+        button.image = MenuBarGlyph.image(for: MenuBarGlyph.failureGlyph, tint: .error)
+            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
+        // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
+        // scheduling anew, and skip the reset if superseded or if a dictation started
+        // within the window (its recording glyph must not be stomped back to idle).
+        userActionFailureResetTask?.cancel()
+        userActionFailureResetTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, self?.isPipelineActive == false else { return }
+            self?.paintIdleGlyph(on: self?.statusItem?.button)
+        }
+    }
+
     private static let modelLoadingPulseKey = "model-loading-pulse"
 
     /// Breathing pulse for the model-loading glyph. Timing follows the system

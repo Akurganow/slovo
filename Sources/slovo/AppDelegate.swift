@@ -52,9 +52,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var isModelReady = false
     private var onboardingSteps: [OnboardingStep] = []
     private var briefStatusResetTask: Task<Void, Never>?
-    // Sibling of briefStatusResetTask: the pending reset of the update-install-failure
+    // Sibling of briefStatusResetTask: the pending reset of the user-action-failure
     // glyph flash, cancelled before a new flash so overlaps don't stack.
-    var updateFailureResetTask: Task<Void, Never>?
+    var userActionFailureResetTask: Task<Void, Never>?
     private var hotkeyEdgeSequencer: HotkeyEdgeSequencer?
     private var isRebuildingPipeline = false
     // Strong reference is load-bearing: Sparkle holds the updater and user-driver
