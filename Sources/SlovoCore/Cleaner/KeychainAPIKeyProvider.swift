@@ -101,8 +101,8 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         // access list, so a key first saved by a differently-signed build (e.g. a
         // dev build) stays readable only by that build and every read from this
         // one triggers the keychain password prompt. The fresh item is owned by
-        // the current signature. The delete's status is not checked: if it fails,
-        // the add below fails too and its status is thrown.
+        // the current signature. The delete's status is not checked: a delete that
+        // leaves the old item makes the add fail with errSecDuplicateItem, which is thrown.
         SecItemDelete(query as CFDictionary)
         var add = query
         add[kSecValueData as String] = data
