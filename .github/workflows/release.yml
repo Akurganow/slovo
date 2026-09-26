@@ -5,7 +5,7 @@ name: Release
 # whether a release is due:
 #
 #   * releasable commits (feat / fix / perf / breaking) -> compute the next semver
-#     with release-it, stamp it into Info.plist, build, sign, notarize, staple,
+#     with git-cliff, stamp it into Info.plist, build, sign, notarize, staple,
 #     verify, then commit the version bump, tag `v<version>`, and publish a GitHub
 #     Release with the stapled DMG and app zip.
 #   * nothing releasable (docs / chore / ci only) -> the run is trunk verification:
@@ -46,46 +46,39 @@ jobs:
   test:
     uses: ./.github/workflows/swift.yml
 
-  # Decide whether a release is due and, if so, compute the next version. Holds no
-  # secrets and only reads the checkout, so it runs on the cheaper Linux runner.
+  # Decide whether a release is due and, if so, compute the next version — both from
+  # one git-cliff answer (cliff.toml holds the rules). Holds no secrets and only
+  # reads the checkout, so it runs on the cheaper Linux runner.
   decide:
     needs: test
     runs-on: ubuntu-latest
     outputs:
-      releasable: ${{ steps.guard.outputs.releasable }}
-      version: ${{ steps.version.outputs.version }}
+      # git-cliff reports `bump_type` null when no commit since the last tag moves
+      # the version; that is the whole "nothing to release" decision. Naming the
+      # three bumps keeps an empty or garbled value from reading as a release.
+      releasable: ${{ contains(fromJSON('["major","minor","patch"]'), steps.bump.outputs.bump_type) }}
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
-          # Full history and tags: the guard needs the range since the last v* tag,
-          # and release-it reads that tag as the version anchor.
+          # Full history and tags: git-cliff reads the last v* tag as the version
+          # anchor and classifies every commit after it.
           fetch-depth: 0
-      - name: Decide whether a release is due
-        id: guard
-        run: Scripts/release-decision.sh
-      - name: Set up Node
-        if: steps.guard.outputs.releasable == 'true'
-        uses: actions/setup-node@v7
+      - name: Install git-cliff
+        # Exact pin: the bump rules in cliff.toml are verified against this version
+        # (docs/release-ci.md). The action checks the archive's SHA-256.
+        uses: taiki-e/install-action@v2
         with:
-          node-version: "24"
-      - name: Install release tooling
-        if: steps.guard.outputs.releasable == 'true'
-        # --ignore-scripts: release-it and the changelog plugin are pure JS and need
-        # no lifecycle scripts, so no transitive dependency runs install-time code.
-        run: npm ci --ignore-scripts
+          tool: git-cliff@2.14.2
       - name: Compute the next release version
-        id: version
-        if: steps.guard.outputs.releasable == 'true'
+        id: bump
         run: |
           set -euo pipefail
-          version="$(npx --no-install release-it --release-version --ci)"
-          # Delimiter form so a value can never inject extra output keys.
-          {
-            echo "version<<RELEASE_IT_VERSION_EOF"
-            echo "$version"
-            echo "RELEASE_IT_VERSION_EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "computed release version: $version"
+          context="$(git-cliff --bump --context)"
+          # `.[0]` is the unreleased range when something bumps, else the last tag.
+          # The tag carries a `v`; the stamp script and the tag step add their own.
+          jq -r '.[0] | "bump_type=\(.bump_type)", "version=\(.version | ltrimstr("v"))"' \
+            <<<"$context" | tee -a "$GITHUB_OUTPUT"
 
   package:
     needs: [ test, decide ]

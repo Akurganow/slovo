@@ -23,16 +23,14 @@ the [Conventional Commits](https://www.conventionalcommits.org/) since the last
   trunk verification: it still runs the full test gate and packages a signed
   artifact (under a unique dev stamp), but creates **no** tag and **no** release.
 
-The version number is computed by [`release-it`](https://github.com/release-it/release-it)
-in `--ci` mode with the `@release-it/conventional-changelog` plugin
-(`preset: conventionalcommits`). release-it's engine on its own would recommend a
-patch for *any* non-empty commit set, so a tiny guard,
-[`Scripts/release-decision.sh`](../Scripts/release-decision.sh), is the authority
-on whether a release is due at all. The guard and release-it agree on the trigger
-set, so a docs-only push never cuts a release.
+Both the decision and the version number come from one
+[`git-cliff`](https://git-cliff.org) run, configured by [`cliff.toml`](../cliff.toml)
+(see [Version computation](#version-computation)). It reports the bump it would
+make — `major`, `minor`, `patch`, or none — and the resulting version; a push
+whose commits move nothing is trunk verification.
 
 Pull requests land on `main` as squash merges, so the merged commit's
-header is what the guard classifies. GitHub pre-fills that header from the
+header is what git-cliff classifies. GitHub pre-fills that header from the
 pull request's title. On a one-commit branch it pre-fills from the commit's
 own message instead. A merged header without `feat:` / `fix:` / `perf:`
 releases nothing: the push runs trunk verification. PR #77 lost a release
@@ -61,7 +59,7 @@ stages a contributor runs before a pull request. The pipeline never runs on
 | Job | Runner | Permissions | Secrets | Does |
 | --- | --- | --- | --- | --- |
 | `test` | macOS | `contents: read` | none | reusable gate (`Scripts/diagnose.sh`) |
-| `decide` | Linux | `contents: read` | none | run the guard, compute the version |
+| `decide` | Linux | `contents: read` | none | run git-cliff: is a release due, and at which version |
 | `package` | macOS | `contents: read`, `environment: release` | signing secrets | stamp version, build, sign, notarize, staple, verify, upload artifact |
 | `publish` | macOS | `contents: write` | none (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
@@ -149,27 +147,34 @@ On a release the `publish` job promotes the top `## [Unreleased]` heading to
 may curate `## [Unreleased]` between releases; the authoritative per-release notes
 are the GitHub Release body, generated from the commits.
 
-## Node tooling
+## Version computation
 
-`release-it` is dev-only tooling, pinned exactly in `package.json` with a committed
-`package-lock.json`; `node_modules` is gitignored and never committed. The app is
-Swift and this package is never published to npm. In CI the secret-less `decide`
-job runs `npm ci --ignore-scripts` and then `npx --no-install release-it` against
-the lockfile-installed binary, so the exact pinned versions run and no dependency
-lifecycle script executes.
+The `decide` job installs one pinned `git-cliff` binary through
+[`taiki-e/install-action`](https://github.com/taiki-e/install-action), which
+verifies the archive's SHA-256, and runs `git-cliff --bump --context`. The first
+entry of that JSON is the unreleased range when something bumps — carrying the
+next version and a `bump_type` of `major`, `minor` or `patch` — or the last tag
+itself with `bump_type` null. The job publishes both fields; `releasable` is
+"`bump_type` is one of `major`, `minor`, `patch`" and needs no second opinion.
 
-`.release-it.json` runs release-it in compute-only mode: every mutating action is
-disabled (`git.commit` / `git.tag` / `git.push` / `npm.publish` / `github.release`
-all `false`), and it is invoked only as `--release-version`, so it just prints the
-next version. The `tagName: "v${version}"` entry declares the project's tag
-convention so release-it parses the `v`-prefixed tags as the version anchor; the
-workflow — not release-it — creates the tag.
+[`cliff.toml`](../cliff.toml) is the whole rule set:
 
-The guard's release-trigger set (`feat` / `fix` / `perf` / breaking) is kept in
-agreement with the pinned `conventionalcommits` preset by exact version pinning. If
-you ever upgrade `@release-it/conventional-changelog`, re-verify that its bump types
-still match `Scripts/release-decision.sh` so the guard and the computed version do
-not drift.
+- `filter_unconventional` drops headers that are not Conventional Commits, such
+  as merge commits;
+- `commit_parsers` keep `feat`, `fix` and `perf` and skip every other type, known
+  or unknown, while `protect_breaking_commits` keeps a `type!:` header or a
+  `BREAKING CHANGE:` footer under any conventional type;
+- `features_always_bump_minor` and `breaking_always_bump_major` fix the increments
+  at minor and major, also while the version is still 0.x.
+
+git-cliff reports the version with the tag's `v` prefix; the job strips it, since
+the stamp script and the tag step each add their own.
+
+The pin is exact (`git-cliff@2.14.2`) and outside the update bot's reach: a new
+git-cliff may read a header differently. Before moving it, replay the rules
+against the released history — for each pipeline-era tag, run
+`git cliff --bumped-version` at the commit before the tag and expect that tag.
+At the pin above, that replay reproduced 34 of 34 releases.
 
 ## One-time owner setup
 

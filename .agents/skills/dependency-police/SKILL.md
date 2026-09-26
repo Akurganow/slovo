@@ -65,10 +65,10 @@ in the report as deferred.
 No open bot pull requests is the normal outcome. Go to the advisory sweep
 and the report.
 
-The bot watches three ecosystems: Swift packages, GitHub Actions and the
-release tooling's npm tree. A Swift bump moves `Package.swift` or
-`Package.resolved` or both; an Actions bump moves a workflow file and
-touches neither. Judge each on what it actually changes.
+The bot watches two ecosystems: Swift packages and GitHub Actions. A Swift
+bump moves `Package.swift` or `Package.resolved` or both; an Actions bump
+moves a workflow file and touches neither. Judge each on what it actually
+changes.
 
 ## Verifying one pull request
 
@@ -93,13 +93,7 @@ of it until it is checked against the source.
   with the claimed version pair, and a bump of an `exact` pin must move the
   pin rather than loosen it. For an Actions bump, check that the new
   reference is the version claimed and that no step's inputs changed
-  meaning under it. For an npm bump of a direct dependency, its
-  `package.json` constraint and its `package-lock.json` entry must agree
-  with the claimed version pair; a transitive one has no `package.json`
-  line, so check its resolved `package-lock.json` entry and that the
-  lockfile still agrees with the manifest. Either way, check whether
-  `package.json`, `.release-it.json` or the release workflow names an API
-  the update removes.
+  meaning under it.
 - **The promises a bump must not break.**
   - The GRDB dependency is the SQLCipher-enabled distribution, and the
     personalization database is encrypted at rest. A migration to plain
@@ -156,8 +150,10 @@ request is handled above.
 
 An advisory with **no** bot pull request answering it is the one finding
 you file as an issue yourself, under the whole of `.agents/rules/tracker.md`, and your cap
-at a healthy backlog is 3. That happens when the bot has not got to it
-yet. Apply `police-report` and `dependencies`. One issue
+at a healthy backlog is 3. Two cases produce one: the bot has not got to it
+yet, or the dependency sits outside the two ecosystems the bot watches,
+which the `git-cliff` version pinned in `.github/workflows/release.yml` does.
+Apply `police-report` and `dependencies`. One issue
 per advisory, its identity the fingerprint
 
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->

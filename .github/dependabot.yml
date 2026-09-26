@@ -12,9 +12,3 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  # The release tooling's npm tree (package.json, package-lock.json).
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    labels: ["dependencies"]
