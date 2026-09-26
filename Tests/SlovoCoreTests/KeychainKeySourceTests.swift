@@ -40,4 +40,40 @@ struct KeychainKeySourceTests {
             Issue.record("expected CleanupError.missingKey, got \(error)")
         }
     }
+
+    /// Stated sensitivity: keep the cache when the Keychain write throws → the
+    /// provider still reports the old key after a failed save that already
+    /// deleted it from the Keychain → RED.
+    @Test
+    func failedWriteDropsTheCache() throws {
+        struct WriteFailure: Error {}
+        let stored = Mutex<String?>(nil)
+        let writeFails = Mutex(false)
+        let provider = KeychainAPIKeyProvider(
+            readKey: { stored.withLock { $0 } },
+            keyExists: { stored.withLock { $0 != nil } },
+            writeKey: { key in
+                // Mirrors the real helper: the old item goes before the add runs.
+                stored.withLock { $0 = nil }
+                if writeFails.withLock({ $0 }) { throw WriteFailure() }
+                stored.withLock { $0 = key }
+            },
+            deleteKey: { stored.withLock { $0 = nil } }
+        )
+        try provider.store("synthetic-old-key")
+        #expect(try provider.apiKey() == "synthetic-old-key")
+
+        writeFails.withLock { $0 = true }
+        #expect(throws: WriteFailure.self) { try provider.store("synthetic-new-key") }
+
+        #expect(!provider.hasConfiguredKey(), "the Keychain no longer holds a key, so none is configured")
+        do {
+            _ = try provider.apiKey()
+            Issue.record("apiKey() must not serve a key the Keychain no longer stores")
+        } catch CleanupError.missingKey {
+            // The contract: the next read consults the Keychain, which is empty.
+        } catch {
+            Issue.record("expected CleanupError.missingKey, got \(error)")
+        }
+    }
 }

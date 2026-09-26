@@ -60,7 +60,15 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         guard let trimmed = Self.normalized(key) else {
             throw StoreError.emptyKey
         }
-        try writeKey(trimmed)
+        do {
+            try writeKey(trimmed)
+        } catch {
+            // The write removes the old item before adding the new one, so after a
+            // failure the Keychain may hold no key at all. Dropping the cache makes
+            // the next read ask the Keychain instead of serving a key it lost.
+            cachedKey.withLock { $0 = nil }
+            throw error
+        }
         cachedKey.withLock { $0 = trimmed }
     }
 
@@ -92,8 +100,9 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         // Recreate instead of SecItemUpdate: updating keeps the existing item's
         // access list, so a key first saved by a differently-signed build (e.g. a
         // dev build) stays readable only by that build and every read from this
-        // one triggers the keychain password prompt. Deleting is silent for any
-        // owner; the fresh item is owned by the current signature.
+        // one triggers the keychain password prompt. The fresh item is owned by
+        // the current signature. The delete's status is not checked: if it fails,
+        // the add below fails too and its status is thrown.
         SecItemDelete(query as CFDictionary)
         var add = query
         add[kSecValueData as String] = data
