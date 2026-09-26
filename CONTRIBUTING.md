@@ -90,6 +90,3 @@ request — which produces a signed (but not notarized) DMG; see
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
 - [ ] Security or privacy boundary changes are called out explicitly.
-- [ ] `CHANGELOG.md` keeps its top `## [Unreleased]` heading — the release
-      automation promotes it to the new version section, and its absence fails the
-      publish step.

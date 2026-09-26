@@ -5,77 +5,242 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
-## [Unreleased]
-
 ## [0.32.1] - 2026-09-26
+
+### Fixed
+
+- Stop declaring an unused Speech Recognition permission (#107)
 
 ## [0.32.0] - 2026-09-19
 
+### Added
+
+- Refuse a press made while the previous dictation is processing (#81)
+
 ## [0.31.1] - 2026-09-19
+
+### Fixed
+
+- Refresh the release-tooling lockfile, drop dead test scaffolding, correct stale prose (#80)
 
 ## [0.31.0] - 2026-09-19
 
+### Added
+
+- One speech model per process, live recognition language, named failures in the log (#78)
+
 ## [0.30.2] - 2026-09-05
+
+### Fixed
+
+- Let the build and plugin stages fail, and analyze what SourceKit can read (#42)
 
 ## [0.30.1] - 2026-09-05
 
+### Fixed
+
+- Abort a superseded failure-glyph reset instead of clearing the newer glyph (#40)
+
 ## [0.30.0] - 2026-08-26
+
+### Added
+
+- Offer only the cleanup models the OpenRouter key can call (#34)
 
 ## [0.29.1] - 2026-08-18
 
+### Fixed
+
+- Never execute an instruction-shaped transcript (#29)
+
 ## [0.29.0] - 2026-08-14
+
+### Added
+
+- Gate fully silent holds instead of decoding hallucinations (#28)
 
 ## [0.28.1] - 2026-08-14
 
+### Fixed
+
+- Retry an empty biased tail decode without bias (#27)
+
 ## [0.28.0] - 2026-08-14
+
+### Added
+
+- Encrypt the personalization database at rest with SQLCipher (#26)
 
 ## [0.27.0] - 2026-08-14
 
+### Added
+
+- Rank the ASR bias head by observed vocabulary misses (#25)
+
 ## [0.26.0] - 2026-08-13
+
+### Added
+
+- Release the macOS 15 support landed in #24
 
 ## [0.25.0] - 2026-08-13
 
+### Added
+
+- Cleanup vocabulary correction and experimental ASR vocabulary bias v2 (#23)
+
 ## [0.24.2] - 2026-08-12
+
+### Fixed
+
+- Point the OpenRouter referer header at the real repository URL (#22)
 
 ## [0.24.1] - 2026-08-10
 
+### Fixed
+
+- Move the update row below both key hints (#20)
+
 ## [0.24.0] - 2026-08-10
+
+### Added
+
+- Add on-device grammar findings to the cleanup advisory (#19)
 
 ## [0.23.0] - 2026-08-07
 
+### Added
+
+- Configurable translate key (#15)
+
 ## [0.22.1] - 2026-08-06
+
+### Fixed
+
+- Update Sparkle to 2.9.5 (security) (#14)
 
 ## [0.22.0] - 2026-08-03
 
+### Added
+
+- Show Glagolitic Nash glyph while update awaits restart (#12)
+
 ## [0.21.0] - 2026-08-02
+
+### Added
+
+- Optional audio cues for push-to-talk dictation (#11)
 
 ## [0.20.0] - 2026-07-30
 
+### Added
+
+- Dev-build marker on the About version line
+
+### Fixed
+
+- Seed preferred status-item position so the icon lands visibly on crowded bars
+- Either-side Option trigger, robust fn release edge, fn-conflict menu notice
+- Per-side trigger set, drop Control, stop on the trigger's own key code
+- Report Preparing Speech Model only when the model actually loads
+
 ## [0.19.0] - 2026-07-25
+
+### Added
+
+- Write dictated math expressions in conventional notation
+- Add a detached full-benchmark launcher with inspectable state
+- Add shared set of language-neutral formula exemplars
 
 ## [0.18.0] - 2026-07-25
 
+### Added
+
+- Rework both prompts around a bundled few-shot example catalog
+
 ## [0.17.0] - 2026-07-24
+
+### Added
+
+- Break the key-up latency span into attributable marks
+- Confirm streamed segments during the hold, decode only the tail
+- Shorten the failure-glyph flash to one second
 
 ## [0.16.0] - 2026-07-23
 
+### Added
+
+- Always-visible actionable update row with manual check
+
 ## [0.15.0] - 2026-07-23
+
+### Added
+
+- Semantic recording-glyph family — Cherv clean, Glagoli raw
+- Remove-key button with funnel-routed availability refresh
+- No-key cleanup affordances and menu restructure
+
+### Fixed
+
+- Present the keyboard language as the most likely dictation language
+- Enforce the token-clean transcript domain at the source
+- The cleanup pane observes availability instead of snapshotting
+- Latch translate from a pre-held left Control at the start edge
+- Intercept an empty transcript before cleanup and injection
+- Dedicated add-key window replaces the settings-pane detour
 
 ## [0.14.2] - 2026-07-19
 
+### Fixed
+
+- Correct the About copy and set the wordmark in Glagolitic
+
 ## [0.14.1] - 2026-07-18
+
+### Fixed
+
+- Clear the update row's stale VoiceOver label outside ready
 
 ## [0.14.0] - 2026-07-18
 
+### Added
+
+- Add automatic updates via Sparkle
+
 ## [0.13.1] - 2026-07-18
+
+### Fixed
+
+- Place About as the first interactive menu item
 
 ## [0.13.0] - 2026-07-18
 
+### Added
+
+- Add About window with quick guide and version
+
 ## [0.12.0] - 2026-07-17
+
+### Added
+
+- Mark translate hold with the Pokoji recording glyph
 
 ## [0.11.0] - 2026-07-17
 
+### Added
+
+- Translate mode on push-to-talk + Control
+
 ## [0.10.0] - 2026-07-17
+
+### Added
+
+- Add menu-bar switch to mute system audio while dictating
+
+### Fixed
+
+- Render the menu-bar failure glyph red
+- Run the publish job on macOS for the version stamp
 
 ## [0.9.0] - 2026-07-14
 

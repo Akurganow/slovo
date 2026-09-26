@@ -1,16 +1,45 @@
-# git-cliff computes the next release version for .github/workflows/release.yml.
-# Only these headers move the version: feat -> minor, fix and perf -> patch, a
-# `type!:` header or a BREAKING CHANGE footer -> major, also on 0.x. Every other
-# commit is skipped, so a push of docs/chore/ci alone leaves the version unchanged
-# and the pipeline runs as trunk verification. See docs/release-ci.md.
+# git-cliff drives two steps of .github/workflows/release.yml: the decide job
+# computes the next version from it, and the publish job writes that version's
+# CHANGELOG.md section from the same commits. Only these headers move the
+# version and reach the changelog: feat -> minor (Added), fix -> patch (Fixed),
+# perf -> patch (Changed), a `type!:` header or a BREAKING CHANGE footer -> major
+# also on 0.x, marked Breaking under its type's section, or under Changed for any
+# other type. Every other commit is skipped, so a push
+# of docs/chore/ci alone leaves the version unchanged and the pipeline runs as
+# trunk verification. See docs/release-ci.md.
+
+[changelog]
+# Must match the top of CHANGELOG.md byte for byte: --prepend strips it there
+# before writing the new section under it, and writes it twice if it does not
+# match. ChangelogHeaderTests fails a pull request that lets the two drift.
+header = """
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format follows Keep a Changelog, and this project uses Semantic Versioning
+once public releases begin.
+"""
+body = """
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {% if commit.breaking %}**Breaking:** {% endif %}{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}\
+"""
+trim = false
 
 [git]
 conventional_commits = true
 filter_unconventional = true
-protect_breaking_commits = true
 tag_pattern = "v[0-9].*"
 commit_parsers = [
-  { message = "^(feat|fix|perf)(\\([^)]*\\))?!?:", group = "release" },
+  { message = "^feat(\\([^)]*\\))?!?:", group = "Added" },
+  { message = "^fix(\\([^)]*\\))?!?:", group = "Fixed" },
+  { message = "^perf(\\([^)]*\\))?!?:", group = "Changed" },
+  { field = "breaking", pattern = "true", group = "Changed" },
   { message = ".*", skip = true },
 ]
 

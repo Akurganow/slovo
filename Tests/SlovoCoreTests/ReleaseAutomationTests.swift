@@ -1,10 +1,10 @@
 import Foundation
 import Testing
 
-// Static CI checks for the release-automation helper scripts that the Release
-// workflow drives on GitHub runners: the Info.plist version stamp and the Keep a
-// Changelog promotion. All run hermetically against temp fixtures — no real git
-// remote, signing, network, or Apple credentials.
+// Static CI checks for the release-automation helper script that the Release
+// workflow drives on GitHub runners: the Info.plist version stamp. It runs
+// hermetically against a temp fixture — no real git remote, signing, network,
+// or Apple credentials.
 
 @Suite("App version stamp")
 struct AppVersionStampTests {
@@ -55,44 +55,6 @@ struct AppVersionStampTests {
     }
 }
 
-@Suite("Changelog promotion")
-struct ChangelogPromotionTests {
-    @Test
-    func promotesUnreleasedIntoDatedVersion() throws {
-        let changelog = try ReleaseScriptRunner.copyOfFixture("CHANGELOG.md")
-        defer { try? FileManager.default.removeItem(atPath: changelog) }
-        let result = try ReleaseScriptRunner.run(
-            "Scripts/promote-changelog.sh",
-            arguments: ["0.10.0", "2026-07-17", changelog]
-        )
-        #expect(result.exitCode == 0, Comment(rawValue: result.output))
-
-        let contents = try String(contentsOfFile: changelog, encoding: .utf8)
-        // Sensitivity: dropping the inserted version header, or losing the fresh
-        // Unreleased header, breaks this ordered match.
-        #expect(ReleaseScriptRunner.appears(
-            ["## [Unreleased]", "## [0.10.0] - 2026-07-17", "## [0.9.0] - 2026-07-14"],
-            inOrderWithin: contents
-        ), Comment(rawValue: contents))
-        let headerLines = contents.split(separator: "\n").filter { $0 == "## [Unreleased]" }
-        #expect(headerLines.count == 1, "expected exactly one Unreleased header")
-    }
-
-    @Test
-    func failsWhenNoUnreleasedSection() throws {
-        // Sensitivity: remove the pre-check and awk silently no-ops (exit 0) instead of 65.
-        let path = FileManager.default.temporaryDirectory
-            .appending(path: "changelog-\(UUID().uuidString).md").path
-        try "# Changelog\n\n## [0.9.0] - 2026-07-14\n".write(toFile: path, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(atPath: path) }
-        let result = try ReleaseScriptRunner.run(
-            "Scripts/promote-changelog.sh",
-            arguments: ["0.10.0", "2026-07-17", path]
-        )
-        #expect(result.exitCode == 65, Comment(rawValue: result.output))
-    }
-}
-
 @Suite("Release workflow platform contract")
 struct ReleaseWorkflowPlatformTests {
     /// The publish job commits the version through the repo's single stamping
@@ -113,6 +75,36 @@ struct ReleaseWorkflowPlatformTests {
 
         #expect(publishJob.contains("runs-on: macos-"))
         #expect(!publishJob.contains("runs-on: ubuntu"))
+    }
+}
+
+@Suite("Changelog header")
+struct ChangelogHeaderTests {
+    /// The publish job's `git-cliff --prepend` strips `[changelog] header` from
+    /// CHANGELOG.md by exact text before writing the new section under it. A header
+    /// edited in one file and not the other is not an error to git-cliff: the next
+    /// release writes the header a second time, mid-file, and exits 0.
+    /// Stated sensitivity: change one word of the header in either file → RED.
+    @Test
+    func changelogStartsWithTheHeaderGitCliffStrips() throws {
+        let config = try String(
+            contentsOf: ReleaseScriptRunner.packageRoot.appending(path: "cliff.toml"),
+            encoding: .utf8
+        )
+        let opening = "header = \"\"\"\n"
+        let start = try #require(config.range(of: opening), "cliff.toml must declare [changelog] header")
+        let end = try #require(
+            config.range(of: "\"\"\"", range: start.upperBound..<config.endIndex),
+            "cliff.toml header must close its triple quotes"
+        )
+        let header = String(config[start.upperBound..<end.lowerBound])
+
+        let changelog = try String(
+            contentsOf: ReleaseScriptRunner.packageRoot.appending(path: "CHANGELOG.md"),
+            encoding: .utf8
+        )
+        #expect(!header.isEmpty)
+        #expect(changelog.hasPrefix(header), Comment(rawValue: header))
     }
 }
 
@@ -207,17 +199,6 @@ enum ReleaseScriptRunner {
     static func plistValue(_ entry: String, in path: String) throws -> String {
         let result = try runTool("/usr/libexec/PlistBuddy", ["-c", "Print \(entry)", path])
         return result.output.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    static func appears(_ needles: [String], inOrderWithin haystack: String) -> Bool {
-        var searchStart = haystack.startIndex
-        for needle in needles {
-            guard let range = haystack.range(of: needle, range: searchStart..<haystack.endIndex) else {
-                return false
-            }
-            searchStart = range.upperBound
-        }
-        return true
     }
 
     private static func runTool(_ launchPath: String, _ arguments: [String]) throws -> CommandResult {

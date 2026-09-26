@@ -32,6 +32,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # One pin for both jobs that run git-cliff: decide computes the version, publish
+  # writes the changelog section, and both must read the same rules the same way.
+  # Moving it is verified by the replay in docs/release-ci.md.
+  GIT_CLIFF: git-cliff@2.14.2
+
 concurrency:
   # Do not cancel a release once it starts mutating state. A newer push to main may
   # still supersede an in-flight run during its `test` phase (the reusable gate has
@@ -65,11 +71,10 @@ jobs:
           # anchor and classifies every commit after it.
           fetch-depth: 0
       - name: Install git-cliff
-        # Exact pin: the bump rules in cliff.toml are verified against this version
-        # (docs/release-ci.md). The action checks the archive's SHA-256.
+        # The action checks the archive's SHA-256.
         uses: taiki-e/install-action@v2
         with:
-          tool: git-cliff@2.14.2
+          tool: ${{ env.GIT_CLIFF }}
       - name: Compute the next release version
         id: bump
         run: |
@@ -238,14 +243,18 @@ jobs:
         with:
           name: slovo-macos
           path: dist
-      - name: Stamp the release version and cut the changelog
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: ${{ env.GIT_CLIFF }}
+      - name: Stamp the release version and write its changelog section
         env:
           RELEASE_VERSION: ${{ needs.decide.outputs.version }}
         run: |
           set -euo pipefail
           build_number="$(git rev-list --count HEAD)"
           Scripts/stamp-app-version.sh "$RELEASE_VERSION" "$build_number"
-          Scripts/promote-changelog.sh "$RELEASE_VERSION" "$(date -u +%Y-%m-%d)"
+          git-cliff --unreleased --tag "v${RELEASE_VERSION}" --prepend CHANGELOG.md
       - name: Commit, tag, and push the release bump
         env:
           RELEASE_VERSION: ${{ needs.decide.outputs.version }}

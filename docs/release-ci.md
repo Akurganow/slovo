@@ -140,12 +140,25 @@ pipeline — so a tag push can never spawn a duplicate packaging run.
 
 ## Changelog
 
-`CHANGELOG.md` stays in its [Keep a Changelog](https://keepachangelog.com/) style.
-On a release the `publish` job promotes the top `## [Unreleased]` heading to
-`## [<version>] - <date>` and opens a fresh empty `## [Unreleased]`
-([`Scripts/promote-changelog.sh`](../Scripts/promote-changelog.sh)). Contributors
-may curate `## [Unreleased]` between releases; the authoritative per-release notes
-are the GitHub Release body, generated from the commits.
+`CHANGELOG.md` stays in its [Keep a Changelog](https://keepachangelog.com/) style
+and is written by the pipeline, never by hand. On a release the `publish` job runs
+`git-cliff --unreleased --tag v<version> --prepend CHANGELOG.md`, which inserts
+`## [<version>] - <date>` under the file's header with one entry per `feat`
+(Added), `fix` (Fixed) and `perf` (Changed) commit since the last tag — the same
+commits that decided the version. A breaking change is marked **Breaking** in its
+type's section, or under Changed for any other type. The entry is the squash
+commit's description: the pull request's title after `type(scope): `, or the
+commit's own message on a one-commit branch.
+
+The file's header must stay identical to `[changelog] header` in
+[`cliff.toml`](../cliff.toml): `--prepend` finds the header by exact text, and a
+header that no longer matches is written a second time. `ChangelogHeaderTests`
+fails a pull request that lets the two drift.
+
+Sections from 0.10.0 to 0.32.1 were filled once from history with the same
+rules; 0.9.0 and older were written by hand and are kept as they are. The GitHub
+Release body is GitHub's own generated notes, which list every merged pull
+request, docs and dependency updates included.
 
 ## Version computation
 
@@ -161,20 +174,23 @@ itself with `bump_type` null. The job publishes both fields; `releasable` is
 
 - `filter_unconventional` drops headers that are not Conventional Commits, such
   as merge commits;
-- `commit_parsers` keep `feat`, `fix` and `perf` and skip every other type, known
-  or unknown, while `protect_breaking_commits` keeps a `type!:` header or a
-  `BREAKING CHANGE:` footer under any conventional type;
+- `commit_parsers` keep `feat`, `fix` and `perf`, keep a `type!:` header or a
+  `BREAKING CHANGE:` footer under any conventional type, and skip every other
+  commit, known type or unknown;
 - `features_always_bump_minor` and `breaking_always_bump_major` fix the increments
   at minor and major, also while the version is still 0.x.
 
 git-cliff reports the version with the tag's `v` prefix; the job strips it, since
 the stamp script and the tag step each add their own.
 
-The pin is exact (`git-cliff@2.14.2`) and outside the update bot's reach: a new
-git-cliff may read a header differently. Before moving it, replay the rules
-against the released history — for each pipeline-era tag, run
-`git cliff --bumped-version` at the commit before the tag and expect that tag.
-At the pin above, that replay reproduced 34 of 34 releases.
+The pin is exact — one `GIT_CLIFF` value at the top of the workflow, used by both
+`decide` and `publish` — and outside the update bot's reach: a new git-cliff may
+read a header or render the changelog differently. Before moving it, replay both
+against the released history. For each pipeline-era tag, run
+`git-cliff --bumped-version` at the commit before the tag and expect that tag.
+Then add a `fix:` commit after the last tag, run the `publish` job's
+`--prepend` command, and expect exactly one new section under the header. At the
+pin above, the version replay reproduced 35 of 35 releases, v0.10.0 to v0.32.1.
 
 ## One-time owner setup
 
