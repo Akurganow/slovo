@@ -292,11 +292,11 @@ every change a pull request here carries, and only a person takes one out
 of draft or merges it.
 
 What they share is in `.agents/rules/`: how a run works alone
-(`unattended.md`), how an automated run files (`tracker.md`), how issues are
-labelled (`issues.md`), how a claim is proved in a judged round
-(`evidence.md`), and the slop catalogue (`slop.md`). `.claude/rules`
-and `.claude/skills/` are symlinks into `.agents/`, so there is one text
-rather than two that drift apart.
+(`unattended.md`), how an automated run files, within which bounds and under
+which role (`tracker.md`), how issues are labelled (`issues.md`), how a claim
+is proved in a judged round (`evidence.md`), and the slop catalogue
+(`slop.md`). `.claude/rules` and `.claude/skills/` are symlinks into
+`.agents/`, so there is one text rather than two that drift apart.
 
 A role lives here rather than in whatever fires it, so that changing one is a
 pull request with a review and a history.

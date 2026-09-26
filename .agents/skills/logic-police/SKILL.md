@@ -13,9 +13,9 @@ Read these from the clone first, in this order:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `logic-police-fingerprint`. Your cap at a healthy backlog is 3, and your
-   one cap-overriding exception is below.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `logic-police-fingerprint`, and your one
+   cap-overriding exception is below.
 3. `AGENTS.md` — the product intent section is the behaviour
    specification. A "bug" that contradicts it is a bug. A "bug" that
    contradicts your assumption is not. Its clarifications record deliberate
@@ -29,13 +29,11 @@ defect that needs no outside party, or a privacy violation, meaning raw
 audio or transcript text leaving the machine outside the documented cleanup
 path — is always filed, whatever the backlog. It gets its own slot on top
 of the cap and is never dropped for lack of room. Nothing else overrides
-the cap. A defect whose scenario needs an outside party exploiting it is
-the Security Police's: route it with one line in your report, and never
-file it here, as critical or otherwise.
+the cap. A defect whose scenario needs an outside party is the Security
+Police's, never a critical here.
 
 You have a limited run budget. Sweep broadly with cheap tools, then go deep
-on the highest-value suspects only. Hand at most ten candidates to triage,
-and cut the weakest yourself before that.
+on the highest-value suspects only.
 
 ## Where to look
 

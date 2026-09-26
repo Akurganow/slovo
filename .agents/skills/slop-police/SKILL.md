@@ -23,9 +23,9 @@ whatever branch the working tree happens to be on:
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly. Get the full history first: `residue`
    is proved with it.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `slop-police-fingerprint`. Your cap at a healthy backlog is 2, and
-   **you have no cap-overriding exception**: there is no urgent slop.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `slop-police-fingerprint`, and **you have no
+   cap-overriding exception**: there is no urgent slop.
 3. `.agents/rules/slop.md` — the catalogue: the one test, the five kinds
    with their measurements, what is protected, what the linter fences, and
    where a neighbour's territory begins. It is your definition of a
@@ -52,25 +52,10 @@ absence of information discredits the label permanently.
 
 ## Where the roles part
 
-Route every candidate before spending a minute on it. If it belongs to a
-neighbour, one line in your report, never an issue, not even from a
-different angle:
-
-- a **shape** that buys nothing — a thin wrapper, a one-conformer protocol,
-  a duplicated helper, a reinvented dependency → Abstraction Police;
-- a **mechanism** out of proportion, a guard for an impossible state, two
-  features meeting badly → Sanity Police;
-- code that computes the **wrong thing**, including a swallowed error or a
-  hidden fallback with a reachable wrong result → Logic Police;
-- anything an **outside party** could exploit → Security Police;
-- a dependency matter → a report line only. The Dependency Police reviews
-  the update bot's pull requests and takes nothing routed to it;
-- text inside the instructions — `AGENTS.md`, `.agents/`,
-  `.claude/agents/`, `docs/architecture.md` — is outside your subject
-  entirely (`.agents/rules/slop.md`). Where two of those documents disagree,
-  or a claim in `docs/architecture.md` is no longer true of the code, that
-  is the Agent Police's. Where one merely says nothing, it is nobody's,
-  which is the standing arrangement and not a gap for you to fill.
+Route every candidate by the table in `.agents/rules/tracker.md`. Text
+inside the instructions — `AGENTS.md`, `.agents/`, `.claude/agents/`,
+`docs/architecture.md` — is outside your subject entirely
+(`.agents/rules/slop.md`).
 
 Rule of thumb: you name the text and route the shape. A compatibility
 `typealias` nothing calls is yours as `residue` if the point is the
@@ -137,7 +122,6 @@ of the run is one comment, the correct output is no issue.
 ## Where to look
 
 Breadth first with cheap sweeps, then depth on the best candidates only.
-Hand at most eight candidates to triage.
 
 - **Comments census.** Every `//` and `///` line in Swift files under
   `Sources`, `Tests` and `Tools` runs to several thousand lines, so the
@@ -193,10 +177,9 @@ written out:
 
 ## Triage
 
-Run the independent-triage protocol from `.agents/rules/tracker.md`, handing at most
-eight candidates. The verifier applies the catalogue's one test in its own
-words before seeing whether it agrees, checks the protected list and the
-fence, and returns:
+Run the independent-triage protocol from `.agents/rules/tracker.md`. The
+verifier applies the catalogue's one test in its own words before seeing
+whether it agrees, checks the protected list and the fence, and returns:
 
     verdict: real | not-real
     kind: noise | lying | naming | ceremony | residue
@@ -284,8 +267,7 @@ every existing fingerprint: a match is the same finding.
 
 ## Report
 
-The six-part shape from `.agents/rules/tracker.md`, with three additions. A **Routed
-away** list: what belonged to a neighbour or to nobody, one line each. A
+The six-part shape from `.agents/rules/tracker.md`, with two additions. A
 **Fence proposals** list: tells that recurred and could be named by a
 regex, each with the pattern, so the owner can move them into
 `.swiftlint.yml`. And in Strongest rejected, the candidates the protected

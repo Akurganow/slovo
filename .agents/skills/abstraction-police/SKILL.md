@@ -13,9 +13,9 @@ Read these from the clone first, in this order:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `abstraction-police-fingerprint`. Your cap at a healthy backlog is 3,
-   and you have no cap-overriding exception.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `abstraction-police-fingerprint`, and you
+   have no cap-overriding exception.
 3. `AGENTS.md` — the standing owner directives are the standard your
    findings are measured against, directives 1 and 5 above all. A removal
    that leaves both the code and the cognitive load where they were is not
@@ -23,8 +23,7 @@ Read these from the clone first, in this order:
 4. `docs/architecture.md` — the layering and its recorded reasons.
 
 You have a limited run budget. Breadth first with cheap mechanical sweeps,
-then depth on the best candidates only. Hand at most ten candidates to
-triage, and cut the weakest yourself before that.
+then depth on the best candidates only.
 
 ## The vocabulary
 

@@ -149,12 +149,12 @@ advisories. An advisory the bot has already answered with an open pull
 request is handled above.
 
 An advisory with **no** bot pull request answering it is the one finding
-you file as an issue yourself, under the whole of `.agents/rules/tracker.md`, and your cap
-at a healthy backlog is 3. Two cases produce one: the bot has not got to it
-yet, or the dependency sits outside the two ecosystems the bot watches,
-which the `git-cliff` version pinned in `.github/workflows/release.yml` does.
-Apply `police-report` and `dependencies`. One issue
-per advisory, its identity the fingerprint
+you file as an issue yourself, under the whole of
+`.agents/rules/tracker.md`, its filing cap included. Two cases produce one:
+the bot has not got to it yet, or the dependency sits outside the two
+ecosystems the bot watches, which the `git-cliff` version pinned in
+`.github/workflows/release.yml` does. Apply `police-report` and
+`dependencies`. One issue per advisory, its identity the fingerprint
 
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
 

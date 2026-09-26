@@ -1,9 +1,10 @@
 # Filing issues from an automated run
 
 The tracker discipline for any unattended analysis whose output is a
-GitHub issue. What to look for, what disqualifies a candidate, and what
-an issue's body contains belong to the run's own instructions. This file
-makes every automated filer behave the same.
+GitHub issue. What to look for within its row of the table below, what
+else disqualifies a candidate, and what an issue's body contains belong to
+the run's own instructions. This file makes every automated filer behave
+the same.
 
 Two neighbours are outside it. A run whose output is a comment on
 somebody else's pull request files nothing, and takes from this file only
@@ -25,6 +26,23 @@ A run that files nothing is a successful run and, in a healthy
 repository, the common outcome. Five merely-plausible issues teach the
 reader to ignore the label; one actionable issue is the goal. When in
 doubt, the doubt goes in the report, not the tracker.
+
+## Which role owns a finding
+
+Every police role routes each candidate by this table before spending time
+on it. A candidate that belongs to another row is one line in the report
+and never an issue, not even from a different angle. Where two rows fit,
+the finding goes to the row whose fix it serves, never to both.
+
+| Role | Owns |
+| :-- | :-- |
+| the Logic Police | code that computes the wrong thing, crashes, races or corrupts state, on a reachable path with no adversary in it |
+| the Abstraction Police | an abstraction that is dead, superfluous, wrong or duplicated — a type, protocol, generic parameter, wrapper, module, target or layer, or a helper or concept modelled twice |
+| the Sanity Police | a mechanism or decision out of proportion to what it does, a part a half-landed change left pointless, nonsense where two features meet — a guard for a state an upstream layer already made impossible among it — and a tool that never fit, hand-rolled code a dependency the package already ships would do among it; a new dependency is never its proposal, since vetting one under GPLv3 is a person's decision |
+| the Slop Police | text that carries no fact or a false one — a comment, a name, a doc comment, a test name, a string, a document — a test that cannot fail, and what the process that wrote a change left behind; never the instructions `.agents/rules/slop.md` protects, where a sentence that merely says nothing is nobody's |
+| the Security Police | a path by which an outside party could exploit the code, a workflow, a secret, the update feed, or a role that reads their text, the instructions included; an outside party in the scenario makes a finding this row's, an advisory excepted |
+| the Dependency Police | the update bot's pull requests, and advisories no bot pull request answers; it takes nothing routed to it, so any other dependency matter is a report line |
+| the Agent Police | the agent system's own documents and wiring no longer describing one machine, and a claim in `docs/architecture.md` the code no longer bears out |
 
 ## Before analysing: the do-not-report list
 
@@ -57,11 +75,12 @@ Re-read the file immediately before filing anything.
 ## Backpressure
 
 Count the open issues carrying the run's own fingerprint before
-analysing, and cap the run:
+analysing, and cap the run. The cap is the same for every police role and
+is stated here and nowhere else:
 
 | Open issues with the run's fingerprint | Maximum filed this run |
 | :-- | :-- |
-| 0–2 | the run's own cap, which its own instructions state |
+| 0–2 | 3 |
 | 3–4 | 1 |
 | 5 or more | 0 — file nothing, and say so |
 
@@ -71,8 +90,10 @@ run's one named exception (if it has one) may override the cap.
 ## Independent triage
 
 The analyst does not choose what gets filed — its judgement is
-contaminated by the effort spent. Every candidate surviving the analyst's
-own verification is judged by subagents that share none of its context:
+contaminated by the effort spent. At most ten candidates are handed to
+triage; the analyst cuts the weakest itself before that. Every candidate
+surviving the analyst's own verification is judged by subagents that share
+none of its context:
 
 - **One verification subagent per candidate, in parallel.** The brief is
   neutral and self-contained — the claim in a sentence or two, paths and
@@ -119,7 +140,9 @@ own text.
 Every run ends with a report in this fixed shape:
 
 1. **Coverage** — what was swept and what was not reached.
-2. **Candidates** — found / cut by the analyst / handed to triage.
+2. **Candidates** — found / routed by the table above, one line each,
+   including what belongs to nobody / cut by the analyst / handed to
+   triage.
 3. **Triage** — verifier rejections with grounds, one line each; what the
    ranker dropped and why.
 4. **Filed** — the issues with URLs, or the single line `Filed nothing.`

@@ -25,11 +25,11 @@ Read these from the clone first, in this order:
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly. History is half your
    instrument, so get the full history first.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `sanity-police-fingerprint`. Your cap at a healthy backlog is 2, and
-   **you have no cap-overriding exception**: there is no such thing as an
-   urgent sanity finding. Dangerous code is a neighbour's finding, and the
-   merely absurd can wait.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `sanity-police-fingerprint`, and **you have
+   no cap-overriding exception**: there is no such thing as an urgent
+   sanity finding. Dangerous code is a neighbour's finding, and the merely
+   absurd can wait.
 3. `AGENTS.md` — the standing owner directives are your standard, and
    directives 1 and 5 decide most of your findings. A mechanism whose only
    benefit is shaving time off an edge case is squarely yours. One that
@@ -43,25 +43,8 @@ discredits the label permanently.
 
 ## Where the roles part
 
-Route every candidate before spending a minute on it. If it belongs to a
-neighbour, one line in your report, never an issue, not even from a
-different angle:
-
-- the shape of an **interface** — a protocol, module, target, layer, or a
-  concept duplicated across targets → Abstraction Police;
-- code that computes the **wrong thing**, crashes, or corrupts state, with
-  a reachable failure scenario → Logic Police;
-- **text** that carries no fact or a false one, a name that misleads, a
-  test that cannot fail → Slop Police;
-- a path by which an **outside party** could exploit the code, a workflow
-  or a secret → Security Police;
-- an update that could replace our code → Dependency Police;
-- a disagreement between the repository's own agent documents → Agent
-  Police.
-
-Rules of thumb: "this indirection buys nothing" is an abstraction finding;
-"this cannot be right" is a logic finding; yours is **"this is not what
-this problem looks like."**
+Route every candidate by the table in `.agents/rules/tracker.md`. Yours is
+**"this is not what this problem looks like."**
 
 ## The fence is not your territory
 
@@ -153,10 +136,10 @@ alternative:
 
 ## Triage
 
-Run the independent-triage protocol from `.agents/rules/tracker.md`, handing at most
-eight candidates. The verifier answers the proportion question in its own
-words before seeing whether it agrees, checks for a recorded reason and a
-pinning test, and returns:
+Run the independent-triage protocol from `.agents/rules/tracker.md`. The
+verifier answers the proportion question in its own words before seeing
+whether it agrees, checks for a recorded reason and a pinning test, and
+returns:
 
     verdict: real | not-real
     kind: oversized | vestigial | emergent | mismatched
@@ -222,8 +205,7 @@ Body:
 
 ## Report
 
-The six-part shape from `.agents/rules/tracker.md`, with two additions. A **Routed away**
-list: what belonged to a neighbour, one line each, useful even when it is
-all you have. And in Strongest rejected, especially the candidates a
-recorded justification killed — that list is how the owner learns which of
-his decisions are legible and which only look arbitrary.
+The six-part shape from `.agents/rules/tracker.md`, with one addition: in
+Strongest rejected, especially the candidates a recorded justification
+killed — that list is how the owner learns which of his decisions are
+legible and which only look arbitrary.
