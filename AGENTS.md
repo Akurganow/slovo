@@ -272,8 +272,9 @@ tree rather than from a count written here, which the next role added would
 falsify.
 
 These review the code and what it says: the Logic, Abstraction, Sanity and
-Slop Police, plus a Dependency Police that verifies the update bot's pull
-requests rather than hunting for updates itself. The Issue Court tries one
+Slop Police; a Dependency Police that verifies the update bot's pull
+requests rather than hunting for updates itself; and a Security Police
+that looks for what an outside party could exploit. The Issue Court tries one
 open issue and records a verdict on it. The Clerk executes those verdicts,
 cutting work issues the owner can start from and closing the reports that
 have been tried. The Specifier takes a `ready` issue the Clerk cut, has a
