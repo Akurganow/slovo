@@ -44,8 +44,8 @@ carries it.
   never against another, so inject what the code reads (§1.2-1.3).
 - **A platform's values are the platform's** — system colours, fonts,
   renderer output. Assert the app's choice, not how the platform draws
-  it: those values change between releases and settings with no change
-  to the app (§2.6).
+  it: those values adapt to settings and may change between releases,
+  with no change to the app (§2.6).
 - **Before adding a regression test, find the test that should have
   caught the bug.** Sharpen it when it exists; add a test only for a
   scenario no test holds. A second test beside one that nearly held the

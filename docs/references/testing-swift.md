@@ -12,7 +12,9 @@ It ends with the review criteria, each tied to its sources.
 Every claim cites a source that was read, not recalled, on 2026-09-26. Quotes
 are verbatim. Where a fact rests on a forum post or a secondary page rather than
 normative documentation, the text says so. Repository facts are cited at commit
-`734435a` (`main` on that date).
+`734435a` (`main` on that date). The rule files the criteria feed,
+`.agents/rules/tests.md` among them, are cited as they stand on the branch that
+adds them.
 
 Slovo's floor is what matters. `Package.swift:1` declares `swift-tools-version:
 6.3`, and `CONTRIBUTING.md:10` requires "Xcode 26.4 or newer, the first release
@@ -579,15 +581,16 @@ something no mutant of the product touches (§2.1).
 A source guard is a test that reads production source as text and asserts on
 it. Two recorded reasons stand behind the shape here:
 
-- **No behavioural seam into the app target.** Guards over the `slovo`
+- **No behavioural seam into the app target.** Many guards over the `slovo`
   executable target record that it is not importable, and read its source
-  instead. That is true of the manifest as written (§1.6: no test target
-  depends on `slovo`) and not of SwiftPM, which has let a test target link an
+  instead; not every guard over it records a reason. That it is not
+  importable is true of the manifest as written (§1.6: no test target depends
+  on `slovo`) and not of SwiftPM, which has let a test target link an
   executable target since tools 5.5.
-- **A deterministic substitute for a timing test.** Where a wall-clock budget
-  was observed to vary widely on shared runners, a guard pins the absence of
-  blocking primitives instead — the trade §2.1 recommends against sleeps and
-  timing assertions.
+- **A deterministic substitute for a timing test.** Where the time a
+  wall-clock budget would bound was observed to vary widely on shared
+  runners, a guard pins the absence of blocking primitives instead — the
+  trade §2.1 recommends against sleeps and timing assertions.
 
 By Eagle's definition (§2.2) a guard that asserts a transformation of the code
 is a change-detector unless the text it pins is itself the contract. The
@@ -597,15 +600,16 @@ shape.
 ### 4.3 Environment gates and shared state
 
 - Gating a test of a real system service off CI with `.enabled(if:)`, its
-  reason stated, is the documented use of the trait (§1.4). The trade is
-  declared: CI never runs the test.
+  reason stated, is a use the trait's documentation describes (§1.4). The
+  trade is declared: CI never runs the test.
 - A suite marked `.serialized` because one of its tests writes the process
   environment is not ordered by that trait against any other suite (§1.2): it
-  may still run concurrently with any of them, and the environment block is
-  shared by the process (§1.3). Whether another test reads the environment
-  concurrently is the reviewer's question, not this document's.
+  may still run concurrently with any of them unless a serialized suite
+  encloses both, and the environment block is shared by the process (§1.3).
+  Whether another test reads the environment concurrently is the reviewer's
+  question, not this document's.
 
-### 4.4 Rendering on macOS: what Apple documents
+### 4.4 Rendering on macOS: what Apple and the CI images document
 
 - Drawing into an `NSImage` through `lockFocus` is deprecated in macOS 27.0 —
   [`NSImage.lockFocus()`](https://developer.apple.com/documentation/appkit/nsimage/lockfocus()),
@@ -641,10 +645,11 @@ shape.
   (`images/macos/scripts/build/configure-system.sh:19-21` at `ede07f8`).
 
 A test that renders a system colour and reads its pixels back therefore checks
-the platform's value, which moves between releases and settings with no change
-to the app. When such a test fails on one platform and passes on another, the
-run that settles why prints the decoded bitmap's format and colour space, the
-resolved colour and each pixel that fails, alone and in the full suite.
+the platform's value, which adapts to settings and may change between
+releases, with no change to the app. When such a test fails on one platform
+and passes on another, the run that tells the causes above apart prints the
+decoded bitmap's format and colour space, the resolved colour and each pixel
+that fails, alone and in the full suite.
 
 ---
 
@@ -660,21 +665,25 @@ sources behind each.
 
 | Kind | The test | The exhibit | Recorded exceptions | Sources |
 | :-- | :-- | :-- | :-- | :-- |
-| environment-coupled | The outcome depends on an input the test does not control: the OS or toolchain, a renderer, a system service, locale, the clock, scheduling, or process-global state other tests can touch | The uncontrolled input traced to the assertion, and two environments or schedules under which the result differs, each a CI run or an official document; before blaming the test, show the nondeterminism is not the product's | A real platform facility exercised on purpose and gated with a stated reason; the finding is then whether the gate hides the only signal | §1.2-1.4, §2.1 (Parry Table 4, Luo, Meszaros Context Sensitivity, Fowler) |
-| change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red, and the behaviour test or compiler check that already guards the contract | The how is the requirement (a cache read, a call count or order that has side effects); the text it pins is itself the contract (a gate that scans the tree); no behavioural seam exists, recorded | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
-| redundant | Every mutant it kills, another test kills | The protection ledger — each mutation it catches (from its sensitivity note and body) with the other test that goes red on it | Deliberate redundancy with a recorded reason; a regression input distinct from what the other test feeds | §2.3, §3.1 (van Deursen, Meszaros, Shi et al., Ammann et al.) |
+| environment-coupled | The outcome depends on an input the test does not control: the OS or toolchain, a renderer, a system service, locale, the clock, scheduling, or process-global state other tests can touch | The uncontrolled input traced to the assertion, and two environments or schedules under which the result differs, each a CI run or an official document; before blaming the test, show the nondeterminism is not the product's | A test gated off CI with a stated reason; whether the gate leaves what the test guards with no signal in CI can itself be a finding | §1.2-1.4, §2.1 (Parry Table 4, Luo, Meszaros Context Sensitivity, Fowler) |
+| change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red, and the behaviour test or compiler check that already guards the contract | An implementation detail that is itself the requirement (a cache read, a call count or order with side effects); a shape with a recorded reason; the text it pins is itself the contract (a gate that scans the tree) | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
+| redundant | Every mutation it catches, another test catches | The protection ledger — each mutation it catches (from its sensitivity note and body) with the other test that goes red on it | Deliberate redundancy with a recorded reason; a regression input distinct from what the other test feeds | §2.3, §3.1 (van Deursen, Meszaros, Shi et al., Ammann et al.) |
 | over-specified | The assertion demands more than the requirement: exact where the requirement is a property, a tolerance or a range | The requirement quoted, and an output that meets it and fails the assertion | Exactness that is the requirement: a byte-exact wire format, a prompt sent verbatim | §2.4 (Meszaros, Kent, Parry Too Restrictive Range, Dawson) |
 | disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the line that makes the decision; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement and that no cheaper point in the app decides; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11 and 13, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Android, Vocke) |
 | bloat | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | For a file or cluster, two measured columns — the cost (tests, lines, helpers, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo, Picard) |
 
+Two classes are protected under every kind: a test whose contract is the source
+text itself, and a probe that exists to prove a gate can fail
+(`.agents/rules/tests.md`).
+
 Two rules hold across the kinds:
 
-- **No protection is lost silently.** A removal names, for each mutant the test
-  kills, the test that still kills it. What no other test kills is either kept
-  or replaced, never dropped (Meszaros's Lost Test; Luo's "should not simply be
-  removed"; Shi et al.'s mutant-based reduction).
-- **A rewrite must not create the opposite smell.** A test written only to kill
-  a mutant can pin the current implementation (Petrović et al., §2.2).
+- **No protection is lost silently.** A removal names, for each mutation the
+  test catches, the test that still catches it. What nothing else catches is
+  either kept or replaced, never dropped (Meszaros's Lost Test; Luo's "should
+  not simply be removed"; Shi et al.'s mutant-based reduction).
+- **A rewrite must not create the opposite smell.** A test written only to
+  catch a mutation can pin the current implementation (Petrović et al., §2.2).
 
 Tests born with a fix are a sweep, not a kind: each is judged by the kinds above
 against what later commits did to the code it pins (§2.7). "It never failed" is
@@ -815,11 +824,11 @@ touches only `CHANGELOG.md` and `Resources/Info.plist`, so they hold there too.
 
 1. Whether a test that renders a system colour and reads its pixels back gives
    the same result on macOS 27 as on `macos-26`: a different resolved colour, a
-   changed bitmap format or colour space from `tiffRepresentation`, or
+   changed bitmap format or colour space where the pixels are read back, or
    concurrent `lockFocus` drawing by tests in the same process could each change
    it. One run on macOS 27 printing the decoded bitmap's format and colour
-   space, the resolved colour's components and each pixel that fails — alone
-   and in the full suite — settles it for that test.
+   space, the resolved colour's components and each pixel that fails — alone and
+   in the full suite — settles it for that test.
 2. Whether the GitHub `xcode-27` preview image reproduces what such a test does
    on a macOS 27 machine.
 
@@ -859,5 +868,56 @@ doi.org and dl.acm.org answered 403 (Pinto et al.'s metadata and abstract came
 from Crossref and OpenAlex; the full text is closed access).
 
 §3.3 and §4 were then reduced to classes, with every instance removed, on the
-owner's instruction, and the corrections to what was removed went with it; what
-remains was among the claims verified above.
+owner's instruction, and §5's exceptions were aligned with
+`.agents/rules/tests.md`. The corrections to what was removed went with it; the
+first pass's tally and the repository figures both passes re-derived counted
+text that is no longer here. The sentences written for the reduction were
+checked in the third pass.
+
+### Third pass
+
+Verdict: **PARTIAL → fixed**, every correction below applied in this file. An
+independent verifier checked the reduction of §3.3 and §4 to classes and the
+clauses added to §5's exceptions: against a list of every test file, suite type
+and test function under `Tests/`, the text names none, and names no count of
+tests, commit adding tests, issue, pull request or CI run. Each rewritten
+sentence was read against its live source, each repository claim at the
+reduction's parent and at `734435a` (`Tests/`, `Sources/` and `Package.swift`
+unchanged between them). The quotes held: `lockFocus()` (`deprecatedAt: 27.0`
+and its message), `systemRed`, HIG Color, the AppKit Thread Safety Summary,
+Parallelization, swift-mutants' README at `5594d5c`, and Muter's tag `16`
+outcome rules, read from a clone. §5's exhibit column matches
+`.agents/rules/tests.md` word for word, and every § that file and the Test
+Police cite exists.
+
+Corrections (before → after):
+
+- Purpose: repository facts are dated to `734435a`, where
+  `.agents/rules/tests.md` does not exist; the rule files the criteria feed
+  are now said to be cited as they stand on the branch that adds them.
+- §4.2: "Guards over the `slovo` executable target record that it is not
+  importable" → "Many guards … ; not every guard over it records a reason".
+- §4.2: "a wall-clock budget was observed to vary" → "the time a wall-clock
+  budget would bound was observed to vary".
+- §4.3: "the documented use of the trait" → "a use the trait's documentation
+  describes".
+- §4.3: "it may still run concurrently with any of them" → "… unless a
+  serialized suite encloses both".
+- §4.4: heading "what Apple documents" → "what Apple and the CI images
+  document".
+- §4.4: "which moves between releases and settings" → "which adapts to
+  settings and may change between releases", as the sources say.
+- §4.4: "the run that settles why" → "the run that tells the causes above
+  apart".
+- Only confirmable, item 1: "from `tiffRepresentation`" → "where the pixels are
+  read back".
+- §5: the `redundant` definition and the two rules under the table use
+  `.agents/rules/tests.md`'s "mutation … catches"; the exceptions cells match its
+  protected classes, and the two classes protected under every kind are named.
+- This section: the note on the reduction said everything left had been
+  verified; the sentences written for it had not, and are checked here. It now
+  names §5, and says the first pass's tally and both passes' repository figures
+  counted text since removed.
+
+Could not be reached directly: the GitHub API answered 403 for Muter's tree; the
+tag was read from a clone.
