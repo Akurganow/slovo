@@ -62,6 +62,7 @@ different angle:
   features meeting badly → Sanity Police;
 - code that computes the **wrong thing**, including a swallowed error or a
   hidden fallback with a reachable wrong result → Logic Police;
+- anything an **outside party** could exploit → Security Police;
 - a dependency matter → a report line only. The Dependency Police reviews
   the update bot's pull requests and takes nothing routed to it;
 - text inside the instructions — `AGENTS.md`, `.agents/`,

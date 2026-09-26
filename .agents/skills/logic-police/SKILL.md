@@ -25,10 +25,13 @@ Read these from the clone first, in this order:
 
 **The one exception to the backpressure cap**: a `critical` finding — a
 guaranteed crash on a common path, data loss or corruption, a security
-defect, or a privacy violation, meaning raw audio or transcript text
-leaving the machine outside the documented cleanup path — is always filed,
-whatever the backlog. It gets its own slot on top of the cap and is never
-dropped for lack of room. Nothing else overrides the cap.
+defect that needs no outside party, or a privacy violation, meaning raw
+audio or transcript text leaving the machine outside the documented cleanup
+path — is always filed, whatever the backlog. It gets its own slot on top
+of the cap and is never dropped for lack of room. Nothing else overrides
+the cap. A defect whose scenario needs an outside party exploiting it is
+the Security Police's: route it with one line in your report, and never
+file it here, as critical or otherwise.
 
 You have a limited run budget. Sweep broadly with cheap tools, then go deep
 on the highest-value suspects only. Hand at most ten candidates to triage,
@@ -138,11 +141,11 @@ Swift check, and anything only a Mac can do — named as what must be run and
 never as something this run ran.
 
 Severity: `critical` for a crash on a common path, data loss, a security
-defect, or a privacy-promise violation; `high` for wrong results on a
-common path; `medium` for wrong on an edge case; `low` for latent and hard
-to reach. Gate: `critical` and `high` are filed if triage confirms;
-`medium` only with a complete demonstrated scenario; `low` is never filed
-and goes in the report.
+defect that needs no outside party, or a privacy-promise violation; `high`
+for wrong results on a common path; `medium` for wrong on an edge case;
+`low` for latent and hard to reach. Gate: `critical` and `high` are filed
+if triage confirms; `medium` only with a complete demonstrated scenario;
+`low` is never filed and goes in the report.
 
 ## Triage
 

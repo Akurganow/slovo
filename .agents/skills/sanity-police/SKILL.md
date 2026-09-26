@@ -53,6 +53,8 @@ different angle:
   a reachable failure scenario → Logic Police;
 - **text** that carries no fact or a false one, a name that misleads, a
   test that cannot fail → Slop Police;
+- a path by which an **outside party** could exploit the code, a workflow
+  or a secret → Security Police;
 - an update that could replace our code → Dependency Police;
 - a disagreement between the repository's own agent documents → Agent
   Police.
