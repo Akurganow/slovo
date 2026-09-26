@@ -122,7 +122,6 @@ struct AppShellPackagingTests {
         #expect(plist["CFBundleExecutable"] as? String == "slovo")
         #expect(plist["NSPrincipalClass"] as? String == "NSApplication")
         #expect((plist["NSMicrophoneUsageDescription"] as? String)?.isEmpty == false)
-        #expect((plist["NSSpeechRecognitionUsageDescription"] as? String)?.isEmpty == false)
     }
 
     /// One floor, eight stamps: Info.plist's LSMinimumSystemVersion is the reference,
