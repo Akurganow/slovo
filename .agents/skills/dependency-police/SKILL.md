@@ -54,16 +54,21 @@ For each, read its head sha and its comments. A comment ending with
 request is already verified at this head. Skip it silently. A new push or
 rebase by the bot changes the head and re-opens the case.
 
+Also read the bot's pull requests merged in the last seven days, with the
+head each was merged at and its comments, for the report's Follow-through
+item only: a merged pull request is never verified, counted against the
+cap, or commented on.
+
 Verify at most **3** pull requests per run, oldest first, and list the rest
 in the report as deferred.
 
 No open bot pull requests is the normal outcome. Go to the advisory sweep
 and the report.
 
-The bot watches two ecosystems: Swift packages and GitHub Actions. A Swift
-bump moves `Package.swift` or `Package.resolved` or both; an Actions bump
-moves a workflow file and touches neither. Judge each on what it actually
-changes.
+The bot watches three ecosystems: Swift packages, GitHub Actions and the
+release tooling's npm tree. A Swift bump moves `Package.swift` or
+`Package.resolved` or both; an Actions bump moves a workflow file and
+touches neither. Judge each on what it actually changes.
 
 ## Verifying one pull request
 
@@ -88,7 +93,10 @@ of it until it is checked against the source.
   with the claimed version pair, and a bump of an `exact` pin must move the
   pin rather than loosen it. For an Actions bump, check that the new
   reference is the version claimed and that no step's inputs changed
-  meaning under it.
+  meaning under it. For an npm bump, the `package.json` and
+  `package-lock.json` entries must agree with the claimed version pair,
+  and check whether `package.json`, `.release-it.json` or the release
+  workflow names an API the update removes.
 - **The promises a bump must not break.**
   - The GRDB dependency is the SQLCipher-enabled distribution, and the
     personalization database is encrypted at rest. A migration to plain
@@ -145,9 +153,8 @@ request is handled above.
 
 An advisory with **no** bot pull request answering it is the one finding
 you file as an issue yourself, under the whole of `.agents/rules/tracker.md`, and your cap
-at a healthy backlog is 3. Two cases produce one: the bot has not got to it
-yet, or the dependency sits outside the two ecosystems the bot watches,
-which the release tooling in `package.json` does. Apply `police-report` and `dependencies`. One issue
+at a healthy backlog is 3. That happens when the bot has not got to it
+yet. Apply `police-report` and `dependencies`. One issue
 per advisory, its identity the fingerprint
 
     <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
@@ -162,9 +169,12 @@ The six-part shape from `.agents/rules/tracker.md`, adapted:
 1. **Coverage** — bot pull requests found, verified, skipped as already
    verified, deferred over the cap, and the advisory sweep's scope.
 2. **Verdicts** — one line per verified pull request, with its link.
-3. **Filed** — the advisory issues with URLs, or `Filed nothing.`
-4. **Strongest concerns** — anything just short of a "do not merge".
-5. **Blockers** — blocked sources, GitHub errors, and the `git status
+3. **Follow-through** — every bot pull request merged in the last seven
+   days whose merged head differs from the `head=` of your latest verdict
+   on it, one line each: `merged head not re-verified`.
+4. **Filed** — the advisory issues with URLs, or `Filed nothing.`
+5. **Strongest concerns** — anything just short of a "do not merge".
+6. **Blockers** — blocked sources, GitHub errors, and the `git status
    --porcelain` result.
 
 Posting and filing nothing is a normal run. The report says so in one line.

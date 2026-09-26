@@ -14,8 +14,8 @@ on:
 permissions:
   contents: read
 
-# Supersede an in-progress run when the same ref gets a newer push (saves the
-# scarce macOS runner minutes).
+# Supersede an in-progress run when the same ref gets a newer push (frees the
+# macOS runner the newer push needs).
 concurrency:
   # Group by calling workflow AND ref. As a reusable workflow this must not
   # share a concurrency group with its caller (release.yml / dev-build.yml),

@@ -270,7 +270,7 @@ names its skill and holds no instruction of its own. Read the set from the
 tree rather than from a count written here, which the next role added would
 falsify.
 
-Five review the code and what it says: the Logic, Abstraction, Sanity and
+These review the code and what it says: the Logic, Abstraction, Sanity and
 Slop Police, plus a Dependency Police that verifies the update bot's pull
 requests rather than hunting for updates itself. The Issue Court tries one
 open issue and records a verdict on it. The Clerk executes those verdicts,
@@ -284,7 +284,8 @@ writes every pull request here.
 
 What they share is in `.agents/rules/`: how a run works alone
 (`unattended.md`), how an automated run files (`tracker.md`), how issues are
-labelled (`issues.md`), and the slop catalogue (`slop.md`). `.claude/rules`
+labelled (`issues.md`), how a claim is proved in a judged round
+(`evidence.md`), and the slop catalogue (`slop.md`). `.claude/rules`
 and `.claude/skills/` are symlinks into `.agents/`, so there is one text
 rather than two that drift apart.
 

@@ -15,6 +15,16 @@ into an environment of their own, so none of it is written down here.
 every check that depended on those facts as not run rather than guessing
 at one.
 
+A source blocked as a site may be published a second way — the same text
+in a public repository, the same page as a raw file — and that way may be
+open when the site is not: read the copy, keep it under `$RUN`, and cite
+the file and the commit it was at. A transient failure, a timeout or a
+reset, is retried once; only a second failure makes the check not run.
+
+**Whatever fires a role is the owner's.** Nothing in this tree creates a
+caller, and no run deletes one: a caller that is wrong is changed, and a
+caller that is missing is proposed.
+
 ## Claim only what you ran
 
 Slovo builds only with Xcode 26.4+ on macOS (CONTRIBUTING.md). Prove that
@@ -127,10 +137,10 @@ A label a run needs and cannot find is a report line, not a create.
 Read CI state for a commit rather than guessing at build state.
 
 **An analysis run never starts a workflow run** — no dispatch, no re-run.
-The gate has already run on the commit under analysis, macOS runner
-minutes are scarce (`swift.yml` cancels superseded runs to save them),
-and a run reading third-party issue text must not be able to start jobs
-on that runner.
+The gate has already run on the commit under analysis, every macOS job
+draws on one small pool of parallel runners the owner's pull requests
+need, and a run reading third-party issue text must not be able to start
+jobs on that runner.
 
 ## What a run publishes
 
@@ -138,6 +148,14 @@ Everything an unattended run creates on GitHub — an issue, a comment, a
 label — is read back after it is written. A reader of an issue or a comment
 learns what was found and what to do about it, never which role found it or
 how a run is organised.
+
+A marker of the run's own on a subject it came to work is evidence the
+earlier fire reached it, never that its write landed: check what the
+marker names, finish what is missing, and where a read cannot settle it,
+report and write nothing. A comment carries what changed since the last
+one; a repeat of an unchanged situation is one line linking the comment
+that first described it. Evidence is a link or a command with its output,
+never a retelling.
 
 ## History
 
@@ -171,6 +189,10 @@ changes are preserved, never cleaned up.
 
 Name the command and show what it printed. Never invent a path, a line
 number, or command output.
+
+A refusal — a blocked source, a denied path, an API error — is reported
+with its reply quoted verbatim, so a later reader compares the string
+rather than a paraphrase.
 
 A blocker is what stopped this run and a person could clear: denied
 network, a GitHub error, a missing rule file, history that would not

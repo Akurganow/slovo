@@ -22,8 +22,7 @@ whatever branch the working tree happens to be on:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly. Get the full history first: `residue`
-   is proved with it. Get the full history before anything else: `residue` is
-   proved with it.
+   is proved with it.
 2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
    `slop-police-fingerprint`. Your cap at a healthy backlog is 2, and
    **you have no cap-overriding exception**: there is no urgent slop.

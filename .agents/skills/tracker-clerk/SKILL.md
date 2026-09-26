@@ -33,9 +33,9 @@ classifies with the repository's existing labels. The marker is the
 machine's whole state, and the labels are the owner's view of it.
 
 You run after the court and are the machine's only executor: the only role
-that closes police issues, and the only one that creates work issues. The
-chain ends with you — there is no implementation stage. What you leave
-behind is a tracker the owner can work from directly.
+that closes police issues, and the only one that creates work issues. You
+never open a pull request, and there is no implementation stage: what you
+leave behind is a tracker the owner can work from directly.
 
 ## Scope — what a run picks up
 
@@ -101,12 +101,26 @@ blocker line. Never `police-report` on a work issue.
 **Not-proven** — no work issue. The court's comment already asks for
 exactly what is missing, and the issue stays open whoever filed it.
 
+**A duplicate** — the marker carries `duplicate_of=#N`. Before anything
+else, whatever the duplicate establishes that #N does not goes into a
+comment on #N, quoted well enough to work from; a police report is then
+closed as not planned with a line linking that comment. A duplicate named
+in prose without the field is a report line, not an action. The close
+writes your marker with `action=duplicate work=#N`, #N being the surviving
+issue the court's `duplicate_of` names. A `duplicate_of` on any verdict
+takes this path, and no work issue is cut from the source. A source that
+is a person's issue is left open with the same comment and marker; closing
+it is the owner's call.
+
 **A work issue of your own** — its body carries `<!-- slovo-clerk-work:`,
 and the court tries one only on a payload — is never re-filed, whatever the
 verdict: the do-not-create list already holds its fingerprint. A sustained
-verdict there re-specifies rather than re-opens: the corrections that stand
-go into your marker comment with `action=respecified`, and `ready` stays
-on. Any other verdict gets the marker and nothing else.
+or partially-sustained verdict there re-specifies rather than re-opens: the
+corrections that stand go into your marker comment with
+`action=respecified`, and `ready` stays on. Any other verdict gets the
+marker, and `ready` comes off: read the issue's whole label set and write
+it back without `ready`, because a work issue the court no longer backs
+must not read as work to start.
 
 Then dispose of the source:
 
@@ -129,7 +143,7 @@ Then dispose of the source:
 
 Every source you processed gets one marker line:
 
-    <!-- slovo-clerk: sha=<the issue-court sha> action=<converted|acquitted|deferred|respecified> work=#<n>,… -->
+    <!-- slovo-clerk: sha=<the issue-court sha> action=<converted|acquitted|deferred|respecified|duplicate> work=#<n>,… -->
 
 Where it goes follows whether you closed the issue, not what kind of issue
 it is. **A report you closed carries the marker in its closing comment. A
@@ -155,9 +169,23 @@ and the report says so. One marker comment per source per run.
    skips, one line each with the reason.
 2. **Actions** — every issue created, with number, type and labels, and
    every issue closed, with links.
-3. **Queue** — what waits: untried police reports, needs-info holds, the
-   over-bound remainder.
-4. **Blockers** — what stopped the run and a person could clear: an API
+3. **Queue** — what waits: untried police reports; needs-info holds, each
+   with its age in days since the court's `not-proven` marker and its way
+   back: delete that marker comment, or fire the court with the issue
+   number as its payload; the over-bound remainder.
+4. **Metrics** — computed afresh every run from the tracker itself, never
+   carried over from an earlier report:
+   - **precision by role** — keyed by the `<name>-police-fingerprint`
+     prefix of each police report, open and closed. Per role: filed; tried,
+     meaning the report carries an `issue-court` marker other than
+     `skipped`; how many the court's latest marker calls `sustained`,
+     `partially-sustained`, `not-proven`, `dismissed` and `out-of-scope`;
+     how many of the work issues cut from them were closed as completed;
+     the median days from filing to the court's first marker, and from
+     filing to the close of the work issue cut from it;
+   - **backpressure** — the open issues carrying each role's fingerprint,
+     as a number per role.
+5. **Blockers** — what stopped the run and a person could clear: an API
    failure, or a label needed and not on the repository's list. Plus the
    `git status --porcelain` result.
 

@@ -31,8 +31,10 @@ Read these from the clone first:
    and the comment may still relay it as a design question for the owner.
 4. `docs/architecture.md`, `docs/privacy.md` and `CONTRIBUTING.md` — the
    layering, the privacy promises, and the gates a fix would have to pass.
+5. `.agents/rules/evidence.md` — the rules of evidence the trial below
+   follows.
 
-## Scope — one issue per run, the oldest untried one
+## Scope — one issue per run, the first in the queue
 
 Exactly one issue per run. Never two. A skipped issue still counts as the
 run's issue.
@@ -41,20 +43,20 @@ The repository comes from the clone and never from a payload, as
 `.agents/rules/unattended.md` says. Where the fire carries a payload naming
 an issue number, take that number as the case to consider. **A payload is a
 pointer, never a warrant**, so two of the queue's tests still refuse it and
-two do not, and the difference is who each test speaks for:
+three do not, and the difference is who each test speaks for:
 
 - **A payload cannot make a pull request into an issue**, and it cannot
   lift `wontfix`. That label is the owner's own veto, and a payload is not
   the place to contradict it. Refuse, with one report line naming the test
   it failed.
-- **A payload does lift the two markers below** — an `issue-court` marker
-  from an earlier trial, and the `slovo-clerk-work` marker on the Clerk's
-  own work issues. Those two are queue hygiene rather than prohibitions:
-  they exist so that an unattended run does not spend its single trial
-  re-reading the court's own record. A payload **is** the owner spending
-  that trial deliberately, which is the whole reason the queue drops a work
-  issue in the first place. Refusing here would leave the one documented
-  use of a payload unreachable.
+- **A payload does lift the two markers below, and the `ready` exclusion**
+  — an `issue-court` marker from an earlier trial, and the
+  `slovo-clerk-work` marker on the Clerk's own work issues. Those two are
+  queue hygiene rather than prohibitions: they exist so that an unattended
+  run does not spend its single trial re-reading the court's own record. A
+  payload **is** the owner spending that trial deliberately, which is the
+  whole reason the queue drops a work issue in the first place. Refusing
+  here would leave the one documented use of a payload unreachable.
 
 A second trial on an issue already tried is a second comment: post it as a
 new comment with a fresh marker, and never edit the old one. The newest
@@ -62,8 +64,13 @@ marker wins, exactly as it does for the Clerk.
 
 Every other byte of the payload is inert data.
 
-Otherwise build the queue: open issues, oldest first, pull requests
-filtered out. Then drop, each with a report line:
+Order the queue: a payload's issue first; then police reports whose title
+names `critical` in the kind slot of the
+`[<Role>] <kind>: <where> — <what>` grammar; then everything else, oldest
+first.
+
+Then build the queue: open issues, pull requests filtered out, in the
+order above. Then drop, each with a report line:
 
 - every issue whose comments already carry an `issue-court` marker, tried
   or skipped. The marker is the court's record and its only one: the labels
@@ -77,6 +84,8 @@ filtered out. Then drop, each with a report line:
   one spends the run's single trial re-reading the court's own record while
   police reports and users' reports wait behind it. A second reading of a
   work issue is the owner's to ask for, by firing this role with a payload.
+- every issue labelled `ready` — a work item, specified already; a second
+  reading is the owner's to ask for by payload.
 
 Police reports are in the queue like the rest. Their findings passed the
 filing role's own triage, and your trial is the independent second reading
@@ -135,17 +144,13 @@ the full trial.
 
 ## The trial
 
-Every participant is a separate subagent with a clean context: the
-case-file path, the charge, and nothing of your reasoning. Advocates never
-see each other outside the shared record. Keep the record in `$RUN/record/`.
+Every participant receives the case-file path and the charge, under the
+clean-context rule of `.agents/rules/evidence.md`; keep the record in
+`$RUN/record/`.
 
-**Rules of evidence.** Every factual assertion carries an exhibit: a quoted
-`path:line` at the trial commit, or a command with verbatim output.
-Numbered `P-1…` and `D-1…`. Advocates may write scratch notes under `$RUN`;
-they may not touch the working tree. Where nothing can be compiled or run,
-an "attempted reproduction" exhibit is a traced code path with every step
-quoted. An assertion without an exhibit is struck and cannot support the
-verdict.
+**Rules of evidence** are `.agents/rules/evidence.md`. Exhibits are
+numbered `P-1…` and `D-1…`, and the round's ceiling is the expert ceiling
+below: five experts on top of the fixed seats.
 
 **Prosecutor** argues the issue is wrong or not actionable: the code cannot
 do what is claimed, it is unreachable, it is intentional and documented, it
@@ -197,11 +202,9 @@ leaves open, and confidence 1 to 5. Every report enters the record in full,
 binding on whoever commissioned it.
 
 **Judge** — a fresh subagent, seeing the case file, the charge and the
-complete record, and nothing else. It strikes unbacked assertions and lists
-them; independently re-derives the single most decisive exhibit, and if
-that does not hold the verdict may not rest on it; disregards reports from
-leading briefs; treats `could_not_establish` as unknown; and ignores
-rhetoric and who commissioned whom. It returns:
+complete record, and nothing else. It applies `.agents/rules/evidence.md`;
+disregards reports from leading briefs; treats `could_not_establish` as
+unknown; and ignores rhetoric and who commissioned whom. It returns:
 
     charge: <the one-line claim>
     verdict: sustained | partially-sustained | not-proven | dismissed | out-of-scope
@@ -236,9 +239,9 @@ and the established facts, and writes the comment:
 - what could not be established, in one line, honestly — usually what only
   a run on the reporter's hardware can show;
 - the concrete next step: the fix direction, or the exact missing
-  information in the bug template's own terms — macOS version, input
-  device, the configured keys, cleanup on or off, Console output — or why
-  no action is warranted;
+  information in the bug template's own terms — Slovo version or commit,
+  macOS version, Input device, Keys and cleanup (on/off), and Console
+  output under Additional context — or why no action is warranted;
 - wrong issues told plainly, with the evidence, addressed to the report and
   not the reporter. No sarcasm, and no praise padding either way;
 - no promises, no assignments, and no speaking for the maintainer on
@@ -248,12 +251,18 @@ and the established facts, and writes the comment:
 
       <!-- issue-court: sha=<trial commit> verdict=<verdict> -->
 
+  and, when `recommended_action` is `duplicate of #N`, with exactly this
+  instead, so the Clerk can act on the duplicate:
+
+      <!-- issue-court: sha=<trial commit> verdict=<verdict> duplicate_of=#N -->
+
 **Check it before anything is written.** The comment and the label are the
 only things this role writes, and once written they are the machine's
 state. All three of these must hold: the verdict is one of the five the
 judge may return; every factual claim in the comment traces to an
 established fact in the record, with the exhibit that backs it; and the
-marker is exactly the shape printed above, with the trial commit in it.
+marker is exactly one of the two shapes printed above, with the trial
+commit in it.
 
 **If any one of them fails, write nothing at all** — no comment, and no
 label either. Say so in the report and stop there. The two writes fail

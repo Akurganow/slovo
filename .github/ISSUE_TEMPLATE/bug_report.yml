@@ -46,6 +46,16 @@ body:
     attributes:
       label: macOS version
       placeholder: e.g. macOS 15.7
+  - type: input
+    id: input-device
+    attributes:
+      label: Input device
+      placeholder: e.g. built-in microphone, AirPods Pro
+  - type: input
+    id: keys-cleanup
+    attributes:
+      label: Keys and cleanup (on/off)
+      placeholder: e.g. push-to-talk Right Option, translate Control, cleanup on
   - type: textarea
     id: notes
     attributes:

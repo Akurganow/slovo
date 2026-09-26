@@ -13,6 +13,10 @@ nothing.
 
 - [ ] The Swift check — `Scripts/diagnose.sh` on a macOS runner — is green on this pull request.
 
+## Only a live run can prove
+
+-
+
 ## Privacy / Security
 
 - [ ] No secrets, local databases, seed files, signing keys, or credential files are included.
