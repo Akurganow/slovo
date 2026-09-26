@@ -1,0 +1,19 @@
+# git-cliff computes the next release version for .github/workflows/release.yml.
+# Only these headers move the version: feat -> minor, fix and perf -> patch, a
+# `type!:` header or a BREAKING CHANGE footer -> major, also on 0.x. Every other
+# commit is skipped, so a push of docs/chore/ci alone leaves the version unchanged
+# and the pipeline runs as trunk verification. See docs/release-ci.md.
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+protect_breaking_commits = true
+tag_pattern = "v[0-9].*"
+commit_parsers = [
+  { message = "^(feat|fix|perf)(\\([^)]*\\))?!?:", group = "release" },
+  { message = ".*", skip = true },
+]
+
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = true

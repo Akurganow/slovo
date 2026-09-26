@@ -84,8 +84,8 @@ request — which produces a signed (but not notarized) DMG; see
 - [ ] The title is a Conventional Commit header (`feat:`, `fix:`, `perf:`)
       when the change is release-worthy, and the branch's commits carry the
       same header. GitHub pre-fills the squash commit's header from the
-      title, or from the single commit's message. The release guard
-      classifies that header. Any other header merges green but releases
+      title, or from the single commit's message. `git-cliff` classifies
+      that header (`cliff.toml`). Any other header merges green but releases
       nothing ([docs/release-ci.md](docs/release-ci.md)).
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
