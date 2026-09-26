@@ -310,8 +310,8 @@ requirement and "Only a live run can prove" are read in the issue, which
     <paths and symbols as permalinks at <main>; what is deleted in the same change>
 
     ## Test Plan
-    <Cynefin class; for Complicated: the RED test by name, what it asserts, and the mutation that
-    turns it red — described, not written>
+    <Cynefin class; for Complicated: the RED test by name, held to .agents/rules/tests.md, what it
+    asserts, and the mutation that turns it red — described, not written>
 
     ## Not verified
     <one line per not_verified entry>

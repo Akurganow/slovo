@@ -132,11 +132,12 @@ output, crash, or corrupted state.
 
 For each survivor: the minimal correct fix, file by file, as a fenced
 proposal and never a commit. A regression test in Swift Testing that would
-fail before and pass after, written out, documenting the concrete breakage
-it catches as AGENTS.md requires. Side effects, including callers relying
-on the buggy behaviour. The verification the fix needs — the pull request's
-Swift check, and anything only a Mac can do — named as what must be run and
-never as something this run ran.
+fail before and pass after, written out and held to `.agents/rules/tests.md`
+— the test that should have caught the bug, sharpened, where one exists —
+documenting the concrete breakage it catches as AGENTS.md requires. Side
+effects, including callers relying on the buggy behaviour. The verification
+the fix needs — the pull request's Swift check, and anything only a Mac can
+do — named as what must be run and never as something this run ran.
 
 Severity: `critical` for a crash on a common path, data loss, a security
 defect that needs no outside party, or a privacy-promise violation; `high`

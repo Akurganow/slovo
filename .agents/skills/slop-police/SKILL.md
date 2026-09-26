@@ -157,11 +157,11 @@ written out:
   — that is taste.
 - **The alternative, in full**: the comment deleted or rewritten to state
   the fact; the name and every call site renamed; the test rewritten so the
-  named mutation turns it red, with its sensitivity note; the residue
-  removed. Real Swift in `$RUN`, not a sketch. Count the lines that
-  disappear and state whether it was compiled. If writing it out reveals
-  that the text carried a fact after all, that is the run working: record
-  it and drop the candidate.
+  named mutation turns it red, with its sensitivity note, held to
+  `.agents/rules/tests.md` like any other test; the residue removed. Real
+  Swift in `$RUN`, not a sketch. Count the lines that disappear and state
+  whether it was compiled. If writing it out reveals that the text carried a
+  fact after all, that is the run working: record it and drop the candidate.
 - **The history** for `lying` and `residue`: the commits its measurement
   names, quoted.
 
@@ -184,13 +184,13 @@ whether it agrees, checks the protected list and the fence, and returns:
     effort: S | M | L
     rationale: one line
 
-Threshold, on top of tracker.md's floor: `belongs_to = slop`,
+Threshold, on top of tracker.md's floor: `belongs_to` is the Slop Police,
 `protected = none`, `fenced = no`, `information = none` for `noise` and
-`naming` and `information = a false fact` for `lying`, the cluster
-threshold for its kind, `value >= 3`, and `risk <= 2` — or, for a
-`ceremony` rewrite, a stepwise plan that keeps CI proving what it proves
-today. A candidate routed to another role is dropped even if you disagree,
-and the disagreement goes in the report.
+`naming` and `information = a false fact` for `lying`, the cluster threshold
+for its kind, `value >= 3`, and `risk <= 2` — or, for a `ceremony` rewrite,
+a stepwise plan that keeps CI proving what it proves today. A candidate
+routed to another role is dropped even if you disagree, and the disagreement
+goes in the report.
 
 The verifier never sees this file, so its brief carries the fenced-tell
 list from "The fence is not your territory" verbatim.
@@ -249,11 +249,6 @@ Body:
     routed to another role.
 
     <!-- slop-police-fingerprint: <path>::<symbol-or-concept>::<kind> -->
-
-For a cluster, `<path>` is the deepest directory common to its files, and
-`.` for the repository root. A cluster's file set can move between runs, so
-before filing also compare `<symbol-or-concept>::<kind>` alone against
-every existing fingerprint: a match is the same finding.
 
 ## Report
 

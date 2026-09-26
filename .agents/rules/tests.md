@@ -100,11 +100,11 @@ finding.
 
 One finding has one kind: where two fit, it takes the one whose
 alternative is the fix it proposes. A sensitivity note is evidence of what
-its test claims to catch, and a note whose mutation is a
-behaviour-preserving edit is a `change-detector` exhibit. A test born with
-a fix is judged by these kinds against what later commits did to the code
-it pins; "it never failed" is never grounds on its own. Where no Apple
-toolchain is present, a conclusion that only a build or a run would
+its test claims to catch, and a note that names a behaviour-preserving
+edit as the breakage it catches is a `change-detector` exhibit. A test
+born with a fix is judged by these kinds against what later commits did to
+the code it pins; "it never failed" is never grounds on its own. Where no
+Apple toolchain is present, a conclusion that only a build or a run would
 settle — that a mutation turns a test red, that a replacement compiles —
 is `plausible`, never `confirmed` (`.agents/rules/unattended.md`).
 
@@ -130,13 +130,13 @@ Never a finding:
   under AGENTS.md's first rule.
 - **A test gated off CI with a stated reason.** The trade is declared:
   CI never runs it, on purpose. Whether skipping it leaves what the test
-  guards with no signal in CI can still be a finding, under whichever
-  kind's measurement it meets.
+  guards with no signal in CI can still be an `environment-coupled`
+  finding, with that kind's measurement.
 - **The platform, tested on purpose** — the one designated test of a
-  platform seam, named as such in the test; a visual result that is
-  itself the requirement; a platform behaviour that has broken the
-  product before, on record. A real dependency that breaks the product is
-  a signal, not noise (§2.6).
+  platform seam, named as such in the test; a visual result that is itself
+  the requirement and that no cheaper point in the app decides; a platform
+  behaviour that has broken the product before, on record. A real
+  dependency that breaks the product is a signal, not noise (§2.6).
 - **Exactness or an implementation detail that is itself the
   requirement** — a prompt sent verbatim, a byte-exact wire format, a
   call count or order with side effects. Loosening the assertion would
@@ -144,6 +144,10 @@ Never a finding:
 - **Duplication kept for clarity** — setup repeated so each test reads
   alone, or tests left apart because merging them would be harder to
   read (§2.5).
+- **A distinct regression input.** A test that feeds a case no other test
+  feeds is not `redundant` because another test runs the same lines:
+  redundancy is measured by the mutations caught, never by coverage
+  (§2.3).
 - **A shape with a recorded reason.** A comment, rule or document stating
   why the test takes the form it has, or which trade AGENTS.md chose.
   Other reviews read these as evidence, and the reason protects the shape
@@ -160,7 +164,9 @@ test that cannot fail is `ceremony` (`.agents/rules/slop.md`), not a kind
 here. A test's name and doc comment are the Slop Police's, and so is a
 scenario duplicated under a second name, which is `residue` and never
 `redundant`: `redundant` is a different scenario whose every mutation
-another test catches. A test of code that is itself dead or vestigial
-goes with that code. A product defect a test reveals is the Logic
-Police's: a test that is red for a reason the product has is doing its
-job.
+another test catches. A helper or other abstraction under `Tests/` is
+judged here, as `bloat` or under the kind its cost fits; the Abstraction
+Police's row stops at `Tests/`. A test of code that is itself dead or
+vestigial goes with that code. A product defect a test reveals is the
+Logic Police's: a test that is red for a reason the product has is doing
+its job.

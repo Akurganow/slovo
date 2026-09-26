@@ -18,8 +18,8 @@ against what only it protects, write out the replacement or the deletion
 with what still protects, and file a GitHub issue for the few the owner
 would rework today. A test that cannot fail at all is a neighbour's.
 
-Your subject is every test under `Tests/`, and the seam by which those
-tests reach the code.
+Your subject is every test and test helper under `Tests/`, and the seam by
+which those tests reach the code.
 
 Read these from the clone first, at the analysed commit, in this order:
 
@@ -95,7 +95,7 @@ nothing.
 
 Its fingerprint fills the slots as
 `<deepest common directory>::seam::disproportionate`, and the issue
-carries:
+carries, beside the measurement for `disproportionate`:
 
 - the guards, and the contract each pins;
 - the behaviour test, written out, that goes red on the mutations their
@@ -145,6 +145,13 @@ every search.
   candidate, never its exhibit: the measurement stands on the code,
   official documents and CI.
 
+## What you need from GitHub beyond `.agents/rules/unattended.md`
+
+The workflow runs for a commit with every attempt, and the log of a
+failed job, so a test that failed and then passed at the same commit can
+be named. A need no route serves is a report line, and the
+failure-records census is then reported as not run.
+
 ## Measure it, then write it
 
 A finding is not real until it carries its measurement and the
@@ -156,9 +163,9 @@ alternative, written out:
   the tests that remain. Real Swift in `$RUN`, not a sketch, held to
   `.agents/rules/tests.md` like any other test. Count the lines that
   disappear and state whether it was compiled.
-- **The ledger**: for each mutation the test catches, the test that still
-  catches it after the change. A mutation nothing else catches keeps the
-  test, or the replacement catches it.
+- **The ledger** `.agents/rules/tests.md` requires of every removal: each
+  mutation the test catches, with the test that still catches it after the
+  change.
 - **For `environment-coupled`, the experiment**, written out for a Mac:
   what to run, alone and in the full suite, what to print, and which
   output means which cause. Until somebody runs it, the cause is
@@ -183,19 +190,22 @@ the recorded reasons and the fence, and returns:
     value: 1-5    risk: 1-5    confidence: 1-5    effort: S | M | L
     rationale: one line
 
-`recorded_reason` names a reason only when the proposed fix goes against
-it. `value` is scaled in test terms: 1 a line; 3 a false signal gone, or
-a test that proves nothing new gone; 5 a file or a cluster gone. `risk`
-is the chance the change leaves CI proving less than it proves today.
+`recorded_reason` names every reason the proposed fix goes against,
+whether or not the verifier thinks it still holds; only the seam challenge
+argues that one no longer does. The brief carries the schema and this
+paragraph verbatim. `value` is scaled in test terms: 1 a line; 3 a false
+signal gone, or a test that proves nothing new gone; 5 a file or a cluster
+gone. `risk` is the chance the change leaves CI proving less than it
+proves today.
 
 Threshold, on top of tracker.md's floor: `belongs_to` is the Test Police,
 `can_fail = yes`, `protection_lost = none`, `recorded_reason = none`,
 `value >= 3`, and `risk <= 2` or a stepwise plan. The seam challenge alone
-passes with a recorded reason, and only when the reason is quoted with the
-source that refutes it: its brief carries that source, and the verifier
-rejects the candidate when the source does not refute the reason. A
-candidate routed to another role is dropped even if you disagree, and the
-disagreement goes in the report.
+passes with a recorded reason, and only when the reason is quoted and a
+source refutes it: its brief quotes the reason as part of the claim, and
+the verifier finds the refuting source itself and rejects the candidate
+when none does. A candidate routed to another role is dropped even if you
+disagree, and the disagreement goes in the report.
 
 Tell the ranker, beyond the standard litany: include an item only if the
 owner, reading it, would rework or delete the test without needing to be
@@ -248,12 +258,10 @@ Body:
 
     <!-- test-police-fingerprint: <path>::<test-or-cluster>::<kind> -->
 
-`<path>` is the test file, or for a cluster the deepest directory common
-to its files, and `.` for the repository root. `<test-or-cluster>` is the
-test's name, or a short name for the contract a cluster shares. A
-cluster's file set can move between runs, so before filing also compare
-`<test-or-cluster>::<kind>` alone against every existing fingerprint: a
-match is the same finding.
+`<path>` is the test file, or a cluster's path as
+`.agents/rules/tracker.md` sets it. `<test-or-cluster>` is the test as
+declared, `SuiteType.functionName`, or a short name for the contract a
+cluster shares.
 
 ## Report
 

@@ -37,10 +37,10 @@ the finding goes to the row whose fix it serves, never to both.
 | Role | Owns |
 | :-- | :-- |
 | the Logic Police | code that computes the wrong thing, crashes, races or corrupts state, on a reachable path with no adversary in it |
-| the Abstraction Police | an abstraction that is dead, superfluous, wrong or duplicated — a type, protocol, generic parameter, wrapper, module, target or layer, or a helper or concept modelled twice |
+| the Abstraction Police | an abstraction that is dead, superfluous, wrong or duplicated — a type, protocol, generic parameter, wrapper, module, target or layer, or a helper or concept modelled twice; an abstraction under `Tests/` is the Test Police's |
 | the Sanity Police | a mechanism or decision out of proportion to what it does, a part a half-landed change left pointless, nonsense where two features meet — a guard for a state an upstream layer already made impossible among it — and a tool that never fit, hand-rolled code a dependency the package already ships would do among it; a new dependency is never its proposal, since vetting one under GPLv3 is a person's decision; a test's proportion to what it guards is the Test Police's |
 | the Slop Police | text that carries no fact or a false one — a comment, a name, a doc comment, a test name, a string, a document — a test that cannot fail, and what the process that wrote a change left behind; never the instructions `.agents/rules/slop.md` protects, where a sentence that merely says nothing is nobody's |
-| the Test Police | a test that can fail but fails for a reason other than the product, or costs more than it protects, by the kinds of `.agents/rules/tests.md`, and the seam by which the tests reach the code |
+| the Test Police | a test that can fail but fails for a reason other than the product, or costs more than it protects, by the kinds of `.agents/rules/tests.md`, a helper or other abstraction under `Tests/`, and the seam by which the tests reach the code |
 | the Security Police | a path by which an outside party could exploit the code, a workflow, a secret, the update feed, or a role that reads their text, the instructions included; an outside party in the scenario makes a finding this row's, an advisory excepted |
 | the Dependency Police | the update bot's pull requests, and advisories no bot pull request answers; it takes nothing routed to it, so any other dependency matter is a report line |
 | the Agent Police | the agent system's own documents and wiring no longer describing one machine, and a claim in `docs/architecture.md` the code no longer bears out |
@@ -128,9 +128,14 @@ back. An empty shortlist is a normal outcome.
 
 Labels per `issues.md` — names already on the repository's list, never
 a create; every police report carries `police-report` and the kind label
-its finding deserves. One issue per finding, never bundled, never more than the cap, each ending with an
-HTML-comment fingerprint stable enough for the next run to recognise.
-Consult the do-not-report file once more immediately before each create.
+its finding deserves. One issue per finding, never bundled, never more
+than the cap, each ending with an HTML-comment fingerprint stable enough
+for the next run to recognise. For a finding over a cluster of files, the
+fingerprint's path slot is the deepest directory common to them, and `.`
+for the repository root; a cluster's file set can move between runs, so
+before filing one, also compare the fingerprint without its path slot
+against every existing fingerprint: a match is the same finding. Consult
+the do-not-report file once more immediately before each create.
 
 Title an issue `[<Role>] <kind>: <where> — <what>`, the role naming itself
 in the brackets. A role with its own vocabulary for a slot states it in its
