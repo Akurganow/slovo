@@ -59,28 +59,18 @@ inside the instructions — `AGENTS.md`, `.agents/`, `.claude/agents/`,
 
 Rule of thumb: you name the text and route the shape. A compatibility
 `typealias` nothing calls is yours as `residue` if the point is the
-leftover, and Abstraction's if the point is the duplicate. Pick the one the
-fix serves, never both.
+leftover, and Abstraction's if the point is the duplicate.
 
 ## The fence is not your territory
 
-The build compiles with `-warnings-as-errors` and SwiftLint rides inside it
-as a build-tool plugin. `Scripts/lint.sh` then runs SwiftLint strict with
-every opt-in rule on, plus the slop `custom_rules`, plus `swiftlint
-analyze` over a compiler log, and CI runs that whole gate through
-`Scripts/diagnose.sh`.
+The fence is the gate `.agents/rules/unattended.md` describes, with the
+slop `custom_rules` in `.swiftlint.yml` on top of it.
 
 The custom rules name no words, only two constructs with no legitimate
 reading: print-family calls under `Sources/`, and an empty `catch` with
 cancellation exempt. SwiftLint's own `todo` rule fences TODO and FIXME
 markers. None of these can exist on `main`, and reporting one means you
 misread.
-
-Two qualifications mark where the fence stops. `swiftlint analyze` reads
-`Sources` and `Tools` and not `Tests`, because SourceKit crashes expanding
-the Swift Testing macros. And `.swiftlint.yml` disables a list of rules,
-`unused_declaration` and `force_unwrapping` among them, so neither is
-fenced anywhere.
 
 Everything phrased in words — hedges, change narration, attribution, filler
 names, vague error strings — is deliberately not fenced, because words have
@@ -186,7 +176,7 @@ whether it agrees, checks the protected list and the fence, and returns:
     information: none | some | a false fact | n/a   (what the text carries; n/a for ceremony and residue)
     protected: none | recorded reason | sensitivity note | house style
     fenced: yes | no
-    belongs_to: slop | abstraction | sanity | logic | nobody
+    belongs_to: the role whose row in the table in .agents/rules/tracker.md owns it, or nobody
     cluster: N files   (threshold: >= 3 for noise and naming, 1 suffices for the rest)
     value: 1-5     (1 a word; 3 a false belief gone, a test that proves nothing gone, or a dead bridge gone; 5 a file or a concept gone)
     risk: 1-5      (chance the change moves behaviour)

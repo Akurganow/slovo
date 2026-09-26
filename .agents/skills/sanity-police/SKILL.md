@@ -10,9 +10,9 @@ Your job is to find code and decisions **out of proportion to what they
 do**, or that nobody would have designed on purpose: a whole type for a
 triviality, a branch that can no longer be taken, a parameter every caller
 passes the same value for, two mechanisms solving one problem from
-different ends, a comment describing behaviour that no longer exists. Not
-bugs — the code runs correctly. Not interface design — that belongs to a
-neighbour. You hunt the thing a reader cannot reconstruct a reason for.
+different ends. Not bugs — the code runs correctly. Not interface design —
+that belongs to a neighbour. You hunt the thing a reader cannot reconstruct
+a reason for.
 
 The test that decides every finding:
 
@@ -48,23 +48,12 @@ Route every candidate by the table in `.agents/rules/tracker.md`. Yours is
 
 ## The fence is not your territory
 
-The build compiles with `-warnings-as-errors`,
-`-strict-concurrency=complete` and `-enable-actor-data-race-checks`, and
-SwiftLint rides inside it as a build-tool plugin. `Scripts/lint.sh` then
-runs SwiftLint strict again and `swiftlint analyze` over a compiler log,
-and CI runs that whole gate through `Scripts/diagnose.sh`. Further gates
-are tests that scan the source tree — count them from `Tests/`, starting
-with `Tests/GateChecksTests/`.
-
-Anything one of those names cannot exist on `main`, and reporting one means
-you misread. Two qualifications are worth holding, because they mark where
-the fence actually stops: `swiftlint analyze` reads `Sources` and `Tools`
-and not `Tests`, since SourceKit crashes expanding the Swift Testing
-macros; and `.swiftlint.yml` disables a list of rules, `unused_declaration`
-and `force_unwrapping` among them, so neither an unused declaration nor a
-force-unwrap is fenced anywhere. `Sources/SlovoObjC` is deliberately
-outside the Swift settings and lint gates, its reason written in
-`Package.swift`.
+The fence is the gate `.agents/rules/unattended.md` describes, plus the
+tests that scan the source tree — count them from `Tests/`, starting with
+`Tests/GateChecksTests/`. Anything one of those names cannot exist on
+`main`, and reporting one means you misread. `Sources/SlovoObjC` is
+deliberately outside the Swift settings and lint gates, its reason
+written in `Package.swift`.
 
 Aim strictly above the fence: shapes that compile cleanly, lint cleanly,
 and still make no sense. The one exception is a **cluster** — five trivial
@@ -76,25 +65,23 @@ File the cluster, never the instance.
 Four kinds, and nothing else:
 
 1. **`oversized`** — ceremony out of proportion to the job: an enum with
-   one case never switched on, a struct wrapping one field everything
-   unwraps immediately, a three-stage pipeline for a value computed once, a
-   dedicated error type per call site where one with a message reads the
-   same, a directory tree whose leaves hold one function each. The
-   measurement is the point: what it does in one sentence, against the
+   one case never switched on, a three-stage pipeline for a value computed
+   once, a dedicated error type per call site where one with a message
+   reads the same, a directory tree whose leaves hold one function each.
+   The measurement is the point: what it does in one sentence, against the
    files, types and hops it takes to do it.
 2. **`vestigial`** — residue of a change that only half landed: a branch
    nothing can take, a parameter every caller passes identically, a
-   property written and never read, a comment or test describing behaviour
-   that no longer exists, a workflow step for a path that moved, a settings
-   key nothing reads. Proved with history: the commit that created it, and
-   the later commit that made it pointless.
+   property written and never read, a comment or test on code that is
+   itself vestigial, a workflow step for a path that moved, a settings key
+   nothing reads. Proved with history: the commit that created it, and the
+   later commit that made it pointless.
 3. **`emergent`** — nonsense born where two features meet, that neither
    author would write alone: the same normalization applied twice on one
    path, a guard for a case an upstream layer already made impossible, one
-   problem solved from both ends in two places, the same fact stored twice
-   and agreeing by accident, a retry inside a retry, an ordering that works
-   only through an unrelated side effect. Proved by showing both halves and
-   the path where they meet.
+   problem solved from both ends in two places, a retry inside a retry, an
+   ordering that works only through an unrelated side effect. Proved by
+   showing both halves and the path where they meet.
 4. **`mismatched`** — the tool never fit the problem: hand-rolled code
    where a dependency this package **already ships** does it and no comment
    explains why not; a stringly value between two of our own modules with
@@ -145,7 +132,7 @@ returns:
     kind: oversized | vestigial | emergent | mismatched
     reconstructible: yes | no   (could a competent person reach this shape from the requirement?)
     recorded_reason: the comment, rule or doc that justifies it, if any
-    belongs_to: sanity | abstraction | logic | slop | dependency
+    belongs_to: the role whose row in the table in .agents/rules/tracker.md owns it, or nobody
     value: 1-5
     risk: 1-5      (chance the change moves behaviour)
     confidence: 1-5

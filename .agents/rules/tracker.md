@@ -7,11 +7,11 @@ the run's own instructions. This file makes every automated filer behave
 the same.
 
 Two neighbours are outside it. A run whose output is a comment on
-somebody else's pull request files nothing, and takes from this file only
-what carries over: silence is the default, the verdict is checked before
-it is posted, the report keeps the shape below. A run whose output is the
-execution of a verdict already recorded on an issue is governed by its own
-role.
+somebody else's pull request files nothing but what its row in the table
+below gives it, and takes from this file only what carries over: silence is
+the default, the verdict is checked before it is posted, the report keeps
+the shape below. A run whose output is the execution of a verdict already
+recorded on an issue is governed by its own role.
 
 **A run's identity here is its fingerprint, not a label.** Every
 automated filer ends an issue body with an HTML comment naming the

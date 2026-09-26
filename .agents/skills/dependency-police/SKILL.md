@@ -57,7 +57,7 @@ rebase by the bot changes the head and re-opens the case.
 Also read the bot's pull requests merged in the last seven days, with the
 head each was merged at and its comments, for the report's Follow-through
 item only: a merged pull request is never verified, counted against the
-cap, or commented on.
+per-run bound below, or commented on.
 
 Verify at most **3** pull requests per run, oldest first, and list the rest
 in the report as deferred.
@@ -166,7 +166,8 @@ because a known vulnerability should not wait for the bot's next run.
 The six-part shape from `.agents/rules/tracker.md`, adapted:
 
 1. **Coverage** — bot pull requests found, verified, skipped as already
-   verified, deferred over the cap, and the advisory sweep's scope.
+   verified, deferred over the per-run bound, and the advisory sweep's
+   scope.
 2. **Verdicts** — one line per verified pull request, with its link.
 3. **Follow-through** — every bot pull request merged in the last seven
    days whose merged head differs from the `head=` of your latest verdict
