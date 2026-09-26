@@ -101,32 +101,33 @@ extension AppDelegate: SettingsActions {
     }
 
     func saveOpenRouterKey(_ key: String) {
-        // The cleaner reads the key lazily at cleanup time, so a save needs no
-        // rebuild and never re-warms ASR.
+        // The cleaner reads the key lazily, so a save needs no rebuild and never
+        // re-warms ASR. The menu and the pane re-derive on both outcomes: a failed
+        // save may already have deleted the old item.
         do {
             try openRouterKeyProvider.store(key)
-            applyScopeEvent(.keySaved)      // BEFORE the existing push (K4b)
-            // A key appearing (or changing) can flip the effective state from
-            // offNoKey: refresh the menu and re-push through the single funnel.
-            installStatusMenu()
-            pushEffectiveCleanupConfig()
+            applyScopeEvent(.keySaved)      // BEFORE the push below (K4b)
         } catch {
             logger.error("openrouter key save failed")
+            flashUserActionFailure()
         }
+        installStatusMenu()
+        pushEffectiveCleanupConfig()
     }
 
     func removeOpenRouterKey() {
-        // The mirror of saveOpenRouterKey: deleting the key flips the effective
-        // state to offNoKey, so refresh the menu and re-push through the single
-        // funnel — the observed model repaints the pane from there.
+        // The mirror of saveOpenRouterKey. A delete flips the effective state to
+        // offNoKey; a failed one leaves the key stored. Either way the menu and the
+        // pane re-derive through the single funnel.
         do {
             try openRouterKeyProvider.removeKey()
-            applyScopeEvent(.keyRemoved)    // BEFORE the existing push (K4c)
-            installStatusMenu()
-            pushEffectiveCleanupConfig()
+            applyScopeEvent(.keyRemoved)    // BEFORE the push below (K4c)
         } catch {
             logger.error("openrouter key removal failed")
+            flashUserActionFailure()
         }
+        installStatusMenu()
+        pushEffectiveCleanupConfig()
     }
 
     func listVocabulary() -> [VocabularyRecord] {

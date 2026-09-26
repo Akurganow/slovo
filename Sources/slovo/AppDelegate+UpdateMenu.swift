@@ -12,7 +12,7 @@ extension AppDelegate {
                 self?.renderUpdateIndication(indication)
                 self?.repaintIdleGlyphForUpdateState()
             },
-            onInstallFailedAfterRestart: { [weak self] in self?.flashUpdateInstallFailure() }
+            onInstallFailedAfterRestart: { [weak self] in self?.flashUserActionFailure() }
         )
         updaterCoordinator = coordinator
         coordinator.start(automaticUpdatesEnabled: ConfigStore.load(from: defaults).automaticallyInstallsUpdates)
@@ -115,26 +115,6 @@ extension AppDelegate {
         } else {
             updateItem.title = "Update ready — v\(version)"
             updateItem.attributedTitle = Self.updateStatusTitle("Update ready — v\(version)")
-        }
-    }
-
-    /// Briefly flashes the red failure glyph (the empty-dictation pattern) when a
-    /// user-initiated install fails, then restores idle — the only update failure the
-    /// user ever sees, because they explicitly acted; background failures stay silent.
-    func flashUpdateInstallFailure() {
-        guard let button = statusItem?.button else { return }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: MenuBarGlyph.failureGlyph, tint: .error)
-            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
-        // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
-        // scheduling anew, and skip the reset if superseded or if a dictation started
-        // within the window (its recording glyph must not be stomped back to idle).
-        updateFailureResetTask?.cancel()
-        updateFailureResetTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, self?.isPipelineActive == false else { return }
-            self?.paintIdleGlyph(on: self?.statusItem?.button)
         }
     }
 
