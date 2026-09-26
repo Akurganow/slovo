@@ -211,11 +211,6 @@ stored in Keychain:
 - OpenRouter service/account: `slovo` / `openrouter-api-key`
 - ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
 
-The app also accepts an environment variable as a development-only
-override:
-
-- `OPENROUTER_API_KEY`
-
 ## Build And Test
 
 Building from source requires Xcode with the Swift 6.3 toolchain — see

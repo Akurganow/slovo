@@ -2,24 +2,22 @@ import Foundation
 import Security
 import Synchronization
 
-/// Keychain-backed API key storage with an environment override and
-/// process-local memory cache.
+/// Keychain-backed API key storage with a process-local memory cache. The
+/// Keychain item Settings writes is the key's only source.
 public final class KeychainAPIKeyProvider: CleanupKeyProvider {
     public enum StoreError: Error, Sendable {
         case emptyKey
         case keychain(OSStatus)
     }
 
-    private let environmentKey: String
     private let readKey: @Sendable () -> String?
     private let keyExists: @Sendable () -> Bool
     private let writeKey: @Sendable (String) throws -> Void
     private let deleteKey: @Sendable () throws -> Void
     private let cachedKey = Mutex<String?>(nil)
 
-    public convenience init(service: String, account: String, environmentKey: String) {
+    public convenience init(service: String, account: String) {
         self.init(
-            environmentKey: environmentKey,
             readKey: { Self.keychainKey(service: service, account: account) },
             keyExists: { Self.keychainItemExists(service: service, account: account) },
             writeKey: { try Self.store($0, service: service, account: account) },
@@ -29,13 +27,11 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
 
     @preconcurrency
     public init(
-        environmentKey: String,
         readKey: @escaping @Sendable () -> String?,
         keyExists: @escaping @Sendable () -> Bool,
         writeKey: @escaping @Sendable (String) throws -> Void,
         deleteKey: @escaping @Sendable () throws -> Void
     ) {
-        self.environmentKey = environmentKey
         self.readKey = readKey
         self.keyExists = keyExists
         self.writeKey = writeKey
@@ -46,7 +42,7 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         if let key = cachedKey.withLock({ $0 }) {
             return key
         }
-        if let key = Self.normalized(environmentKeyValue() ?? readKey()) {
+        if let key = Self.normalized(readKey()) {
             cachedKey.withLock { $0 = key }
             return key
         }
@@ -57,7 +53,7 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
         if cachedKey.withLock({ $0 != nil }) {
             return true
         }
-        return Self.normalized(environmentKeyValue()) != nil || keyExists()
+        return keyExists()
     }
 
     public func store(_ key: String) throws {
@@ -75,10 +71,6 @@ public final class KeychainAPIKeyProvider: CleanupKeyProvider {
     public func removeKey() throws {
         try deleteKey()
         cachedKey.withLock { $0 = nil }
-    }
-
-    private func environmentKeyValue() -> String? {
-        ProcessInfo.processInfo.environment[environmentKey]
     }
 
     private static func normalized(_ key: String?) -> String? {

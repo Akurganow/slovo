@@ -17,7 +17,6 @@ struct KeychainKeyRemovalTests {
     func removeKeyClearsStoreAndCache() throws {
         let stored = Mutex<String?>(nil)
         let provider = KeychainAPIKeyProvider(
-            environmentKey: "SLOVO_TEST_UNSET_ENV_KEY",
             readKey: { stored.withLock { $0 } },
             keyExists: { stored.withLock { $0 != nil } },
             writeKey: { key in stored.withLock { $0 = key } },
@@ -51,7 +50,6 @@ struct KeychainKeyRemovalTests {
         let stored = Mutex<String?>(nil)
         let reads = Mutex<Int>(0)
         let provider = KeychainAPIKeyProvider(
-            environmentKey: "SLOVO_TEST_UNSET_ENV_KEY",
             readKey: {
                 reads.withLock { $0 += 1 }
                 return stored.withLock { $0 }
@@ -78,7 +76,6 @@ struct KeychainKeyRemovalTests {
     func openRouterProviderForwardsRemoveKey() throws {
         let stored = Mutex<String?>("synthetic-openrouter-key")
         let provider = KeychainOpenRouterKeyProvider(
-            environmentKey: "SLOVO_TEST_UNSET_ENV_KEY",
             readKey: { stored.withLock { $0 } },
             keyExists: { stored.withLock { $0 != nil } },
             writeKey: { key in stored.withLock { $0 = key } },
