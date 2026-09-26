@@ -59,7 +59,8 @@ inside the instructions — `AGENTS.md`, `.agents/`, `.claude/agents/`,
 
 Rule of thumb: you name the text and route the shape. A compatibility
 `typealias` nothing calls is yours as `residue` if the point is the
-leftover, and Abstraction's if the point is the duplicate.
+leftover, and, if the point is the duplicate, Abstraction's — the
+Test Police's under `Tests/`.
 
 ## The fence is not your territory
 

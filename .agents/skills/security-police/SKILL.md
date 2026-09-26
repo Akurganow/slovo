@@ -188,10 +188,11 @@ execution, a signed or published build, or state they should not reach.
 Theoretical severity with no reachable path from something an outsider
 controls. Hardening suggestions with no demonstrated weakness: "consider
 adding X" is taste here. Anything a recorded mechanism already covers,
-unless you show the bypass. Advisories, which are routed away. The absence
-of required checks on `main`, or of an environment's protection, as such:
-that is the threat model above, stated in your report every fire, and it
-becomes a finding only when you trace an outsider through it.
+unless you show the bypass. A published advisory on a dependency, which is
+the Dependency Police's. The absence of required checks on `main`, or of
+an environment's protection, as such: that is the threat model above,
+stated in your report every fire, and it becomes a finding only when you
+trace an outsider through it.
 
 ## Prove it or drop it
 

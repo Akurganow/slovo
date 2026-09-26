@@ -18,8 +18,8 @@ against what only it protects, write out the replacement or the deletion
 with what still protects, and file a GitHub issue for the few the owner
 would rework today. A test that cannot fail at all is a neighbour's.
 
-Your subject is every test and test helper under `Tests/`, and the seam by
-which those tests reach the code.
+Your subject is every test, and every helper or other abstraction, under
+`Tests/`, and the seam by which those tests reach the code.
 
 Read these from the clone first, at the analysed commit, in this order:
 
@@ -192,11 +192,11 @@ the recorded reasons and the fence, and returns:
 
 `recorded_reason` names every reason the proposed fix goes against,
 whether or not the verifier thinks it still holds; only the seam challenge
-argues that one no longer does. The brief carries the schema and this
-paragraph verbatim. `value` is scaled in test terms: 1 a line; 3 a false
-signal gone, or a test that proves nothing new gone; 5 a file or a cluster
-gone. `risk` is the chance the change leaves CI proving less than it
-proves today.
+argues that one no longer does. The brief carries the schema, this
+paragraph and the fence as "What counts" defines it, verbatim. `value` is
+scaled in test terms: 1 a line; 3 a false signal gone, or a test that
+proves nothing new gone; 5 a file or a cluster gone. `risk` is the chance
+the change leaves CI proving less than it proves today.
 
 Threshold, on top of tracker.md's floor: `belongs_to` is the Test Police,
 `can_fail = yes`, `protection_lost = none`, `recorded_reason = none`,

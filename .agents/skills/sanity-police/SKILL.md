@@ -82,8 +82,7 @@ Four kinds, and nothing else:
    showing both halves and the path where they meet.
 4. **`mismatched`** — the tool never fit the problem: hand-rolled code
    where a dependency this package **already ships** does it and no comment
-   explains why not; a stringly value between two of our own modules with
-   an obvious enum; logic in configuration or configuration in logic; a
+   explains why not; logic in configuration or configuration in logic; a
    forty-arm switch that is a table. A *new* dependency is never your
    proposal: GPLv3 vetting makes that a person's decision, and AGENTS.md
    records it.
