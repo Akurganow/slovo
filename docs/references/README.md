@@ -31,6 +31,7 @@ depends on. The personalization seed data lives under `../../data/` and is
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `ClipboardPasteInjector` |
 | [menubar-packaging.md](menubar-packaging.md) | `NSStatusItem`, `LSUIElement`/`.accessory`, codesign/notarization, sandbox↔Accessibility conflict | Apple AppKit + Developer ID / App Sandbox docs | App shell + packaging |
 | [menubar-status-ui.md](menubar-status-ui.md) | Glagolitic status icon (bundled Noto Sans Glagolitic vs LastResort tofu) | Apple AppKit + Apple Support bundled-font lists | Status-icon glyphs (shipped) |
+| [testing-swift.md](testing-swift.md) | Swift Testing parallelism, `.serialized` scope, process-global state and skips; flaky, change-detector, redundant and over-specified tests; mutation analysis and the Swift tools for it; how Slovo's own test rules meet them | Apple Swift Testing docs + swiftlang/swift-testing, WWDC24 10179/10195; Google Testing Blog, Luo et al. FSE 2014, Parry et al. TOSEM 2022, Software Engineering at Google, xUnit Test Patterns; Jia & Harman, Petrović et al. | Review criteria for the test suite |
 
 ## Pending references (not yet gathered)
 
