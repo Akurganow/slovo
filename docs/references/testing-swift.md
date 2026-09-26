@@ -4,7 +4,8 @@
 
 The evidence base for reviewing Slovo's test suite: what Swift Testing actually
 guarantees about isolation, parallelism and skipping; what the testing
-literature says makes a test flaky, brittle, redundant or over-specified; what
+literature says makes a test flaky, brittle, redundant, over-specified or out
+of proportion to what it guards, and what a suite's size costs; what
 mutation analysis measures and costs; and how Slovo's own rules meet all of it.
 It ends with the review criteria, each tied to its sources.
 
@@ -186,7 +187,7 @@ concerns Swift Testing.
   `#expect(abs(a - b) <= tolerance)`.
 - UI automation and performance measurement (`measure`, `XCTMetric`) exist only
   in XCTest ([WWDC24 10179](https://developer.apple.com/videos/play/wwdc2024/10179/)).
-  Both frameworks can share a target (MigratingFromXCTest.md L43-45), but
+  Both frameworks can share a target (MigratingFromXCTest.md L44-46), but
   cross-framework assertions are off below toolchain 6.4, so an `XCTAssert`
   inside a `@Test` is ignored on this repository's floor
   ([MigratingFromXCTest.md L96-111](https://raw.githubusercontent.com/swiftlang/swift-testing/ea850751b69a18e332619feab7777ebc54f39c62/Sources/Testing/Testing.docc/MigratingFromXCTest.md)).
@@ -447,7 +448,7 @@ concerns Swift Testing.
   > Fixing a bug is much like adding a new feature: the presence of the bug
   > suggests that a case was missing from the initial test suite, and the bug fix
   > should include that missing test case.
-- Suites change by deletion and addition more than by repair —
+- Suites change by refactoring, deletion and addition more than by repair —
   [Pinto, Sinha, Orso, Understanding myths and realities of test-suite evolution, FSE 2012](https://doi.org/10.1145/2393596.2393634)
   (abstract; the full text was not reachable):
   > our findings show that test repair is just one possible reason for
@@ -467,7 +468,8 @@ concerns Swift Testing.
   [Memon et al., Taming Google-Scale Continuous Testing, ICSE-SEIP 2017](https://research.google.com/pubs/archive/45861.pdf):
   > We found (Table II) that 91.3% PASSED at least once and never FAILED even once
   > during their execution history.
-  and Google's answer was to run such tests less often, not to delete them.
+  The paper's proposal is to run such tests less often ("executed less
+  frequently"); it does not propose deleting them.
 - No study read here follows regression tests added with fixes over time to
   measure whether they later become redundant; the sweep over fix-born tests
   (§5) rests on the principles above and on the reduction studies (§2.3).
@@ -521,7 +523,7 @@ Read at the commits named; licenses read from each `LICENSE` file.
 
 | Tool | License | SwiftPM | Swift Testing | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| [Muter](https://github.com/muter-mutation-testing/muter) @ `7f1f258` | MIT | yes: `swift test`, then `--skip-build` once per mutant | Swift Testing's "with N issue" summary is matched only on `master` since 2026-07-21; the last tag `16` (2023-09-16), which Homebrew installs, matches only XCTest's, xcodebuild's and Buck's failure lines and scores any other non-zero exit as "mutant killed (runtime error)" | last commit 2026-07-21 |
+| [Muter](https://github.com/muter-mutation-testing/muter) @ `7f1f258` | MIT | yes: `swift test`, then `--skip-build` once per mutant | Swift Testing's "with N issue" summary is matched only on `master` since 2026-07-21; the last tag `16` (2023-09-16), which Homebrew installs, matches only XCTest's, xcodebuild's and Buck's failure lines and scores any other non-zero exit that shows no build error as "mutant killed (runtime error)" | last commit 2026-07-21 |
 | [swift-mutation-testing](https://github.com/ericodx/swift-mutation-testing) @ `e2ec75c` | MIT | yes | claimed | v1.4.0 |
 | [MutantKit](https://github.com/juntaki/mutantkit) @ `3aca741` | Apache-2.0 | yes | listed as supported | v1.0.3 |
 | [swift-mutants](https://github.com/P4suta/swift-mutants) @ `5594d5c` | MIT OR Apache-2.0 | yes | yes, needs Swift 6.3 and macOS 15 | unreleased |
@@ -627,8 +629,12 @@ pixel with alpha above 0.5 to classify as red (line 36). It passes on the
 `macos-26` CI runner
 ([Release run 36270290486](https://github.com/Akurganow/slovo/actions/runs/36270290486)
 at `734435a`: macOS 26.6.2, Xcode 26.6, Swift 6.3.3) and was reported failing
-on Xcode 27 / macOS 27 — a report from outside the repository; no issue or CI
-run records it. The
+in a local `Scripts/diagnose.sh` run on Xcode 27, recorded in the body of pull
+request [#109](https://github.com/Akurganow/slovo/pull/109) (merged as
+`734435a`), which found it failing identically on `main` at `8aba13f` together
+with `GrammarHintFindingsTests.realProviderReturnsGrammarFindingsWhenEnglishEnabled`;
+that record does not state the macOS version, and no issue or CI run records
+it. The
 evidence read for this document does not establish a cause. What it
 establishes:
 
@@ -638,9 +644,11 @@ establishes:
   > This method is incompatible with resolution-independent drawing and should
   > not be used.
   No macOS 26, 26.1–26.6 or 27 release note mentions `NSImage`, `lockFocus`,
-  `NSBitmapImageRep`, `NSColor` or system colours, colour spaces, or
-  attributed-string drawing; their image and text items concern menu-item
-  images, `NSTextField` and TextKit 2 layout, and SwiftUI `TextRenderer`
+  `NSBitmapImageRep`, `NSColor` or system colours, or colour spaces; the only
+  attributed-string drawing items (`NSStringDrawing`, macOS 26) concern natural
+  alignment and paragraph-indentation direction. Their other image and text
+  items concern menu-item images, `NSTextField` and TextKit 2 layout, SwiftUI
+  `TextRenderer` and `AsyncImage` caching
   ([macOS 26](https://developer.apple.com/documentation/macos-release-notes/macos-26-release-notes),
   [macOS 27](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)).
 - `NSColor.systemRed` is not one fixed value
@@ -686,8 +694,8 @@ sources behind each.
 | change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red; and the behaviour test or compiler check that already guards the contract | The how is the requirement (a cache read, a call count or order that has side effects); no behavioural seam exists, recorded | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
 | redundant | Every mutant it kills, another test kills | The mutants its note and body imply, each with the other test that goes red on it | Deliberate redundancy with a recorded reason; a regression input distinct from what the other test feeds | §2.3, §3.1 (van Deursen, Meszaros, Shi et al., Ammann et al.) |
 | over-specified | The assertion demands more than the requirement: exact where the requirement is a property, a tolerance or a range | The requirement quoted, and an output that meets it and fails the assertion | Exactness that is the requirement: a byte-exact wire format, a prompt sent verbatim | §2.4 (Meszaros, Kent, Parry Too Restrictive Range, Dawson) |
-| disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the decision's line; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Vocke) |
-| bloat | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | Both columns measured: the cost (tests, lines, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo) |
+| disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the decision's line; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11 and 13, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Android, Vocke) |
+| bloat | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | Both columns measured: the cost (tests, lines, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo, Picard) |
 
 Two rules hold across the kinds:
 
@@ -770,3 +778,126 @@ Platform facts for §4.4
 - AppKit `NSImage.lockFocus()`, `NSColor.systemRed`, macOS 26 and 27 release
   notes (DocC JSON); Human Interface Guidelines, Color; AppKit Thread Safety
   Summary; actions/runner-images @ `ede07f8e48022b2c00dc669c7a9d927c46e32a81`
+
+---
+
+## Verification
+
+Date: 2026-09-26
+Verdict: **PARTIAL → fixed** — every correction below is applied in this file.
+
+Independent verification of every quoted passage, every repository figure and
+every platform fact against the live sources; the verifier did not write this
+document. Apple pages were read through their DocC JSON, the HIG through its
+design JSON, WWDC24 transcripts from the video pages, GitHub sources from clones
+at the named commits, PDFs by text extraction. Repository figures were
+re-derived at `734435a`; the release bump `a5b15b5` that followed it on `main`
+touches only `CHANGELOG.md` and `Resources/Info.plist`, so they hold there too.
+123 claims checked: 109 OK, 6 wrong, 8 unsupported, 0 unreachable.
+
+### Confirmed against a primary source
+
+- **All quotations are verbatim** (Apple DocC articles and symbol pages, WWDC24
+  10179/10195, ST-0003/ST-0007/ST-0026, swift-testing sources at `ea85075` and
+  `swift-6.3.3-RELEASE`, the t/81251 posts, the SwiftPM CHANGELOG, Google Testing
+  Blog posts, SWE book chs. 11/12/14, xUnit Patterns, Fowler, Beck, Dawson, and
+  the nine papers). Only typographic differences exist, plus the dropped
+  citation "[38]" in Shi et al. and the sources' own typos "asynchonous"
+  (Fowler) and "to removed" (Meszaros).
+- **Versions:** `TestScoping` Swift 6.1 / Xcode 16.3; exit tests 6.2 / 26.0;
+  `Test.cancel` 6.3 / 26.4 (public at 6.3.3); `.taskLocal` Swift 6.5, on `main`
+  only; `.serialized(for:)` `@_spi(Experimental)` at 6.4.0 and `main`, 0
+  occurrences at 6.3.3; XCTest interop defaults to `none` below toolchain 6.4.
+- **Tools:** Muter `7f1f258` MIT, `--skip-build` per mutant, whole-file coverage
+  filter, tag `16` of 2023-09-16 is what the Homebrew tap installs;
+  swift-mutation-testing `e2ec75c` MIT v1.4.0; MutantKit `3aca741` Apache-2.0
+  v1.0.3; swift-mutants `5594d5c` MIT OR Apache-2.0, unreleased. FSF lists Expat
+  and Apache-2.0 as GPL(v3)-compatible; gnu.org's `gpl-3.0.txt` and this
+  repository's `LICENSE` have the same MD5 (`1ebbd3e34237af26da5dc08a4e440464`).
+- **Glyph test:** passes on `macos-26` in Release run 36270290486 at `734435a`
+  (macOS 26.6.2, Xcode 26.6, Swift 6.3.3). With the test's classifier, of the
+  HIG reds only increased-contrast dark fails (g = 0.380, b = 0.396).
+  `lockFocus()` carries `deprecatedAt: 27.0`. Both runner images set only
+  `reduceMotion` and `reduceTransparency`.
+
+### Corrections (before → after)
+
+1. §4.1 line counts: 23,688 / 12,903 → 23,786 / 12,902 (the old figures were
+   the parent commit's).
+2. §4.1 history: the initial commit `84a016a` (172 `@Test` lines) named before
+   the largest later commits.
+3. §4.2 counts: 417 / 728 → 420 / 731.
+4. §4.3: the Text Input Sources test's own skip reason quoted.
+5. §2.5: "no Google Testing Blog post on deleting tests was found" → Picard,
+   *Cost-Benefit Analysis of a Test* (2008), quoted.
+6. §3.3 Muter: tag `16` matches XCTest's, xcodebuild's and Buck's failure lines
+   and scores any other non-zero exit as a kill, not "XCTest output only".
+7. §3.3: "No source describes…" → "None of the sources read here describes…".
+8. §1.1: the dictionary (`Graph.swift` L30) and the `Hasher` seed cited; the
+   6.3.3 lines are L310-312.
+9. §1.2 table: "it still runs concurrently" → "it may still run concurrently".
+10. §4.4: the `macos-26` pass cited to its run; the macOS 27 failure marked as a
+    report from outside the repository.
+11. §4.4: the release-note sentence narrowed to what the notes do and do not
+    mention; the macOS 26 notes linked.
+12. §4.4: "`systemRed` is resolved against the current appearance" → "is not one
+    fixed value".
+13. §4.4: runner versions cited to the image readmes at `ede07f8`.
+14. Full sources: "Listfield 2017", cited nowhere, removed.
+
+### Could not be reached directly
+
+- gnu.org over HTTPS: `curl: (35) Recv failure: Connection reset by peer`; over
+  HTTP it answered 503 four times, then 200.
+- github.com HTML pages answered 403; the same files were read from clones and
+  raw.githubusercontent.com at the same commits.
+
+### Only confirmable on a real macOS 27 machine
+
+1. Why `errorGlyphRendersAsNonTemplateRedImage` fails there: a different resolved
+   `systemRed`, a changed bitmap format or colour space from
+   `tiffRepresentation`, or concurrent `lockFocus` drawing across the four
+   sibling tests. One run on macOS 27 printing the decoded bitmap's format and
+   colour space, the resolved `systemRed` components and each opaque pixel that
+   fails the classifier — alone and in the full suite — settles it.
+2. Whether the failure reproduces on the GitHub `xcode-27` preview image.
+
+### Second pass
+
+Verdict: **PARTIAL → fixed**, every correction below applied in this file. An
+independent verifier re-checked every line added after the first pass against
+live sources: each quoted passage verbatim, with its attribution and the
+sentence it supports, every added factual sentence, and the first pass's
+corrections. Every quote in §2.5–2.7 held (Picard 2008; SWE chs. 11, 12, 13;
+Beck, Test Desiderata and Composable Tests; JUnit 4 FAQ; Meszaros, Humble
+Object; Feathers 2002; WWDC18 417; HIG Color; Android Screenshot testing;
+Vocke 2018; Pinto et al. FSE 2012, abstract through OpenAlex and Crossref; Memon
+et al. ICSE-SEIP 2017), as did the `Hasher` quote and the extended GPLv3 §2 quote
+(`LICENSE:164-166`). The repository figures were re-derived at `734435a` from an
+archive of that commit and held.
+
+Corrections (before → after):
+
+- §1.5: `MigratingFromXCTest.md L43-45` → `L44-46`.
+- §2.7: "Google's answer was to run such tests less often, not to delete them" →
+  the paper proposes running them less often and does not propose deleting them.
+- §2.7: "by deletion and addition" → "by refactoring, deletion and addition",
+  as the quoted abstract says.
+- §4.4: "a report from outside the repository" → the report is in the body of
+  pull request #109 (merged as `734435a`): a local `Scripts/diagnose.sh` run on
+  Xcode 27, failing identically on `main` at `8aba13f` together with
+  `GrammarHintFindingsTests.realProviderReturnsGrammarFindingsWhenEnglishEnabled`;
+  it names no macOS version, and no issue or CI run records it.
+- §4.4: the macOS 26 release notes do mention `NSStringDrawing`, for natural
+  alignment and indentation direction; the negative is scoped to `NSImage`,
+  `lockFocus`, `NSBitmapImageRep`, `NSColor` and system colours, and colour
+  spaces, and `AsyncImage` caching joins the list of image items.
+- §3.3: Muter's tag 16 scores a non-zero exit as a runtime error only when its
+  log shows no build error.
+- §5: the `disproportionate` sources add Android and SWE ch. 13; the `bloat`
+  sources add Picard.
+
+Could not be reached directly: www.gnu.org reset the connection twice (the
+GPLv3 text was matched against the repository's `LICENSE` and the SPDX copy);
+doi.org and dl.acm.org answered 403 (Pinto et al.'s metadata and abstract came
+from Crossref and OpenAlex; the full text is closed access).
