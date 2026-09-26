@@ -5,7 +5,7 @@
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@release-it/conventional-changelog": "11.0.1",
-    "release-it": "20.2.1"
+    "release-it": "21.1.0"
   },
   "overrides": {
     "undici": "7.29.1"
