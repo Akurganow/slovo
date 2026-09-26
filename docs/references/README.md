@@ -63,7 +63,7 @@ URLs, residual SDK/device-only gaps) is in its own `## Verification` section.
 | audio-capture.md | PARTIAL→fixed | **`audio-input` entitlement required under Hardened Runtime**; `installTap` deprecated (macOS 27) → `installAudioTap` |
 | macos-fn-hotkey.md | PARTIAL→fixed | enum/flag integers all correct; "active⇒Accessibility" is practitioner-observed, not Apple doctrine → preflight both |
 | asr-fluidaudio-parakeet.md | PARTIAL→fixed | transcribe API corrected (no `source:`; `loadModels`/`ASRResult`); **`TokenLanguageFilter` suppresses mixed scripts** — code-switching undocumented |
-| testing-swift.md | PARTIAL→fixed (two passes) | Two repository counts had been taken at the parent commit; "no Google post on deleting tests" replaced by Picard 2008; the Xcode 27 glyph failure traced to its record in pull request #109 |
+| testing-swift.md | PARTIAL→fixed (two passes) | "No Google post on deleting tests" replaced by Picard 2008; Muter's tag 16 found to count as a kill any non-zero exit that shows no build error; §3.3 and §4 then reduced to classes |
 
 **Cross-cutting finding:** the permission/packaging
 story (non-sandboxed + Hardened Runtime + `audio-input` entitlement + stable Team

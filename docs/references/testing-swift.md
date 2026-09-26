@@ -535,8 +535,8 @@ Read at the commits named; licenses read from each `LICENSE` file.
   and its README warns that a mutated tree trips linters in the build — here
   SwiftLint rides inside the build (`Package.swift:12-14`).
 - swift-mutants warns that tests reading source files fail under its
-  instrumentation; 33 files under `Tests/` read source or other files as text
-  (`grep -rln "packageRoot\|String(contentsOf" Tests`).
+  instrumentation, and this repository has tests that read source as text, its
+  source guards among them (§4.2).
 - **License posture.** The FSF lists Expat ("MIT") as "compatible with the GNU
   GPL" and Apache-2.0 as "compatible with version 3 of the GNU GPL"
   ([license list](https://www.gnu.org/licenses/license-list.html)). A tool that
@@ -566,15 +566,8 @@ the note naming it. The notes are recorded as "Stated sensitivity: … → RED"
 lines, which `.agents/rules/slop.md:60` protects from the prose review.
 
 The rule governs a test's birth and nothing after it. It sets no bar on
-redundancy, environment or price, and nothing removes a test once it exists.
-The measured result, at `734435a`:
-
-- 843 `@Test` lines in 149 files; 23,786 lines under `Tests/` against 12,902
-  under `Sources/` (`find … -name "*.swift" | xargs cat | wc -l`);
-- over the first-parent history of `Tests/`, 952 `@Test` lines added and 109
-  removed; the initial commit `84a016a` added 172, and after it single commits
-  added 68 (`2c084de`), 38 (`9559a79`, `b1c5543`) and 37 (`caa741b`,
-  `2a2dee7`).
+redundancy, environment or price, and nothing in it removes a test once it
+exists.
 
 A sensitivity note states one mutant the test kills. It does not state whether
 another test kills the same one (§2.3), whether the mutant is a behaviour change
@@ -583,62 +576,38 @@ something no mutant of the product touches (§2.1).
 
 ### 4.2 Source guards
 
-Tests that read production source as text and assert on it: 25 files named
-`*SourceGuard*` or `*GuardTests*` hold 420 `contains(` calls, and `contains("`
-occurs 731 times across 58 test files. Two recorded reasons stand behind the
-shape:
+A source guard is a test that reads production source as text and asserts on
+it. Two recorded reasons stand behind the shape here:
 
-- **No behavioural seam into the app target.**
-  `Tests/SlovoCoreTests/MenuBarGlyphWiringSourceGuardTests.swift:7` and
-  `StatusItemPlacementSourceGuardTests.swift:7`: "`slovo` target is not
-  importable, so these read its source". That is true of the manifest as written
-  (§1.6: no test target depends on `slovo`) and not of SwiftPM, which has let a
-  test target link an executable target since tools 5.5.
-- **A deterministic substitute for a timing test.**
-  `DictationHotPathLatencySourceGuardTests.swift:13-19` records that a
-  wall-clock budget "was observed taking 0.24 s to 2.56 s on shared runners" and
-  pins the absence of blocking primitives instead — the trade §2.1 recommends
-  against sleeps and timing assertions.
+- **No behavioural seam into the app target.** Guards over the `slovo`
+  executable target record that it is not importable, and read its source
+  instead. That is true of the manifest as written (§1.6: no test target
+  depends on `slovo`) and not of SwiftPM, which has let a test target link an
+  executable target since tools 5.5.
+- **A deterministic substitute for a timing test.** Where a wall-clock budget
+  was observed to vary widely on shared runners, a guard pins the absence of
+  blocking primitives instead — the trade §2.1 recommends against sleeps and
+  timing assertions.
 
 By Eagle's definition (§2.2) a guard that asserts a transformation of the code
 is a change-detector unless the text it pins is itself the contract. The
 recorded reasons make that a question to answer per guard, not a verdict on the
 shape.
 
-### 4.3 Environment gates and shared state already in the suite
+### 4.3 Environment gates and shared state
 
-- `GrammarHintFindingsTests.swift:32-33,44` and
-  `SpellCheckHintProviderIntegrationTests.swift:9-10,21` skip real
-  `NSSpellChecker` and Text Input Sources tests whenever `CI` is set, with the
-  reasons "real NSSpellChecker; skipped on shared CI" and, at
-  `SpellCheckHintProviderIntegrationTests.swift:53`, "real Text Input Sources;
-  skipped on shared CI" — the documented use of
-  `.enabled(if:)` (§1.4). The trade is declared: CI never runs them.
-- `KeychainKeySourceTests.swift:9-10` marks its suite `.serialized` because "the
-  environment test mutates the process environment", and calls `setenv` and
-  `unsetenv` at lines 18-23. By §1.2, `.serialized` does not order that suite
-  against any other, and the environment block is shared by the process (§1.3).
-  Whether another test reads the environment concurrently is the reviewer's
-  question, not this document's.
+- Gating a test of a real system service off CI with `.enabled(if:)`, its
+  reason stated, is the documented use of the trait (§1.4). The trade is
+  declared: CI never runs the test.
+- A suite marked `.serialized` because one of its tests writes the process
+  environment is not ordered by that trait against any other suite (§1.2): it
+  may still run concurrently with any of them, and the environment block is
+  shared by the process (§1.3). Whether another test reads the environment
+  concurrently is the reviewer's question, not this document's.
 
-### 4.4 The failure glyph test on macOS 27
+### 4.4 Rendering on macOS: what Apple documents
 
-`MenuBarGlyphImageTests.errorGlyphRendersAsNonTemplateRedImage`
-(`Tests/SlovoCoreTests/MenuBarGlyphImageTests.swift:27-38`) requires every
-pixel with alpha above 0.5 to classify as red (line 36). It passes on the
-`macos-26` CI runner
-([Release run 36270290486](https://github.com/Akurganow/slovo/actions/runs/36270290486)
-at `734435a`: macOS 26.6.2, Xcode 26.6, Swift 6.3.3) and was reported failing
-in a local `Scripts/diagnose.sh` run on Xcode 27, recorded in the body of pull
-request [#109](https://github.com/Akurganow/slovo/pull/109) (merged as
-`734435a`), which found it failing identically on `main` at `8aba13f` together
-with `GrammarHintFindingsTests.realProviderReturnsGrammarFindingsWhenEnglishEnabled`;
-that record does not state the macOS version, and no issue or CI run records
-it. The
-evidence read for this document does not establish a cause. What it
-establishes:
-
-- The drawing path is deprecated in macOS 27.0 —
+- Drawing into an `NSImage` through `lockFocus` is deprecated in macOS 27.0 —
   [`NSImage.lockFocus()`](https://developer.apple.com/documentation/appkit/nsimage/lockfocus()),
   `deprecatedAt: 27.0`:
   > This method is incompatible with resolution-independent drawing and should
@@ -655,13 +624,12 @@ establishes:
   ([systemRed](https://developer.apple.com/documentation/appkit/nscolor/systemred)):
   > Returns a color object for red that automatically adapts to vibrancy and
   > accessibility settings.
-  Of the four red values the
+  and the values the
   [Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/color)
-  publish (light 255/56/60, dark 255/66/69, increased contrast light 233/21/45,
-  increased contrast dark 255/97/101), only the last fails the test's
-  classifier at full opacity (arithmetic on the published values).
-- The failing test and three siblings in the same suite draw through the same
-  `lockFocus` path, and Swift Testing runs them concurrently (§1.1); AppKit's
+  publish are for reference: "The actual color values may fluctuate from
+  release to release" (§2.6).
+- Swift Testing runs tests in parallel in one process (§1.1), so tests that
+  draw through `lockFocus` may draw at the same time; AppKit's
   [Thread Safety Summary](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/ThreadSafetySummary/ThreadSafetySummary.html)
   states "The underlying image cache is shared among all threads."
 - The GitHub-hosted `macos-26` image runs macOS 26.6.2 with Xcode 26.6; macOS 27
@@ -672,9 +640,11 @@ establishes:
   dark mode, increased contrast or font smoothing
   (`images/macos/scripts/build/configure-system.sh:19-21` at `ede07f8`).
 
-Telling these apart takes one run on macOS 27 that prints the decoded bitmap's
-format and colour space, the resolved `systemRed`, and each opaque pixel that
-fails the classifier, alone and in the full suite. No such run was made here.
+A test that renders a system colour and reads its pixels back therefore checks
+the platform's value, which moves between releases and settings with no change
+to the app. When such a test fails on one platform and passes on another, the
+run that settles why prints the decoded bitmap's format and colour space, the
+resolved colour and each pixel that fails, alone and in the full suite.
 
 ---
 
@@ -691,10 +661,10 @@ sources behind each.
 | Kind | The test | The exhibit | Recorded exceptions | Sources |
 | :-- | :-- | :-- | :-- | :-- |
 | environment-coupled | The outcome depends on an input the test does not control: the OS or toolchain, a renderer, a system service, locale, the clock, scheduling, or process-global state other tests can touch | The uncontrolled input traced to the assertion, and two environments or schedules under which the result differs, each a CI run or an official document; before blaming the test, show the nondeterminism is not the product's | A real platform facility exercised on purpose and gated with a stated reason; the finding is then whether the gate hides the only signal | §1.2-1.4, §2.1 (Parry Table 4, Luo, Meszaros Context Sensitivity, Fowler) |
-| change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red, and the behaviour test or compiler check that already guards the contract | The how is the requirement (a cache read, a call count or order that has side effects); no behavioural seam exists, recorded | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
+| change-detector | It pins implementation text or structure where a behaviour or the compiler already guards the contract | A behaviour-preserving edit, written out, that turns it red, and the behaviour test or compiler check that already guards the contract | The how is the requirement (a cache read, a call count or order that has side effects); the text it pins is itself the contract (a gate that scans the tree); no behavioural seam exists, recorded | §2.2 (Eagle, SWE ch. 12, Trenk, Beck) |
 | redundant | Every mutant it kills, another test kills | The protection ledger — each mutation it catches (from its sensitivity note and body) with the other test that goes red on it | Deliberate redundancy with a recorded reason; a regression input distinct from what the other test feeds | §2.3, §3.1 (van Deursen, Meszaros, Shi et al., Ammann et al.) |
 | over-specified | The assertion demands more than the requirement: exact where the requirement is a property, a tolerance or a range | The requirement quoted, and an output that meets it and fails the assertion | Exactness that is the requirement: a byte-exact wire format, a prompt sent verbatim | §2.4 (Meszaros, Kent, Parry Too Restrictive Range, Dawson) |
-| disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the line that makes the decision; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11 and 13, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Android, Vocke) |
+| disproportionate | Its machinery (a rendered pixel, parsed source text, the wall clock, a real system service) is heavier than the contract it guards, and a cheaper point in the app already makes the decision it checks — so the extra weight checks the platform | The contract in one sentence, quoted; the line that makes the decision; the smallest test that guards it, written out, caught by the same mutation of that decision; and the ways the current test fails with no change to the app | The one designated test of a platform seam, named as such; a visual result that is itself the requirement and that no cheaper point in the app decides; a platform behaviour that has broken the product before, on record | §2.6 (SWE ch. 11 and 13, Beck, JUnit FAQ, Meszaros and Feathers, WWDC18 417, HIG, Android, Vocke) |
 | bloat | A file or cluster grew without a matching contract: more tests, lines or helpers than the contracts they pin | For a file or cluster, two measured columns — the cost (tests, lines, helpers, edits in commits that changed no behaviour) and the protection only these tests provide | Duplication kept for clarity (DAMP); a merge that would hurt readability | §2.5 (SWE ch. 11-12, Meszaros, Luo, Picard) |
 
 Two rules hold across the kinds:
@@ -814,36 +784,25 @@ touches only `CHANGELOG.md` and `Resources/Info.plist`, so they hold there too.
   v1.0.3; swift-mutants `5594d5c` MIT OR Apache-2.0, unreleased. FSF lists Expat
   and Apache-2.0 as GPL(v3)-compatible; gnu.org's `gpl-3.0.txt` and this
   repository's `LICENSE` have the same MD5 (`1ebbd3e34237af26da5dc08a4e440464`).
-- **Glyph test:** passes on `macos-26` in Release run 36270290486 at `734435a`
-  (macOS 26.6.2, Xcode 26.6, Swift 6.3.3). With the test's classifier, of the
-  HIG reds only increased-contrast dark fails (g = 0.380, b = 0.396).
-  `lockFocus()` carries `deprecatedAt: 27.0`. Both runner images set only
-  `reduceMotion` and `reduceTransparency`.
+- **Rendering:** `lockFocus()` carries `deprecatedAt: 27.0`. Both runner images
+  set only `reduceMotion` and `reduceTransparency`.
 
 ### Corrections (before → after)
 
-1. §4.1 line counts: 23,688 / 12,903 → 23,786 / 12,902 (the old figures were
-   the parent commit's).
-2. §4.1 history: the initial commit `84a016a` (172 `@Test` lines) named before
-   the largest later commits.
-3. §4.2 counts: 417 / 728 → 420 / 731.
-4. §4.3: the Text Input Sources test's own skip reason quoted.
-5. §2.5: "no Google Testing Blog post on deleting tests was found" → Picard,
+1. §2.5: "no Google Testing Blog post on deleting tests was found" → Picard,
    *Cost-Benefit Analysis of a Test* (2008), quoted.
-6. §3.3 Muter: tag `16` matches XCTest's, xcodebuild's and Buck's failure lines
+2. §3.3 Muter: tag `16` matches XCTest's, xcodebuild's and Buck's failure lines
    and scores any other non-zero exit as a kill, not "XCTest output only".
-7. §3.3: "No source describes…" → "None of the sources read here describes…".
-8. §1.1: the dictionary (`Graph.swift` L30) and the `Hasher` seed cited; the
+3. §3.3: "No source describes…" → "None of the sources read here describes…".
+4. §1.1: the dictionary (`Graph.swift` L30) and the `Hasher` seed cited; the
    6.3.3 lines are L310-312.
-9. §1.2 table: "it still runs concurrently" → "it may still run concurrently".
-10. §4.4: the `macos-26` pass cited to its run; the macOS 27 failure marked as a
-    report from outside the repository.
-11. §4.4: the release-note sentence narrowed to what the notes do and do not
-    mention; the macOS 26 notes linked.
-12. §4.4: "`systemRed` is resolved against the current appearance" → "is not one
-    fixed value".
-13. §4.4: runner versions cited to the image readmes at `ede07f8`.
-14. Full sources: "Listfield 2017", cited nowhere, removed.
+5. §1.2 table: "it still runs concurrently" → "it may still run concurrently".
+6. §4.4: the release-note sentence narrowed to what the notes do and do not
+   mention; the macOS 26 notes linked.
+7. §4.4: "`systemRed` is resolved against the current appearance" → "is not one
+   fixed value".
+8. §4.4: runner versions cited to the image readmes at `ede07f8`.
+9. Full sources: "Listfield 2017", cited nowhere, removed.
 
 ### Could not be reached directly
 
@@ -854,13 +813,15 @@ touches only `CHANGELOG.md` and `Resources/Info.plist`, so they hold there too.
 
 ### Only confirmable on a real macOS 27 machine
 
-1. Why `errorGlyphRendersAsNonTemplateRedImage` fails there: a different resolved
-   `systemRed`, a changed bitmap format or colour space from
-   `tiffRepresentation`, or concurrent `lockFocus` drawing across the four
-   sibling tests. One run on macOS 27 printing the decoded bitmap's format and
-   colour space, the resolved `systemRed` components and each opaque pixel that
-   fails the classifier — alone and in the full suite — settles it.
-2. Whether the failure reproduces on the GitHub `xcode-27` preview image.
+1. Whether a test that renders a system colour and reads its pixels back gives
+   the same result on macOS 27 as on `macos-26`: a different resolved colour, a
+   changed bitmap format or colour space from `tiffRepresentation`, or
+   concurrent `lockFocus` drawing by tests in the same process could each change
+   it. One run on macOS 27 printing the decoded bitmap's format and colour
+   space, the resolved colour's components and each pixel that fails — alone
+   and in the full suite — settles it for that test.
+2. Whether the GitHub `xcode-27` preview image reproduces what such a test does
+   on a macOS 27 machine.
 
 ### Second pass
 
@@ -883,11 +844,6 @@ Corrections (before → after):
   the paper proposes running them less often and does not propose deleting them.
 - §2.7: "by deletion and addition" → "by refactoring, deletion and addition",
   as the quoted abstract says.
-- §4.4: "a report from outside the repository" → the report is in the body of
-  pull request #109 (merged as `734435a`): a local `Scripts/diagnose.sh` run on
-  Xcode 27, failing identically on `main` at `8aba13f` together with
-  `GrammarHintFindingsTests.realProviderReturnsGrammarFindingsWhenEnglishEnabled`;
-  it names no macOS version, and no issue or CI run records it.
 - §4.4: the macOS 26 release notes do mention `NSStringDrawing`, for natural
   alignment and indentation direction; the negative is scoped to `NSImage`,
   `lockFocus`, `NSBitmapImageRep`, `NSColor` and system colours, and colour
@@ -901,3 +857,7 @@ Could not be reached directly: www.gnu.org reset the connection twice (the
 GPLv3 text was matched against the repository's `LICENSE` and the SPDX copy);
 doi.org and dl.acm.org answered 403 (Pinto et al.'s metadata and abstract came
 from Crossref and OpenAlex; the full text is closed access).
+
+§3.3 and §4 were then reduced to classes, with every instance removed, on the
+owner's instruction, and the corrections to what was removed went with it; what
+remains was among the claims verified above.
