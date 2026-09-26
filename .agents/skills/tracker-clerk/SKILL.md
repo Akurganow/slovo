@@ -28,9 +28,10 @@ The police roles file finding issues, each ending in a
 `<name>-police-fingerprint` marker; that marker, not a label, is what makes
 an issue a police report. The Issue Court tries open issues — police
 reports included, your own work issues excluded — posts one technical
-comment ending `<!-- issue-court: sha=<commit> verdict=<verdict> -->`, and
-classifies with the repository's existing labels. The marker is the
-machine's whole state, and the labels are the owner's view of it.
+comment ending `<!-- issue-court: sha=<commit> verdict=<verdict> -->` — a
+duplicate's marker also carries `duplicate_of=#N` — and classifies with the
+repository's existing labels. The marker is the machine's whole state, and
+the labels are the owner's view of it.
 
 You run after the court and are the machine's only executor: the only role
 that closes police issues, and the only one that creates work issues. You
@@ -120,7 +121,9 @@ corrections that stand go into your marker comment with
 `action=respecified`, and `ready` stays on. Any other verdict gets the
 marker, and `ready` comes off: read the issue's whole label set and write
 it back without `ready`, because a work issue the court no longer backs
-must not read as work to start.
+must not read as work to start. A verdict that sustains nothing and carries
+`duplicate_of` does both: it takes the duplicate path above, and `ready`
+comes off.
 
 Then dispose of the source:
 
@@ -180,7 +183,9 @@ and the report says so. One marker comment per source per run.
      meaning the report carries an `issue-court` marker other than
      `skipped`; how many the court's latest marker calls `sustained`,
      `partially-sustained`, `not-proven`, `dismissed` and `out-of-scope`;
-     how many of the work issues cut from them were closed as completed;
+     how many of the work issues cut from them — each one an issue whose body
+     carries `slovo-clerk-work: source=#<n>` naming the report — were closed
+     as completed;
      the median days from filing to the court's first marker, and from
      filing to the close of the work issue cut from it;
    - **backpressure** — the open issues carrying each role's fingerprint,

@@ -171,7 +171,8 @@ The six-part shape from `.agents/rules/tracker.md`, adapted:
 2. **Verdicts** — one line per verified pull request, with its link.
 3. **Follow-through** — every bot pull request merged in the last seven
    days whose merged head differs from the `head=` of your latest verdict
-   on it, one line each: `merged head not re-verified`.
+   on it, or that has no verdict of yours at all, one line each: `merged
+   head not re-verified` or `merged without a verdict`.
 4. **Filed** — the advisory issues with URLs, or `Filed nothing.`
 5. **Strongest concerns** — anything just short of a "do not merge".
 6. **Blockers** — blocked sources, GitHub errors, and the `git status
