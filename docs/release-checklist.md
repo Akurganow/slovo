@@ -25,9 +25,9 @@ The pipeline computes the next version from the Conventional Commits since the l
 - `docs:`, `chore:`, `ci:`, `refactor:`, `test:`, `style:`, `build:` → no release
   on their own; the push is verified and packaged but not released.
 
-Optionally curate `## [Unreleased]` in `CHANGELOG.md`; on release the pipeline
-promotes it to the new version section and the GitHub Release notes are generated
-from the commits.
+`CHANGELOG.md` is written by the pipeline from the same commits. The pull
+request's title, after its `type(scope): ` prefix, becomes the changelog line,
+so write it for a reader of the changelog.
 
 ## Verify packaging before merge (optional, local)
 
