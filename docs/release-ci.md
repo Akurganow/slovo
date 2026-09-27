@@ -5,9 +5,8 @@ Slovo releases itself. A push to `main` runs one pipeline
 its own whether a release is due, computes the next version, builds, signs,
 notarizes, staples, tags, and publishes the GitHub Release with the stapled
 artifacts. **Nobody runs a release command, edits a version, or pushes a tag by
-hand — there is no supported manual path.** Stapling contacts Apple over a clean
-network, so CI is also the first place the full signing chain can finish end to
-end; local stapling can be blocked by a TLS-inspecting corporate proxy.
+hand — there is no supported manual path.** Stapling contacts Apple over the
+network, and CI runs the full signing chain end to end.
 
 ## How the pipeline decides
 
@@ -75,10 +74,9 @@ both the app and the DMG, and a Gatekeeper assessment
 ## Dev builds on demand
 
 [dev-build.yml](../.github/workflows/dev-build.yml) exists for one consumer: the
-owner, testing a branch by hand on a Mac that cannot build or sign locally — a
-work machine without the keys or toolchain, behind a TLS-inspecting proxy
-(Zscaler) that breaks SwiftPM fetches, or after a cloud coding session that
-pushed a branch from a Linux container. It is **not** a distribution channel.
+owner, testing a branch by hand on a Mac that cannot build or sign it locally,
+or after a cloud coding session that pushed a branch from a Linux container. It
+is **not** a distribution channel.
 
 - **Triggers:** two, producing the same artifact. (1) Manual `workflow_dispatch`
   on a chosen branch — only accounts with write access can dispatch it. (2) The
