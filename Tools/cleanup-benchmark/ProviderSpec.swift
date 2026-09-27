@@ -1,4 +1,5 @@
 import Foundation
+import SlovoCore
 
 public enum CleanupBenchmarkProvider: String, Codable, Equatable, Sendable {
     case openRouter = "openrouter"
@@ -17,7 +18,11 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
     public static func parseList(_ value: String) throws -> [CleanupBenchmarkProviderSpec] {
         let specs = try value
             .split(separator: ",")
-            .map { try parse(String($0)) }
+            .flatMap { token in
+                token.trimmingCharacters(in: .whitespaces) == "catalog"
+                    ? CleanupModelCatalog.options.map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }
+                    : [try parse(String(token))]
+            }
         guard !specs.isEmpty else {
             throw CleanupBenchmarkProviderSpecError.empty
         }

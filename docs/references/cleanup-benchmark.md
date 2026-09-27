@@ -10,7 +10,7 @@ supplied from process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers openrouter:openai/gpt-6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.8-flash,openrouter:deepseek/deepseek-v4.1-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
+  --providers catalog,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
@@ -105,10 +105,12 @@ The default benchmark does not download datasets or models at runtime.
 
 ## Providers
 
-The benchmark accepts two provider forms:
+The benchmark accepts three provider forms:
 
 - `openrouter:<model-id>` sends transcript text to OpenRouter with the selected
   routed model id and requires `OPENROUTER_API_KEY`.
+- `catalog` expands to one `openrouter:` form per model in the app's cleanup
+  catalog, `CleanupModelCatalog`, in menu order.
 - `passthrough` preserves the raw transcript locally and provides a latency and
   quality floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
   short-circuits the whole cleaner stage (the orchestrator skips hint-gathering
@@ -116,17 +118,7 @@ The benchmark accepts two provider forms:
   harness-measurable proxy for that skipped stage's ~0 ms cost (see
   "No-cleanup (raw) baseline" below).
 
-The curated OpenRouter shortlist currently mirrors the app menu:
-
-- `openai/gpt-6-luna`
-- `anthropic/claude-haiku-4.5`
-- `google/gemini-3.1-flash-lite`
-- `qwen/qwen3.8-flash`
-- `deepseek/deepseek-v4.1-flash`
-- `mistralai/mistral-small-2603`
-- `minimax/minimax-m3`
-
-A model enters the shortlist only if reasoning can be switched off, because
+A model enters the catalog only if reasoning can be switched off, because
 every cleanup request sends `reasoning: {effort: "none"}` to keep key-up
 latency low. OpenRouter publishes this per model in `GET /api/v1/models`: a
 model whose `reasoning.mandatory` is `true` rejects the request with HTTP 400,
@@ -135,7 +127,7 @@ model whose `reasoning.mandatory` is `true` rejects the request with HTTP 400,
 `google/gemini-3.8-flash`, `z-ai/glm-5.3-flash` and `z-ai/glm-5.3-flashx`. At
 its lowest allowed effort, `low`, GLM 5.3 Flash spent 1283–2288 reasoning
 tokens and 54–102 s on the suite's longest dictation (sample 51, under a
-short probe prompt). Every shortlisted model answered a probe with
+short probe prompt). Every catalog model answered a probe with
 `reasoning: {effort: "none"}` using 0 reasoning tokens.
 
 ## Latest Live Snapshot

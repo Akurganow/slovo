@@ -26,6 +26,17 @@ struct CleanupBenchmarkProviderTests {
         ])
     }
 
+    /// Stated sensitivity: drop the `catalog` expansion, or expand it to anything
+    /// but the app's catalog in its order → RED.
+    @Test
+    func catalogProviderExpandsToTheAppCatalog() throws {
+        let specs = try CleanupBenchmarkProviderSpec.parseList("catalog,passthrough")
+
+        #expect(specs.dropLast().map(\.model) == CleanupModelCatalog.options.map(\.id))
+        #expect(specs.dropLast().allSatisfy { $0.provider == .openRouter })
+        #expect(specs.last == CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"))
+    }
+
     /// Stated sensitivity: if provider selection stays stringly typed, a typo or
     /// direct-provider reintroduction silently benchmarks the wrong cleanup path.
     @Test

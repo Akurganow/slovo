@@ -239,7 +239,7 @@ Compare cleanup latency and quality with the non-product benchmark:
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers openrouter:openai/gpt-6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.8-flash,openrouter:deepseek/deepseek-v4.1-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
+  --providers catalog,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown

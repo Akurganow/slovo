@@ -106,7 +106,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     Usage:
       swift run slovo-cleanup-benchmark
         [--env-file .env]
-        [--providers openrouter:MODEL,passthrough]
+        [--providers catalog|openrouter:MODEL,passthrough]
         [--samples samples.json]
         [--repetitions N]
         [--warmup-repetitions N]
