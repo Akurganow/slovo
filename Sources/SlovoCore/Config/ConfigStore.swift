@@ -247,7 +247,9 @@ public enum ConfigStore {
     /// each one's place: from version 2 on, the newer release of the same line, so
     /// a user keeps their vendor. A config saved before that version moves forward
     /// on load; one saved at or after it keeps the old id, because the user then
-    /// entered it as a custom model.
+    /// entered it as a custom model. So a released version's row never changes: a
+    /// config already saved under it would keep the replaced id as a custom model.
+    /// A later replacement takes the next version.
     private static let replacedOpenRouterModels: [(catalogVersion: Int, successors: [String: String])] = [
         (1, ["openai/gpt-5.4-nano": "openai/gpt-5.6-luna"]),
         (2, [
