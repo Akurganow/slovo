@@ -1,8 +1,7 @@
 name: Dev Build
 
 # On-demand dev packaging for the owner's own manual testing on Macs that cannot
-# build or sign locally (no toolchain, no keys, or a TLS-inspecting corporate
-# proxy that breaks SwiftPM fetches). Fork code can neither trigger this
+# build or sign locally. Fork code can neither trigger this
 # workflow nor read its secrets, so the trigger itself is the owner's approval
 # of the code being signed. Two triggers produce the same artifact:
 #

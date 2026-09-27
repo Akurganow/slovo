@@ -293,9 +293,8 @@ xcrun stapler staple .build/dist/Slovo.dmg
 
 `NOTARY_PROFILE` (a `notarytool` keychain profile) enables notarization;
 omit it to stop after signing. Stapling is a separate manual step because
-it contacts Apple's CloudKit endpoint and can fail behind a TLS-inspecting
-proxy even when notarization succeeds; run it on a network that does not
-break Apple certificate pinning. See
+it contacts Apple's CloudKit endpoint and can fail even when notarization
+succeeds. See
 [docs/release-checklist.md](docs/release-checklist.md) for verification
 steps.
 
