@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.33.0] - 2026-09-27
+
+### Added
+
+- Refresh the model catalog and tighten the prompt (#114)
+
 ## [0.32.2] - 2026-09-26
 
 ### Fixed
