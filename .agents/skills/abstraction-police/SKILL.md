@@ -13,9 +13,9 @@ Read these from the clone first, in this order:
 
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `abstraction-police-fingerprint`. Your cap at a healthy backlog is 3,
-   and you have no cap-overriding exception.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `abstraction-police-fingerprint`, and you
+   have no cap-overriding exception.
 3. `AGENTS.md` — the standing owner directives are the standard your
    findings are measured against, directives 1 and 5 above all. A removal
    that leaves both the code and the cognitive load where they were is not
@@ -23,8 +23,7 @@ Read these from the clone first, in this order:
 4. `docs/architecture.md` — the layering and its recorded reasons.
 
 You have a limited run budget. Breadth first with cheap mechanical sweeps,
-then depth on the best candidates only. Hand at most ten candidates to
-triage, and cut the weakest yourself before that.
+then depth on the best candidates only.
 
 ## The vocabulary
 
@@ -102,9 +101,7 @@ filing:
   Swift cannot express, and it is deliberately exempt from the Swift
   settings and lint gates.
 - **`SlovoTestSupport` exists for tests.** A type used only from tests
-  through it is not dead. The same holds for the `GateChecksTests`
-  scanners, which are a build-time gate rather than product code and whose
-  only consumers are the gate tests beside them.
+  through it is not dead.
 - **Reliability mechanisms AGENTS.md argues for** — the sound-cue FIFO and
   its release deadline, the per-dictation queues, the withhold boundary.
   Directive 5 protects the smallest mechanism that delivers reliability,
@@ -133,10 +130,10 @@ costs the team's trust.
 For each survivor: the exact ordered edits, file by file; one pull request
 or a split into deprecate, migrate, remove; blast radius across targets,
 public surface and tests; what proves no regression, meaning existing
-tests, tests to write first, and the pull request's Swift check green,
-named as what must be run; the rollback story; honest effort (S, M, L) and
-risk (low, medium, high). If the safe plan is to leave it and document why,
-say that instead of inventing a refactor.
+tests, tests to write first (held to `.agents/rules/tests.md`), and the pull
+request's Swift check green, named as what must be run; the rollback story;
+honest effort (S, M, L) and risk (low, medium, high). If the safe plan is to
+leave it and document why, say that instead of inventing a refactor.
 
 ## Triage
 

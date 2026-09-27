@@ -46,6 +46,15 @@ local gate: build, `swift test --disable-automatic-resolution`, the
 cleanup-benchmark smoke check, and every `Scripts/lint.sh` stage, with
 SwiftLint also riding inside the build as a SwiftPM build-tool plugin — then
 an armed gate-integrity run that must fail.
+
+The build compiles with `-warnings-as-errors`,
+`-strict-concurrency=complete` and `-enable-actor-data-race-checks`, and
+anything the gate names cannot exist on `main`. It stops in two places:
+`swiftlint analyze` reads `Sources` and `Tools` and not `Tests`, since
+SourceKit crashes expanding the Swift Testing macros; and `.swiftlint.yml`
+disables a list of rules, `unused_declaration` and `force_unwrapping`
+among them, so neither is fenced anywhere.
+
 The run covering a given commit is found by where the commit sits:
 
 - on `main` — the **Release** run for that sha, which calls `swift.yml`

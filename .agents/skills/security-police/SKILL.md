@@ -35,10 +35,10 @@ Read these from the clone first, in this order:
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly. **Get the full history
    before anything else**: it is half your subject.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `security-police-fingerprint`. Your cap at a healthy backlog is 2, and
-   your one cap-overriding exception is below, with the channel it takes
-   instead of an issue.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `security-police-fingerprint`, and your one
+   cap-overriding exception is below, with the channel it takes instead of
+   an issue.
 3. `.agents/rules/issues.md` — the label vocabulary, and who applies what.
 4. `AGENTS.md` — the privacy rules under "Before you open a pull request",
    and "This repository's own machinery", which lists the roles whose paths
@@ -179,22 +179,20 @@ its own, and the report names the surface whose coverage is thinner.
 
 ## Where the roles part
 
-Route before spending time. A dependency advisory or a vulnerable version →
-the **Dependency Police**, which owns the advisory sweep; never duplicate
-it. A wrong computation with no adversary in the scenario → the **Logic
-Police**. Yours is an outside party, a path they influence, and a
-consequence: exposure, execution, a signed or published build, or state
-they should not reach.
+Route every candidate by the table in `.agents/rules/tracker.md`. Yours is
+an outside party, a path they influence, and a consequence: exposure,
+execution, a signed or published build, or state they should not reach.
 
 ## Not findings
 
 Theoretical severity with no reachable path from something an outsider
 controls. Hardening suggestions with no demonstrated weakness: "consider
 adding X" is taste here. Anything a recorded mechanism already covers,
-unless you show the bypass. Advisories, which are routed away. The absence
-of required checks on `main`, or of an environment's protection, as such:
-that is the threat model above, stated in your report every fire, and it
-becomes a finding only when you trace an outsider through it.
+unless you show the bypass. A published advisory on a dependency, which is
+the Dependency Police's. The absence of required checks on `main`, or of
+an environment's protection, as such: that is the threat model above,
+stated in your report every fire, and it becomes a finding only when you
+trace an outsider through it.
 
 ## Prove it or drop it
 
@@ -213,9 +211,8 @@ reasoned; never one presented as another.
 ## Triage
 
 Run the independent-triage protocol from `.agents/rules/tracker.md` — one
-verifier per candidate — handing at most eight candidates. The verifier
-re-derives the attack path itself, actively looks for the guard that breaks
-it, and returns:
+verifier per candidate. The verifier re-derives the attack path itself,
+actively looks for the guard that breaks it, and returns:
 
     verdict: real | not-real
     attacker: who can drive the input

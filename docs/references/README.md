@@ -31,6 +31,7 @@ depends on. The personalization seed data lives under `../../data/` and is
 | [text-injection.md](text-injection.md) | Clipboard + synthetic ⌘V; secure-input gate; clipboard-manager hygiene | Apple AppKit/CoreGraphics + TN2150 + nspasteboard.org | `ClipboardPasteInjector` |
 | [menubar-packaging.md](menubar-packaging.md) | `NSStatusItem`, `LSUIElement`/`.accessory`, codesign/notarization, sandbox↔Accessibility conflict | Apple AppKit + Developer ID / App Sandbox docs | App shell + packaging |
 | [menubar-status-ui.md](menubar-status-ui.md) | Glagolitic status icon (bundled Noto Sans Glagolitic vs LastResort tofu) | Apple AppKit + Apple Support bundled-font lists | Status-icon glyphs (shipped) |
+| [testing-swift.md](testing-swift.md) | Swift Testing parallelism, `.serialized` scope, process-global state and skips; flaky, change-detector, redundant and over-specified tests; tests out of proportion to what they guard, `bloat`, and a regression test after its fix; mutation analysis and the Swift tools for it; how Slovo's own test rules meet them | Apple Swift Testing docs + swiftlang/swift-testing, WWDC24 10179/10195, WWDC18 417; Google Testing Blog, Luo et al. FSE 2014, Parry et al. TOSEM 2022, Software Engineering at Google, xUnit Test Patterns (Humble Object); Jia & Harman, Petrović et al. | The evidence behind `.agents/rules/tests.md` and the Test Police |
 
 ## Pending references (not yet gathered)
 
@@ -62,6 +63,7 @@ URLs, residual SDK/device-only gaps) is in its own `## Verification` section.
 | audio-capture.md | PARTIAL→fixed | **`audio-input` entitlement required under Hardened Runtime**; `installTap` deprecated (macOS 27) → `installAudioTap` |
 | macos-fn-hotkey.md | PARTIAL→fixed | enum/flag integers all correct; "active⇒Accessibility" is practitioner-observed, not Apple doctrine → preflight both |
 | asr-fluidaudio-parakeet.md | PARTIAL→fixed | transcribe API corrected (no `source:`; `loadModels`/`ASRResult`); **`TokenLanguageFilter` suppresses mixed scripts** — code-switching undocumented |
+| testing-swift.md | PARTIAL→fixed (three passes) | "No Google post on deleting tests" replaced by Picard 2008; Muter's tag 16 found to count as a kill any non-zero exit that shows no build error; §3.3 and §4 then reduced to classes and §5's exceptions aligned with the test rules, checked in a third pass |
 
 **Cross-cutting finding:** the permission/packaging
 story (non-sandboxed + Hardened Runtime + `audio-input` entitlement + stable Team

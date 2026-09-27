@@ -89,4 +89,8 @@ protocol or a duplicated helper is an abstraction defect. Slop names
 the text; the shape is judged on its own terms. A comment describing
 behaviour that no longer exists is `lying` when the comment is the
 whole defect, and goes with the shape when it sits on a branch, a
-parameter or a field that is itself dead.
+parameter or a field that is itself dead. A test that can fail, but
+fails for a reason other than the product or costs more than it
+protects, is the Test Police's (`.agents/rules/tests.md`); `ceremony` is
+only the test that cannot fail, and a scenario duplicated under a second
+name stays `residue`.

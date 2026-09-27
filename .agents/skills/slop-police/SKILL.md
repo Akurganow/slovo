@@ -23,9 +23,9 @@ whatever branch the working tree happens to be on:
 1. `.agents/rules/unattended.md` — every rule that governs a run here with
    nobody present to answer. Follow it exactly. Get the full history first: `residue`
    is proved with it.
-2. `.agents/rules/tracker.md` — the filing protocol. Your fingerprint is
-   `slop-police-fingerprint`. Your cap at a healthy backlog is 2, and
-   **you have no cap-overriding exception**: there is no urgent slop.
+2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
+   bound. Your fingerprint is `slop-police-fingerprint`, and **you have no
+   cap-overriding exception**: there is no urgent slop.
 3. `.agents/rules/slop.md` — the catalogue: the one test, the five kinds
    with their measurements, what is protected, what the linter fences, and
    where a neighbour's territory begins. It is your definition of a
@@ -52,50 +52,26 @@ absence of information discredits the label permanently.
 
 ## Where the roles part
 
-Route every candidate before spending a minute on it. If it belongs to a
-neighbour, one line in your report, never an issue, not even from a
-different angle:
-
-- a **shape** that buys nothing — a thin wrapper, a one-conformer protocol,
-  a duplicated helper, a reinvented dependency → Abstraction Police;
-- a **mechanism** out of proportion, a guard for an impossible state, two
-  features meeting badly → Sanity Police;
-- code that computes the **wrong thing**, including a swallowed error or a
-  hidden fallback with a reachable wrong result → Logic Police;
-- anything an **outside party** could exploit → Security Police;
-- a dependency matter → a report line only. The Dependency Police reviews
-  the update bot's pull requests and takes nothing routed to it;
-- text inside the instructions — `AGENTS.md`, `.agents/`,
-  `.claude/agents/`, `docs/architecture.md` — is outside your subject
-  entirely (`.agents/rules/slop.md`). Where two of those documents disagree,
-  or a claim in `docs/architecture.md` is no longer true of the code, that
-  is the Agent Police's. Where one merely says nothing, it is nobody's,
-  which is the standing arrangement and not a gap for you to fill.
+Route every candidate by the table in `.agents/rules/tracker.md`. Text
+inside the instructions — `AGENTS.md`, `.agents/`, `.claude/agents/`,
+`docs/architecture.md` — is outside your subject entirely
+(`.agents/rules/slop.md`).
 
 Rule of thumb: you name the text and route the shape. A compatibility
 `typealias` nothing calls is yours as `residue` if the point is the
-leftover, and Abstraction's if the point is the duplicate. Pick the one the
-fix serves, never both.
+leftover, and, if the point is the duplicate, Abstraction's — the
+Test Police's under `Tests/`.
 
 ## The fence is not your territory
 
-The build compiles with `-warnings-as-errors` and SwiftLint rides inside it
-as a build-tool plugin. `Scripts/lint.sh` then runs SwiftLint strict with
-every opt-in rule on, plus the slop `custom_rules`, plus `swiftlint
-analyze` over a compiler log, and CI runs that whole gate through
-`Scripts/diagnose.sh`.
+The fence is the gate `.agents/rules/unattended.md` describes, with the
+slop `custom_rules` in `.swiftlint.yml` on top of it.
 
 The custom rules name no words, only two constructs with no legitimate
 reading: print-family calls under `Sources/`, and an empty `catch` with
 cancellation exempt. SwiftLint's own `todo` rule fences TODO and FIXME
 markers. None of these can exist on `main`, and reporting one means you
 misread.
-
-Two qualifications mark where the fence stops. `swiftlint analyze` reads
-`Sources` and `Tools` and not `Tests`, because SourceKit crashes expanding
-the Swift Testing macros. And `.swiftlint.yml` disables a list of rules,
-`unused_declaration` and `force_unwrapping` among them, so neither is
-fenced anywhere.
 
 Everything phrased in words — hedges, change narration, attribution, filler
 names, vague error strings — is deliberately not fenced, because words have
@@ -137,7 +113,6 @@ of the run is one comment, the correct output is no issue.
 ## Where to look
 
 Breadth first with cheap sweeps, then depth on the best candidates only.
-Hand at most eight candidates to triage.
 
 - **Comments census.** Every `//` and `///` line in Swift files under
   `Sources`, `Tests` and `Tools` runs to several thousand lines, so the
@@ -183,27 +158,26 @@ written out:
   — that is taste.
 - **The alternative, in full**: the comment deleted or rewritten to state
   the fact; the name and every call site renamed; the test rewritten so the
-  named mutation turns it red, with its sensitivity note; the residue
-  removed. Real Swift in `$RUN`, not a sketch. Count the lines that
-  disappear and state whether it was compiled. If writing it out reveals
-  that the text carried a fact after all, that is the run working: record
-  it and drop the candidate.
+  named mutation turns it red, with its sensitivity note, held to
+  `.agents/rules/tests.md` like any other test; the residue removed. Real
+  Swift in `$RUN`, not a sketch. Count the lines that disappear and state
+  whether it was compiled. If writing it out reveals that the text carried a
+  fact after all, that is the run working: record it and drop the candidate.
 - **The history** for `lying` and `residue`: the commits its measurement
   names, quoted.
 
 ## Triage
 
-Run the independent-triage protocol from `.agents/rules/tracker.md`, handing at most
-eight candidates. The verifier applies the catalogue's one test in its own
-words before seeing whether it agrees, checks the protected list and the
-fence, and returns:
+Run the independent-triage protocol from `.agents/rules/tracker.md`. The
+verifier applies the catalogue's one test in its own words before seeing
+whether it agrees, checks the protected list and the fence, and returns:
 
     verdict: real | not-real
     kind: noise | lying | naming | ceremony | residue
     information: none | some | a false fact | n/a   (what the text carries; n/a for ceremony and residue)
     protected: none | recorded reason | sensitivity note | house style
     fenced: yes | no
-    belongs_to: slop | abstraction | sanity | logic | nobody
+    belongs_to: the role whose row in the table in .agents/rules/tracker.md owns it, or nobody
     cluster: N files   (threshold: >= 3 for noise and naming, 1 suffices for the rest)
     value: 1-5     (1 a word; 3 a false belief gone, a test that proves nothing gone, or a dead bridge gone; 5 a file or a concept gone)
     risk: 1-5      (chance the change moves behaviour)
@@ -211,13 +185,13 @@ fence, and returns:
     effort: S | M | L
     rationale: one line
 
-Threshold, on top of tracker.md's floor: `belongs_to = slop`,
+Threshold, on top of tracker.md's floor: `belongs_to` is the Slop Police,
 `protected = none`, `fenced = no`, `information = none` for `noise` and
-`naming` and `information = a false fact` for `lying`, the cluster
-threshold for its kind, `value >= 3`, and `risk <= 2` — or, for a
-`ceremony` rewrite, a stepwise plan that keeps CI proving what it proves
-today. A candidate routed to another role is dropped even if you disagree,
-and the disagreement goes in the report.
+`naming` and `information = a false fact` for `lying`, the cluster threshold
+for its kind, `value >= 3`, and `risk <= 2` — or, for a `ceremony` rewrite,
+a stepwise plan that keeps CI proving what it proves today. A candidate
+routed to another role is dropped even if you disagree, and the disagreement
+goes in the report.
 
 The verifier never sees this file, so its brief carries the fenced-tell
 list from "The fence is not your territory" verbatim.
@@ -277,15 +251,9 @@ Body:
 
     <!-- slop-police-fingerprint: <path>::<symbol-or-concept>::<kind> -->
 
-For a cluster, `<path>` is the deepest directory common to its files, and
-`.` for the repository root. A cluster's file set can move between runs, so
-before filing also compare `<symbol-or-concept>::<kind>` alone against
-every existing fingerprint: a match is the same finding.
-
 ## Report
 
-The six-part shape from `.agents/rules/tracker.md`, with three additions. A **Routed
-away** list: what belonged to a neighbour or to nobody, one line each. A
+The six-part shape from `.agents/rules/tracker.md`, with two additions. A
 **Fence proposals** list: tells that recurred and could be named by a
 regex, each with the pattern, so the owner can move them into
 `.swiftlint.yml`. And in Strongest rejected, the candidates the protected

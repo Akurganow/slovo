@@ -131,8 +131,8 @@ issue's own terms. Several claims, try the strongest and list the rest as
 not tried — except in a police report, where every distinct finding gets a
 ruling of its own, because the Clerk closes the whole report on your
 verdict and a claim left untried there would die unexamined. The police
-file one finding per report, so this stays rare, and a sanity cluster is
-one finding.
+file one finding per report, so this stays rare, and a cluster filed under
+one fingerprint is one finding.
 
 **Summary judgment.** If reading settles the case outright — the named
 path, symbol, setting or string does not exist at the trial commit, or the
