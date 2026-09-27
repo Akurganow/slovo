@@ -26,16 +26,27 @@ struct CleanupBenchmarkProviderTests {
         ])
     }
 
+    /// Stated sensitivity: drop the `catalog` expansion, or expand it to anything
+    /// but the app's catalog in its order → RED.
+    @Test
+    func catalogProviderExpandsToTheAppCatalog() throws {
+        let specs = try CleanupBenchmarkProviderSpec.parseList("catalog,passthrough")
+
+        #expect(specs.dropLast().map(\.model) == CleanupModelCatalog.options.map(\.id))
+        #expect(specs.dropLast().allSatisfy { $0.provider == .openRouter })
+        #expect(specs.last == CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"))
+    }
+
     /// Stated sensitivity: if provider selection stays stringly typed, a typo or
     /// direct-provider reintroduction silently benchmarks the wrong cleanup path.
     @Test
     func providerSpecParserPinsOpenRouterModelSelection() throws {
         let specs = try CleanupBenchmarkProviderSpec.parseList(
-            "openrouter:openai/gpt-5.6-luna,passthrough"
+            "openrouter:openai/gpt-6-luna,passthrough"
         )
 
         #expect(specs == [
-            CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
+            CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-6-luna"),
             CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"),
         ])
         for forbidden in [
@@ -62,7 +73,7 @@ struct CleanupBenchmarkProviderTests {
         ]
 
         let openRouter = try CleanupBenchmarkCandidateFactory.makeCandidate(
-            for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
+            for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-6-luna"),
             environment: environment
         )
         let passThrough = try CleanupBenchmarkCandidateFactory.makeCandidate(
@@ -74,7 +85,7 @@ struct CleanupBenchmarkProviderTests {
         #expect(passThrough.cleaner is PassThrough)
         #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("OPENROUTER_API_KEY")) {
             _ = try CleanupBenchmarkCandidateFactory.makeCandidate(
-                for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-5.6-luna"),
+                for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-6-luna"),
                 environment: [:]
             )
         }

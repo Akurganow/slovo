@@ -22,7 +22,7 @@ public enum CleanupModelCatalog {
     private static let openRouterOptions: [CleanupModelOption] = [
         CleanupModelOption(
             id: Config.defaultOpenRouterModel,
-            displayName: "GPT-5.6 Luna"
+            displayName: "GPT-6 Luna"
         ),
         CleanupModelOption(
             id: "anthropic/claude-haiku-4.5",
@@ -33,12 +33,12 @@ public enum CleanupModelCatalog {
             displayName: "Gemini 3.1 Flash Lite"
         ),
         CleanupModelOption(
-            id: "qwen/qwen3.6-flash",
-            displayName: "Qwen3.6 Flash"
+            id: "qwen/qwen3.8-flash",
+            displayName: "Qwen3.8 Flash"
         ),
         CleanupModelOption(
-            id: "deepseek/deepseek-v4-flash",
-            displayName: "DeepSeek V4 Flash"
+            id: "deepseek/deepseek-v4.1-flash",
+            displayName: "DeepSeek V4.1 Flash"
         ),
         CleanupModelOption(
             id: "mistralai/mistral-small-2603",

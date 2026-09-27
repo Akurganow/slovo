@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // A cleanup model RETIRED from the catalog must be migrated on load, not
@@ -49,6 +49,8 @@ struct ConfigStoreCatalogMigrationTests {
         #expect(config != .defaults)
     }
 
+    /// Stated sensitivity: follow one replacement instead of the whole chain →
+    /// gpt-5.4-nano lands on gpt-5.6-luna, not the default → RED.
     @Test
     func formerDefaultMigratesFromLegacyCatalog() throws {
         let defaults = FakeUserDefaults(dataByKey: [
@@ -61,14 +63,59 @@ struct ConfigStoreCatalogMigrationTests {
         #expect(ConfigStore.load(from: defaults).openRouterModel == Config.defaultOpenRouterModel)
     }
 
+    /// `.formal` catches a whole-config fallback to `.defaults`.
+    /// Stated sensitivity: drop a pair from the successor table, or send a replaced
+    /// id to the default instead → the loaded model is not the successor → RED.
+    @Test(arguments: [
+        ("openai/gpt-5.6-luna", "openai/gpt-6-luna"),
+        ("deepseek/deepseek-v4-flash", "deepseek/deepseek-v4.1-flash"),
+        ("qwen/qwen3.6-flash", "qwen/qwen3.8-flash"),
+    ])
+    func replacedCatalogModelMigratesToItsSuccessor(stored: String, successor: String) throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                cleanupProvider: "openrouter",
+                openRouterModel: stored,
+                writingStyle: "formal"
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.openRouterModel == successor)
+        #expect(config.writingStyle == .formal)
+    }
+
+    /// Earlier builds stored `modelCatalogVersion`; a config carrying it migrates too.
+    /// Stated sensitivity: skip replacements for a config saved under catalog
+    /// version 2 → the replaced id stays → RED.
     @Test
-    func savedFormerDefaultRoundTripsAsCustomModel() throws {
-        let defaults = FakeUserDefaults()
-        var config = Config.defaults
-        config.openRouterModel = "openai/gpt-5.4-nano"
+    func replacedModelMigratesWhateverCatalogVersionWasSaved() throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                cleanupProvider: "openrouter",
+                openRouterModel: "qwen/qwen3.6-flash",
+                modelCatalogVersion: 2
+            ),
+        ])
 
-        try ConfigStore.save(config, to: defaults)
+        #expect(ConfigStore.load(from: defaults).openRouterModel == "qwen/qwen3.8-flash")
+    }
 
-        #expect(ConfigStore.load(from: defaults).openRouterModel == "openai/gpt-5.4-nano")
+    /// Stated sensitivity: point a successor outside the catalog, chain two ids
+    /// into a cycle, or keep a replaced id in the catalog → RED.
+    @Test
+    func everyReplacedModelResolvesToACatalogModel() {
+        let catalog = Set(CleanupModelCatalog.options.map(\.id))
+        let successors = ConfigStore.openRouterModelSuccessors
+
+        #expect(catalog.isDisjoint(with: successors.keys))
+        for replaced in successors.keys {
+            var model = replaced
+            for _ in successors.indices {
+                model = successors[model] ?? model
+            }
+            #expect(catalog.contains(model), "\(replaced) resolves to \(model), outside the catalog")
+        }
     }
 }

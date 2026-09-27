@@ -64,12 +64,12 @@ struct DictationMenuTests {
     /// live-switch argument — → the exact sequence mismatches → RED.
     @Test
     func onStateAppearsInSpecOrder() {
-        #expect(items(availability: .on, model: "openai/gpt-5.6-luna") == [
+        #expect(items(availability: .on, model: "openai/gpt-6-luna") == [
             .status("Hold fn to talk"),
             .translateHint("Add ⌃ to translate"),
             .separator,
             .cleanupToggle(isOn: true),
-            .cleanupModel(selectedModelId: "openai/gpt-5.6-luna", enabled: true),
+            .cleanupModel(selectedModelId: "openai/gpt-6-luna", enabled: true),
             .translationLanguage(selected: "en", enabled: true),
             .separator,
             .addVocabulary,

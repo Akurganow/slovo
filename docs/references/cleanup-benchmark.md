@@ -10,7 +10,7 @@ supplied from process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers openrouter:openai/gpt-5.6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.6-flash,openrouter:deepseek/deepseek-v4-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
+  --providers catalog,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
@@ -20,21 +20,21 @@ The report is CSV-like aggregate output:
 
 ```text
 candidate,runs,passed,errors,p50_ms,p95_ms
-openrouter:openai/gpt-5.6-luna,310,226,1,662.7,1100.7
+openrouter:openai/gpt-6-luna,530,473,0,908.3,1568.1
 ```
 
 With `--failure-breakdown`, the command appends aggregate failure-code counts:
 
 ```text
 candidate,sample_index,failure,runs
-openrouter:openai/gpt-5.6-luna,16,sentence-structure,10
+openrouter:openai/gpt-6-luna,18,sentence-structure,10
 ```
 
 With `--category-breakdown`, it also appends category-level aggregate rows:
 
 ```text
 candidate,category,runs,passed,errors,p50_ms,p95_ms
-openrouter:openai/gpt-5.6-luna,punctuation-structure,50,10,0,695.7,1166.5
+openrouter:openai/gpt-6-luna,punctuation-structure,120,100,0,961.2,1848.4
 ```
 
 Reports intentionally do not print raw transcripts, cleaned text, prompts, API
@@ -105,10 +105,12 @@ The default benchmark does not download datasets or models at runtime.
 
 ## Providers
 
-The benchmark accepts two provider forms:
+The benchmark accepts three provider forms:
 
 - `openrouter:<model-id>` sends transcript text to OpenRouter with the selected
   routed model id and requires `OPENROUTER_API_KEY`.
+- `catalog` expands to one `openrouter:` form per model in the app's cleanup
+  catalog, `CleanupModelCatalog`, in menu order.
 - `passthrough` preserves the raw transcript locally and provides a latency and
   quality floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
   short-circuits the whole cleaner stage (the orchestrator skips hint-gathering
@@ -116,28 +118,25 @@ The benchmark accepts two provider forms:
   harness-measurable proxy for that skipped stage's ~0 ms cost (see
   "No-cleanup (raw) baseline" below).
 
-The curated OpenRouter shortlist currently mirrors the app menu:
-
-- `openai/gpt-5.6-luna`
-- `anthropic/claude-haiku-4.5`
-- `google/gemini-3.1-flash-lite`
-- `qwen/qwen3.6-flash`
-- `deepseek/deepseek-v4-flash`
-- `mistralai/mistral-small-2603`
-- `minimax/minimax-m3`
+A model enters the catalog only if reasoning can be switched off, because
+every cleanup request sends `reasoning: {effort: "none"}` to keep key-up
+latency low. OpenRouter publishes this per model in `GET /api/v1/models`: a
+model whose `reasoning.mandatory` is `true` rejects the request with HTTP 400,
+"Reasoning is mandatory for this endpoint and cannot be disabled". On
+2026-09-27 that ruled out `google/gemini-3.5-flash-lite`,
+`google/gemini-3.8-flash`, `z-ai/glm-5.3-flash` and `z-ai/glm-5.3-flashx`. At
+its lowest allowed effort, `low`, GLM 5.3 Flash spent 1283–2288 reasoning
+tokens and 54–102 s on the suite's longest dictation (sample 51, under a
+short probe prompt). Every catalog model answered a probe with
+`reasoning: {effort: "none"}` using 0 reasoning tokens.
 
 ## Latest Live Snapshot
 
-Live benchmark of the full curated shortlist plus the no-cleanup baseline,
-measured on 2026-07-25 with 10 repetitions over
-the 50-sample suite and the exact request the app sent at the time
-(temperature 0, `max_tokens` 1024, reasoning disabled via
-`reasoning: {effort: "none"}`). The request has since changed — the
-`instruction-shaped-transcript` hardening wrapped the input in
-`<transcript>` tags and removed `max_tokens` — so this snapshot predates
-the current prompt; the next live run (RED baseline on the pre-fix
-prompt, then GREEN on the current one, per the regression-class spec)
-supersedes it for the 53-sample suite.
+Live benchmark of the full curated shortlist, measured on 2026-09-27 with 10
+repetitions over the 53-sample suite: temperature 0, the transcript in
+`<transcript>` tags, reasoning disabled via `reasoning: {effort: "none"}`. The
+prompt is the earlier wording of the 2026-09-27 prompt change below, which
+differs from the shipped plain prompt in two lines.
 Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
@@ -146,27 +145,113 @@ gathered hint carries the active input locale. Compare runs by pass RATE
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `openrouter:openai/gpt-5.6-luna` | 500 | 412 | 2 | 776.2 ms | 1354.3 ms |
-| `openrouter:google/gemini-3.1-flash-lite` | 500 | 411 | 0 | 717.8 ms | 1680.3 ms |
-| `openrouter:deepseek/deepseek-v4-flash` | 500 | 394 | 1 | 1404.7 ms | 4815.8 ms |
-| `openrouter:anthropic/claude-haiku-4.5` | 500 | 380 | 0 | 1146.4 ms | 2069.0 ms |
-| `openrouter:qwen/qwen3.6-flash` | 500 | 375 | 2 | 837.6 ms | 1074.3 ms |
-| `openrouter:mistralai/mistral-small-2603` | 500 | 370 | 0 | 446.4 ms | 817.2 ms |
-| `openrouter:minimax/minimax-m3` | 500 | 370 | 2 | 1367.0 ms | 3656.3 ms |
-| `passthrough:none` (raw mode) | 500 | 0 | 0 | 0.0 ms | 0.0 ms |
+| `openrouter:openai/gpt-6-luna` | 530 | 484 | 0 | 936.0 ms | 1791.0 ms |
+| `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 452 | 0 | 259.1 ms | 424.6 ms |
+| `openrouter:minimax/minimax-m3` | 530 | 441 | 0 | 1133.8 ms | 3583.5 ms |
+| `openrouter:google/gemini-3.1-flash-lite` | 530 | 430 | 0 | 816.9 ms | 1357.2 ms |
+| `openrouter:qwen/qwen3.6-flash` (replaced) | 530 | 420 | 0 | 649.0 ms | 1036.2 ms |
+| `openrouter:anthropic/claude-haiku-4.5` | 530 | 410 | 0 | 1006.1 ms | 1997.6 ms |
+| `openrouter:mistralai/mistral-small-2603` | 530 | 5 | 524 | 446.8 ms | 479.3 ms |
+| `passthrough:none` (raw mode) | 530 | 0 | 0 | 0.0 ms | 0.0 ms |
+
+The Mistral row measures its provider, not the model: 524 requests failed with
+HTTP 429, "temporarily rate-limited upstream", from Mistral, its only
+provider on OpenRouter. It passed 370 of 500 on 2026-07-25. Qwen3.8 Flash
+replaced Qwen3.6 Flash after this run; its only full run is in the catalog
+refresh below.
+
+### Prompt change of 2026-09-27
+
+The plain cleanup prompt gained three rules: a percentage example in the
+number rule, separate sentences for independent statements with no connecting
+word, and a request for text in another language kept as dictated content.
+Translate mode gains only the percentage example. The sentence rule's example
+output stays in the source language, which would model an untranslated answer.
+
+The side-by-side run below measured an earlier wording, which an independent
+review then corrected in three places:
+
+- The number rule read "numbers, dates, times, and percentages in written
+  form". It now keeps "number, date, and time phrases in conventional written
+  form", so counts such as "two bullet points" are not invited into digits.
+- The language line ended "keep the output in the speaker's language", which
+  could push English terms out of RU+EN speech. It now ends as the older rule
+  does: "keep every word in the language the speaker used".
+- Translate mode carried the sentence rule; it no longer does.
+
+A later probe of the shipped prompt passed every targeted sample: DeepSeek
+V4.1 Flash samples 25, 38 and 51 (5 of 5 each), GPT-6 Luna sample 51 (10 of
+10), Gemini sample 51 (5 of 5), and MiniMax samples 11, 12, 29 and 48 (5 of 5
+each).
+
+The old and earlier-wording prompts ran side by side, at the same time:
+
+| Model | Old prompt | New prompt |
+| --- | ---: | ---: |
+| `openai/gpt-6-luna` | 476 | 484 |
+| `deepseek/deepseek-v4.1-flash` | 426 | 452 |
+| `minimax/minimax-m3` | 448 | 441 |
+| `google/gemini-3.1-flash-lite` | 440 | 430 |
+| `qwen/qwen3.6-flash` | 415 | 420 |
+| `anthropic/claude-haiku-4.5` | 400 | 410 |
+
+Passed runs of 530. DeepSeek V4.1 Flash fixed sample 25 ("15%"), sample 38
+(three statements, three sentences) and sample 51 (the long instruction-shaped
+dictation). Gemini lost 10 runs on sample 51 by writing "Steps to Reproduce" in
+title case. MiniMax's net loss of 7 runs was spread over many samples, gains
+included. In code-switching it fell from 87 to 78 of 90, on samples 11, 12 and
+48. Neither loss reproduced in a later probe of that wording: Gemini passed
+sample 51 in 5 of 5 runs, and MiniMax passed samples 11, 12, 29 and 48 in 10
+of 10 runs each. Code-switching rose from 88 to 90 of 90 for GPT-6 Luna and
+from 59 to 62 for Qwen3.6 Flash, and did not change for the other three
+models.
+
+### Catalog refresh of 2026-09-27
+
+Successor candidates against the models they would replace, measured on
+2026-09-27 under the prompt before the change above:
+
+| Candidate | Runs | Passed | Errors | p50 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `openrouter:openai/gpt-5.6-luna` (replaced) | 530 | 459 | 0 | 993.4 ms | 1688.1 ms |
+| `openrouter:openai/gpt-6-luna` | 530 | 473 | 0 | 908.3 ms | 1568.1 ms |
+| `openrouter:deepseek/deepseek-v4-flash` (replaced) | 530 | 434 | 0 | 1756.3 ms | 2389.7 ms |
+| `openrouter:deepseek/deepseek-v4-flash-0731` | 530 | 438 | 0 | 348.1 ms | 1328.5 ms |
+| `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 429 | 0 | 255.6 ms | 498.8 ms |
+| `openrouter:qwen/qwen3.6-flash` (replaced) | 530 | 420 | 0 | 660.6 ms | 1064.9 ms |
+| `openrouter:qwen/qwen3.7-flash` | 530 | 390 | 25 | 934.9 ms | 1788.0 ms |
+| `openrouter:qwen/qwen3.8-flash` | 530 | 217 | 277 | 2207.0 ms | 7389.5 ms |
+
+- GPT-6 Luna replaced GPT-5.6 Luna as the default: more passes (code-switching
+  89 of 90 against 84), lower p50 and p95, and a lower OpenRouter price
+  ($0.20 → $0.10 per 1M input tokens, $1.20 → $0.50 output).
+- DeepSeek V4.1 Flash replaced DeepSeek V4 Flash by the owner's decision,
+  though it passed 5 fewer runs under the old prompt: p50 fell from 1756 ms to
+  256 ms, and the instruction-shaped samples went from 20 to 30 of 30. Under
+  the new prompt it passes 452.
+- DeepSeek V4 Flash 0731 was left out: a code-switching-only rerun at 20
+  repetitions passed 175 of 180, against 180 for both V4 Flash and V4.1 Flash.
+- Qwen3.8 Flash replaced Qwen3.6 Flash by the owner's decision. Of the 253
+  requests it answered, 217 passed: 86%, against 79% for Qwen3.6 Flash. The
+  other 277 failed with HTTP 429 from Alibaba, its only provider. The owner
+  judged that a product of the benchmark's steady request stream, which
+  dictation does not produce. A later probe got 2 answers in 5 calls, at 3.5
+  and 5.9 s. Qwen3.7 Flash passed fewer runs than Qwen3.6 Flash.
+- Gemini 3.1 Flash Lite stays: Gemini 3.5 Flash Lite cannot run with
+  reasoning off.
 
 ### No-cleanup (raw) baseline
 
 Raw mode (cleanup toggled off) short-circuits the whole cleaner stage — the
 orchestrator skips hint-gathering and the cleaner, not just the network call;
 `passthrough`, a no-op cleaner, is the closest harness-measurable proxy for
-that skipped stage's ~0 ms cost. Measured in the same 2026-07-25 live run as
-the snapshot above (10 repetitions over the 50-sample suite; the passthrough
-candidate itself needs no API key and no network):
+that skipped stage's ~0 ms cost. Measured on 2026-09-27 (10 repetitions over
+the 53-sample suite; the passthrough candidate itself needs no API key and no
+network):
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `passthrough:none` (raw mode) | 500 | 0 | 0 | 0.0 ms | 0.0 ms |
+| `passthrough:none` (raw mode) | 530 | 0 | 0 | 0.0 ms | 0.0 ms |
 
 > What this number covers (noted 2026-07-23): cleaner-stage time only — the
 > in-process call the harness times for every candidate. The harness does NOT
@@ -213,16 +298,18 @@ models absent from the leaderboard.
 
 | Model | Price in/out, $/1M | Intelligence Index | Hallucination rate | Output speed | First-token latency |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `openai/gpt-5.6-luna` (default) | 1.00 / 6.00 | 27 | n/a | 192.1 t/s | 0.70 s |
+| `openai/gpt-6-luna` (default) | 0.10 / 0.50 | — | — | — | — |
 | `anthropic/claude-haiku-4.5` | 1.00 / 5.00 | 24 | n/a | 92.4 t/s | 0.93 s |
 | `google/gemini-3.1-flash-lite` | 0.25 / 1.50 | 25 | 81.6% | 294 t/s | 5.2 s |
-| `qwen/qwen3.6-flash` | 0.19 / 1.13 | n/a | n/a | n/a | n/a |
-| `deepseek/deepseek-v4-flash` | 0.09 / 0.18 | n/a | 89.7% | 105 t/s | n/a |
+| `qwen/qwen3.8-flash` | 0.15 / 0.47 | — | — | — | — |
+| `deepseek/deepseek-v4.1-flash` | 0.035 / 0.29 | — | — | — | — |
 | `mistralai/mistral-small-2603` | 0.15 / 0.60 | 20 | 66.8% | 173 t/s | 0.81 s |
 | `minimax/minimax-m3` | 0.30 / 1.20 | n/a | n/a | n/a | n/a |
 
 `n/a` means the model is absent from that public leaderboard as of the retrieval
-date. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU) do not cover
+date. `—` marks the rows added on 2026-09-27: their price comes from the
+OpenRouter catalog API that day, and their leaderboard columns were not
+retrieved. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU) do not cover
 Russian, so Russian-specific quality is not represented by any number above; the
 `slovo-cleanup-v1` suite is the project's own measurement on dictation-style
 samples.
@@ -235,7 +322,10 @@ samples.
 
 ## Verification
 
-PASS — refreshed on 2026-07-26 with a live 10-repetition run of the full
-curated shortlist plus passthrough over the 50-sample suite, using the current
-cleanup request; the Latest Live Snapshot table and the no-cleanup (raw)
-baseline row both come from that single run.
+PASS — refreshed on 2026-09-27 with live 10-repetition runs of the full
+curated shortlist over the 53-sample suite, using the current cleanup request.
+The Latest Live Snapshot rows for the seven catalog models come from the
+earlier-wording side of the side-by-side prompt run, Mistral included; Mistral
+is left out of the prompt table because 524 of its 530 requests failed with
+HTTP 429. The passthrough row, the no-cleanup (raw) baseline and the
+catalog-refresh table come from the same day's runs under the previous prompt.

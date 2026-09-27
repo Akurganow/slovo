@@ -203,7 +203,7 @@ struct OrchestratorTests {
               "cleanup": {
                 "enabled": false,
                 "provider": "openrouter",
-                "openRouterModel": "openai/gpt-5.6-luna",
+                "openRouterModel": "openai/gpt-6-luna",
                 "writingStyle": "formal"
               }
             }

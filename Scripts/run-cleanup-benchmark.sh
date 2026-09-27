@@ -23,7 +23,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 RUN_DIR="$ROOT_DIR/.build/benchmark-runs/$STAMP"
 mkdir -p "$RUN_DIR"
 
-DEFAULT_PROVIDERS="openrouter:openai/gpt-5.6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.6-flash,openrouter:deepseek/deepseek-v4-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough"
+DEFAULT_PROVIDERS="catalog,passthrough"
 PROVIDERS="${PROVIDERS:-$DEFAULT_PROVIDERS}"
 REPETITIONS="${REPETITIONS:-10}"
 

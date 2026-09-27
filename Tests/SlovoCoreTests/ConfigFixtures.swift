@@ -14,6 +14,7 @@ enum ConfigFixtures {
         legacyEnabledField: Bool = true,
         cleanupProvider: String? = nil,
         openRouterModel: String? = nil,
+        modelCatalogVersion: Int? = nil,
         writingStyle: String = "casual",
         translationTargetLanguage: String? = nil,
         translateTrigger: String? = nil
@@ -27,6 +28,9 @@ enum ConfigFixtures {
         }
         if let openRouterModel {
             cleanup["openRouterModel"] = openRouterModel
+        }
+        if let modelCatalogVersion {
+            cleanup["modelCatalogVersion"] = modelCatalogVersion
         }
         var object: [String: Any] = [
             "language": language,
