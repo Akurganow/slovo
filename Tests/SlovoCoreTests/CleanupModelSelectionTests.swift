@@ -4,7 +4,7 @@ import SlovoCore
 @Suite("CleanupModelSelection (spec rev 3 §4 K2)")
 struct CleanupModelSelectionTests {
     private let catalog = CleanupModelCatalog.options
-    private let defaultId = Config.defaultOpenRouterModel  // openai/gpt-5.6-luna
+    private let defaultId = Config.defaultOpenRouterModel
     private let haiku = "anthropic/claude-haiku-4.5"
     private let gemini = "google/gemini-3.1-flash-lite"
 

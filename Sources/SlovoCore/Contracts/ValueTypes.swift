@@ -112,7 +112,7 @@ public enum WritingStyle: String, Codable, Equatable, Sendable {
 }
 
 public enum CleanupDefaults {
-    public static let openRouterModel = "openai/gpt-5.6-luna"
+    public static let openRouterModel = "openai/gpt-6-luna"
 }
 
 /// Tunables for a single cleanup pass.

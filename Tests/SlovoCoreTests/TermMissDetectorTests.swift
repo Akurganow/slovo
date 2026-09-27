@@ -10,12 +10,12 @@ import Testing
 // scalars are neither letters nor digits; interior punctuation matches literally.
 @Suite("Term miss detector: keys and containment")
 struct TermMissDetectorKeyTests {
-    /// Case-variant vocabulary rows share one key — the live DB holds
-    /// `Akurganow`/`akurganow` as two rows, one statistic.
+    /// Case-variant vocabulary rows share one key: `Kubernetes`/`kubernetes`
+    /// stored as two rows make one statistic.
     /// Stated sensitivity: drop `.lowercased()` from `fold` → keys differ → RED.
     @Test
     func caseVariantsFoldToOneKey() {
-        #expect(TermMissDetector.fold("Akurganow") == TermMissDetector.fold("akurganow"))
+        #expect(TermMissDetector.fold("Kubernetes") == TermMissDetector.fold("kubernetes"))
         #expect(TermMissDetector.fold("  GitHub \n") == "github")
     }
 
@@ -199,17 +199,17 @@ struct TermMissDetectorDetectionTests {
         #expect(detection.shortTermSkippedCount == 0)
     }
 
-    /// Case-variant vocabulary rows (live DB: Akurganow/akurganow) are
+    /// Case-variant vocabulary rows (`Kubernetes`/`kubernetes`) are
     /// processed once — one key, at most one event.
     /// Stated sensitivity: drop the `seen` dedup set → two identical misses → RED.
     @Test
     func caseVariantRowsProduceOneEvent() {
         let detection = TermMissDetector.detectMisses(
-            raw: "напиши акурганов в чат",
-            cleaned: "Напиши Akurganow в чат.",
-            vocabulary: [term("Akurganow", weight: 4), term("akurganow", weight: 3)]
+            raw: "напиши кубернетес в чат",
+            cleaned: "Напиши Kubernetes в чат.",
+            vocabulary: [term("Kubernetes", weight: 4), term("kubernetes", weight: 3)]
         )
-        #expect(detection.missKeys == ["akurganow"])
+        #expect(detection.missKeys == ["kubernetes"])
     }
 
     /// A short key on the cleaned-only path records no miss and counts as

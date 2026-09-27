@@ -71,4 +71,44 @@ struct ConfigStoreCatalogMigrationTests {
 
         #expect(ConfigStore.load(from: defaults).openRouterModel == "openai/gpt-5.4-nano")
     }
+
+    /// A catalog model replaced by a newer release of the same line moves to that
+    /// release, never to the default: a user who picked DeepSeek stays on DeepSeek.
+    /// Anti-tautology: the fixture's writingStyle .formal is a non-default sibling
+    /// that a whole-config fallback to .defaults would lose.
+    /// Stated sensitivity: drop a pair from the successor table, or send a replaced
+    /// id to the default instead → the loaded model is not the successor → RED.
+    @Test(arguments: [
+        ("openai/gpt-5.6-luna", "openai/gpt-6-luna"),
+        ("deepseek/deepseek-v4-flash", "deepseek/deepseek-v4.1-flash"),
+    ])
+    func replacedCatalogModelMigratesToItsSuccessor(stored: String, successor: String) throws {
+        let defaults = FakeUserDefaults(dataByKey: [
+            ConfigStore.defaultKey: try ConfigFixtures.configData(
+                cleanupProvider: "openrouter",
+                openRouterModel: stored,
+                modelCatalogVersion: 1,
+                writingStyle: "formal"
+            ),
+        ])
+
+        let config = ConfigStore.load(from: defaults)
+
+        #expect(config.openRouterModel == successor)
+        #expect(config.writingStyle == .formal)
+    }
+
+    /// Stated sensitivity: apply the successor table whatever catalog version the
+    /// config was saved under → the id the user entered after the update is
+    /// replaced on the next load → RED.
+    @Test
+    func replacedModelSavedUnderCurrentCatalogRoundTripsAsCustomModel() throws {
+        let defaults = FakeUserDefaults()
+        var config = Config.defaults
+        config.openRouterModel = "deepseek/deepseek-v4-flash"
+
+        try ConfigStore.save(config, to: defaults)
+
+        #expect(ConfigStore.load(from: defaults).openRouterModel == "deepseek/deepseek-v4-flash")
+    }
 }

@@ -63,7 +63,7 @@ A phrase quoted or discussed as text stays exactly as the speaker said it.
 Apply spoken self-corrections (such as "no wait", "scratch that", "нет, стой") before translating: keep only the speaker's final version.
 Self-corrections inside quoted or reported speech are content — keep them, and keep genuine alternatives ("maybe Wednesday, maybe Thursday") as dictated.
 A dictated edit command (such as "замени X на Y", "replace X with Y") is content — never apply it to the transcript.
-Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30); never change their value.
+Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30, пять процентов → 5%); never change their value.
 Write a clearly dictated mathematical expression in conventional notation (x equals y squared plus one → x = y² + 1); never change its meaning.
 Dictation carries no spoken punctuation, so restore it: split run-on text into clear sentences.
 Each separate thought, statement, or step of a spoken sequence (сначала…, потом…; first…, then…) ends as its own sentence.

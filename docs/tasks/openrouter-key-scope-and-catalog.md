@@ -7,9 +7,9 @@ Rev 3 incorporates a second independent review of rev 2 (verdict APPROVE WITH
 CHANGES): fetch generations replace the ambiguous coalescing rule (K4), the
 transition logic moves into a testable SlovoCore reducer (K11), and the K2/K3
 edge cases it caught are closed. No owner decision is reopened. The research phase is done (live
-two-key verification 2026-08-26: personal unrestricted + corporate restricted
-with an exhausted org budget). Part B (the market refresh of the catalog
-itself) remains a separate, benchmark-driven change — see §8.
+verification 2026-08-26 with an unrestricted key and an org-restricted key).
+Part B (the market refresh of the catalog
+itself) landed as a separate, benchmark-driven change — see §8.
 
 ## 1. Problem
 
@@ -26,13 +26,13 @@ indistinguishable from a dead network, one dictation at a time.
 
 | Fact | Evidence |
 | --- | --- |
-| `GET /api/v1/models/user` returns the models THIS key can call; requires auth (401 bare); free — zero credits consumed | 200 with both keys; corp usage bit-identical before/after |
-| Filtering is real and per-key: corp list is a strict subset (219 vs 414); the two catalog ids the org disabled are exactly the ones missing | live diff |
-| Even a personal key's `/models/user` is filtered (417 → 414) — filtering is not only org policy | live |
+| `GET /api/v1/models/user` returns the models THIS key can call; requires auth (401 bare); free — zero credits consumed | 200 with both keys; usage unchanged before/after |
+| Filtering is real and per-key: an org-restricted key's list is a strict subset of an unrestricted key's; the catalog ids the org disabled are exactly the ones missing | live diff |
+| Even an unrestricted key's `/models/user` is shorter than `/models` — filtering is not only org policy | live |
 | Schema matches `/models` minus `benchmarks`; only `data[].id` is needed | live |
 | `/models` is identical with/without/any auth — useless for scoping | live |
 | Runtime error map: **400** invalid model id · **401** dead key · **403** org budget exhausted *and also* (per docs) moderation-flagged input — ambiguous by status · **404** blocked by guardrail/data policy · **429** rate limit | live probes P1–P3 + official error docs |
-| Budget exhaustion is 403 (docs say 402 — wrong) and `GET /key` shows `limit`/`limit_remaining = null` for the corp key: **an exhausted org budget is invisible to metadata** — no pre-flight credit check exists | live |
+| Budget exhaustion is 403 (docs say 402 — wrong) and `GET /key` shows `limit`/`limit_remaining = null` for a key under an org budget: **an exhausted org budget is invisible to metadata** — no pre-flight credit check exists | live |
 | Error bodies can carry `user_id` — an account identity string. Never log response bodies verbatim | live P1 |
 | All 7 current catalog ids exist in `/models` — the catalog is not stale | live |
 
@@ -155,7 +155,7 @@ transcript."` ("may", not "will": the cache D3 tolerates can be stale).
   adds one such site that always does both, and `pushEffectiveCleanupConfig`
   itself starts pushing the K2-derived effective model. Acceptance note: this
   is the first non-user-initiated `installStatusMenu()` caller — verify once
-  on the dev Mac that reassigning the menu while the dropdown is open is
+  on a Mac that reassigning the menu while the dropdown is open is
   harmless; the expected behavior is the swap landing at the next open.)
 - **K7** The fetch is `GET https://openrouter.ai/api/v1/models/user` with the
   Keychain key as Bearer; parse `data[].id` only. Logging stays
@@ -281,29 +281,29 @@ the CLAUDE.md invariant sentence ("only transcript text may leave the
 machine") is amended in the same change to name the metadata scope fetch,
 so the standing brief never contradicts the shipped behavior.
 
-## 7. Behavior walk-through (the owner's two keys)
+## 7. Behavior walk-through (two kinds of key)
 
-- Personal key: scope = 414 ids ⊇ catalog → pickers unchanged, no captions,
+- Unrestricted key: scope ⊇ catalog → pickers unchanged, no captions,
   behavior byte-identical to today.
-- Corporate key: pickers show 5 of 7 (Claude Haiku 4.5 and Qwen3.6 Flash
-  hidden). If the stored choice was Claude Haiku 4.5 → the funnel pushes
-  GPT-5.6 Luna as the effective model; Settings selects it and captions
-  "Your key can't use Claude Haiku 4.5 — using GPT-5.6 Luna."; the menu shows
-  "Cleanup Model: GPT-5.6 Luna". Budget is exhausted, so cleanup still fails
+- Org-restricted key: pickers hide the catalog models the org disallows. If
+  the stored choice is one of them → the funnel pushes the default model as
+  the effective model; Settings selects it and captions "Your key can't use
+  <stored model> — using <default model>."; the menu shows "Cleanup Model:
+  <default model>". If the org budget is exhausted, cleanup still fails
   403 → raw text inserted with glyph+cue, as product intent dictates — but no
   longer *because of a model we offered and shouldn't have*.
-- Swap corporate → personal: key save resets scope, refetches; the hidden
-  models return and the stored Claude Haiku 4.5 choice revives untouched (K1).
+- Swap to an unrestricted key: key save resets scope, refetches; the hidden
+  models return and the stored choice revives untouched (K1).
 - Key removed / cleanup toggled off: scope `.unknown`, zero network — the
   existing raw-mode promise holds verbatim.
 
-## 8. Part B — catalog refresh (pending, separate change)
+## 8. Part B — catalog refresh (done 2026-09-27, separate change)
 
-All seven ids are alive (§2), so nothing is on fire. A market pass over the
-fast-cleanup tier stays queued: candidates in, `slovo-cleanup-benchmark`
-(50 samples × repetitions, pass rate + p50/p95) decides, catalog + retired-id
-migration updated in the winning change. Not blocked by, and not blocking,
-this spec.
+Done for issue #52: GPT-6 Luna replaced GPT-5.6 Luna as the default and
+DeepSeek V4.1 Flash replaced DeepSeek V4 Flash. A stored replaced id now
+moves to the newer release of the same line, not to the default. The
+candidates, the benchmark runs and the reasons each successor was taken or
+left are in `docs/references/cleanup-benchmark.md`.
 
 ## 9. Owner decisions on the rev 2 judgment calls (2026-08-26)
 
@@ -311,7 +311,7 @@ this spec.
    after hotkey start (async, only with cleanup effectively on), and the
    pinned invariant is deliberately amended to "nothing before hotkey start
    reads the Keychain secret", with the guard test updated in the same
-   change. Acceptance check carried into §6: verify on the dev Mac that the
+   change. Acceptance check carried into §6: verify on a Mac that the
    Keychain read never raises a user prompt after a re-sign/update. If it
    ever does, the fetch moves behind the first user interaction (Settings or
    menu open) — the pre-agreed fallback, honoring the no-focus-stealing rule

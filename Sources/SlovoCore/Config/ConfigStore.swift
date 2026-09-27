@@ -175,11 +175,13 @@ public enum ConfigStore {
             else {
                 return nil
             }
-            let storedOpenRouterModel = cleanup.openRouterModel ?? Config.defaultOpenRouterModel
-            let isFormerDefault = cleanup.modelCatalogVersion == nil
-                && storedOpenRouterModel == ConfigStore.formerDefaultOpenRouterModel
+            let savedCatalogVersion = cleanup.modelCatalogVersion ?? 0
+            let storedOpenRouterModel = ConfigStore.replacedOpenRouterModels
+                .filter { $0.catalogVersion > savedCatalogVersion }
+                .reduce(cleanup.openRouterModel ?? Config.defaultOpenRouterModel) { model, replacement in
+                    replacement.successors[model] ?? model
+                }
             let openRouterModel = ConfigStore.retiredOpenRouterModels.contains(storedOpenRouterModel)
-                || isFormerDefault
                 ? Config.defaultOpenRouterModel
                 : storedOpenRouterModel
 
@@ -241,8 +243,19 @@ public enum ConfigStore {
     private static let legacyAppleSpeechModel = "system-dictation"
 
     private static let retiredOpenRouterModels: Set<String> = ["google/gemini-2.5-flash-lite"]
-    private static let formerDefaultOpenRouterModel = "openai/gpt-5.4-nano"
-    private static let currentModelCatalogVersion = 1
+    /// The catalog ids each catalog version replaced, keyed to the id that took
+    /// each one's place: from version 2 on, the newer release of the same line, so
+    /// a user keeps their vendor. A config saved before that version moves forward
+    /// on load; one saved at or after it keeps the old id, because the user then
+    /// entered it as a custom model.
+    private static let replacedOpenRouterModels: [(catalogVersion: Int, successors: [String: String])] = [
+        (1, ["openai/gpt-5.4-nano": "openai/gpt-5.6-luna"]),
+        (2, [
+            "openai/gpt-5.6-luna": "openai/gpt-6-luna",
+            "deepseek/deepseek-v4-flash": "deepseek/deepseek-v4.1-flash",
+        ]),
+    ]
+    private static let currentModelCatalogVersion = 2
 
     private struct StoredAsr: Codable {
         let backend: AsrBackend
@@ -315,8 +328,8 @@ public enum ConfigStore {
         // An absent wire field defaults to `true` at decode, so existing installs
         // keep spell-check hints on (backward compatible, no migration).
         let useSpellCheckHints: Bool
-        /// Distinguishes a pre-0.7 default from the same id explicitly saved as a
-        /// custom model after the default changed.
+        /// Absent before the first catalog replacement; tells a replaced catalog id
+        /// from the same id saved as a custom model after the replacement.
         let modelCatalogVersion: Int?
 
         private enum CodingKeys: String, CodingKey {
