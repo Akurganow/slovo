@@ -33,8 +33,8 @@ public enum CleanupModelCatalog {
             displayName: "Gemini 3.1 Flash Lite"
         ),
         CleanupModelOption(
-            id: "qwen/qwen3.6-flash",
-            displayName: "Qwen3.6 Flash"
+            id: "qwen/qwen3.8-flash",
+            displayName: "Qwen3.8 Flash"
         ),
         CleanupModelOption(
             id: "deepseek/deepseek-v4.1-flash",

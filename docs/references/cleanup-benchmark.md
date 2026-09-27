@@ -10,7 +10,7 @@ supplied from process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers openrouter:openai/gpt-6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.6-flash,openrouter:deepseek/deepseek-v4.1-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
+  --providers openrouter:openai/gpt-6-luna,openrouter:anthropic/claude-haiku-4.5,openrouter:google/gemini-3.1-flash-lite,openrouter:qwen/qwen3.8-flash,openrouter:deepseek/deepseek-v4.1-flash,openrouter:mistralai/mistral-small-2603,openrouter:minimax/minimax-m3,passthrough \
   --repetitions 10 \
   --failure-breakdown \
   --category-breakdown
@@ -121,7 +121,7 @@ The curated OpenRouter shortlist currently mirrors the app menu:
 - `openai/gpt-6-luna`
 - `anthropic/claude-haiku-4.5`
 - `google/gemini-3.1-flash-lite`
-- `qwen/qwen3.6-flash`
+- `qwen/qwen3.8-flash`
 - `deepseek/deepseek-v4.1-flash`
 - `mistralai/mistral-small-2603`
 - `minimax/minimax-m3`
@@ -157,14 +157,16 @@ gathered hint carries the active input locale. Compare runs by pass RATE
 | `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 452 | 0 | 259.1 ms | 424.6 ms |
 | `openrouter:minimax/minimax-m3` | 530 | 441 | 0 | 1133.8 ms | 3583.5 ms |
 | `openrouter:google/gemini-3.1-flash-lite` | 530 | 430 | 0 | 816.9 ms | 1357.2 ms |
-| `openrouter:qwen/qwen3.6-flash` | 530 | 420 | 0 | 649.0 ms | 1036.2 ms |
+| `openrouter:qwen/qwen3.6-flash` (replaced) | 530 | 420 | 0 | 649.0 ms | 1036.2 ms |
 | `openrouter:anthropic/claude-haiku-4.5` | 530 | 410 | 0 | 1006.1 ms | 1997.6 ms |
 | `openrouter:mistralai/mistral-small-2603` | 530 | 5 | 524 | 446.8 ms | 479.3 ms |
 | `passthrough:none` (raw mode) | 530 | 0 | 0 | 0.0 ms | 0.0 ms |
 
 The Mistral row measures its provider, not the model: 524 requests failed with
 HTTP 429, "temporarily rate-limited upstream", from Mistral, its only
-provider on OpenRouter. It passed 370 of 500 on 2026-07-25.
+provider on OpenRouter. It passed 370 of 500 on 2026-07-25. Qwen3.8 Flash
+replaced Qwen3.6 Flash after this run; its only full run is in the catalog
+refresh below.
 
 ### Prompt change of 2026-09-27
 
@@ -224,7 +226,7 @@ Successor candidates against the models they would replace, measured on
 | `openrouter:deepseek/deepseek-v4-flash` (replaced) | 530 | 434 | 0 | 1756.3 ms | 2389.7 ms |
 | `openrouter:deepseek/deepseek-v4-flash-0731` | 530 | 438 | 0 | 348.1 ms | 1328.5 ms |
 | `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 429 | 0 | 255.6 ms | 498.8 ms |
-| `openrouter:qwen/qwen3.6-flash` (kept) | 530 | 420 | 0 | 660.6 ms | 1064.9 ms |
+| `openrouter:qwen/qwen3.6-flash` (replaced) | 530 | 420 | 0 | 660.6 ms | 1064.9 ms |
 | `openrouter:qwen/qwen3.7-flash` | 530 | 390 | 25 | 934.9 ms | 1788.0 ms |
 | `openrouter:qwen/qwen3.8-flash` | 530 | 217 | 277 | 2207.0 ms | 7389.5 ms |
 
@@ -237,9 +239,12 @@ Successor candidates against the models they would replace, measured on
   the new prompt it passes 452.
 - DeepSeek V4 Flash 0731 was left out: a code-switching-only rerun at 20
   repetitions passed 175 of 180, against 180 for both V4 Flash and V4.1 Flash.
-- Qwen3.6 Flash stays. Qwen3.7 Flash passed fewer runs. Qwen3.8 Flash failed
-  277 requests with HTTP 429 from Alibaba, its only provider, and took
-  3.5–5.9 s per answer in a later probe.
+- Qwen3.8 Flash replaced Qwen3.6 Flash by the owner's decision. Of the 253
+  requests it answered, 217 passed: 86%, against 79% for Qwen3.6 Flash. The
+  other 277 failed with HTTP 429 from Alibaba, its only provider. The owner
+  judged that a product of the benchmark's steady request stream, which
+  dictation does not produce. A later probe got 2 answers in 5 calls, at 3.5
+  and 5.9 s. Qwen3.7 Flash passed fewer runs than Qwen3.6 Flash.
 - Gemini 3.1 Flash Lite stays: Gemini 3.5 Flash Lite cannot run with
   reasoning off.
 
@@ -304,13 +309,13 @@ models absent from the leaderboard.
 | `openai/gpt-6-luna` (default) | 0.10 / 0.50 | — | — | — | — |
 | `anthropic/claude-haiku-4.5` | 1.00 / 5.00 | 24 | n/a | 92.4 t/s | 0.93 s |
 | `google/gemini-3.1-flash-lite` | 0.25 / 1.50 | 25 | 81.6% | 294 t/s | 5.2 s |
-| `qwen/qwen3.6-flash` | 0.19 / 1.13 | n/a | n/a | n/a | n/a |
+| `qwen/qwen3.8-flash` | 0.15 / 0.47 | — | — | — | — |
 | `deepseek/deepseek-v4.1-flash` | 0.035 / 0.29 | — | — | — | — |
 | `mistralai/mistral-small-2603` | 0.15 / 0.60 | 20 | 66.8% | 173 t/s | 0.81 s |
 | `minimax/minimax-m3` | 0.30 / 1.20 | n/a | n/a | n/a | n/a |
 
 `n/a` means the model is absent from that public leaderboard as of the retrieval
-date. `—` marks the two rows added on 2026-09-27: their price comes from the
+date. `—` marks the rows added on 2026-09-27: their price comes from the
 OpenRouter catalog API that day, and their leaderboard columns were not
 retrieved. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU) do not cover
 Russian, so Russian-specific quality is not represented by any number above; the

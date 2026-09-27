@@ -25,7 +25,7 @@ struct CleanupModelCatalogTests {
             "openai/gpt-6-luna",
             "anthropic/claude-haiku-4.5",
             "google/gemini-3.1-flash-lite",
-            "qwen/qwen3.6-flash",
+            "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
             "mistralai/mistral-small-2603",
             "minimax/minimax-m3",
@@ -49,7 +49,7 @@ struct CleanupModelCatalogTests {
     func newModelsAreHumanizedAndExistingNamesUnchanged() {
         for id in [
             "google/gemini-3.1-flash-lite",
-            "qwen/qwen3.6-flash",
+            "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
             "mistralai/mistral-small-2603",
             "minimax/minimax-m3",

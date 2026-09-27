@@ -299,8 +299,9 @@ so the standing brief never contradicts the shipped behavior.
 
 ## 8. Part B — catalog refresh (done 2026-09-27, separate change)
 
-Done for issue #52: GPT-6 Luna replaced GPT-5.6 Luna as the default and
-DeepSeek V4.1 Flash replaced DeepSeek V4 Flash. A stored replaced id now
+Done for issue #52: GPT-6 Luna replaced GPT-5.6 Luna as the default,
+DeepSeek V4.1 Flash replaced DeepSeek V4 Flash, and Qwen3.8 Flash replaced
+Qwen3.6 Flash. A stored replaced id now
 moves to the newer release of the same line, not to the default. The
 candidates, the benchmark runs and the reasons each successor was taken or
 left are in `docs/references/cleanup-benchmark.md`.
