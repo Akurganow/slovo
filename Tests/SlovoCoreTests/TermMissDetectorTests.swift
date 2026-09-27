@@ -10,8 +10,6 @@ import Testing
 // scalars are neither letters nor digits; interior punctuation matches literally.
 @Suite("Term miss detector: keys and containment")
 struct TermMissDetectorKeyTests {
-    /// Case-variant vocabulary rows share one key: `Kubernetes`/`kubernetes`
-    /// stored as two rows make one statistic.
     /// Stated sensitivity: drop `.lowercased()` from `fold` → keys differ → RED.
     @Test
     func caseVariantsFoldToOneKey() {
@@ -199,8 +197,6 @@ struct TermMissDetectorDetectionTests {
         #expect(detection.shortTermSkippedCount == 0)
     }
 
-    /// Case-variant vocabulary rows (`Kubernetes`/`kubernetes`) are
-    /// processed once — one key, at most one event.
     /// Stated sensitivity: drop the `seen` dedup set → two identical misses → RED.
     @Test
     func caseVariantRowsProduceOneEvent() {

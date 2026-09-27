@@ -243,13 +243,8 @@ public enum ConfigStore {
     private static let legacyAppleSpeechModel = "system-dictation"
 
     private static let retiredOpenRouterModels: Set<String> = ["google/gemini-2.5-flash-lite"]
-    /// The catalog ids each catalog version replaced, keyed to the id that took
-    /// each one's place: from version 2 on, the newer release of the same line, so
-    /// a user keeps their vendor. A config saved before that version moves forward
-    /// on load; one saved at or after it keeps the old id, because the user then
-    /// entered it as a custom model. So a released version's row never changes: a
-    /// config already saved under it would keep the replaced id as a custom model.
-    /// A later replacement takes the next version.
+    /// A config saved at or after a row's version keeps that row's old ids: the
+    /// user chose them as custom models.
     private static let replacedOpenRouterModels: [(catalogVersion: Int, successors: [String: String])] = [
         (1, ["openai/gpt-5.4-nano": "openai/gpt-5.6-luna"]),
         (2, [
@@ -331,8 +326,7 @@ public enum ConfigStore {
         // An absent wire field defaults to `true` at decode, so existing installs
         // keep spell-check hints on (backward compatible, no migration).
         let useSpellCheckHints: Bool
-        /// Absent before the first catalog replacement; tells a replaced catalog id
-        /// from the same id saved as a custom model after the replacement.
+        /// nil in configs saved before catalog version 1.
         let modelCatalogVersion: Int?
 
         private enum CodingKeys: String, CodingKey {

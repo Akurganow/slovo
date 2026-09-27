@@ -391,8 +391,7 @@ public struct PromptBuilder: Sendable {
     }
 
     private func sentenceStructureLines(mode: PromptMode) -> [String] {
-        // Translate mode leaves the run-together rule out: its example output stays in
-        // the source language, which would model an untranslated answer.
+        // Translate mode omits this rule: its example output is untranslated.
         let runTogetherLines: [String]
         switch mode {
         case .plain:

@@ -72,10 +72,7 @@ struct ConfigStoreCatalogMigrationTests {
         #expect(ConfigStore.load(from: defaults).openRouterModel == "openai/gpt-5.4-nano")
     }
 
-    /// A catalog model replaced by a newer release of the same line moves to that
-    /// release, never to the default: a user who picked DeepSeek stays on DeepSeek.
-    /// Anti-tautology: the fixture's writingStyle .formal is a non-default sibling
-    /// that a whole-config fallback to .defaults would lose.
+    /// `.formal` catches a whole-config fallback to `.defaults`.
     /// Stated sensitivity: drop a pair from the successor table, or send a replaced
     /// id to the default instead → the loaded model is not the successor → RED.
     @Test(arguments: [
