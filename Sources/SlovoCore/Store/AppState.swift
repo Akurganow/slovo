@@ -4,13 +4,11 @@
 /// below, each a call into an existing pure function.
 public struct AppState: Equatable, Sendable {
     public var config: Config
-    /// Mirrors `hasConfiguredKey()`: written at launch, after each successful hotkey
-    /// start, and after every key save or removal.
+    /// Mirrors `hasConfiguredKey()`; the Keychain stays the source of truth.
     public var isOpenRouterKeyPresent: Bool
     /// `private(set)` leaves `applyScope`, in this file, its only writer.
     public private(set) var cleanupScope = CleanupScopeState()
-    /// Mirrors the SQLite vocabulary table: written when the pipeline starts and
-    /// after each add or removal.
+    /// Mirrors the SQLite vocabulary table; the table stays the source of truth.
     public var vocabulary: [VocabularyRecord]
 
     public init(config: Config, isOpenRouterKeyPresent: Bool, vocabulary: [VocabularyRecord] = []) {

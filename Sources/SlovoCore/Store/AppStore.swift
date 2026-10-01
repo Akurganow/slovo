@@ -1,8 +1,8 @@
 import Combine
 import os
 
-/// Holds the one `AppState` and its one mutation path. Effects and views follow
-/// slices of it through the nanostores verbs `subscribe` and `listen`.
+/// Holds the one `AppState` and its one mutation path. Subscribers follow slices
+/// of it through the nanostores verbs `subscribe` and `listen`.
 @preconcurrency
 @MainActor
 public final class AppStore: ObservableObject {
