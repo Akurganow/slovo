@@ -51,9 +51,10 @@ struct AppShellPackagingTests {
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
         #expect(composition.contains("CoreAudioOutputMute()"))
         #expect(composition.contains("AVAudioEngineRecorder(authorizer:"))
+        // Every new orchestrator starts on the derived model and the effective on/off
+        // (K6), so its first dictation never runs the raw preference.
         // Stated sensitivity: pass `state.config.cleanupConfig`, or omit the argument
-        // (the factory then falls back to the raw preference) → RED. The successor of
-        // the reducer's re-push assertion (K6).
+        // (the factory then falls back to the raw preference) → RED.
         let orchestratorCall = try #require(composition.range(of: "PipelineFactory.makeOrchestrator("))
         let callEnd = try #require(composition.range(of: ")", range: orchestratorCall.upperBound..<composition.endIndex))
         #expect(composition[orchestratorCall.upperBound..<callEnd.lowerBound].contains("cleanupConfig: state.effectiveCleanupConfig"),

@@ -29,7 +29,7 @@ struct DictationMenuBuilder {
         // longer in any menu.
         target.fnConflictMenuItem = nil
         var statusItem = NSMenuItem()
-        // The config arguments no longer fit the strict 160-char line, so the call
+        // The config arguments exceed the strict 160-char line, so the call
         // is multiline per multiline_arguments_brackets; the source guards assert the
         // call token and the threaded configuration separately.
         for item in DictationMenu.items(

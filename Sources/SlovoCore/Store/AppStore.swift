@@ -3,7 +3,7 @@ import os
 
 /// Holds the one `AppState` and its one mutation path. Subscribers follow slices
 /// of it through the nanostores verbs `subscribe` and `listen`.
-@preconcurrency
+@preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
 @MainActor
 public final class AppStore: ObservableObject {
     private static let log = Logger(subsystem: "com.slovo.app", category: "store")

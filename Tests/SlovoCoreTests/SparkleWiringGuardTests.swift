@@ -16,9 +16,8 @@ struct SparkleWiringGuardTests {
     /// scan is word-anchored so SPUUpdater itself never matches.
     /// Stated sensitivity: build via the standard controller, the legacy class, or
     /// call the alert-showing `updater.checkForUpdates()` for the manual check → the
-    /// matching pin → RED. (Supersedes the v1 "no manual path at all" invariant now
-    /// that the owner's always-visible actionable row exists — the manual check stays
-    /// silent, which is the invariant that matters.)
+    /// matching pin → RED. The always-visible "Check for Updates…" row is a manual
+    /// path, so the invariant is that the manual check stays silent.
     @Test
     func updaterIsConstructedDirectlyWithoutLegacyOrAlertingCheck() throws {
         let combined = try Self.combinedAppSource()

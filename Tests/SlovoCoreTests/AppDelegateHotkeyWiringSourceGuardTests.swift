@@ -341,7 +341,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// All three key settings apply live through the store's hotkey subscriber,
     /// which hands the tap the saved configuration. The app target holds the one
-    /// reconfigure call, inside the target closure; it never rebuilds the pipeline.
+    /// reconfigure call, inside the target closure.
     /// Stated sensitivity: add a second `hotkeyMonitor.reconfigure(configuration:`
     /// call anywhere in Sources/slovo, or reconfigure from anything but the
     /// subscriber's value → RED.

@@ -92,7 +92,7 @@ struct AppRuntimeSourceGuardTests {
         let keychainItemExistsBody = try Self.functionBody(named: "keychainItemExists", in: keyProvider)
 
         #expect(makeLiveBody.contains("FirstRunFlow.pendingSteps("))
-        // Stated sensitivity (plan): read key presence in makeLive again, or the
+        // Stated sensitivity: read key presence in makeLive again, or the
         // secret through apiKey() → RED.
         #expect(!makeLiveBody.contains("hasConfiguredKey"),
                 "the composition takes key presence from the state it is handed, never from the Keychain")
@@ -230,7 +230,7 @@ struct AppRuntimeSourceGuardTests {
         }
     }
 
-    /// Stated sensitivity (plan): build the submenu from the catalog instead of the
+    /// Stated sensitivity: build the submenu from the catalog instead of the
     /// `options` parameter, or write anything but the chosen id → RED.
     @Test
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
@@ -357,15 +357,14 @@ struct AppRuntimeSourceGuardTests {
                 "the idle title must stay guarded by the shown-pipeline-status flag")
     }
 
-    /// The live status line renders the bare state word: the "Status:" prefix was
-    /// dropped at every render site so it reads without a redundant label. The
-    /// prefix is set at roughly nine sites across these two app-target files
+    /// The live status line renders the bare state word, with no "Status:" prefix,
+    /// so it reads without a redundant label. The status line is set at roughly nine sites across these two app-target files
     /// (recording, processing, idle, setup / hotkey-setup required, the
     /// preparing-model pulse), only one of which the settle-to-idle guard above
     /// pins by position — so a whole-file negative assert is what stops the prefix
     /// creeping back into any unguarded site. Mirrors the DictationMenuBuilder
     /// prefix guard. `code(_:)` strips comments (but keeps string literals), so a
-    /// future comment naming the old prefix cannot false-trip this.
+    /// future comment naming the prefix cannot false-trip this.
     /// Stated sensitivity: reintroduce `"Status: Idle"` in the model-gate file, or
     /// `"Status: Recording"` in AppDelegate, → the matching `#expect` goes RED.
     @Test
