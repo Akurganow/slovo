@@ -43,6 +43,12 @@ public enum ConfigStore {
         defaults.set(data, forKey: key)
     }
 
+    /// Whether `save` would accept `config`. `AppStore` refuses an invalid `Config`
+    /// before it commits, so state never holds a value persistence would reject.
+    public static func isValid(_ config: Config) -> Bool {
+        validated(config) != nil
+    }
+
     private struct StoredConfig: Codable {
         let language: Language
         // Optional wire field: an absent value decodes to `nil` (resident default);
