@@ -44,18 +44,44 @@ struct AppStateTests {
         #expect(!noKey.effectiveCleanupConfig.runsCleaner, "without a key the orchestrator must run raw")
     }
 
-    /// Stated sensitivity: add any of these fields to `DictationMenuInput` → RED.
+    /// The menu input carries each value the menu shows, read from its own field,
+    /// and nothing else: the menu rebuilds when the input changes and only then.
+    /// Stated sensitivity: feed any input field from another `Config` field or a
+    /// constant → RED; add any unshown field to `DictationMenuInput` → RED.
     @Test
-    func menuInputIgnoresFieldsTheMenuDoesNotShow() {
+    func menuInputCarriesExactlyTheShownFields() throws {
         let base = Self.makeState()
-        let changes: [(inout AppState) -> Void] = [
+        let model = try #require(CleanupModelCatalog.options.first { $0.id != base.config.openRouterModel })
+        let shown: [(change: (inout AppState) -> Void, holds: (DictationMenuInput) -> Bool)] = [
+            ({ $0.config.trigger = .rightOption }, { $0.hotkeyConfiguration.main == .rightOption }),
+            ({ $0.config.translateTrigger = .leftShift }, { $0.hotkeyConfiguration.translate == .leftShift }),
+            ({ $0.config.translateKeyIsAdditional = false }, { !$0.hotkeyConfiguration.translateIsAdditional }),
+            ({ $0.config.openRouterModel = model.id }, { $0.cleanupModelSelection.effective == model.id }),
+            ({ state in
+                state.applyScope(.availabilityChanged(isOn: true))
+                state.applyScope(.pipelineStarted)
+                state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: [model.id]))
+            }, { $0.cleanupModelSelection.options == [model] }),
+            ({ $0.config.translationTargetLanguage = .ru }, { $0.translationTargetLanguage == .ru }),
+            ({ $0.config.cleanupEnabled = false }, { $0.cleanupAvailability == .offByChoice }),
+            ({ $0.isOpenRouterKeyPresent = false }, { $0.cleanupAvailability == .offNoKey }),
+            ({ $0.config.mutesSystemAudioWhileDictating = false }, { !$0.mutesSystemAudioWhileDictating }),
+            ({ $0.config.playsDictationSoundCues = false }, { !$0.playsDictationSoundCues }),
+        ]
+        for (index, entry) in shown.enumerated() {
+            var changed = base
+            entry.change(&changed)
+            #expect(entry.holds(changed.dictationMenuInput), "shown change \(index) must reach its own menu input field")
+        }
+
+        let unshown: [(inout AppState) -> Void] = [
             { $0.config.writingStyle = .formal },
             { $0.config.useSpellCheckHints = false },
             { $0.config.usesVocabularyBias = true },
             { $0.config.language = .ru },
             { $0.config.automaticallyInstallsUpdates = false },
         ]
-        for change in changes {
+        for change in unshown {
             var changed = base
             change(&changed)
             #expect(changed != base, "each change must alter the state")
@@ -168,6 +194,7 @@ struct AppStateTests {
         let other = try #require(CleanupModelCatalog.options.first { $0.id != Config.defaultOpenRouterModel })
         var known = Self.launched()
         known.applyScope(.fetchCompleted(generation: known.cleanupScope.generation, ids: [other.id]))
+        #expect(known.config == Self.launched().config)
         try #require(known.cleanupModelSelection.effective != known.config.openRouterModel,
                      "the known scope must exclude the stored preference")
         let events: [CleanupScopeEvent] = [

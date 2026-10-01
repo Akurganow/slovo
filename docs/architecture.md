@@ -97,9 +97,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
   key). The menu, Settings, the recording glyph, and the orchestrator push all
   read this one derivation (`preference && keyPresent`), so the state is never
-  re-derived divergently. It is the `cleanupAvailability` selector on `AppState`
-  (see App State), so the Settings pane and the menu reflect a change within one
-  runloop turn.
+  re-derived divergently. Its derivation is the `cleanupAvailability` selector
+  on `AppState` (see App State); the store publishes synchronously, so the
+  Settings pane and the menu reflect a change within one runloop turn.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
@@ -213,7 +213,7 @@ Work a subscriber starts may write later through `update`, as the scope fetch
 does when it completes.
 
 This supersedes K11's list of fetch, push and rebuild commands in
-`docs/tasks/openrouter-key-scope-and-catalog.md`. The fetch is now the
+`docs/tasks/openrouter-key-scope-and-catalog.md`. The fetch is the
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
 

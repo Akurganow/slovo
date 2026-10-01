@@ -37,7 +37,7 @@ struct AppStoreTests {
         let subscription = store.objectWillChange.sink { notifications.withLock { $0 += 1 } }
         var delivered: [WritingStyle] = []
         store.listen(\.config.writingStyle) { delivered.append($0) }
-        store.update { $0.config.writingStyle = .casual }
+        store.update { $0.config.writingStyle = $0.config.writingStyle }
         #expect(notifications.withLock { $0 } == 0, "a write of the current value must publish nothing")
         #expect(delivered.isEmpty)
         subscription.cancel()
