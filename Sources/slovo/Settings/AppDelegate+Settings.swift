@@ -4,93 +4,9 @@ import Settings
 import SlovoCore
 
 extension AppDelegate: SettingsActions {
-    func currentConfig() -> Config {
-        ConfigStore.load(from: defaults)
-    }
-
-    func hasOpenRouterKey() -> Bool {
-        openRouterKeyProvider.hasConfiguredKey()
-    }
-
-    func setCleanupEnabled(_ enabled: Bool) {
-        applyCleanupEnabled(enabled)
-    }
-
-    func setPlaysDictationSoundCues(_ enabled: Bool) {
-        applyPlaysDictationSoundCues(enabled)
-    }
-
     func launchAtLoginEnabled() -> Bool {
-        // A system-service (SMAppService) read, like hasOpenRouterKey()'s Keychain
-        // read: no pipeline rebuild, no ASR re-warm.
+        // A system-service (SMAppService) read: no pipeline rebuild, no ASR re-warm.
         LaunchAtLogin.isEnabled
-    }
-
-    // The three key settings share one apply path: live monitor reconfigure, no
-    // pipeline rebuild (Plan 1's apply path).
-    func setTrigger(_ trigger: HotkeyTrigger) {
-        applyTrigger(trigger)
-    }
-
-    func setTranslateTrigger(_ trigger: HotkeyTrigger) {
-        applyTranslateTrigger(trigger)
-    }
-
-    func setTranslateKeyIsAdditional(_ isAdditional: Bool) {
-        applyTranslateKeyIsAdditional(isAdditional)
-    }
-
-    func setRecognitionLanguage(_ language: Language) {
-        var config = ConfigStore.load(from: defaults)
-        config.language = language
-        guard persist(config) else { return }
-        // Live: persist + push to the running orchestrator, no rebuild. The loaded
-        // speech model decodes any language — the language reaches only the decoder's
-        // per-session options — so the model is never re-warmed and no loading pulse
-        // appears for a change that decides what the NEXT dictation decodes.
-        Task { @MainActor in
-            await composition?.orchestrator.updateRecognitionLanguage(language)
-        }
-    }
-
-    func setTranslationLanguage(_ language: Language) {
-        // Live: persist + push to the running orchestrator, no rebuild — the target
-        // only shapes the translate-mode prompt, so the resident ASR model is never
-        // re-warmed.
-        applyTranslationLanguage(language)
-    }
-
-    func setCleanupModel(_ modelId: String) {
-        // Live: persist + push to the running orchestrator, no rebuild (#2).
-        applyCleanupModel(modelId)
-    }
-
-    func setWritingStyle(_ style: WritingStyle) {
-        var config = ConfigStore.load(from: defaults)
-        config.writingStyle = style
-        guard persist(config) else { return }
-        pushEffectiveCleanupConfig()
-    }
-
-    func setSpellCheckHints(_ enabled: Bool) {
-        // Live: persist + push to the running orchestrator, no rebuild — hint
-        // gathering only, so the resident ASR model is never re-warmed.
-        applySpellCheckHints(enabled)
-    }
-
-    func setVocabularyBias(_ enabled: Bool) {
-        applyVocabularyBias(enabled)
-    }
-
-    func setAutomaticallyInstallsUpdates(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.automaticallyInstallsUpdates = enabled
-        guard persist(config) else { return }
-        // Apply live to the running updater so OFF halts the scheduler at once (no
-        // feed fetch, no download); no pipeline rebuild, no ASR re-warm.
-        if let updater = updaterCoordinator?.updater {
-            UpdaterActivation.apply(automaticUpdatesEnabled: enabled, to: updater)
-        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -102,34 +18,58 @@ extension AppDelegate: SettingsActions {
 
     func saveOpenRouterKey(_ key: String) {
         // The cleaner reads the key lazily, so a save needs no rebuild and never
-        // re-warms ASR. The menu and the pane re-derive on both outcomes: a failed
-        // save may already have deleted the old item.
+        // re-warms ASR. Key presence is read back on both outcomes: a failed save may
+        // already have deleted the old item. The scope event follows a success only.
+        var scopeEvent: CleanupScopeEvent?
         do {
             try openRouterKeyProvider.store(key)
-            applyScopeEvent(.keySaved)      // BEFORE the push below (K4b)
+            scopeEvent = .keySaved
         } catch {
             logger.error("openrouter key save failed")
             flashUserActionFailure()
         }
-        installStatusMenu()
-        pushEffectiveCleanupConfig()
+        writeKeyPresence(applying: scopeEvent)
     }
 
     func removeOpenRouterKey() {
         // The mirror of saveOpenRouterKey. A delete flips the effective state to
-        // offNoKey; a failed one leaves the key stored. Either way the menu and the
-        // pane re-derive through the single funnel.
+        // offNoKey; a failed one leaves the key stored. Either way key presence is
+        // read back from the provider.
+        var scopeEvent: CleanupScopeEvent?
         do {
             try openRouterKeyProvider.removeKey()
-            applyScopeEvent(.keyRemoved)    // BEFORE the push below (K4c)
+            scopeEvent = .keyRemoved
         } catch {
             logger.error("openrouter key removal failed")
             flashUserActionFailure()
         }
-        installStatusMenu()
-        pushEffectiveCleanupConfig()
+        writeKeyPresence(applying: scopeEvent)
     }
 
+    func addVocabulary(_ commaSeparatedTerms: String) {
+        let records = VocabularyQuickAdd.records(from: commaSeparatedTerms)
+        guard !records.isEmpty else { return }
+        do {
+            // No rebuild: vocabulary is re-read from the database at the start of
+            // every dictation, so new terms apply on the next one.
+            try composition?.personalization.addVocabulary(records)
+        } catch {
+            logger.error("vocabulary add failed")
+        }
+        store.update { $0.vocabulary = listVocabulary() }
+    }
+
+    func removeVocabulary(id: Int64) {
+        do {
+            try composition?.personalization.removeVocabulary(id: id)
+        } catch {
+            logger.error("vocabulary remove failed")
+        }
+        store.update { $0.vocabulary = listVocabulary() }
+    }
+
+    /// The vocabulary mirror's one read of the database, for the seed in
+    /// `startPipeline` and both edits. Not part of `SettingsActions`.
     func listVocabulary() -> [VocabularyRecord] {
         do {
             return try composition?.personalization.allVocabulary() ?? []
@@ -139,73 +79,12 @@ extension AppDelegate: SettingsActions {
         }
     }
 
-    func addVocabulary(_ commaSeparatedTerms: String) {
-        let records = VocabularyQuickAdd.records(from: commaSeparatedTerms)
-        guard !records.isEmpty else { return }
-        do {
-            // No rebuild: vocabulary is re-read from the store at the start of every
-            // dictation, so new terms apply on the next one.
-            try composition?.personalization.addVocabulary(records)
-        } catch {
-            logger.error("vocabulary add failed")
-        }
-    }
-
-    func removeVocabulary(id: Int64) {
-        do {
-            try composition?.personalization.removeVocabulary(id: id)
-        } catch {
-            logger.error("vocabulary remove failed")
-        }
-    }
-
-    /// Persists the experimental vocabulary-bias switch and applies it to the NEXT
-    /// dictation live — the `applySpellCheckHints` shape: no pipeline rebuild, no ASR
-    /// re-warm, and no status-menu rebuild (the switch is not menu-visible). Only the
-    /// terms handed to the recognizer change; cleanup keeps the full vocabulary.
-    func applyVocabularyBias(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.usesVocabularyBias = enabled
-        guard persist(config) else { return }
-        Task { @MainActor in
-            await composition?.orchestrator.updateUsesVocabularyBias(enabled)
-        }
-    }
-
-    /// Persists a translate-target change and applies it to the NEXT dictation live.
-    /// Like `applyCleanupModel`, this does NOT rebuild the pipeline: the target only
-    /// affects the cleanup prompt in translate mode, so the resident ASR model is
-    /// never re-warmed and no loading pulse appears. The menu is refreshed so the
-    /// selected-language checkmark and the "Translate to" title track the new choice.
-    func applyTranslationLanguage(_ language: Language) {
-        var config = ConfigStore.load(from: defaults)
-        config.translationTargetLanguage = language
-        guard persist(config) else { return }
-        installStatusMenu()
-        pushEffectiveCleanupConfig()
-    }
-
-    /// Persists the spell-check hints toggle and applies it to the NEXT dictation
-    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the change
-    /// only affects hint gathering, so the resident ASR model is never re-warmed and
-    /// no loading pulse appears. The toggle is not menu-visible, so the status menu
-    /// is not rebuilt.
-    func applySpellCheckHints(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.useSpellCheckHints = enabled
-        guard persist(config) else { return }
-        pushEffectiveCleanupConfig()
-    }
-
-    /// Saves `config`, logging and abandoning the change on a validation/save error
-    /// (no modal — the pane keeps its current value). Returns whether it persisted.
-    private func persist(_ config: Config) -> Bool {
-        do {
-            try ConfigStore.save(config, to: defaults)
-            return true
-        } catch {
-            logger.error("config save failed")
-            return false
+    /// Ends a key save or removal: reads key presence back from the provider on both
+    /// outcomes, and applies the scope event only when the provider call succeeded.
+    private func writeKeyPresence(applying scopeEvent: CleanupScopeEvent?) {
+        store.update {
+            $0.isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey()
+            if let scopeEvent { $0.applyScope(scopeEvent) }
         }
     }
 }

@@ -15,22 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
     let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
+    /// The app's state and its one mutation path, seeded once in `init`. A stored
+    /// `let`: a computed form would hand every reader a different store.
+    let store: AppStore
     /// Owned here and injected into every composition, like the key provider: the
     /// pipeline is rebuilt on a permission grant, on Retry Setup and on the hotkey
-    /// retry, and none of those may download or load the speech model again. Lazy
-    /// only so the config read happens after `defaults` is set.
-    private lazy var speechModel = SharedSpeechModel(config: ConfigStore.load(from: defaults))
-    // Lazy so the seed can run the live derivation (a phase-2 self call); after
-    // that, pushEffectiveCleanupConfig() is the ONLY writer (spec D1), so the
-    // Settings pane can never observe a value the funnel did not publish.
-    lazy var cleanupAvailabilityModel = CleanupAvailabilityModel(availability: currentCleanupAvailability())
-    var scopeState = CleanupScopeState()
-    lazy var cleanupModelScopeModel = CleanupModelScopeModel(scope: .unknown)
-    /// One observed projection feeds both Sound Cues surfaces. The apply path is
-    /// its only writer after this persisted seed.
-    lazy var dictationSoundCuePreferenceModel = DictationSoundCuePreferenceModel(
-        isEnabled: ConfigStore.load(from: defaults).playsDictationSoundCues
-    )
+    /// retry, and none of those may download or load the speech model again.
+    private let speechModel: SharedSpeechModel
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     // The status line's idle text — the hold-to-talk hint (the hint IS the idle
@@ -79,6 +70,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.logger = logger
         self.defaults = defaults
         self.fnKeyAssignmentReader = fnKeyAssignmentReader
+        store = AppStore(state: AppState(
+            config: ConfigStore.load(from: defaults),
+            isOpenRouterKeyPresent: openRouterKeyProvider.hasConfiguredKey()
+        ))
+        speechModel = SharedSpeechModel(config: store.state.config)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -88,29 +84,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = StatusItemPlacement.autosaveName
         paintIdleGlyph(on: item.button)
-        item.menu = makeMenu()
         statusItem = item
-
+        startStoreEffects()
         startPipeline()
         startUpdater()
         logger.info("menu bar app ready")
     }
 
-    private func makeMenu() -> NSMenu {
-        let config = ConfigStore.load(from: defaults)
-        let built = DictationMenuBuilder(target: self).make(
-            hotkeys: config.hotkeyConfiguration,
-            cleanup: DictationMenuCleanupConfiguration(
-                selectedModelId: currentModelSelection().effective,
-                translationLanguage: config.translationTargetLanguage.rawValue,
-                availability: currentCleanupAvailability()
-            ),
-            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            playsDictationSoundCues: dictationSoundCuePreferenceModel.isEnabled,
-            isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned
-        )
+    private func makeMenu(_ input: DictationMenuInput) -> NSMenu {
+        let built = DictationMenuBuilder(target: self).make(input, isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned)
         statusTextItem = built.statusItem
-        idleStatusTitle = DictationMenu.idleStatusLine(trigger: config.trigger)
+        idleStatusTitle = DictationMenu.idleStatusLine(trigger: input.hotkeyConfiguration.main)
         // Sync the freshly built update row to the current state, so a rebuild while
         // an update is downloading or ready shows the right line immediately.
         if let indication = updaterCoordinator?.currentIndication {
@@ -122,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startPipeline() {
         do {
             let live = try AppComposition.makeLive(
-                defaults: defaults,
+                state: store.state,
                 openRouterKeyProvider: openRouterKeyProvider,
                 speechModel: speechModel,
                 statusReporter: { [weak self] status in
@@ -133,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onCleanupFailure: scopeFailureObserver()
             )
             composition = live
+            store.update { $0.vocabulary = listVocabulary() }
             guard live.onboardingSteps == [.ready] else {
                 presentOnboarding(live.onboardingSteps)
                 logger.info("onboarding pending")
@@ -184,8 +169,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             do {
                 try live.hotkeyMonitor.start()
-                feedAvailabilityEdge()
-                applyScopeEvent(.pipelineStarted)
+                store.update { $0.isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey() }
+                store.update { $0.applyScope(.pipelineStarted) }
                 logger.info("production composition started")
             } catch {
                 presentHotkeyRecovery()
@@ -209,7 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// derivation argument — so no sequencer arm carries a separate gate read that a
     /// mutant could leave dead while still running the paint; both arms share this.
     func applyRecordingGlyph(_ mode: DictationMode) {
-        let glyphMode = MenuBarGlyph.recordingGlyphMode(mode: mode, isCleanupOn: currentCleanupAvailability().isOn)
+        let glyphMode = MenuBarGlyph.recordingGlyphMode(mode: mode, isCleanupOn: store.state.cleanupAvailability.isOn)
         setStatusGlyph(recording: glyphMode, on: statusItem?.button)
     }
 
@@ -390,8 +375,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Opens the dedicated Add-OpenRouter-Key window — the no-key menu-bar affordance.
     /// Save routes through the existing key-save path (`saveOpenRouterKey` → provider
-    /// store + the availability funnel), so every surface repaints as it does for a
-    /// pane save; the window closes itself on save or cancel.
+    /// store + the store's key-presence write), so every surface repaints as it does
+    /// for a pane save; the window closes itself on save or cancel.
     @objc
     func showAddOpenRouterKeyWindow() {
         if openRouterKeyWindow == nil {
@@ -410,7 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !isRebuildingPipeline else { return }
         isRebuildingPipeline = true
         composition?.hotkeyMonitor.stop()
-        installStatusMenu()
+        installStatusMenu(store.state.dictationMenuInput)
         // Join the previous edge consumer before a new one is built, so a rebuilt
         // monitor cannot leave two consumers double-handling the same fn edges.
         let previousSequencer = hotkeyEdgeSequencer
@@ -445,109 +430,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Rebuilds and reinstalls the status-bar dropdown, re-capturing the live
-    /// status item. Called after a settings change that alters a menu-visible value
-    /// (the idle hold-to-talk line or the selected cleanup model).
-    func installStatusMenu() {
-        statusItem?.menu = makeMenu()
-    }
-
-    /// Persists a cleanup-model change and applies it to the NEXT dictation live.
-    /// Unlike `retrySetup`, this does NOT rebuild the pipeline: the resident ASR
-    /// model is never re-warmed and the "Preparing Speech Model" loading pulse
-    /// never appears for a change that only swaps the cleanup LLM id (#2). The menu
-    /// is refreshed so the selected-model checkmark tracks the new choice.
-    func applyCleanupModel(_ modelId: String) {
-        var config = ConfigStore.load(from: defaults)
-        config.openRouterModel = modelId
-        do {
-            try ConfigStore.save(config, to: defaults)
-        } catch {
-            logger.error("config save failed")
-            return
-        }
-        installStatusMenu()
-        pushEffectiveCleanupConfig()
-    }
-
-    func currentCleanupAvailability() -> CleanupAvailability {
-        CleanupAvailability.derive(
-            preference: ConfigStore.load(from: defaults).cleanupEnabled,
-            keyPresent: hasOpenRouterKey()
-        )
-    }
-
-    /// The single push funnel (spec amendment A5): every mutation that can change
-    /// the effective cleanup state — the toggle, a key save, any cleanup tunable —
-    /// re-derives `preference && keyPresent` HERE and pushes exactly one
-    /// CleanupConfig. No other call site may talk to updateCleanupConfig, and no
-    /// other site may write `cleanupAvailabilityModel` (spec D1).
-    func pushEffectiveCleanupConfig() {
-        let config = ConfigStore.load(from: defaults)
-        var cleanupConfig = config.cleanupConfig
-        // The pushed model is the DERIVED effective id; the stored preference is
-        // never rewritten (K1) — the derivation is read here, not persisted.
-        cleanupConfig.model = currentModelSelection().effective
-        // The effective-on rule has ONE definition (CleanupAvailability.derive);
-        // this site only CALLS it — never re-spell the predicate here.
-        let availability = CleanupAvailability.derive(
-            preference: config.cleanupEnabled,
-            keyPresent: hasOpenRouterKey()
-        )
-        cleanupConfig.runsCleaner = availability.isOn
-        // Published before the async orchestrator hop: the pane observes this
-        // model, so the write must land in the same runloop turn as the mutation.
-        cleanupAvailabilityModel.update(availability)
-        Task { @MainActor in
-            await composition?.orchestrator.updateCleanupConfig(cleanupConfig)
-        }
-        feedAvailabilityEdge()
-    }
-
-    /// Persists the preference and applies it to the NEXT dictation live — the
-    /// applyMuteWhileDictating shape: no rebuild, no ASR re-warm; the menu is
-    /// rebuilt for the checkmark and the translate submenu's enabled state.
-    func applyCleanupEnabled(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.cleanupEnabled = enabled
-        do {
-            try ConfigStore.save(config, to: defaults)
-        } catch {
-            logger.error("config save failed")
-            return
-        }
-        installStatusMenu()
-        pushEffectiveCleanupConfig()
+    /// Builds and installs the dictation dropdown for `input`. The store's menu
+    /// subscriber calls it when a value the menu shows changes; Retry Setup calls
+    /// it to leave the setup menus.
+    func installStatusMenu(_ input: DictationMenuInput) {
+        statusItem?.menu = makeMenu(input)
     }
 
     @objc
     func toggleCleanupDictation(_ sender: NSMenuItem) {
-        applyCleanupEnabled(!ConfigStore.load(from: defaults).cleanupEnabled)
-    }
-
-    /// Persists a mute-while-dictating change and applies it to the NEXT dictation
-    /// live. Like `applyCleanupModel`, this does NOT rebuild the pipeline: the
-    /// resident ASR model is never re-warmed and no loading pulse appears for a
-    /// change that only flips a capture-stage flag. The switch is menu-visible, so
-    /// the status menu is rebuilt to track the checkmark.
-    func applyMuteWhileDictating(_ enabled: Bool) {
-        var config = ConfigStore.load(from: defaults)
-        config.mutesSystemAudioWhileDictating = enabled
-        do {
-            try ConfigStore.save(config, to: defaults)
-        } catch {
-            logger.error("config save failed")
-            return
-        }
-        installStatusMenu()
-        Task { @MainActor in
-            await composition?.orchestrator.updateMutesSystemAudioWhileDictating(enabled)
-        }
+        store.update { $0.config.cleanupEnabled.toggle() }
     }
 
     @objc
     func toggleMuteWhileDictating(_ sender: NSMenuItem) {
-        let config = ConfigStore.load(from: defaults)
-        applyMuteWhileDictating(!config.mutesSystemAudioWhileDictating)
+        store.update { $0.config.mutesSystemAudioWhileDictating.toggle() }
     }
 }

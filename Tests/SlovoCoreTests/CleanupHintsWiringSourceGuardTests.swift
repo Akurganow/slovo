@@ -54,32 +54,4 @@ struct CleanupHintsWiringSourceGuardTests {
         #expect(composition.contains("inputSourceLanguage: SystemInputSourceLanguageReader()"))
         #expect(composition.contains("spellCheckHints: SystemSpellCheckHintProvider()"))
     }
-
-    /// Stated sensitivity: an `applySpellCheckHints` that rebuilds the pipeline
-    /// (retrySetup/startPipeline) or omits the live push through the effective-config
-    /// funnel (`pushEffectiveCleanupConfig()`) — the same mistake guarded for the
-    /// cleanup-model change — turns this red.
-    @Test
-    func spellCheckToggleAppliesLiveWithoutRebuild() throws {
-        let delegate = try Self.source("Sources/slovo/Settings/AppDelegate+Settings.swift")
-
-        #expect(delegate.contains("func applySpellCheckHints("))
-        #expect(delegate.contains("config.useSpellCheckHints = "))
-        #expect(delegate.contains("ConfigStore.save(config, to: defaults)"))
-        guard let applyRange = delegate.range(of: "func applySpellCheckHints(") else {
-            Issue.record("applySpellCheckHints not found")
-            return
-        }
-        // `delegate` is already comment-stripped by `source(_:)`; the method body is
-        // short, so a generous window still stops before neighbors. The funnel check
-        // is body-scoped because `pushEffectiveCleanupConfig()` now appears across
-        // many apply methods — a file-scoped check would be vacuous.
-        let body = String(delegate[applyRange.lowerBound...].prefix(1_200))
-        #expect(body.contains("pushEffectiveCleanupConfig()"),
-                "applySpellCheckHints must push the effective cleanup config live through the funnel")
-        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate"] {
-            #expect(!body.contains(forbidden),
-                    "toggling spell-check hints must not \(forbidden): that re-warms ASR")
-        }
-    }
 }

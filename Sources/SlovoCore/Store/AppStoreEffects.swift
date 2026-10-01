@@ -3,7 +3,7 @@ import os
 /// Where `AppState`'s effects land. Closures and SlovoCore types only, so the
 /// wiring stays in SlovoCore and cannot rebuild the pipeline: only the app target
 /// can call `retrySetup` or `startPipeline`.
-@preconcurrency
+@preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
 @MainActor
 public struct AppStoreEffectTargets {
     public var defaults: any UserDefaultsWriting
@@ -13,7 +13,7 @@ public struct AppStoreEffectTargets {
     public var updaterSwitch: () -> (any UpdaterSwitch)?
     public var fetchScopeIds: @Sendable () async throws -> Set<String>
 
-    @preconcurrency
+    @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
     public init(
         defaults: any UserDefaultsWriting,
         orchestrator: @escaping () -> Orchestrator?,
@@ -37,7 +37,7 @@ public struct AppStoreEffectTargets {
 public enum AppStoreEffects {
     private static let log = Logger(subsystem: "com.slovo.app", category: "store")
 
-    @preconcurrency
+    @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
     @MainActor
     public static func wire(_ store: AppStore, to targets: AppStoreEffectTargets) {
         // `listen`, never `subscribe`: a save at wire time would overwrite an

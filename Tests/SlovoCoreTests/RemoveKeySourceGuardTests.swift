@@ -4,8 +4,8 @@ import Testing
 // The Remove-Key contract (spec 2026-07-23): the pane offers removal only while
 // a key is saved, behind a destructive confirmation inside the Settings window;
 // the pane reaches removal only through the SettingsActions seam; the app-layer
-// action refreshes availability through the single push funnel (no second
-// derivation, no second model writer); and the four copy strings are pinned.
+// action writes key presence and the scope event in one store update (no second
+// derivation); and the four copy strings are pinned.
 @Suite("Remove-Key button source guard")
 struct RemoveKeySourceGuardTests {
     private static let packageRoot = URL(fileURLWithPath: #filePath)
@@ -32,17 +32,20 @@ struct RemoveKeySourceGuardTests {
         #expect(row.contains(".confirmationDialog("), "removal must be confirmed inside the Settings window")
     }
 
-    /// Stated sensitivity: reintroduce a `hasSavedKey` snapshot or any manual
-    /// `hasOpenRouterKey()` re-fetch in the pane → a negative assert reddens;
-    /// hardcode or invert `hasKey` instead of deriving it from the observed
-    /// availability → the derivation pin reddens.
+    /// Stated sensitivity: reintroduce a `hasSavedKey` snapshot, or read key presence
+    /// from the provider or the state field instead of the observed availability →
+    /// a negative assert reddens; read availability from anywhere but the store, or
+    /// hardcode or invert `hasKey` → a derivation pin reddens.
     @Test
     func paneDerivesKeyPresenceFromObservedAvailability() throws {
         let pane = try Self.strippedCode(Self.panePath)
+        #expect(pane.contains("private var availability: CleanupAvailability { store.state.cleanupAvailability }"),
+                "availability must come from the observed store")
         #expect(pane.contains("private var hasKey: Bool { availability != .offNoKey }"),
                 "key presence must derive from the observed availability")
         #expect(!pane.contains("hasSavedKey"), "no manual key-presence snapshot may exist")
-        #expect(!pane.contains("hasOpenRouterKey()"), "the observed availability is the single key-presence signal")
+        #expect(!pane.contains("hasConfiguredKey"), "the pane reads no key provider")
+        #expect(!pane.contains("isOpenRouterKeyPresent"), "the observed availability is the single key-presence signal")
     }
 
     /// Stated sensitivity: point the trigger button's action at the removal
@@ -75,38 +78,39 @@ struct RemoveKeySourceGuardTests {
         #expect(!pane.contains("SecItem"), "the pane must never touch the Keychain directly")
     }
 
-    /// Stated sensitivity: drop the funnel re-push or the menu rebuild after the
-    /// provider delete → a positive assert reddens; re-derive availability
-    /// locally or write the observed model here (a second writer beside the
-    /// funnel) → a negative assert reddens; reorder the re-push BEFORE the
-    /// delete (derive() would still see the key and paint a stale on-state) →
-    /// the order assert reddens; duplicate either call → a count assert reddens.
+    /// Stated sensitivity: drop the `writeKeyPresence(applying:)` call after the
+    /// provider delete → a positive assert reddens; set `.keyRemoved` outside the
+    /// `do` (a failed delete would then reset the scope) → the placement assert
+    /// reddens; derive availability locally → a negative assert reddens; call the
+    /// helper before the delete (key presence would still read the old item) → the
+    /// order assert reddens; have the helper read presence from anything but the
+    /// provider, or split it into two updates → a helper assert reddens.
     @Test
-    func removalRefreshesAvailabilityThroughTheFunnelOnly() throws {
+    func removalWritesKeyPresenceThroughOneStoreUpdate() throws {
         let settings = try Self.strippedCode(Self.settingsPath)
         let body = try Self.slice(of: settings, from: "func removeOpenRouterKey", to: "\n    func ")
-        #expect(body.contains("openRouterKeyProvider.removeKey()"))
-        #expect(body.contains("installStatusMenu()"))
-        #expect(body.contains("pushEffectiveCleanupConfig()"))
-        #expect(!body.contains("CleanupAvailability.derive("), "the funnel owns the sole derivation")
-        #expect(!body.contains("cleanupAvailabilityModel.update("), "the funnel is the model's only writer")
-        // Single occurrences first, so the order check below cannot false-pass
-        // off a stray duplicate token.
         #expect(body.components(separatedBy: "openRouterKeyProvider.removeKey()").count - 1 == 1)
-        #expect(body.components(separatedBy: "pushEffectiveCleanupConfig()").count - 1 == 1)
-        if let removeCall = body.range(of: "openRouterKeyProvider.removeKey()"),
-           let pushCall = body.range(of: "pushEffectiveCleanupConfig()") {
-            #expect(removeCall.lowerBound < pushCall.lowerBound,
-                    "the delete must land before the funnel re-push, or derive() still sees the key")
-        }
+        #expect(body.components(separatedBy: ".keyRemoved").count - 1 == 1, "the removal event is named once")
+        #expect(!body.contains("CleanupAvailability.derive("), "the state's selector owns the sole derivation")
+        let removeCall = try #require(body.range(of: "openRouterKeyProvider.removeKey()"))
+        let write = try #require(body.range(of: "writeKeyPresence(applying:"), "the removal must end in the key-presence helper")
+        #expect(removeCall.lowerBound < write.lowerBound, "the delete must land before key presence is read back")
+        let doBlock = try Self.slice(of: body, from: "do {", to: "} catch {")
+        #expect(doBlock.contains(".keyRemoved"), "the scope event is set only when the delete succeeded")
+        let helper = try Self.slice(of: settings, from: "func writeKeyPresence(applying", to: "\n    }")
+        #expect(helper.components(separatedBy: "store.update").count - 1 == 1, "presence and the event land in one update")
+        #expect(helper.contains("isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey()"))
+        #expect(helper.contains("applyScope("))
     }
 
-    /// A failed key save or removal must reach the product's error surface, and
-    /// the menu and pane must re-derive from the provider whatever the outcome —
-    /// a failed save may already have deleted the old item.
+    /// A failed key save or removal must reach the product's error surface, and key
+    /// presence must be read back from the provider whatever the outcome — a failed
+    /// save may already have deleted the old item. A failure applies no scope event.
     /// Stated sensitivity: drop `flashUserActionFailure()` from either `catch` →
-    /// RED; move `installStatusMenu()` or `pushEffectiveCleanupConfig()` back inside
-    /// the `do` (a failure then leaves the pane on the pre-failure state) → RED.
+    /// RED; move the `writeKeyPresence(applying:)` call inside the `do` (a failure
+    /// then leaves the pane on the pre-failure state) → RED; name a scope event in
+    /// the `catch` → RED. The helper's own contract is pinned by
+    /// `removalWritesKeyPresenceThroughOneStoreUpdate`.
     @Test
     func keyFailuresFlashTheGlyphAndStillRefresh() throws {
         let settings = try Self.strippedCode(Self.settingsPath)
@@ -118,8 +122,11 @@ struct RemoveKeySourceGuardTests {
             let catchBody = afterCatchStart[..<catchEnd.lowerBound]
             let afterCatch = afterCatchStart[catchEnd.upperBound...]
             #expect(catchBody.contains("flashUserActionFailure()"), "\(name): a failure must flash the red glyph")
-            #expect(afterCatch.contains("installStatusMenu()"), "\(name): the menu must rebuild on both outcomes")
-            #expect(afterCatch.contains("pushEffectiveCleanupConfig()"), "\(name): the funnel must re-push on both outcomes")
+            for event in ["applyScope", ".keySaved", ".keyRemoved"] {
+                #expect(!catchBody.contains(event), "\(name): the catch block must name no scope event")
+            }
+            #expect(afterCatch.components(separatedBy: "writeKeyPresence(applying:").count - 1 == 1,
+                    "\(name): key presence must be written after the catch, on both outcomes")
         }
     }
 

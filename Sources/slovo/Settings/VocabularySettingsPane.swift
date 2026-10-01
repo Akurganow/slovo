@@ -9,7 +9,9 @@ struct VocabularySettingsPane: View {
     // singleton that always outlives this pane, matching DictationMenuBuilder's
     // `unowned let target: AppDelegate`.
     unowned let actions: any SettingsActions
-    @State private var records: [VocabularyRecord]
+    // Observed, not snapshotted: a term added from the menu bar's quick-add window
+    // appears while this pane is open.
+    @ObservedObject private var store: AppStore
     // Row ids mirror `VocabularyRecord.id` (`Int64?`), so the selection is optional-
     // typed to match the `List`/`ForEach` identity; nil ids never occur for stored
     // rows and are dropped on removal.
@@ -19,8 +21,10 @@ struct VocabularySettingsPane: View {
 
     init(actions: any SettingsActions) {
         self.actions = actions
-        _records = State(initialValue: actions.listVocabulary())
+        _store = ObservedObject(wrappedValue: actions.store)
     }
+
+    private var records: [VocabularyRecord] { store.state.vocabulary }
 
     private var trimmedNewTerms: String {
         newTerms.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -43,10 +47,6 @@ struct VocabularySettingsPane: View {
         }
         .padding()
         .frame(width: 420, height: 360)
-        .onAppear {
-            // Same reason as the other panes: the window is cached, not recreated.
-            records = actions.listVocabulary()
-        }
     }
 
     private var table: some View {
@@ -142,14 +142,12 @@ struct VocabularySettingsPane: View {
         actions.addVocabulary(newTerms)
         newTerms = ""
         isAddingTerm = false
-        records = actions.listVocabulary()
     }
 
     private func delete(at offsets: IndexSet) {
         for id in offsets.compactMap({ records[$0].id }) {
             actions.removeVocabulary(id: id)
         }
-        records = actions.listVocabulary()
     }
 
     private func removeSelected() {
@@ -157,6 +155,5 @@ struct VocabularySettingsPane: View {
             actions.removeVocabulary(id: id)
         }
         selection.removeAll()
-        records = actions.listVocabulary()
     }
 }

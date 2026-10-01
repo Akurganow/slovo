@@ -15,7 +15,7 @@ extension AppDelegate {
             onInstallFailedAfterRestart: { [weak self] in self?.flashUserActionFailure() }
         )
         updaterCoordinator = coordinator
-        coordinator.start(automaticUpdatesEnabled: ConfigStore.load(from: defaults).automaticallyInstallsUpdates)
+        coordinator.start(automaticUpdatesEnabled: store.state.config.automaticallyInstallsUpdates)
     }
 
     /// The update-ready Nash rides the IDLE glyph slot, so a ready/not-ready

@@ -21,7 +21,7 @@ public struct AppState: Equatable, Sendable {
 extension AppState {
     /// Applies one scope event. The only writer of `cleanupScope`.
     public mutating func applyScope(_ event: CleanupScopeEvent) {
-        cleanupScope = CleanupScopeReducer.reduce(cleanupScope, event).state
+        cleanupScope = CleanupScopeReducer.reduce(cleanupScope, event)
     }
 
     /// Feeds the availability edge, so `cleanupIsOn == cleanupAvailability.isOn`.

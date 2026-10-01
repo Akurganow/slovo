@@ -8,11 +8,11 @@ import Testing
 struct TranslateModeWiringSourceGuardTests {
 
     /// G-MENU-1 — the translate submenu renderer builds the recognition-language
-    /// catalog (NO Auto row), checkmarks the selected code, and wires the select
-    /// action into `applyTranslationLanguage`.
-    /// Stated sensitivity: drop the catalog/select/apply wiring → the matching
-    /// positive `#expect` reddens; add an Auto row (`Language.auto` or a `"Auto"`
-    /// tag) to the translate submenu → a negative `#expect` reddens.
+    /// catalog (NO Auto row), checkmarks the selected code, and the select action
+    /// writes the store's translate target.
+    /// Stated sensitivity: drop the catalog or select wiring, or the store write →
+    /// the matching positive `#expect` reddens; add an Auto row (`Language.auto` or
+    /// a `"Auto"` tag) to the translate submenu → a negative `#expect` reddens.
     @Test
     func translateMenuRendererBuildsCatalogSubmenuWithoutAuto() {
         let source = Self.code("Sources/slovo/AppDelegate+TranslateMenu.swift")
@@ -20,8 +20,8 @@ struct TranslateModeWiringSourceGuardTests {
                 "the submenu must be built from the recognition-language catalog")
         #expect(source.contains("selectTranslationLanguage"),
                 "each row must target the select action")
-        #expect(source.contains("applyTranslationLanguage"),
-                "selecting a language must route into applyTranslationLanguage")
+        #expect(source.contains("$0.config.translationTargetLanguage ="),
+                "selecting a language must write the store's translate target")
         #expect(source.contains(".state =") && source.contains(".on : .off"),
                 "the selected row must be checkmarked (.state = ... .on : .off)")
         #expect(!source.contains("Language.auto"),
@@ -30,107 +30,32 @@ struct TranslateModeWiringSourceGuardTests {
                 "the translate submenu must not offer a hardcoded Auto row")
     }
 
-    /// G-MENU-2 — applying a translate language is a LIVE apply (persist + rebuild
-    /// the status menu + push the cleanup config), never a pipeline rebuild — mirrors
-    /// `applyCleanupModel`.
-    /// Stated sensitivity: drop `installStatusMenu()` or the live push through the
-    /// effective-config funnel (`pushEffectiveCleanupConfig()`) → the positive
-    /// `#expect` reddens; route through `startPipeline`/`retrySetup` (an ASR rebuild)
-    /// → a negative `#expect` reddens.
-    @Test
-    func applyTranslationLanguageAppliesLiveWithoutRebuild() {
-        let delegate = Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        let body = Self.functionBody(named: "applyTranslationLanguage", in: delegate)
-        #expect(body.contains("installStatusMenu()"),
-                "applyTranslationLanguage must rebuild the status menu to recheck the selected row")
-        #expect(body.contains("pushEffectiveCleanupConfig()"),
-                "applyTranslationLanguage must push the effective cleanup config live through the funnel")
-        #expect(!body.contains("startPipeline"),
-                "applyTranslationLanguage must not rebuild the pipeline")
-        #expect(!body.contains("retrySetup"),
-                "applyTranslationLanguage must not rebuild the pipeline via retrySetup")
-    }
-
     /// G-SETTINGS-1 — the Cleanup pane hosts a translation picker driven by the
-    /// catalog (NO Auto row), wired to the setter, and re-seeded on appear.
-    /// Stated sensitivity: drop the setter/catalog/reseed → the positive `#expect`
+    /// catalog (NO Auto row) and bound to the store.
+    /// Stated sensitivity: drop the binding or the catalog → a positive `#expect`
     /// reddens; add an Auto option (`Language.auto` / a `"Auto"` tag) → a negative
     /// `#expect` reddens.
     @Test
     func cleanupPaneHostsTranslationPicker() {
         let cleanup = Self.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
-        #expect(cleanup.contains("setTranslationLanguage("),
-                "the translation picker must drive actions.setTranslationLanguage")
+        #expect(cleanup.contains(#"store.binding(\.translationTargetLanguage)"#),
+                "the translation picker must bind the store's translate target")
         #expect(cleanup.contains("RecognitionLanguageCatalog.options"),
                 "the translation picker must be built from the recognition-language catalog")
-        #expect(cleanup.contains("translationTargetLanguage"),
-                "the pane must re-seed the translation language from currentConfig().translationTargetLanguage")
         #expect(!cleanup.contains("Language.auto"),
                 "the translation picker must not offer Auto")
         #expect(!cleanup.contains("\"Auto\""),
                 "the translation picker must not offer a hardcoded Auto row")
     }
 
-    /// G-SETTINGS-2 — the SettingsActions seam exposes the translation-language
-    /// setter the pane calls.
-    /// Stated sensitivity: drop the seam method → the pane cannot be wired → RED.
-    @Test
-    func settingsActionsExposesTranslationLanguageSetter() {
-        let actions = Self.code("Sources/slovo/Settings/SettingsActions.swift")
-        #expect(actions.contains("func setTranslationLanguage("),
-                "SettingsActions must declare setTranslationLanguage")
-    }
-
-    // MARK: - Source scanning helpers (missing file / missing function → "", so an
-    // absent-wiring guard fails on its positive assert rather than throwing).
+    // MARK: - Source scanning helpers (a missing file → "", so an absent-wiring
+    // guard fails on its positive assert rather than throwing).
 
     private static func code(_ relativePath: String) -> String {
         guard let raw = try? String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8) else {
             return ""
         }
         return strippingComments(from: raw)
-    }
-
-    private static func functionBody(named name: String, in source: String) -> String {
-        guard let signature = source.range(of: "func \(name)"),
-              let openBrace = functionOpeningBrace(after: signature.lowerBound, in: source)
-        else {
-            return ""
-        }
-        return blockBody(from: openBrace, in: source)
-    }
-
-    private static func blockBody(from openBrace: String.Index, in source: String) -> String {
-        var depth = 0
-        var index = openBrace
-        while index < source.endIndex {
-            if source[index] == "{" {
-                depth += 1
-            } else if source[index] == "}" {
-                depth -= 1
-                if depth == 0 {
-                    return String(source[openBrace...index])
-                }
-            }
-            index = source.index(after: index)
-        }
-        return String(source[openBrace...])
-    }
-
-    private static func functionOpeningBrace(after start: String.Index, in source: String) -> String.Index? {
-        var index = start
-        var parenDepth = 0
-        while index < source.endIndex {
-            if source[index] == "(" {
-                parenDepth += 1
-            } else if source[index] == ")" {
-                parenDepth -= 1
-            } else if source[index] == "{", parenDepth == 0 {
-                return index
-            }
-            index = source.index(after: index)
-        }
-        return nil
     }
 
     private static func strippingComments(from source: String) -> String {

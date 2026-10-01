@@ -6,7 +6,6 @@ enum AppComposition {
         let orchestrator: Orchestrator
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
-        let config: Config
         let permissionRequester: any PermissionRequester
         let modelWarmUp: Task<Void, Never>
         let personalization: GRDBPersonalizationSource
@@ -14,14 +13,14 @@ enum AppComposition {
     }
 
     static func makeLive(
-        defaults: UserDefaults = .standard,
+        state: AppState,
         openRouterKeyProvider: KeychainOpenRouterKeyProvider,
         speechModel: SharedSpeechModel,
         fileManager: FileManager = .default,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         onCleanupFailure: (@Sendable (CleanupError) -> Void)? = nil
     ) throws -> Live {
-        let config = ConfigStore.load(from: defaults)
+        let config = state.config
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
         let permissionPreflighter = SystemPermissionPreflighter()
         let database = try PersonalizationDatabase.open(
@@ -70,26 +69,19 @@ enum AppComposition {
         )
         dependencies.onCleanupFailure = onCleanupFailure
 
-        // The ONE effective-on definition (CleanupAvailability.derive), applied
-        // at build time so the first dictation never races a push. The
-        // orchestrator never learns about keys.
-        var cleanupConfig = config.cleanupConfig
-        cleanupConfig.runsCleaner = CleanupAvailability.derive(
-            preference: config.cleanupEnabled,
-            keyPresent: openRouterKeyProvider.hasConfiguredKey()
-        ).isOn
-
         return Live(
             orchestrator: PipelineFactory.makeOrchestrator(
                 config: config,
                 dependencies: dependencies,
-                cleanupConfig: cleanupConfig
+                // The derived model and the effective on/off, so the first
+                // dictation never races a push. The orchestrator never learns
+                // about keys.
+                cleanupConfig: state.effectiveCleanupConfig
             ),
             hotkeyMonitor: CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight()
             ),
-            config: config,
             permissionRequester: permissionPreflighter,
             modelWarmUp: modelWarmUp,
             personalization: source,

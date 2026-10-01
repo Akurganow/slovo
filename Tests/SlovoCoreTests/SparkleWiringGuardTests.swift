@@ -150,27 +150,21 @@ struct SparkleWiringGuardTests {
         #expect(combined.contains("menuWillOpen"))
     }
 
-    /// Settings → General gains the "Automatically install updates" switch,
-    /// wired through SettingsActions (setter named per the pane's existing
-    /// convention) and applied live: the conformance persists the choice and
-    /// applies it to the running updater.
-    /// Stated sensitivity: drop the toggle, bypass SettingsActions, or persist
-    /// without applying → the matching pin → RED.
+    /// Settings → General carries the "Automatically install updates" switch, bound
+    /// to the store. The store's subscriber applies it to the running updater
+    /// (`AppStoreEffectsTests.automaticUpdatesChangeDrivesTheSwitch`).
+    /// Stated sensitivity: drop the toggle, or bind it to anything but the store →
+    /// RED.
     @Test
-    func settingsToggleWiresThroughActionsToStoreAndActivation() throws {
+    func settingsToggleBindsTheAutomaticUpdatesPreference() throws {
         let sources = try Self.appSources()
         guard let pane = sources.first(where: { $0.source.contains("struct GeneralSettingsPane") }) else {
             Issue.record("GeneralSettingsPane must exist")
             return
         }
-        #expect(pane.source.contains("Toggle(\"Automatically install updates\""))
-        #expect(pane.source.contains("actions.setAutomaticallyInstallsUpdates("))
-        guard let conformance = sources.first(where: { $0.source.contains("extension AppDelegate: SettingsActions") }) else {
-            Issue.record("the SettingsActions conformance must exist")
-            return
-        }
-        #expect(conformance.source.contains("UpdaterActivation.apply"),
-                "the settings setter must apply the preference to the running updater")
+        #expect(pane.source.contains(
+            #"Toggle("Automatically install updates", isOn: store.binding(\.automaticallyInstallsUpdates))"#
+        ))
     }
 
     /// Nothing in the app target drives the updater switch directly: every
