@@ -94,7 +94,7 @@ Clarifications:
   dropdown (on by default) silences system audio output while the key is held and
   restores it afterward; turning it off leaves system audio untouched during
   dictation. On an output device with no volume control macOS can set, both
-  switches are disabled and Settings names the device.
+  switches are disabled and Settings explains why.
 - **Sound cues.** A switch in Settings → General and beside Mute in the menu-bar
   dropdown is on by default.
   - **Cues are fire-and-forget: no dictation step ever waits on audio.** A cue that
