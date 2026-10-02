@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.33.2] - 2026-10-02
+
+### Fixed
+
+- Keep the status line and menu mode across menu rebuilds (#129)
+
 ## [0.33.1] - 2026-10-02
 
 ### Fixed
