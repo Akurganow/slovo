@@ -366,18 +366,20 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
     }
 
-    /// The fn-conflict verdict must be re-read on every menu OPEN, not only at a
-    /// rebuild: the user fixes the assignment in System Settings while the app runs,
-    /// and the very next open must reflect it. menuWillOpen writes the live value
-    /// into state; the fn row's listener shows or hides the notice.
-    /// Stated sensitivity: revert to build-time-only evaluation (drop the write from
-    /// menuWillOpen) → RED.
+    /// The system facts the dropdown shows must be re-read on every menu OPEN, not
+    /// only at a rebuild: the user changes the fn assignment in System Settings, or
+    /// the default output device, while the app runs, and the very next open must
+    /// reflect it. menuWillOpen writes both live values into state; the row
+    /// listeners update the fn notice and the mute item.
+    /// Stated sensitivity: drop either write from menuWillOpen → RED.
     @Test
-    func fnConflictNoticeIsRecomputedOnMenuOpen() throws {
+    func systemFactsAreReReadOnMenuOpen() throws {
         let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
         #expect(menuWillOpen.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
                 "menuWillOpen must write the live fn-assignment value into state")
+        #expect(menuWillOpen.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
+                "menuWillOpen must write the live output mute availability into state")
     }
 
     /// The fn verdict reaches the menu only through state: the init seed and

@@ -360,12 +360,13 @@ struct AppRuntimeSourceGuardTests {
                 "the idle line must stay guarded by the shown-pipeline-status flag")
     }
 
-    /// Between rebuilds the status, fn and update rows follow state through their
-    /// listeners, and a rebuild seeds the status and fn rows from the committed state.
+    /// Between rebuilds the status, fn and update rows and the mute item's
+    /// availability follow state through their four listeners, and a rebuild seeds
+    /// the status and fn rows and the mute item from the committed state.
     /// The app target has no behavioural seam for these rows, so this reads its source.
-    /// Stated sensitivity: delete any of the three listeners, pass the idle hint or a
-    /// literal into the build's rows, or write the status row's title anywhere else
-    /// in the app target → RED.
+    /// Stated sensitivity: delete any of the four listeners, pass the idle hint or a
+    /// literal into the build's rows or its mute availability, or write the status
+    /// row's title anywhere else in the app target → RED.
     @Test
     func menuRowsFollowState() throws {
         let wiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
@@ -373,6 +374,7 @@ struct AppRuntimeSourceGuardTests {
             ("store.listen(\\.statusLineText)", "statusTextItem?.title ="),
             ("store.listen(\\.isFnKeySystemAssigned)", "fnConflictMenuItem?.isHidden ="),
             ("store.listen(\\.updateIndication)", "renderUpdateIndication("),
+            ("store.listen(\\.outputMuteAvailability)", "renderMuteAvailability("),
         ]
         for (listener, write) in rowWrites {
             let body = try Self.slice(of: wiring, from: listener, to: "\n        }")
@@ -385,6 +387,8 @@ struct AppRuntimeSourceGuardTests {
             ),
             "the build must seed the status and fn rows from the committed state"
         )
+        #expect(build.contains("muteAvailability: state.outputMuteAvailability"),
+                "the build must seed the mute item from the committed availability")
         var titleWrites = 0
         for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
             titleWrites += try Self.code(file).components(separatedBy: "statusTextItem?.title =").count - 1
@@ -418,15 +422,19 @@ struct AppRuntimeSourceGuardTests {
     }
 
     /// AC10: the dropdown's "Mute Audio While Dictating" switch renders as a
-    /// checkmark toggle wired to the AppDelegate selector. The builder lives in the
-    /// app target (not unit-importable), so this scans its source.
+    /// checkmark toggle wired to the AppDelegate selector, and the builder stores the
+    /// item so the availability renderer can disable it in place. The builder lives
+    /// in the app target (not unit-importable), so this scans its source.
     /// Stated sensitivity: drop the `state = isOn ? .on : .off` checkmark, the
-    /// "Mute Audio While Dictating" title, or the
-    /// `#selector(AppDelegate.toggleMuteWhileDictating` action wiring → the matching
-    /// `#expect` goes RED.
+    /// "Mute Audio While Dictating" title, the
+    /// `#selector(AppDelegate.toggleMuteWhileDictating` action wiring, or the store
+    /// into `muteMenuItem` → the matching `#expect` goes RED.
     @Test
     func menuBuilderRendersMuteWhileDictatingCheckmarkToggle() throws {
         let builder = try Self.code("Sources/slovo/DictationMenuBuilder.swift")
+        let muteArm = try Self.slice(of: builder, from: "case .muteWhileDictating(let isOn):", to: "case .soundCues")
+        #expect(muteArm.contains("muteMenuItem ="),
+                "the mute arm must store its item for the availability renderer")
 
         #expect(builder.contains("Mute Audio While Dictating"),
                 "the switch must carry its user-visible title")
@@ -456,6 +464,33 @@ struct AppRuntimeSourceGuardTests {
                 "the @objc toggle selector must flip the stored switch through the store")
         #expect(builder.contains("mutesSystemAudioWhileDictating: input.mutesSystemAudioWhileDictating"),
                 "the builder must feed the menu model the value from its input, not a literal")
+    }
+
+    /// The mute item follows the default output device: disabled, with the reason as
+    /// its tooltip, where macOS can set neither mute nor volume. Launch registers the
+    /// CoreAudio listener, the listener writes the store, and the build renders the
+    /// availability onto each new item. The app target has no behavioural seam for
+    /// these, so this reads its source. Each assignment is checked on one line with
+    /// its projection, so a stray token elsewhere in the body cannot satisfy it.
+    /// Stated sensitivity: drop the `isEnabled` or the `toolTip` assignment (a
+    /// disabled item with no tooltip, or a tooltip on an enabled item), drop the
+    /// store write or the launch call, or drop the build-time render → RED.
+    @Test
+    func outputMuteAvailabilityReachesTheMenuItem() throws {
+        let outputMute = try Self.code("Sources/slovo/AppDelegate+OutputMute.swift")
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let renderLines = try Self.functionBody(named: "renderMuteAvailability", in: outputMute).split(separator: "\n")
+        #expect(renderLines.contains { $0.contains("isEnabled =") && $0.contains(".isToggleEnabled") },
+                "the renderer must enable the item from the availability")
+        #expect(renderLines.contains { $0.contains("toolTip =") && $0.contains(".unavailableHint") },
+                "the renderer must show the reason as the item's tooltip")
+        let observe = try Self.functionBody(named: "startObservingOutputMuteAvailability", in: outputMute)
+        #expect(observe.contains("observeOutputMuteAvailability"), "the app must register the CoreAudio listener")
+        #expect(observe.contains("$0.outputMuteAvailability = availability"), "the listener's reading must reach the store")
+        let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
+        #expect(launch.contains("startObservingOutputMuteAvailability()"), "launch must register the listener")
+        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
+        #expect(makeMenu.contains("renderMuteAvailability("), "a rebuild must render the availability onto the new item")
     }
 
     /// The session factory must feed the pure `decodingOptions` the session's OWN

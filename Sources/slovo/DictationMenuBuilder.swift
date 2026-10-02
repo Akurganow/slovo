@@ -117,6 +117,7 @@ struct DictationMenuBuilder {
                 #selector(AppDelegate.toggleMuteWhileDictating(_:))
             )
             entry.state = isOn ? .on : .off
+            target.muteMenuItem = entry
             menu.addItem(entry)
         case .soundCues(let isOn):
             let entry = target.actionItem(

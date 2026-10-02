@@ -53,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // is bound in some role; the fn listener shows or hides it as the verdict in
     // state changes. Nil for every other trigger, which cannot collide.
     var fnConflictMenuItem: NSMenuItem?
+    // The dictation menu's mute item, stored by DictationMenuBuilder on every
+    // dictation build; renderMuteAvailability enables or disables it in place.
+    var muteMenuItem: NSMenuItem?
 
     init(
         logger: Logger,
@@ -79,15 +82,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         paintIdleGlyph(on: item.button)
         statusItem = item
         startStoreEffects()
+        startObservingOutputMuteAvailability()
         startPipeline()
         startUpdater()
         logger.info("menu bar app ready")
     }
 
-    func makeMenu(_ input: DictationMenuInput, rows: DictationMenuRows, indication: UpdateIndication) -> NSMenu {
+    func makeMenu(
+        _ input: DictationMenuInput,
+        rows: DictationMenuRows,
+        indication: UpdateIndication,
+        muteAvailability: OutputMuteAvailability
+    ) -> NSMenu {
         let built = DictationMenuBuilder(target: self).make(input, rows: rows)
         statusTextItem = built.statusItem
         renderUpdateIndication(indication)
+        renderMuteAvailability(muteAvailability)
         return built.menu
     }
 
