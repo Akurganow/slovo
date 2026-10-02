@@ -210,4 +210,47 @@ struct AppStateTests {
             #expect(state.config == known.config, "\(event) must not write the stored config")
         }
     }
+
+    /// The status row, the fn row and the update row update in place, so none of
+    /// them may rebuild the menu.
+    /// Stated sensitivity: include any of them in the structure → RED (a rebuild
+    /// per status change).
+    @Test
+    func statusLineChangesLeaveMenuStructureEqual() {
+        let base = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        var recording = base
+        recording.statusLine = .recording
+        var fnAssigned = base
+        fnAssigned.isFnKeySystemAssigned.toggle()
+        var updateReady = base
+        updateReady.updateIndication = .ready(version: "9.9.9")
+        #expect(recording.menuStructure == base.menuStructure)
+        #expect(fnAssigned.menuStructure == base.menuStructure)
+        #expect(updateReady.menuStructure == base.menuStructure)
+    }
+
+    /// The installed menu follows the mode, so a mode change must rebuild it.
+    /// Stated sensitivity: drop `menuMode` from the structure → RED.
+    @Test
+    func menuModeChangesMenuStructure() {
+        let dictation = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        var onboarding = dictation
+        onboarding.menuMode = .onboarding([.requestMicrophone])
+        var recovery = dictation
+        recovery.menuMode = .hotkeyRecovery
+        #expect(onboarding.menuStructure != dictation.menuStructure)
+        #expect(recovery.menuStructure != dictation.menuStructure)
+    }
+
+    /// The idle line names the main key, never the translate key.
+    /// Stated sensitivity: seed the idle line from `config.translateTrigger` → RED.
+    @Test
+    func statusLineTextUsesTheMainKey() {
+        var config = Config.defaults
+        config.trigger = .rightCommand
+        config.translateTrigger = .control
+        let state = AppState(config: config, isOpenRouterKeyPresent: false)
+        #expect(state.statusLine == .idle)
+        #expect(state.statusLineText == "Hold Right ⌘ to talk")
+    }
 }
