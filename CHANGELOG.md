@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.33.1] - 2026-10-02
+
+### Fixed
+
+- Settings panes follow changes made elsewhere while open (#127)
+
 ## [0.33.0] - 2026-09-27
 
 ### Added
