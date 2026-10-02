@@ -72,6 +72,19 @@ public struct DictationMenuCleanupConfiguration: Equatable, Sendable {
     }
 }
 
+/// The two header rows that follow live state rather than configuration: the status
+/// line the user is looking at, and whether macOS also claims the fn key. One value
+/// keeps `items` at five parameters.
+public struct DictationMenuRows: Equatable, Sendable {
+    public let statusLine: String
+    public let isFnKeySystemAssigned: Bool
+
+    public init(statusLine: String, isFnKeySystemAssigned: Bool) {
+        self.statusLine = statusLine
+        self.isFnKeySystemAssigned = isFnKeySystemAssigned
+    }
+}
+
 /// Builds the ordered dropdown model from the current configuration.
 public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
@@ -80,17 +93,18 @@ public enum DictationMenu {
     /// `cleanupBlock`), the vocabulary block (Add Vocabulary with the
     /// availability-independent mute switch adjacent to it), and the bottom section
     /// holding Settings, then About, then Quit — each group fenced by a separator.
-    /// The status line is seeded with `idleStatusLine(trigger:)`.
+    /// The status row is seeded with `rows.statusLine`, the line the app shows now,
+    /// so a rebuild keeps it.
     public static func items(
         hotkeys: HotkeyConfiguration,
         cleanup: DictationMenuCleanupConfiguration,
         mutesSystemAudioWhileDictating: Bool,
         playsDictationSoundCues: Bool,
-        isFnKeySystemAssigned: Bool
+        rows: DictationMenuRows
     ) -> [DictationMenuItem] {
         let header: [DictationMenuItem] = [
-            .status(idleStatusLine(trigger: hotkeys.main)),
-        ] + fnConflictNotice(hotkeys: hotkeys, isFnKeySystemAssigned: isFnKeySystemAssigned) + [
+            .status(rows.statusLine),
+        ] + fnConflictNotice(hotkeys: hotkeys, isFnKeySystemAssigned: rows.isFnKeySystemAssigned) + [
             .translateHint(translateHintLine(hotkeys: hotkeys)),
         ]
         let rest: [DictationMenuItem] = [
@@ -113,9 +127,7 @@ public enum DictationMenu {
     }
 
     /// The idle status line — the push-to-talk hint doubling as the "ready" word.
-    /// Public because the app delegate restores this exact text whenever a session
-    /// settles back to idle (model-owned copy consumed by the renderer, mirroring
-    /// `fnConflictRemedy`).
+    /// `StatusLine.idle` renders it.
     public static func idleStatusLine(trigger: HotkeyTrigger) -> String {
         "Hold \(trigger.displayName) to talk"
     }

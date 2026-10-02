@@ -23,7 +23,7 @@ extension AppDelegate {
             self.stopModelLoadingPulse(on: self.statusItem?.button)
             guard !self.isPipelineActive, !self.isShowingBriefStatus else { return }
             self.paintIdleGlyph(on: self.statusItem?.button)
-            self.statusTextItem?.title = self.idleStatusTitle
+            self.store.update { $0.statusLine = .idle }
         }
     }
 
@@ -39,7 +39,7 @@ extension AppDelegate {
 
     func showModelLoadingState() {
         setStatusGlyph(status: .preparingSpeechModel, on: statusItem?.button)
-        statusTextItem?.title = Self.title(for: .preparingSpeechModel)
+        store.update { $0.statusLine = .message(.preparingSpeechModel) }
         startModelLoadingPulse(on: statusItem?.button)
     }
 }

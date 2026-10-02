@@ -9,10 +9,11 @@ import SlovoCore
 /// touched on the main thread, which is where activation is always applied.
 extension SPUUpdater: @MainActor UpdaterSwitch {}
 
-/// Owns Slovo's silent Sparkle pipeline: one directly-constructed `SPUUpdater`, its
-/// updater/user-driver delegates, and the current `UpdateIndication` folded from
-/// Sparkle's callbacks. The silent path never touches the stock user driver, so no
-/// Sparkle window can appear; the only self-relaunch is the user's Restart click.
+/// Owns Slovo's silent Sparkle pipeline: one directly-constructed `SPUUpdater` and
+/// its updater/user-driver delegates. It folds Sparkle's callbacks into
+/// `AppState.updateIndication`. The silent path never touches the stock user
+/// driver, so no Sparkle window can appear; the only self-relaunch is the user's
+/// Restart click.
 ///
 /// Sparkle's delegate protocols are `@MainActor` (NS_SWIFT_UI_ACTOR), so the
 /// callbacks land on the main actor and need no isolation hop.
@@ -26,9 +27,6 @@ final class UpdaterCoordinator: NSObject {
         return SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: driver, delegate: self)
     }()
 
-    /// The current indication, folded from delegate events via `applying(_:)`.
-    private(set) var currentIndication: UpdateIndication = .idle
-
     /// Sparkle's stored install-on-quit handler. The Restart click is its only
     /// invoker, keeping the never-self-restart guarantee to a single call site.
     private var immediateInstallationBlock: (() -> Void)?
@@ -38,14 +36,17 @@ final class UpdaterCoordinator: NSObject {
     /// the red glyph, the latter resets to hidden.
     private var isRestartInFlight = false
 
-    private let onIndicationChange: (UpdateIndication) -> Void
+    private let store: AppStore
+    private let onUpdaterEvent: () -> Void
     private let onInstallFailedAfterRestart: () -> Void
 
     init(
-        onIndicationChange: @escaping (UpdateIndication) -> Void,
+        store: AppStore,
+        onUpdaterEvent: @escaping () -> Void,
         onInstallFailedAfterRestart: @escaping () -> Void
     ) {
-        self.onIndicationChange = onIndicationChange
+        self.store = store
+        self.onUpdaterEvent = onUpdaterEvent
         self.onInstallFailedAfterRestart = onInstallFailedAfterRestart
         super.init()
     }
@@ -90,9 +91,12 @@ final class UpdaterCoordinator: NSObject {
         updater.checkForUpdatesInBackground()
     }
 
+    /// Folds the event into the store, then reports it. The report runs on every
+    /// event, changed or not: the idle glyph repaints on each Sparkle callback
+    /// (docs/architecture.md, "App State").
     private func reduce(_ event: UpdaterEvent) {
-        currentIndication = currentIndication.applying(event)
-        onIndicationChange(currentIndication)
+        store.update { $0.updateIndication = $0.updateIndication.applying(event) }
+        onUpdaterEvent()
     }
 
     private func handleAbort() {

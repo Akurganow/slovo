@@ -10,7 +10,7 @@ extension AppDelegate {
     func paintIdleGlyph(on button: NSStatusBarButton?) {
         guard let button else { return }
         let isUpdateReady: Bool
-        if case .ready? = updaterCoordinator?.currentIndication {
+        if case .ready = store.state.updateIndication {
             isUpdateReady = true
         } else {
             isUpdateReady = false

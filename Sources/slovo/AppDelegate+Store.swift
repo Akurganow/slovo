@@ -3,9 +3,9 @@ import SlovoCore
 
 extension AppDelegate {
     /// Wires every effect of the store, once per launch. Called after `statusItem`
-    /// exists and before `startPipeline()`: earlier, the menu subscriber's first
-    /// build would write into a nil status item; later, it would replace an
-    /// onboarding menu that `startPipeline` installed.
+    /// exists: earlier, the build subscriber's first build would write into a nil
+    /// status item. It runs before `startPipeline()`, whose menu-mode write the
+    /// build subscriber then draws.
     func startStoreEffects() {
         let keyProvider = openRouterKeyProvider
         AppStoreEffects.wire(store, to: AppStoreEffectTargets(
@@ -23,8 +23,32 @@ extension AppDelegate {
                 ).fetchScopeIds()
             }
         ))
-        store.subscribe(\.dictationMenuInput) { [weak self] input in
-            self?.installStatusMenu(input)
+        // The build runs before the row listeners, so in one update that changes the
+        // structure and a row, the listener rewrites the value the build just set.
+        store.subscribe(\.menuStructure) { [weak self] structure in
+            guard let self else { return }
+            switch structure.mode {
+            case .dictation:
+                let state = store.state
+                statusItem?.menu = makeMenu(
+                    structure.input,
+                    rows: DictationMenuRows(statusLine: state.statusLineText, isFnKeySystemAssigned: state.isFnKeySystemAssigned),
+                    indication: state.updateIndication
+                )
+            case .onboarding(let steps):
+                statusItem?.menu = makeOnboardingMenu(for: steps)
+            case .hotkeyRecovery:
+                statusItem?.menu = makeHotkeyRecoveryMenu()
+            }
+        }
+        store.listen(\.statusLineText) { [weak self] text in
+            self?.statusTextItem?.title = text
+        }
+        store.listen(\.isFnKeySystemAssigned) { [weak self] isAssigned in
+            self?.fnConflictMenuItem?.isHidden = !isAssigned
+        }
+        store.listen(\.updateIndication) { [weak self] indication in
+            self?.renderUpdateIndication(indication)
         }
     }
 }

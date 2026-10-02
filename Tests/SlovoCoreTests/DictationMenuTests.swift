@@ -20,7 +20,8 @@ struct DictationMenuTests {
         trigger: HotkeyTrigger = .fn,
         translateTrigger: HotkeyTrigger = .control,
         translateIsAdditional: Bool = true,
-        fnAssigned: Bool = false
+        fnAssigned: Bool = false,
+        statusLine: String = "Hold fn to talk"
     ) -> [DictationMenuItem] {
         DictationMenu.items(
             hotkeys: HotkeyConfiguration(
@@ -35,7 +36,7 @@ struct DictationMenuTests {
             ),
             mutesSystemAudioWhileDictating: mute,
             playsDictationSoundCues: soundCues,
-            isFnKeySystemAssigned: fnAssigned
+            rows: DictationMenuRows(statusLine: statusLine, isFnKeySystemAssigned: fnAssigned)
         )
     }
 
@@ -332,19 +333,14 @@ struct DictationMenuTests {
         #expect(fnConflictNoticeCount(items(availability: .on, trigger: .rightOption, fnAssigned: true)) == 0)
     }
 
-    /// The idle status line IS the hold-to-talk hint, built from the trigger's
-    /// display name (not its wire value), and the model owns the copy:
-    /// `idleStatusLine(trigger:)` is the single source for both the seeded item
-    /// and the app delegate's idle restores.
-    /// Stated sensitivity: build the line from `trigger.rawValue` (or a fixed "fn")
-    /// → "Hold right-command to talk" ≠ "Hold Right ⌘ to talk" → RED; desync the
-    /// helper from the seeded item → the contains/equality pair mismatches → RED.
+    /// A rebuild must keep the line the user is looking at: the status row is seeded
+    /// with the line the app passes, never re-derived from the trigger.
+    /// Stated sensitivity: seed the status row with the idle hint instead of
+    /// `rows.statusLine` → RED; the build is the only writer on a rebuild, so this
+    /// pins the status-line reset itself.
     @Test
-    func statusLineUsesTriggerDisplayName() {
-        #expect(items(availability: .on, trigger: .rightCommand).contains(.status("Hold Right ⌘ to talk")))
-        #expect(items(availability: .on, trigger: .rightOption).contains(.status("Hold Right ⌥ to talk")))
-        #expect(items(availability: .on, trigger: .leftOption).contains(.status("Hold Left ⌥ to talk")))
-        #expect(DictationMenu.idleStatusLine(trigger: .rightCommand) == "Hold Right ⌘ to talk")
+    func statusRowCarriesTheCurrentLine() {
+        #expect(items(availability: .on, statusLine: "Recording").first == .status("Recording"))
     }
 
     /// The translate hint is the header's second idle line, and it names the
@@ -368,9 +364,9 @@ struct DictationMenuTests {
 
     /// The hint is a SEPARATE line in the header, exactly once, never folded into the
     /// status row — that row is retitled at runtime ("Recording") and would wipe it.
-    /// Stated sensitivity: append the translate text to `idleStatusLine` instead of
-    /// emitting the case (the status equality then fails), emit the hint twice, or
-    /// drop it → RED.
+    /// Stated sensitivity: fold the translate text into the `.status` row inside
+    /// `items` instead of emitting the case (the status equality then fails), emit
+    /// the hint twice, or drop it → RED.
     @Test
     func translateHintIsItsOwnHeaderLineEmittedOnce() {
         let list = items(availability: .on)

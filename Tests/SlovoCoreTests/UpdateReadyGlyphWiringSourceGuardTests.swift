@@ -27,44 +27,65 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
         }
     }
 
-    /// The `paintIdleGlyph(on:)` funnel in `AppDelegate+Glyph.swift` must read
-    /// the coordinator's current indication and project it into `MenuBarGlyph.idleGlyph`.
-    /// Stated sensitivity: drop the `updaterCoordinator?.currentIndication` read,
-    /// or bypass `MenuBarGlyph.idleGlyph` → RED.
+    /// The `paintIdleGlyph(on:)` funnel in `AppDelegate+Glyph.swift` must read the
+    /// store's update indication and project it into `MenuBarGlyph.idleGlyph`.
+    /// Stated sensitivity: drop the `store.state.updateIndication` read, or bypass
+    /// `MenuBarGlyph.idleGlyph` → RED.
     @Test
     func funnelDerivesIdleGlyphFromUpdateIndication() throws {
         let glyphSource = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+Glyph.swift")
         let funnelBody = try AppRuntimeSourceGuardTests.functionBody(named: "paintIdleGlyph", in: glyphSource)
 
-        #expect(funnelBody.contains("updaterCoordinator?.currentIndication"),
-                "paintIdleGlyph must read updaterCoordinator?.currentIndication")
+        #expect(funnelBody.contains("store.state.updateIndication"),
+                "paintIdleGlyph must read store.state.updateIndication")
         #expect(funnelBody.contains("MenuBarGlyph.idleGlyph"),
                 "paintIdleGlyph must project through MenuBarGlyph.idleGlyph")
         #expect(funnelBody.contains("MenuBarGlyph.image(for:"),
                 "paintIdleGlyph must render through MenuBarGlyph.image(for:")
     }
 
-    /// Indication changes must trigger `repaintIdleGlyphForUpdateState()`, which
-    /// repaints the idle glyph if and only if no live dictation, status flash, or
-    /// model loading pulse is active.
-    /// Stated sensitivity: drop the call from `startUpdater`, or drop any gate
-    /// (`isPipelineActive`, `isShowingBriefStatus`, `isModelReady`) → RED.
+    /// Every Sparkle callback repaints the idle glyph, changed indication or not;
+    /// this is the one effect outside the store's equality guard (docs/architecture.md,
+    /// "App State"). So a later update event repaints idle over a failed Restart's red
+    /// flash. The repaint never runs over a live dictation, a brief failure flash or
+    /// the loading pulse; onboarding stands in for model readiness.
+    /// Stated sensitivity: drop the call from `startUpdater`'s `onUpdaterEvent`,
+    /// make `reduce` call `onUpdaterEvent()` under a condition or move the repaint
+    /// into a store listener, or drop any gate (`isPipelineActive`,
+    /// `isShowingBriefStatus`, `isModelReady`, `store.state.menuMode.isOnboarding`)
+    /// → RED.
     @Test
-    func indicationChangeRepaintsIdleGlyphWithGates() throws {
+    func everyUpdaterEventRepaintsIdleGlyphWithGates() throws {
         let updateMenuSource = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
+        let coordinatorSource = try AppRuntimeSourceGuardTests.code("Sources/slovo/UpdaterCoordinator.swift")
         let startUpdaterBody = try AppRuntimeSourceGuardTests.functionBody(named: "startUpdater", in: updateMenuSource)
         let repaintBody = try AppRuntimeSourceGuardTests.functionBody(named: "repaintIdleGlyphForUpdateState", in: updateMenuSource)
+        let reduceBody = try AppRuntimeSourceGuardTests.functionBody(named: "reduce", in: coordinatorSource)
+        let eventClosure = try AppRuntimeSourceGuardTests.slice(
+            of: startUpdaterBody, from: "onUpdaterEvent:", to: "onInstallFailedAfterRestart:"
+        )
 
-        #expect(startUpdaterBody.contains("repaintIdleGlyphForUpdateState()"),
-                "startUpdater's indication callback must trigger repaintIdleGlyphForUpdateState()")
+        #expect(eventClosure.contains("repaintIdleGlyphForUpdateState()"),
+                "startUpdater's per-event callback must trigger repaintIdleGlyphForUpdateState()")
+        #expect(AppRuntimeSourceGuardTests.containsInOrder([
+            "store.update",
+            "$0.updateIndication = $0.updateIndication.applying(event)",
+            "onUpdaterEvent()",
+        ], in: reduceBody),
+        "reduce must fold the event into the store, then report it")
+        #expect(AppRuntimeSourceGuardTests.statementCount(#"onUpdaterEvent\(\)"#, in: reduceBody) == 1,
+                "reduce must report every event exactly once, as a statement of its own")
+        #expect(!reduceBody.contains("if ") && !reduceBody.contains("guard "),
+                "reduce must report the event under no condition")
         #expect(AppRuntimeSourceGuardTests.containsInOrder([
             "guard",
             "!isPipelineActive",
             "!isShowingBriefStatus",
             "isModelReady",
+            "store.state.menuMode.isOnboarding",
             "else { return }",
             "paintIdleGlyph(on: statusItem?.button)",
         ], in: repaintBody),
-        "repaintIdleGlyphForUpdateState must be gated on pipeline, brief status, and model readiness")
+        "repaintIdleGlyphForUpdateState must be gated on pipeline, brief status, and model readiness or onboarding")
     }
 }

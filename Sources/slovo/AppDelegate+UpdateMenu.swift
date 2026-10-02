@@ -8,22 +8,22 @@ extension AppDelegate {
     /// reference the whole pipeline would deallocate immediately.
     func startUpdater() {
         let coordinator = UpdaterCoordinator(
-            onIndicationChange: { [weak self] indication in
-                self?.renderUpdateIndication(indication)
-                self?.repaintIdleGlyphForUpdateState()
-            },
+            store: store,
+            onUpdaterEvent: { [weak self] in self?.repaintIdleGlyphForUpdateState() },
             onInstallFailedAfterRestart: { [weak self] in self?.flashUserActionFailure() }
         )
         updaterCoordinator = coordinator
         coordinator.start(automaticUpdatesEnabled: store.state.config.automaticallyInstallsUpdates)
     }
 
-    /// The update-ready Nash rides the IDLE glyph slot, so a ready/not-ready
-    /// transition repaints it — but never over a live dictation glyph, a brief
-    /// failure flash, or the model-loading pulse; those paths re-derive the idle
-    /// glyph through paintIdleGlyph when they settle.
+    /// The update-ready Nash rides the IDLE glyph slot, so every Sparkle callback
+    /// repaints it — but never over a live dictation glyph, a brief failure flash, or
+    /// the model-loading pulse; those paths re-derive the idle glyph through
+    /// paintIdleGlyph when they settle. Onboarding never opens the model gate, so the
+    /// onboarding menu mode stands in for model readiness there.
     func repaintIdleGlyphForUpdateState() {
-        guard !isPipelineActive, !isShowingBriefStatus, isModelReady else { return }
+        guard !isPipelineActive, !isShowingBriefStatus,
+              isModelReady || store.state.menuMode.isOnboarding else { return }
         paintIdleGlyph(on: statusItem?.button)
     }
 
@@ -89,17 +89,12 @@ extension AppDelegate {
         }
     }
 
-    /// Re-syncs the two rows that track state living outside the menu — the
-    /// fn-conflict notice and the update row — so a change that happened while the
-    /// dropdown was closed lands no later than the next open.
+    /// Re-reads the live macOS fn assignment into state, whose row listener shows or
+    /// hides the notice, and re-renders the update row from state. The render undoes
+    /// a highlight swap that left "Restart" on the row.
     func menuWillOpen(_ menu: NSMenu) {
-        // The user fixes the macOS fn assignment mid-session and expects the very
-        // next open to reflect it, so the notice is a projection of the LIVE
-        // setting; the build-time verdict only seeds it. Ahead of the update sync
-        // below, which returns early when no coordinator exists.
-        fnConflictMenuItem?.isHidden = !fnKeyAssignmentReader.isFnKeySystemAssigned
-        guard let indication = updaterCoordinator?.currentIndication else { return }
-        renderUpdateIndication(indication)
+        store.update { $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned }
+        renderUpdateIndication(store.state.updateIndication)
     }
 
     /// The hybrid row: a grey status-line "Update ready — v…" when unhighlighted,
@@ -107,7 +102,7 @@ extension AppDelegate {
     /// row). Only in the ready state; the accessibility label stays put across the swap.
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
         guard let updateItem = updateMenuItem,
-              case .ready(let version)? = updaterCoordinator?.currentIndication
+              case .ready(let version) = store.state.updateIndication
         else { return }
         if item === updateItem {
             updateItem.attributedTitle = nil

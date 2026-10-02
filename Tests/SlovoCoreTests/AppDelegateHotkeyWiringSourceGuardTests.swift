@@ -366,43 +366,54 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
     }
 
-    /// The fn-conflict notice must be recomputed on every menu OPEN, not only at
-    /// menu rebuild: the user fixes the assignment in System Settings while the
-    /// app runs, and the very next open must reflect it — the update-row re-sync
-    /// precedent in the same body. Pinned: the consult's presence AND its
-    /// load-bearing ORDER — the fn re-sync must precede the update sync, whose
-    /// guard returns early when no coordinator exists; a below-placed re-sync
-    /// would silently couple the notice to updater health. HOW the notice row is
-    /// swapped stays free.
-    /// Killing mutations: revert to build-time-only evaluation (drop the live
-    /// fn-assignment consult from menuWillOpen), or move the re-sync below the
-    /// update guard's early return → RED.
+    /// The fn-conflict verdict must be re-read on every menu OPEN, not only at a
+    /// rebuild: the user fixes the assignment in System Settings while the app runs,
+    /// and the very next open must reflect it. menuWillOpen writes the live value
+    /// into state; the fn row's listener shows or hides the notice.
+    /// Stated sensitivity: revert to build-time-only evaluation (drop the write from
+    /// menuWillOpen) → RED.
     @Test
     func fnConflictNoticeIsRecomputedOnMenuOpen() throws {
         let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
-        #expect(Self.containsInOrder([
-            "fnKeyAssignmentReader.isFnKeySystemAssigned",
-            "updaterCoordinator?.currentIndication",
-        ], in: menuWillOpen),
-        "menuWillOpen must consult the live fn-assignment value BEFORE the update sync's early-return guard")
+        #expect(menuWillOpen.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
+                "menuWillOpen must write the live fn-assignment value into state")
     }
 
-    /// makeMenu must feed the builder the READER'S live value, never a literal.
-    /// Green by design. Named killing mutation (empirically survived the full
-    /// 573-test suite before this guard): hardcode the argument — e.g.
-    /// `isFnKeySystemAssigned: false` — and the launch menu silently loses the
-    /// conflict notice forever → RED.
+    /// The fn verdict reaches the menu only through state: the init seed and
+    /// menuWillOpen read the reader, the build subscriber passes the state's verdict,
+    /// and makeMenu passes its `rows` argument to `make`. The fn rendering itself is
+    /// pinned in DictationMenuTests through `items`.
+    /// Stated sensitivity: hardcode the build subscriber's argument, build fresh rows
+    /// inside makeMenu, hardcode the verdict in the init seed or menuWillOpen — e.g.
+    /// `isFnKeySystemAssigned: false` — or drop the reader from the seed → RED.
     @Test
     func makeMenuPassesTheLiveFnAssignmentValue() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
-        #expect(makeMenu.contains("isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned"),
-                "makeMenu must pass the reader's live value to the menu builder")
-        #expect(!makeMenu.contains("isFnKeySystemAssigned: false"),
-                "the fn-assignment argument must never be a hardcoded false")
-        #expect(!makeMenu.contains("isFnKeySystemAssigned: true"),
-                "the fn-assignment argument must never be a hardcoded true")
+        let initBody = try AppRuntimeSourceGuardTests.slice(
+            of: delegate,
+            from: "fnKeyAssignmentReader: FnKeyAssignmentReading =",
+            to: "func applicationDidFinishLaunching"
+        )
+        let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
+        let storeWiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        #expect(storeWiring.contains("isFnKeySystemAssigned: state.isFnKeySystemAssigned"),
+                "the build subscriber must pass the verdict held in state")
+        #expect(makeMenu.contains("rows: rows"),
+                "makeMenu must pass its rows argument, which carries the fn verdict, to the menu builder")
+        #expect(initBody.contains("isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned"),
+                "the store seed must read the live fn assignment")
+        let literals = [
+            "isFnKeySystemAssigned: false", "isFnKeySystemAssigned: true",
+            "isFnKeySystemAssigned = false", "isFnKeySystemAssigned = true",
+        ]
+        for (name, body) in [("init", initBody), ("menuWillOpen", menuWillOpen), ("AppDelegate+Store", storeWiring)] {
+            for literal in literals {
+                #expect(!body.contains(literal), "\(name) must never hardcode the fn verdict: \(literal)")
+            }
+        }
     }
 
     private static func code(_ relativePath: String) throws -> String {

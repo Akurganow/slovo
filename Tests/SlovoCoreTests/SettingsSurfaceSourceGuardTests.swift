@@ -429,19 +429,22 @@ struct SettingsSurfaceSourceGuardTests {
                 "the window must be built once and reused, not respawned per open (which leaks controllers and stacks windows)")
     }
 
-    /// `makeMenu` hands the builder its input whole, and the builder reads every row
-    /// value from that input; the model submenu reads its parameters. With the
-    /// input-only signatures, a menu read of a value outside `DictationMenuInput`
-    /// fails. The scan has a limit: a helper that reads the store under another name
-    /// passes it.
+    /// `makeMenu` hands the builder its input whole and the live rows, and the
+    /// builder reads every configuration value from that input; the model submenu
+    /// reads its parameters. With these signatures, a menu read of a value outside
+    /// the arguments fails. The scan has a limit: a helper that reads the store
+    /// under another name passes it.
     /// Stated sensitivity: hand `make` anything but `input`, or hardcode
     /// `HotkeyConfiguration(main: .fn, …)` or `selectedModelId: ""` in the builder →
     /// RED; read `store.` in `makeMenu`, `modelMenu` or the builder → RED.
+    /// Stated sensitivity: read the live fn reader or the updater coordinator
+    /// inside makeMenu → RED. The build function reads its arguments only, so a
+    /// rebuild draws the state the build subscriber read.
     @Test
     func makeMenuFeedsBuilderTheRealConfig() throws {
         let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
         let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
-        #expect(makeMenu.contains(".make(input, isFnKeySystemAssigned:"))
+        #expect(makeMenu.contains(".make(input, rows: rows)"))
         let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
         #expect(builder.contains("let hotkeys = input.hotkeyConfiguration"))
         #expect(builder.contains("selectedModelId: input.cleanupModelSelection.effective"))
@@ -450,6 +453,12 @@ struct SettingsSurfaceSourceGuardTests {
         for (name, body) in [("makeMenu", makeMenu), ("modelMenu", modelMenu), ("DictationMenuBuilder.swift", builder)] {
             #expect(!body.contains("store."), "\(name) must read only its input, never the store")
         }
+        // The build function reads its arguments only: the fn verdict and the update
+        // indication arrive as arguments, read from state by the build subscriber.
+        #expect(!makeMenu.contains("fnKeyAssignmentReader"),
+                "makeMenu must take the fn verdict as its argument, not from the live reader")
+        #expect(!makeMenu.contains("updaterCoordinator"),
+                "makeMenu must take the update indication as its argument, not from the coordinator")
     }
 
     private static func containsInOrder(_ needles: [String], in source: String) -> Bool {

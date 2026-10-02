@@ -1,5 +1,6 @@
-/// The app's state as one value: the persisted `Config` and the mirrors the app
-/// keeps of the Keychain, the key's model scope and the vocabulary table.
+/// The app's state as one value: the persisted `Config`, the mirrors the app
+/// keeps of the Keychain, the key's model scope and the vocabulary table, and
+/// the runtime state the status menu shows.
 /// `AppStore.update` is its one mutation path. Derived values are the selectors
 /// below, each a call into an existing pure function.
 public struct AppState: Equatable, Sendable {
@@ -10,11 +11,22 @@ public struct AppState: Equatable, Sendable {
     public private(set) var cleanupScope = CleanupScopeState()
     /// Mirrors the SQLite vocabulary table; the table stays the source of truth.
     public var vocabulary: [VocabularyRecord]
+    public var menuMode: MenuMode = .dictation
+    public var statusLine: StatusLine = .idle
+    /// Whether macOS also claims the fn key; read from the system on each menu open.
+    public var isFnKeySystemAssigned: Bool
+    public var updateIndication: UpdateIndication = .idle
 
-    public init(config: Config, isOpenRouterKeyPresent: Bool, vocabulary: [VocabularyRecord] = []) {
+    public init(
+        config: Config,
+        isOpenRouterKeyPresent: Bool,
+        vocabulary: [VocabularyRecord] = [],
+        isFnKeySystemAssigned: Bool = false
+    ) {
         self.config = config
         self.isOpenRouterKeyPresent = isOpenRouterKeyPresent
         self.vocabulary = vocabulary
+        self.isFnKeySystemAssigned = isFnKeySystemAssigned
     }
 }
 
@@ -71,10 +83,19 @@ public extension AppState {
             playsDictationSoundCues: config.playsDictationSoundCues
         )
     }
+
+    var menuStructure: MenuStructure {
+        MenuStructure(mode: menuMode, input: dictationMenuInput)
+    }
+
+    var statusLineText: String {
+        statusLine.text(idleTrigger: config.trigger)
+    }
 }
 
-/// Every value the dictation menu shows, and nothing else: the menu rebuilds
-/// when this changes and only then.
+/// The configuration values the dictation menu is built from. The menu rebuilds
+/// when these or the menu mode change; the status, fn and update rows follow
+/// state through their own listeners.
 public struct DictationMenuInput: Equatable, Sendable {
     public let hotkeyConfiguration: HotkeyConfiguration
     public let cleanupModelSelection: CleanupModelSelection.Result
@@ -82,4 +103,24 @@ public struct DictationMenuInput: Equatable, Sendable {
     public let cleanupAvailability: CleanupAvailability
     public let mutesSystemAudioWhileDictating: Bool
     public let playsDictationSoundCues: Bool
+}
+
+/// Which menu the status item shows. Runtime UI state, never persisted.
+public enum MenuMode: Equatable, Sendable {
+    case dictation
+    /// First-run setup, with the permission steps still pending.
+    case onboarding([OnboardingStep])
+    case hotkeyRecovery
+
+    public var isOnboarding: Bool {
+        if case .onboarding = self { return true }
+        return false
+    }
+}
+
+/// What a menu build depends on. The status, fn and update rows are not in it:
+/// their listeners update them in place, so a change to one never rebuilds the menu.
+public struct MenuStructure: Equatable, Sendable {
+    public let mode: MenuMode
+    public let input: DictationMenuInput
 }
