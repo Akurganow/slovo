@@ -189,8 +189,8 @@ alerts.
 
 ## App State
 
-`AppState` is one value: the persisted `Config` and the mirrors the app keeps of
-state stored elsewhere. The mirrors are whether an OpenRouter key is in the
+`AppState` is one value: the persisted `Config`, the mirrors the app keeps of
+state stored elsewhere, and four runtime fields described below. The mirrors are whether an OpenRouter key is in the
 Keychain, the key's model scope, and the vocabulary table. Derived values, such
 as cleanup availability, the effective cleanup config and the menu's input, are
 computed properties on `AppState`.
@@ -218,7 +218,7 @@ This supersedes K11's list of fetch, push and rebuild commands in
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
 
-The store also holds four runtime fields, never persisted: the menu mode
+The four runtime fields are never persisted: the menu mode
 (dictation, onboarding with its pending permission steps, or hotkey recovery),
 the status line (idle, recording, processing, or a status message), whether
 macOS also claims the fn key, and the update indication folded from Sparkle's

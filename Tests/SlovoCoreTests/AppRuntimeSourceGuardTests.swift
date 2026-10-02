@@ -392,6 +392,31 @@ struct AppRuntimeSourceGuardTests {
         #expect(titleWrites == 1, "the status listener must be the status row's only title writer")
     }
 
+    /// A mode change is a state write, and the build subscriber installs the menu of
+    /// the mode, so a settings change during onboarding rebuilds the setup menu.
+    /// The app target has no behavioural seam that SlovoCoreTests can reach, so this
+    /// reads its source.
+    /// Stated sensitivity: draw the dictation menu for every mode, drop an arm of the
+    /// build's switch, or drop the mode write from presentOnboarding,
+    /// presentHotkeyRecovery, refreshOnboardingMenuIfNeeded or retrySetup → RED.
+    @Test
+    func menuModeIsStateAndTheBuildFollowsIt() throws {
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let wiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        let build = try Self.slice(of: wiring, from: "store.subscribe(\\.menuStructure)", to: "store.listen(")
+        #expect(Self.containsInOrder(["case .onboarding(let steps):", "makeOnboardingMenu(for: steps)"], in: build))
+        #expect(Self.containsInOrder(["case .hotkeyRecovery:", "makeHotkeyRecoveryMenu()"], in: build))
+        for (function, write) in [
+            ("presentOnboarding", "menuMode = .onboarding(steps)"),
+            ("presentHotkeyRecovery", "menuMode = .hotkeyRecovery"),
+            ("refreshOnboardingMenuIfNeeded", "menuMode = .onboarding(latestSteps)"),
+            ("retrySetup", "menuMode = .dictation"),
+        ] {
+            let body = try Self.functionBody(named: function, in: delegate)
+            #expect(body.contains(write), "\(function) must write \(write)")
+        }
+    }
+
     /// AC10: the dropdown's "Mute Audio While Dictating" switch renders as a
     /// checkmark toggle wired to the AppDelegate selector. The builder lives in the
     /// app target (not unit-importable), so this scans its source.
