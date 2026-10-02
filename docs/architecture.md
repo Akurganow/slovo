@@ -204,11 +204,12 @@ nothing.
 Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
 SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
 tap, the cue controller, the updater switch and the scope fetch. The app target
-adds only the menu subscriber, which rebuilds the dropdown when a value it shows
-changes.
+adds only what needs AppKit: the menu's build subscriber and its three row
+listeners, described below.
 
 An effect that is not a function of state stays reducer output, as in
-`DictationFsm`. No subscriber writes to the store while it is being notified.
+`DictationFsm`, or an explicit trigger, as the idle-glyph repaint below.
+No subscriber writes to the store while it is being notified.
 Work a subscriber starts may write later through `update`, as the scope fetch
 does when it completes.
 
@@ -216,6 +217,24 @@ This supersedes K11's list of fetch, push and rebuild commands in
 `docs/tasks/openrouter-key-scope-and-catalog.md`. The fetch is the
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
+
+The store also holds four runtime fields, never persisted: the menu mode
+(dictation, onboarding with its pending permission steps, or hotkey recovery),
+the status line (idle, recording, processing, or a status message), whether
+macOS also claims the fn key, and the update indication folded from Sparkle's
+callbacks.
+
+The status menu is a projection of that state. One build subscriber, keyed on
+the menu mode plus the values the dictation dropdown shows, builds and installs
+the menu for the mode and seeds its rows from state. Three row listeners — on the
+status line, the fn verdict and the update indication — update their rows in
+place. So a rebuild keeps the status line, and a status change never rebuilds the
+menu. Opening the menu re-reads the fn assignment and re-renders the update row.
+
+One effect is not a projection of state. The idle glyph repaints on every Sparkle
+callback, changed indication or not, through the coordinator's per-event
+callback. So a later Sparkle event repaints idle over a failed Restart's red
+flash; this is kept on purpose.
 
 ## Build Boundaries
 

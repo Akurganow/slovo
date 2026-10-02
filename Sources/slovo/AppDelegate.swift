@@ -24,10 +24,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let speechModel: SharedSpeechModel
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
-    // The status line's idle text — the hold-to-talk hint (the hint IS the idle
-    // status). Cached at menu build; the only trigger-mutation path rebuilds the
-    // menu, so it can never go stale relative to the installed dropdown.
-    var idleStatusTitle = ""
     var composition: AppComposition.Live?
     var settingsWindowController: SettingsWindowController?
     // Internal (not private) so the AppDelegate+About extension in its own file can
@@ -41,7 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // it back to idle mid-window.
     var isShowingBriefStatus = false
     var isModelReady = false
-    private var onboardingSteps: [OnboardingStep] = []
     private var briefStatusResetTask: Task<Void, Never>?
     // Sibling of briefStatusResetTask: the pending reset of the user-action-failure
     // glyph flash, cancelled before a new flash so overlaps don't stack.
@@ -58,9 +53,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // is bound in some role; the fn listener shows or hides it as the verdict in
     // state changes. Nil for every other trigger, which cannot collide.
     var fnConflictMenuItem: NSMenuItem?
-    // True only while the onboarding menu is shown, so the dictation dropdown's
-    // shared menu delegate never triggers the onboarding refresh on open.
-    private var isPresentingOnboarding = false
 
     init(
         logger: Logger,
@@ -92,10 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         logger.info("menu bar app ready")
     }
 
-    private func makeMenu(_ input: DictationMenuInput) -> NSMenu {
-        let built = DictationMenuBuilder(target: self).make(input, isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned)
+    func makeMenu(_ input: DictationMenuInput, rows: DictationMenuRows, indication: UpdateIndication) -> NSMenu {
+        let built = DictationMenuBuilder(target: self).make(input, rows: rows)
         statusTextItem = built.statusItem
-        idleStatusTitle = DictationMenu.idleStatusLine(trigger: input.hotkeyConfiguration.main)
+        renderUpdateIndication(indication)
         return built.menu
     }
 
@@ -122,7 +114,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 logger.info("onboarding pending")
                 return
             }
-            isPresentingOnboarding = false
             prepareModelGate(for: live)
             let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
                 switch edge.phase {
@@ -139,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         // applyRecordingGlyph from the live availability (letter
                         // mnemonics: MenuBarGlyph.forRecording).
                         self?.applyRecordingGlyph(mode)
-                        self?.statusTextItem?.title = "Recording"
+                        self?.store.update { $0.statusLine = .recording }
                     }
                     await orchestrator.handle(.startRequested)
                 case .translateLatched:
@@ -149,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await MainActor.run {
                         self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
                         if self?.didShowPipelineStatus == false {
-                            self?.statusTextItem?.title = "Processing"
+                            self?.store.update { $0.statusLine = .processing }
                         }
                     }
                     await orchestrator.handle(.stopRequested(mode))
@@ -205,7 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             paintIdleGlyph(on: statusItem?.button)
         }
         if !didShowPipelineStatus {
-            statusTextItem?.title = idleStatusTitle
+            store.update { $0.statusLine = .idle }
         }
     }
 
@@ -215,17 +206,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // the system prompts (menu-bar-only UX). The old per-permission "Continue
         // Setup" dialog re-appeared once for each permission because its dedup keyed
         // on the shrinking set of still-pending steps.
-        onboardingSteps = steps
-        isPresentingOnboarding = true
         // This composition is not gated (startPipeline returned above
         // prepareModelGate), so nothing else would ever stop a pulse inherited from
         // the composition it replaced.
         clearModelLoadingState()
-        statusTextItem?.title = "Setup Required"
-        statusItem?.menu = makeOnboardingMenu(for: steps)
+        store.update { $0.menuMode = .onboarding(steps) }
     }
 
-    private func makeOnboardingMenu(for steps: [OnboardingStep]) -> NSMenu {
+    func makeOnboardingMenu(for steps: [OnboardingStep]) -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
         let title = NSMenuItem(title: "Slovo Setup Required", action: nil, keyEquivalent: "")
@@ -244,11 +232,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func presentHotkeyRecovery() {
-        statusTextItem?.title = "Hotkey Setup Required"
-        statusItem?.menu = makeHotkeyRecoveryMenu()
+        store.update { $0.menuMode = .hotkeyRecovery }
     }
 
-    private func makeHotkeyRecoveryMenu() -> NSMenu {
+    func makeHotkeyRecoveryMenu() -> NSMenu {
         let menu = NSMenu()
         let title = NSMenuItem(title: "Slovo Hotkey Setup Required", action: nil, keyEquivalent: "")
         title.isEnabled = false
@@ -263,18 +250,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
-        guard isPresentingOnboarding else { return }
+        guard store.state.menuMode.isOnboarding else { return }
         refreshOnboardingMenuIfNeeded()
     }
 
     private func refreshOnboardingMenuIfNeeded() {
         let latestSteps = FirstRunFlow.pendingSteps(permissions: SystemPermissionPreflighter().preflight())
-        guard latestSteps != onboardingSteps else { return }
-        onboardingSteps = latestSteps
+        guard store.state.menuMode != .onboarding(latestSteps) else { return }
         if latestSteps == [.ready] {
             retrySetup()
         } else {
-            statusItem?.menu = makeOnboardingMenu(for: latestSteps)
+            store.update { $0.menuMode = .onboarding(latestSteps) }
         }
     }
 
@@ -308,7 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if status.isFailureNotice {
             flashBriefStatusGlyph(status)
         }
-        statusTextItem?.title = Self.title(for: status)
+        store.update { $0.statusLine = .message(status) }
     }
 
     /// Flashes the unified red dictation-failure glyph and schedules its self-clear.
@@ -335,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard !self.isPipelineActive else { return }
             self.paintIdleGlyph(on: self.statusItem?.button)
             if !status.isPersistentNotice {
-                self.statusTextItem?.title = self.idleStatusTitle
+                self.store.update { $0.statusLine = .idle }
             }
         }
     }
@@ -393,7 +379,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !isRebuildingPipeline else { return }
         isRebuildingPipeline = true
         composition?.hotkeyMonitor.stop()
-        installStatusMenu(store.state.dictationMenuInput)
+        store.update {
+            $0.menuMode = .dictation
+            $0.statusLine = .idle
+        }
         // Join the previous edge consumer before a new one is built, so a rebuilt
         // monitor cannot leave two consumers double-handling the same fn edges.
         let previousSequencer = hotkeyEdgeSequencer
@@ -426,14 +415,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             openSettingsPane(fallbackPane)
         }
-    }
-
-    /// Builds and installs the dictation dropdown for `input`. The store's menu
-    /// subscriber calls it when a value the menu shows changes; Retry Setup calls
-    /// it to leave the setup menus.
-    func installStatusMenu(_ input: DictationMenuInput) {
-        statusItem?.menu = makeMenu(input)
-        renderUpdateIndication(store.state.updateIndication)
     }
 
     @objc

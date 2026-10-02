@@ -44,8 +44,9 @@ struct AppStateTests {
         #expect(!noKey.effectiveCleanupConfig.runsCleaner, "without a key the orchestrator must run raw")
     }
 
-    /// The menu input carries each value the menu shows, read from its own field,
-    /// and nothing else: the menu rebuilds when the input changes and only then.
+    /// The menu input carries each configuration value the dictation menu is built
+    /// from, read from its own field, and nothing else: the build keys on it and the
+    /// menu mode.
     /// Stated sensitivity: feed any input field from another `Config` field or a
     /// constant → RED; add any unshown field to `DictationMenuInput` → RED.
     @Test

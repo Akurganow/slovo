@@ -15,7 +15,7 @@ struct DictationMenuBuilder {
         let statusItem: NSMenuItem
     }
 
-    func make(_ input: DictationMenuInput, isFnKeySystemAssigned: Bool) -> Built {
+    func make(_ input: DictationMenuInput, rows: DictationMenuRows) -> Built {
         let hotkeys = input.hotkeyConfiguration
         let menu = NSMenu()
         // Explicit enable/disable control: auto-enablement would re-enable the
@@ -41,7 +41,7 @@ struct DictationMenuBuilder {
             ),
             mutesSystemAudioWhileDictating: input.mutesSystemAudioWhileDictating,
             playsDictationSoundCues: input.playsDictationSoundCues,
-            isFnKeySystemAssigned: isFnKeySystemAssigned
+            rows: rows
         ) {
             if let entry = render(item, into: menu, hotkeys: hotkeys, modelOptions: input.cleanupModelSelection.options) {
                 statusItem = entry

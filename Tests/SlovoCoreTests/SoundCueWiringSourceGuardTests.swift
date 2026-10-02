@@ -94,8 +94,9 @@ struct SoundCueWiringSourceGuardTests {
                 "generic mute/fn adapters are outside the cue-volume prohibition")
     }
 
-    /// Sensitivity: failing to paint every classified failure red, or resetting a
-    /// persistent failure title with the brief glyph, breaks these guards.
+    /// Stated sensitivity: fail to paint a classified failure red, write the status
+    /// row directly instead of `statusLine`, or reset a persistent failure's line
+    /// with the brief glyph → RED.
     @Test
     func failureStatusDrivesBriefRedGlyphWithoutErasingPersistentText() throws {
         let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
@@ -105,7 +106,7 @@ struct SoundCueWiringSourceGuardTests {
         let reportStatus = try AppRuntimeSourceGuardTests.functionBody(named: "reportStatus", in: orchestrator)
         #expect(showStatus.contains("status.isFailureNotice"))
         #expect(showStatus.contains("flashBriefStatusGlyph(status)"))
-        #expect(showStatus.contains("statusTextItem?.title = Self.title(for: status)"))
+        #expect(showStatus.contains("statusLine = .message(status)"))
         #expect(flash.contains("status.isPersistentNotice"),
                 "brief red paint must not reset persistent failure text to the idle hint")
         #expect(reportStatus.contains("status.isFailureNotice"))

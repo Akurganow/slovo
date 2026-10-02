@@ -13,7 +13,7 @@ struct EmptyResultGlyphWiringSourceGuardTests {
     /// status-line title update — so a silent hold leaves no lingering notice (spec).
     ///
     /// Sensitivity: drop the early `return` in the `isNoSpeechNotice` branch (so the
-    /// empty result falls through to `statusTextItem?.title = Self.title(for: status)`)
+    /// empty result falls through to `store.update { $0.statusLine = .message(status) }`)
     /// → the ordered "return" needle no longer sits between the flash and the title →
     /// RED. Route `.isNoSpeechNotice` around `flashBriefStatusGlyph` → RED.
     ///
@@ -21,7 +21,7 @@ struct EmptyResultGlyphWiringSourceGuardTests {
     /// branch (between the flash and the return) satisfies every ordered needle yet
     /// violates "no status-line text". So the branch body is sliced and asserted to
     /// carry no title write at all — pinning glyph-only directly.
-    /// Sensitivity: insert `statusTextItem?.title = ...` between the branch's flash and
+    /// Sensitivity: insert a `statusLine =` write between the branch's flash and
     /// its return → the sliced branch contains a title write → RED (a mutant the
     /// ordering needles above would pass).
     @Test
@@ -33,7 +33,7 @@ struct EmptyResultGlyphWiringSourceGuardTests {
             "status.isNoSpeechNotice",
             "flashBriefStatusGlyph(status)",
             "return",
-            "statusTextItem?.title = Self.title(for: status)",
+            "statusLine =",
         ], in: showStatusBody))
 
         // The no-speech branch itself (from the `if` open brace to its `return`) must
@@ -41,7 +41,7 @@ struct EmptyResultGlyphWiringSourceGuardTests {
         let noSpeechBranch = try AppRuntimeSourceGuardTests.slice(
             of: showStatusBody, from: "isNoSpeechNotice {", to: "return"
         )
-        #expect(!noSpeechBranch.contains("statusTextItem?.title"),
+        #expect(!noSpeechBranch.contains("statusLine ="),
                 "the empty-result branch must set no status-line text; got:\n\(noSpeechBranch)")
     }
 

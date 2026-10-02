@@ -93,8 +93,9 @@ public extension AppState {
     }
 }
 
-/// Every value the dictation menu shows, and nothing else: the menu rebuilds
-/// when this changes and only then.
+/// The configuration values the dictation menu is built from. The menu rebuilds
+/// when these or the menu mode change; the status, fn and update rows follow
+/// state through their own listeners.
 public struct DictationMenuInput: Equatable, Sendable {
     public let hotkeyConfiguration: HotkeyConfiguration
     public let cleanupModelSelection: CleanupModelSelection.Result

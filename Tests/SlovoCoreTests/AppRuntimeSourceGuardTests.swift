@@ -148,8 +148,8 @@ struct AppRuntimeSourceGuardTests {
         let catchMark = try #require(body.range(of: "} catch"))
         #expect(hotkey.lowerBound < started.lowerBound)
         #expect(started.lowerBound < catchMark.lowerBound)
-        // The menu subscriber's first build needs the status item, and must land
-        // before startPipeline can install an onboarding menu.
+        // The build subscriber's first build needs the status item, so the wiring
+        // follows `statusItem = item` and precedes startPipeline.
         let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: app)
         #expect(Self.containsInOrder(["statusItem = item", "startStoreEffects()", "startPipeline()"], in: launch))
     }
@@ -281,6 +281,9 @@ struct AppRuntimeSourceGuardTests {
         }
     }
 
+    /// Stated sensitivity: write the status row directly instead of `statusLine`, set
+    /// the idle line unconditionally in settleToIdle, or drop any pinned latch or
+    /// order → RED.
     @Test
     func transientProgressAndSadToFailStatusDoNotBecomeSticky() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -307,7 +310,7 @@ struct AppRuntimeSourceGuardTests {
         #expect(Self.containsInOrder([
             "if status.isPersistentNotice",
             "didShowPipelineStatus = true",
-            "statusTextItem?.title",
+            "statusLine = .message(status)",
         ], in: showStatusBody))
         // The sad-to-fail status routes to the shared brief-glyph flash, which paints
         // the glyph and schedules its self-clear back to idle after the brief window —
@@ -350,30 +353,43 @@ struct AppRuntimeSourceGuardTests {
         "a silent cancel must cancel, drain the pipeline, then settle to idle — in that order")
         // Presence-only for the two independent if-guards (their relative order and
         // negation spelling are free). Sensitivity: set the idle glyph or the idle
-        // title unconditionally (drop either guard) → its flag vanishes → RED.
+        // line unconditionally (drop either guard) → its flag vanishes → RED.
         #expect(Self.containsInOrder(["if", "isShowingBriefStatus", "paintIdleGlyph"], in: settleToIdleBody),
                 "the idle glyph must stay guarded by the brief-status flag")
-        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "title = idleStatusTitle"], in: settleToIdleBody),
-                "the idle title must stay guarded by the shown-pipeline-status flag")
+        #expect(Self.containsInOrder(["if", "didShowPipelineStatus", "statusLine = .idle"], in: settleToIdleBody),
+                "the idle line must stay guarded by the shown-pipeline-status flag")
     }
 
-    /// The live status line renders the bare state word, with no "Status:" prefix,
-    /// so it reads without a redundant label. The status line is set at roughly
-    /// nine sites across these two app-target files (recording, processing, idle,
-    /// setup / hotkey-setup required, the preparing-model pulse), only one of
-    /// which the settle-to-idle guard above pins by position — so a whole-file
-    /// negative assert is what stops the prefix creeping back into any unguarded
-    /// site. Mirrors the DictationMenuBuilder prefix guard. `code(_:)` strips
-    /// comments (but keeps string literals), so a future comment naming the
-    /// prefix cannot false-trip this.
-    /// Stated sensitivity: reintroduce `"Status: Idle"` in the model-gate file, or
-    /// `"Status: Recording"` in AppDelegate, → the matching `#expect` goes RED.
+    /// Between rebuilds the status, fn and update rows follow state through their
+    /// listeners, and a rebuild seeds the status and fn rows from the committed state.
+    /// The app target has no behavioural seam for these rows, so this reads its source.
+    /// Stated sensitivity: delete any of the three listeners, pass the idle hint or a
+    /// literal into the build's rows, or write the status row's title anywhere else
+    /// in the app target → RED.
     @Test
-    func statusTitlesCarryNoRedundantPrefix() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let modelGate = try Self.code("Sources/slovo/AppDelegate+ModelGate.swift")
-        #expect(!delegate.contains("Status: "))
-        #expect(!modelGate.contains("Status: "))
+    func menuRowsFollowState() throws {
+        let wiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        let rowWrites = [
+            ("store.listen(\\.statusLineText)", "statusTextItem?.title ="),
+            ("store.listen(\\.isFnKeySystemAssigned)", "fnConflictMenuItem?.isHidden ="),
+            ("store.listen(\\.updateIndication)", "renderUpdateIndication("),
+        ]
+        for (listener, write) in rowWrites {
+            let body = try Self.slice(of: wiring, from: listener, to: "\n        }")
+            #expect(body.contains(write), "\(listener) must write its row with \(write)")
+        }
+        let build = try Self.slice(of: wiring, from: "store.subscribe(\\.menuStructure)", to: "store.listen(")
+        #expect(
+            build.contains(
+                "DictationMenuRows(statusLine: state.statusLineText, isFnKeySystemAssigned: state.isFnKeySystemAssigned)"
+            ),
+            "the build must seed the status and fn rows from the committed state"
+        )
+        var titleWrites = 0
+        for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
+            titleWrites += try Self.code(file).components(separatedBy: "statusTextItem?.title =").count - 1
+        }
+        #expect(titleWrites == 1, "the status listener must be the status row's only title writer")
     }
 
     /// AC10: the dropdown's "Mute Audio While Dictating" switch renders as a
