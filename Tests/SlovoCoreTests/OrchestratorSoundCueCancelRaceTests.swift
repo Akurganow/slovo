@@ -147,15 +147,6 @@ struct OrchestratorSoundCueCancelRaceTests {
     }
 }
 
-/// Absence of an effect is only observable by waiting for it: round-trips the actor so
-/// anything a resumed continuation queued there has run before the assertion.
-private func settle(_ orchestrator: Orchestrator, rounds: Int = 200) async {
-    for _ in 0..<rounds {
-        await Task.yield()
-        _ = await orchestrator.currentState()
-    }
-}
-
 /// One-shot rendezvous: `arrive()` parks the caller until `open()`.
 private actor AsyncGate {
     private var hasArrived = false

@@ -265,25 +265,6 @@ private func makeOrchestrator(
     )
 }
 
-/// Absence of an effect is only observable by waiting for it: round-trips the actor so
-/// anything a resumed continuation queued there has run before the assertion.
-private func settle(_ orchestrator: Orchestrator, rounds: Int = 200) async {
-    for _ in 0..<rounds {
-        await Task.yield()
-        _ = await orchestrator.currentState()
-    }
-}
-
-/// Polls until the condition holds, relenting at the bound so a broken implementation
-/// fails its assertion instead of hanging the suite.
-private func waitUntil(rounds: Int = 500, _ condition: () async -> Bool) async -> Bool {
-    for _ in 0..<rounds {
-        if await condition() { return true }
-        await Task.yield()
-    }
-    return await condition()
-}
-
 /// Each failing seam has two catch arms — classified and not — each with its own guard.
 private enum SeamFailure: Sendable, CaseIterable {
     case classified

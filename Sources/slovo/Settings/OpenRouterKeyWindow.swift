@@ -4,7 +4,7 @@ import SwiftUI
 /// The compact "Add OpenRouter Key…" window opened from the dropdown in the no-key
 /// state — a secure field plus Save / Cancel, and nothing else. Save routes through
 /// the app's existing key-save path (`SettingsActions.saveOpenRouterKey` → the
-/// provider store and the availability funnel), so adding a key here repaints every
+/// provider store and the store's key-presence update), so adding a key here repaints every
 /// surface exactly as saving from the Settings pane does. A user-initiated window,
 /// so activating it is not the focus-stealing the house rule forbids.
 @MainActor

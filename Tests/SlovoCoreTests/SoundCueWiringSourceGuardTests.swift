@@ -3,47 +3,34 @@ import Testing
 
 @Suite("Sound cue wiring source guards")
 struct SoundCueWiringSourceGuardTests {
-    /// One observable preference projects both UI surfaces, persists changes, and
-    /// synchronously reaches the controller before the next session snapshots it.
-    /// Sensitivity: restore a local Settings copy, render the menu from ConfigStore,
-    /// add an async actor hop/duplicate initial writer, or add app volume → RED.
+    /// One preference in the store projects both UI surfaces, the menu toggle inverts
+    /// it through the store, and the store's subscriber reaches the controller
+    /// synchronously before the next session snapshots it
+    /// (`AppStoreEffectsTests.soundCueChangeUpdatesTheControllerSynchronously`).
+    /// Stated sensitivity: restore a local Settings copy, render the menu from
+    /// anything but the builder's input, make the menu toggle set a constant, or move
+    /// the initial controller value out of AppComposition → RED.
     @Test
-    func uiProjectsOnePreferenceWithSynchronousControllerUpdates() throws {
-        let preferenceModel = try AppRuntimeSourceGuardTests.code(
-            "Sources/SlovoCore/Config/DictationSoundCuePreferenceModel.swift"
-        )
+    func soundCuePreferenceReachesPaneMenuAndComposition() throws {
         let general = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let actions = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/SettingsActions.swift")
         let builder = try AppRuntimeSourceGuardTests.code("Sources/slovo/DictationMenuBuilder.swift")
-        let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
         let soundCues = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+SoundCues.swift")
         let composition = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppComposition.swift")
         let orchestrator = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Orchestrator.swift")
         let pipelineFactory = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Composition/PipelineFactory.swift")
-        let makeMenu = try AppRuntimeSourceGuardTests.functionBody(named: "makeMenu", in: delegate)
-        let makeLive = try AppRuntimeSourceGuardTests.functionBody(named: "makeLive", in: composition)
-        let apply = try AppRuntimeSourceGuardTests.functionBody(named: "applyPlaysDictationSoundCues", in: soundCues)
         let toggle = try AppRuntimeSourceGuardTests.functionBody(named: "toggleDictationSoundCues", in: soundCues)
+        let makeLive = try AppRuntimeSourceGuardTests.functionBody(named: "makeLive", in: composition)
 
-        #expect(preferenceModel.contains("@MainActor"))
-        #expect(preferenceModel.contains("final class DictationSoundCuePreferenceModel: ObservableObject"))
-        #expect(preferenceModel.contains("@Published public private(set) var isEnabled"),
-                "the shared UI projection must be observable but mutated through one path")
-        #expect(preferenceModel.contains("func update(_ isEnabled: Bool)"))
-        #expect(actions.contains("var dictationSoundCuePreferenceModel: DictationSoundCuePreferenceModel { get }"),
-                "Settings and AppDelegate must expose the same observable model instance")
-        #expect(general.contains("@ObservedObject"))
-        #expect(general.contains("DictationSoundCuePreferenceModel"))
-        #expect(general.contains("Sound Cues") && general.contains("dictationSoundCuePreferenceModel.isEnabled"))
+        #expect(general.contains("Sound Cues") && general.contains(#"store.binding(\.playsDictationSoundCues)"#))
         #expect(!general.contains("@State private var playsDictationSoundCues"),
                 "General must not cache a stale independent copy of the preference")
         #expect(builder.contains("Sound Cues") && builder.contains("state = isOn ? .on : .off"))
         #expect(builder.contains("#selector(AppDelegate.toggleDictationSoundCues(_:))"),
                 "the menu row must call the real cue toggle selector")
-        #expect(makeMenu.contains("playsDictationSoundCues: dictationSoundCuePreferenceModel.isEnabled"),
-                "the dropdown must project the same live model as General")
-        #expect(!makeMenu.contains("playsDictationSoundCues: config.playsDictationSoundCues"),
-                "the menu must not bypass the observable UI source with a stale persisted reread")
+        #expect(builder.contains("playsDictationSoundCues: input.playsDictationSoundCues"),
+                "the dropdown must project the same store value as General")
+        #expect(toggle.contains("$0.config.playsDictationSoundCues.toggle()"),
+                "the menu selector must invert the stored preference")
 
         #expect(makeLive.contains("let cueController = AudioServicesDictationCueController("))
         #expect(makeLive.contains("isEnabled: config.playsDictationSoundCues"),
@@ -54,23 +41,6 @@ struct SoundCueWiringSourceGuardTests {
         #expect(!orchestrator.contains("updatePlaysDictationSoundCues"))
         #expect(!pipelineFactory.contains("playsDictationSoundCues"),
                 "Orchestrator and PipelineFactory must not duplicate initial preference ownership")
-
-        #expect(apply.contains("config.playsDictationSoundCues = enabled"))
-        #expect(apply.contains("ConfigStore.save(config"), "the live apply path must persist the preference")
-        #expect(apply.contains("composition?.cueController.updateEnabled(enabled)"),
-                "the owner must receive the update synchronously before another key-down")
-        #expect(apply.contains("dictationSoundCuePreferenceModel.update(enabled)"),
-                "both UI surfaces must observe the successfully persisted value")
-        #expect(apply.contains("installStatusMenu()"), "the live apply path must refresh the menu checkmark")
-        #expect(Self.appearsInOrder([
-            "ConfigStore.save(config", "composition?.cueController.updateEnabled(enabled)",
-            "dictationSoundCuePreferenceModel.update(enabled)", "installStatusMenu()",
-        ], in: apply), "persist, synchronously update owner/UI state, then rebuild the menu")
-        #expect(!apply.contains("Task {") && !apply.contains("await ") && !apply.contains(".orchestrator."),
-                "a fire-and-forget actor hop can lose the race with the next key-down snapshot")
-        #expect(toggle.contains("applyPlaysDictationSoundCues(!dictationSoundCuePreferenceModel.isEnabled)"),
-                "the menu selector must invert the shared observable value")
-        #expect(!toggle.contains("ConfigStore.load"), "the toggle must not fork UI authority back to persistence")
     }
 
     /// The policy scans both production app targets, so a helper introduced away
@@ -206,15 +176,6 @@ struct SoundCueWiringSourceGuardTests {
 
     private static func source(_ relativePath: String) throws -> String {
         try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
-    private static func appearsInOrder(_ needles: [String], in source: String) -> Bool {
-        var cursor = source.startIndex
-        for needle in needles {
-            guard let range = source.range(of: needle, range: cursor..<source.endIndex) else { return false }
-            cursor = range.upperBound
-        }
-        return true
     }
 
     private static var packageRoot: URL {

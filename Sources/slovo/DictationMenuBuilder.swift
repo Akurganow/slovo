@@ -15,13 +15,8 @@ struct DictationMenuBuilder {
         let statusItem: NSMenuItem
     }
 
-    func make(
-        hotkeys: HotkeyConfiguration,
-        cleanup: DictationMenuCleanupConfiguration,
-        mutesSystemAudioWhileDictating: Bool,
-        playsDictationSoundCues: Bool,
-        isFnKeySystemAssigned: Bool
-    ) -> Built {
+    func make(_ input: DictationMenuInput, isFnKeySystemAssigned: Bool) -> Built {
+        let hotkeys = input.hotkeyConfiguration
         let menu = NSMenu()
         // Explicit enable/disable control: auto-enablement would re-enable the
         // translate submenu and the no-key toggle that this builder disables.
@@ -34,102 +29,119 @@ struct DictationMenuBuilder {
         // longer in any menu.
         target.fnConflictMenuItem = nil
         var statusItem = NSMenuItem()
-        // The config arguments no longer fit the strict 160-char line, so the call
+        // The config arguments exceed the strict 160-char line, so the call
         // is multiline per multiline_arguments_brackets; the source guards assert the
         // call token and the threaded configuration separately.
         for item in DictationMenu.items(
             hotkeys: hotkeys,
-            cleanup: cleanup,
-            mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
-            playsDictationSoundCues: playsDictationSoundCues,
+            cleanup: DictationMenuCleanupConfiguration(
+                selectedModelId: input.cleanupModelSelection.effective,
+                translationLanguage: input.translationTargetLanguage.rawValue,
+                availability: input.cleanupAvailability
+            ),
+            mutesSystemAudioWhileDictating: input.mutesSystemAudioWhileDictating,
+            playsDictationSoundCues: input.playsDictationSoundCues,
             isFnKeySystemAssigned: isFnKeySystemAssigned
         ) {
-            switch item {
-            case .status(let title):
-                // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
-                // line, then the fn-conflict notice claiming its slot while hidden —
-                // directly under the line whose key it warns about. The update row is
-                // appended after the translate hint instead, so the two key hints stay
-                // adjacent and nothing splits them.
-                let entry = disabled(title)
+            if let entry = render(item, into: menu, hotkeys: hotkeys, modelOptions: input.cleanupModelSelection.options) {
                 statusItem = entry
-                menu.addItem(entry)
-                if hotkeys.usesFnKey {
-                    menu.addItem(makeFnConflictItem())
-                }
-            case .fnConflictNotice(let text):
-                // The model's build-time verdict seeds the row; every later open
-                // re-syncs it from the live system setting.
-                target.fnConflictMenuItem?.title = text
-                target.fnConflictMenuItem?.isHidden = false
-            case .translateHint(let title):
-                menu.addItem(disabled(title))
-                // The update row sits below both key hints: it is the last header row,
-                // and it claims its slot here even while hidden.
-                menu.addItem(makeUpdateItem())
-            case .separator:
-                menu.addItem(.separator())
-            case .cleanupModel(let modelId, let enabled):
-                let entry = target.modelMenu(
-                    title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
-                    selectedModel: modelId
-                )
-                // Grayed but visible when cleanup is off with a key present: there is
-                // a selection, it just cannot take effect — mirrors translationLanguage.
-                entry.isEnabled = enabled
-                menu.addItem(entry)
-            case .addOpenRouterKey:
-                // Replaces the whole cleanup block in the no-key state; opens the
-                // dedicated key-entry window so the user can add a key (the way out).
-                menu.addItem(target.actionItem("Add OpenRouter Key…", #selector(AppDelegate.showAddOpenRouterKeyWindow)))
-            case .translationLanguage(let selected, let enabled):
-                let entry = target.translationLanguageMenu(selected: selected)
-                entry.isEnabled = enabled
-                menu.addItem(entry)
-            case .cleanupToggle(let isOn):
-                // Always actionable: the switch is emitted only when a key is present,
-                // so there is no off-and-disabled path to render — `isOn` only drives
-                // the checkmark.
-                let entry = target.actionItem(
-                    "Clean Up Dictation",
-                    #selector(AppDelegate.toggleCleanupDictation(_:))
-                )
-                entry.state = isOn ? .on : .off
-                menu.addItem(entry)
-            case .addVocabulary:
-                menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
-            case .muteWhileDictating(let isOn):
-                let entry = target.actionItem(
-                    "Mute Audio While Dictating",
-                    #selector(AppDelegate.toggleMuteWhileDictating(_:))
-                )
-                entry.state = isOn ? .on : .off
-                menu.addItem(entry)
-            case .soundCues(let isOn):
-                let entry = target.actionItem(
-                    "Sound Cues",
-                    #selector(AppDelegate.toggleDictationSoundCues(_:))
-                )
-                entry.state = isOn ? .on : .off
-                menu.addItem(entry)
-            case .about:
-                menu.addItem(target.actionItem("About Slovo", #selector(AppDelegate.showAboutWindow)))
-            case .settings:
-                let entry = target.actionItem("Settings…", #selector(AppDelegate.showSettingsWindow))
-                entry.keyEquivalent = ","
-                // HIG-canonical settings symbol; SF Symbols render as template images,
-                // so it adapts to the light/dark menu bar automatically.
-                entry.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
-                menu.addItem(entry)
-            case .quit:
-                menu.addItem(NSMenuItem(
-                    title: "Quit Slovo",
-                    action: #selector(NSApplication.terminate(_:)),
-                    keyEquivalent: "q"
-                ))
             }
         }
         return Built(menu: menu, statusItem: statusItem)
+    }
+
+    /// Adds one item to the menu and returns the status row, which `make` hands back.
+    /// Holds the per-item switch so `make` stays within `function_body_length`.
+    private func render(
+        _ item: DictationMenuItem, into menu: NSMenu, hotkeys: HotkeyConfiguration, modelOptions: [CleanupModelOption]
+    ) -> NSMenuItem? {
+        var statusItem: NSMenuItem?
+        switch item {
+        case .status(let title):
+            // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
+            // line, then the fn-conflict notice claiming its slot while hidden —
+            // directly under the line whose key it warns about. The update row is
+            // appended after the translate hint instead, so the two key hints stay
+            // adjacent and nothing splits them.
+            let entry = disabled(title)
+            statusItem = entry
+            menu.addItem(entry)
+            if hotkeys.usesFnKey {
+                menu.addItem(makeFnConflictItem())
+            }
+        case .fnConflictNotice(let text):
+            // The model's build-time verdict seeds the row; every later open
+            // re-syncs it from the live system setting.
+            target.fnConflictMenuItem?.title = text
+            target.fnConflictMenuItem?.isHidden = false
+        case .translateHint(let title):
+            menu.addItem(disabled(title))
+            // The update row sits below both key hints: it is the last header row,
+            // and it claims its slot here even while hidden.
+            menu.addItem(makeUpdateItem())
+        case .separator:
+            menu.addItem(.separator())
+        case .cleanupModel(let modelId, let enabled):
+            let entry = target.modelMenu(
+                title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
+                options: modelOptions,
+                selectedModel: modelId
+            )
+            // Grayed but visible when cleanup is off with a key present: there is
+            // a selection, it just cannot take effect — mirrors translationLanguage.
+            entry.isEnabled = enabled
+            menu.addItem(entry)
+        case .addOpenRouterKey:
+            // Replaces the whole cleanup block in the no-key state; opens the
+            // dedicated key-entry window so the user can add a key (the way out).
+            menu.addItem(target.actionItem("Add OpenRouter Key…", #selector(AppDelegate.showAddOpenRouterKeyWindow)))
+        case .translationLanguage(let selected, let enabled):
+            let entry = target.translationLanguageMenu(selected: selected)
+            entry.isEnabled = enabled
+            menu.addItem(entry)
+        case .cleanupToggle(let isOn):
+            // Always actionable: the switch is emitted only when a key is present,
+            // so there is no off-and-disabled path to render — `isOn` only drives
+            // the checkmark.
+            let entry = target.actionItem(
+                "Clean Up Dictation",
+                #selector(AppDelegate.toggleCleanupDictation(_:))
+            )
+            entry.state = isOn ? .on : .off
+            menu.addItem(entry)
+        case .addVocabulary:
+            menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
+        case .muteWhileDictating(let isOn):
+            let entry = target.actionItem(
+                "Mute Audio While Dictating",
+                #selector(AppDelegate.toggleMuteWhileDictating(_:))
+            )
+            entry.state = isOn ? .on : .off
+            menu.addItem(entry)
+        case .soundCues(let isOn):
+            let entry = target.actionItem(
+                "Sound Cues",
+                #selector(AppDelegate.toggleDictationSoundCues(_:))
+            )
+            entry.state = isOn ? .on : .off
+            menu.addItem(entry)
+        case .about:
+            menu.addItem(target.actionItem("About Slovo", #selector(AppDelegate.showAboutWindow)))
+        case .settings:
+            let entry = target.actionItem("Settings…", #selector(AppDelegate.showSettingsWindow))
+            entry.keyEquivalent = ","
+            // HIG-canonical settings symbol; SF Symbols render as template images,
+            // so it adapts to the light/dark menu bar automatically.
+            entry.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
+            menu.addItem(entry)
+        case .quit:
+            menu.addItem(NSMenuItem(
+                title: "Quit Slovo",
+                action: #selector(NSApplication.terminate(_:)),
+                keyEquivalent: "q"
+            ))
+        }
+        return statusItem
     }
 
     private func disabled(_ title: String) -> NSMenuItem {

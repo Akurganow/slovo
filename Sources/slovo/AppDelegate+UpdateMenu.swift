@@ -15,7 +15,7 @@ extension AppDelegate {
             onInstallFailedAfterRestart: { [weak self] in self?.flashUserActionFailure() }
         )
         updaterCoordinator = coordinator
-        coordinator.start(automaticUpdatesEnabled: ConfigStore.load(from: defaults).automaticallyInstallsUpdates)
+        coordinator.start(automaticUpdatesEnabled: store.state.config.automaticallyInstallsUpdates)
     }
 
     /// The update-ready Nash rides the IDLE glyph slot, so a ready/not-ready
@@ -48,7 +48,7 @@ extension AppDelegate {
         guard let item = updateMenuItem else { return }
         switch indication {
         case .idle:
-            // Always visible and actionable now: an idle row offers a manual check.
+            // Always visible and actionable: an idle row offers a manual check.
             // Plain actionable style (not the grey status attributedTitle) — this is an
             // action the user takes, so it reads like every other actionable row.
             item.isHidden = false

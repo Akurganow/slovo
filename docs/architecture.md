@@ -97,10 +97,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
   key). The menu, Settings, the recording glyph, and the orchestrator push all
   read this one derivation (`preference && keyPresent`), so the state is never
-  re-derived divergently. `CleanupAvailabilityModel` is its observed app-layer
-  projection: the push funnel (`pushEffectiveCleanupConfig`) is the single
-  writer, and the Settings pane observes the model instead of snapshotting at
-  init, so every surface reflects an availability mutation within one runloop.
+  re-derived divergently. Its derivation is the `cleanupAvailability` selector
+  on `AppState` (see App State); the store publishes synchronously, so the
+  Settings pane and the menu reflect a change within one runloop turn.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
@@ -187,6 +186,36 @@ login, automatic updates, cleanup model and style, translation target,
 OpenRouter key, and vocabulary; the **About** window carries a quick guide and
 the running version. All configuration is native windows — there are no modal
 alerts.
+
+## App State
+
+`AppState` is one value: the persisted `Config` and the mirrors the app keeps of
+state stored elsewhere. The mirrors are whether an OpenRouter key is in the
+Keychain, the key's model scope, and the vocabulary table. Derived values, such
+as cleanup availability, the effective cleanup config and the menu's input, are
+computed properties on `AppState`.
+
+`AppStore.update` is the one mutation path, and `private(set)` makes the compiler
+hold it. Each update feeds the cleanup availability edge to the scope reducer, so
+the scope state always agrees with availability. It refuses a `Config` that
+`ConfigStore` would refuse to save, and an update that changes nothing publishes
+nothing.
+
+Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
+SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
+tap, the cue controller, the updater switch and the scope fetch. The app target
+adds only the menu subscriber, which rebuilds the dropdown when a value it shows
+changes.
+
+An effect that is not a function of state stays reducer output, as in
+`DictationFsm`. No subscriber writes to the store while it is being notified.
+Work a subscriber starts may write later through `update`, as the scope fetch
+does when it completes.
+
+This supersedes K11's list of fetch, push and rebuild commands in
+`docs/tasks/openrouter-key-scope-and-catalog.md`. The fetch is the
+`pendingFetch` selector with a subscriber. The push and the menu rebuild are
+subscribers.
 
 ## Build Boundaries
 

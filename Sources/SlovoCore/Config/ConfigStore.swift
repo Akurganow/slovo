@@ -43,6 +43,12 @@ public enum ConfigStore {
         defaults.set(data, forKey: key)
     }
 
+    /// Whether `save` would accept `config`. `AppStore` refuses an invalid `Config`
+    /// before it commits, so state never holds a value persistence would reject.
+    public static func isValid(_ config: Config) -> Bool {
+        validated(config) != nil
+    }
+
     private struct StoredConfig: Codable {
         let language: Language
         // Optional wire field: an absent value decodes to `nil` (resident default);
@@ -175,12 +181,9 @@ public enum ConfigStore {
             else {
                 return nil
             }
-            let storedOpenRouterModel = ConfigStore.latestOpenRouterModel(
+            let openRouterModel = ConfigStore.migratedOpenRouterModel(
                 cleanup.openRouterModel ?? Config.defaultOpenRouterModel
             )
-            let openRouterModel = ConfigStore.retiredOpenRouterModels.contains(storedOpenRouterModel)
-                ? Config.defaultOpenRouterModel
-                : storedOpenRouterModel
 
             // A legacy Apple-Speech blob's keep-warm meant Apple-Speech retention,
             // not a WhisperKit window; reset it to the resident default (nil) for
@@ -245,6 +248,14 @@ public enum ConfigStore {
         "deepseek/deepseek-v4-flash": "deepseek/deepseek-v4.1-flash",
         "qwen/qwen3.6-flash": "qwen/qwen3.8-flash",
     ]
+
+    /// A stored model id moved to its current successor, or to the default when
+    /// it is retired. Any other id, a custom one included, passes through, and a
+    /// migrated id migrates to itself.
+    public static func migratedOpenRouterModel(_ model: String) -> String {
+        let latest = latestOpenRouterModel(model)
+        return retiredOpenRouterModels.contains(latest) ? Config.defaultOpenRouterModel : latest
+    }
 
     private static func latestOpenRouterModel(_ model: String) -> String {
         openRouterModelSuccessors[model].map(latestOpenRouterModel) ?? model

@@ -42,7 +42,7 @@ struct AppShellPackagingTests {
         let delegate = try Self.strippingComments(from: Self.source("Sources/slovo/AppDelegate.swift"))
         let speechModel = try Self.strippingComments(from: Self.source("Sources/SlovoCore/ASR/SharedSpeechModel.swift"))
 
-        #expect(composition.contains("ConfigStore.load(from: defaults)"))
+        #expect(!composition.contains("ConfigStore.load("), "the composition is seeded from the state it is handed")
         // Stated sensitivity: swap the production ASR off `WhisperKitTranscriber`
         // in the process-wide speech model → the assertion goes RED.
         #expect(speechModel.contains("WhisperKitTranscriber("))
@@ -51,7 +51,14 @@ struct AppShellPackagingTests {
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
         #expect(composition.contains("CoreAudioOutputMute()"))
         #expect(composition.contains("AVAudioEngineRecorder(authorizer:"))
-        #expect(composition.contains("PipelineFactory.makeOrchestrator"))
+        // Every new orchestrator starts on the derived model and the effective on/off
+        // (K6), so its first dictation never runs the raw preference.
+        // Stated sensitivity: pass `state.config.cleanupConfig`, or omit the argument
+        // (the factory then falls back to the raw preference) → RED.
+        let orchestratorCall = try #require(composition.range(of: "PipelineFactory.makeOrchestrator("))
+        let callEnd = try #require(composition.range(of: ")", range: orchestratorCall.upperBound..<composition.endIndex))
+        #expect(composition[orchestratorCall.upperBound..<callEnd.lowerBound].contains("cleanupConfig: state.effectiveCleanupConfig"),
+                "a new orchestrator must be seeded with the effective cleanup config")
         // Stated sensitivity: change the production prompt-builder call at all —
         // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
         // default — → this exact call text is gone → RED.

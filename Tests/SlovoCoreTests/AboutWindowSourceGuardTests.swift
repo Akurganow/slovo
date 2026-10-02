@@ -61,7 +61,7 @@ struct AboutWindowSourceGuardTests {
         #expect(presenter.contains("NSApp.activate(ignoringOtherApps: true)"))
         #expect(presenter.contains("if aboutWindow == nil"))
         #expect(presenter.contains("aboutWindow = AboutWindow()"))
-        #expect(presenter.contains("hotkeys: ConfigStore.load(from: defaults).hotkeyConfiguration"))
+        #expect(presenter.contains("hotkeys: store.state.config.hotkeyConfiguration"))
         #expect(presenter.contains("\"CFBundleShortVersionString\""))
         #expect(presenter.contains("\"CFBundleVersion\""))
         #expect(presenter.contains("\"SlovoDevBuild\""))

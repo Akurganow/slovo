@@ -3,7 +3,7 @@ import GRDB
 /// A `vocabulary` row. Inserts use `INSERT OR IGNORE` so re-applying
 /// a seed never duplicates and never throws on a `(term, category)` conflict — a
 /// conflicting row is silently skipped.
-public struct VocabularyRecord: Codable, FetchableRecord, MutablePersistableRecord {
+public struct VocabularyRecord: Codable, Equatable, FetchableRecord, MutablePersistableRecord, Sendable {
     public var id: Int64?
     public var term: String
     public var expansion: String?

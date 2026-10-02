@@ -92,8 +92,11 @@ struct AppRuntimeSourceGuardTests {
         let keychainItemExistsBody = try Self.functionBody(named: "keychainItemExists", in: keyProvider)
 
         #expect(makeLiveBody.contains("FirstRunFlow.pendingSteps("))
-        #expect(!makeLiveBody.contains("hasOpenRouterKey"))
-        #expect(!Self.withoutStringLiterals(makeLiveBody).contains("keyProvider.apiKey()"))
+        // Stated sensitivity: read key presence in makeLive again, or the
+        // secret through apiKey() → RED.
+        #expect(!makeLiveBody.contains("hasConfiguredKey"),
+                "the composition takes key presence from the state it is handed, never from the Keychain")
+        #expect(!Self.withoutStringLiterals(makeLiveBody).contains("apiKey()"))
         #expect(hasConfiguredKeyBody.contains("keyExists()"))
         for forbidden in ["apiKey()", "keychainKey()", "kSecReturnData"] {
             #expect(!Self.withoutStringLiterals(hasConfiguredKeyBody).contains(forbidden),
@@ -129,53 +132,42 @@ struct AppRuntimeSourceGuardTests {
                 "launch must not read the Keychain secret; cleanup reads it lazily when needed")
     }
 
-    // K10 ordering (spec §9.1): the scope events — and therefore the first possible
-    // Keychain-secret read via the fetcher — sit strictly AFTER hotkey start, and
-    // INSIDE the do block (the catch/recovery path must not fire them).
-    // Sensitivity: move either call above hotkeyMonitor.start(), or below the
-    // catch, → RED.
+    // K10 ordering (spec §9.1): the scope event — and therefore the first possible
+    // Keychain-secret read via the fetcher — sits strictly AFTER hotkey start, and
+    // INSIDE the do block (the catch/recovery path must not fire it). The fetch gate
+    // itself is the reducer's (`launchFetchWaitsForPipelineStart`).
+    // Stated sensitivity: move `applyScope(.pipelineStarted)` above
+    // `hotkeyMonitor.start()` or below the catch → RED; call `startStoreEffects()`
+    // before `statusItem = item` or after `startPipeline()` → RED.
     @Test
     func scopeEventsFireOnlyAfterHotkeyStart() throws {
         let app = try Self.code("Sources/slovo/AppDelegate.swift")
         let body = try Self.functionBody(named: "startPipeline", in: app)
         let hotkey = try #require(body.range(of: "hotkeyMonitor.start()"))
-        let edge = try #require(body.range(of: "feedAvailabilityEdge()"))
-        let started = try #require(body.range(of: "applyScopeEvent(.pipelineStarted)"))
+        let started = try #require(body.range(of: "applyScope(.pipelineStarted)"))
         let catchMark = try #require(body.range(of: "} catch"))
-        #expect(hotkey.lowerBound < edge.lowerBound)
-        #expect(edge.lowerBound < started.lowerBound)
+        #expect(hotkey.lowerBound < started.lowerBound)
         #expect(started.lowerBound < catchMark.lowerBound)
-        // The amended launch boundary (spec §9.1), tightened beyond re-documenting:
-        // nothing in the launch entry point touches the scope machinery directly —
-        // the only route to a Keychain-secret read is the post-start event pair above.
+        // The menu subscriber's first build needs the status item, and must land
+        // before startPipeline can install an onboarding menu.
         let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: app)
-        #expect(!launch.contains("applyScopeEvent"))
-        #expect(!launch.contains("fetchScopeIds"))
+        #expect(Self.containsInOrder(["statusItem = item", "startStoreEffects()", "startPipeline()"], in: launch))
     }
 
-    // Single writer (spec §4 Components, mirroring pushFunnelIsTheOnlyModelWriter):
-    // exactly one scope-model write and one scopeState assignment, both in the
-    // funnel. K1 wiring half: the funnel file contains no config-write call.
-    // Sensitivity: add a second update()/assignment anywhere in Sources/slovo,
-    // or a ConfigStore.save/setCleanupModel call to the funnel file, → RED.
+    // The scope fetch has one call site in the app target: the target closure the
+    // store's fetch subscriber runs for a pending generation (K10/§9.1).
+    // `AppState.cleanupScope` is `private(set)`, so the compiler, not this guard,
+    // keeps `applyScope` its only writer.
+    // Stated sensitivity: a second `fetchScopeIds(` call in Sources/slovo, or
+    // dropping either K8 wiring line → RED; a config write in `scopeFailureObserver`
+    // → RED.
     @Test
-    func scopeFunnelIsTheSingleScopeWriterAndNeverWritesConfig() throws {
-        var updateCount = 0
-        var assignCount = 0
+    func scopeFetchAndFailureFeedAreWiredOnce() throws {
         var fetchCallCount = 0
         for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
-            let source = try Self.code(file)
-            updateCount += source.components(separatedBy: "cleanupModelScopeModel.update(").count - 1
-            assignCount += source.components(separatedBy: "self.scopeState = ").count - 1
-            fetchCallCount += source.components(separatedBy: "fetchScopeIds(").count - 1
+            fetchCallCount += try Self.code(file).components(separatedBy: "fetchScopeIds(").count - 1
         }
-        #expect(updateCount == 1)
-        #expect(assignCount == 1)
-        #expect(fetchCallCount == 1)   // the fetch is reachable ONLY via the funnel (K10/§9.1)
-        let funnel = try Self.code("Sources/slovo/AppDelegate+CleanupScope.swift")
-        #expect(!funnel.contains("ConfigStore.save"))
-        #expect(!funnel.contains("applyCleanupModel("))
-        #expect(!funnel.contains("setCleanupModel("))
+        #expect(fetchCallCount == 1)
         // K8 chain, links (b) and (c) — the v5-verification's G1: without these,
         // dropping either wiring line leaves every suite green while the 404
         // self-heal never fires. Link (a) is pinned beside the seam's tests.
@@ -183,6 +175,10 @@ struct AppRuntimeSourceGuardTests {
         #expect(composition.contains("dependencies.onCleanupFailure = onCleanupFailure"))
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         #expect(delegate.contains("onCleanupFailure: scopeFailureObserver()"))
+        // K1, app half: the scope failure feed never writes config. The SlovoCore half
+        // is AppStateTests.applyScopeNeverWritesConfig and the fetch effect test.
+        let scopeWiring = try Self.code("Sources/slovo/AppDelegate+CleanupScope.swift")
+        #expect(!scopeWiring.contains(".config."), "the scope failure feed must never write config (K1)")
     }
 
     // K4's "NEVER on the key-up path": the dictation-side core never references
@@ -195,10 +191,47 @@ struct AppRuntimeSourceGuardTests {
             let source = try Self.code(file)
             #expect(!source.contains("CleanupScopeReducer"))
             #expect(!source.contains("OpenRouterModelScopeFetcher"))
-            #expect(!source.contains("applyScopeEvent"))
+            #expect(!source.contains("applyScope("))
         }
     }
 
+    /// The store is the app's one copy of `Config`: `AppDelegate.init` seeds it from
+    /// UserDefaults once, and the persistence subscriber in SlovoCore is the only
+    /// writer back. The app target has no test seam, so this reads its source.
+    /// Stated sensitivity: an app writer that saves on its own, or a reader that
+    /// decodes UserDefaults again → RED.
+    @Test
+    func appTargetLoadsConfigOnceAndNeverSaves() throws {
+        var loads = 0
+        var saves = 0
+        for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
+            let source = try Self.code(file)
+            loads += source.components(separatedBy: "ConfigStore.load(").count - 1
+            saves += source.components(separatedBy: "ConfigStore.save(").count - 1
+        }
+        #expect(loads == 1, "only the store seed may decode UserDefaults; found \(loads) reads")
+        #expect(saves == 0, "only the store's persistence subscriber may save Config; found \(saves) app-side saves")
+    }
+
+    /// Every orchestrator push is a store subscriber in SlovoCore, so the app target
+    /// pushes nothing itself.
+    /// Stated sensitivity: an app-side push beside the store wiring → RED.
+    @Test
+    func appTargetPushesNothingToTheOrchestrator() throws {
+        let pushes = [
+            "updateCleanupConfig(", "updateMutesSystemAudioWhileDictating(",
+            "updateUsesVocabularyBias(", "updateRecognitionLanguage(",
+        ]
+        for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
+            let source = try Self.code(file)
+            for push in pushes {
+                #expect(!source.contains(push), "\(file) pushes \(push) beside the store wiring")
+            }
+        }
+    }
+
+    /// Stated sensitivity: build the submenu from the catalog instead of the
+    /// `options` parameter, or write anything but the chosen id → RED.
     @Test
     func appMenuSelectsOpenRouterModelAndShowsCurrentModel() throws {
         let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
@@ -208,39 +241,11 @@ struct AppRuntimeSourceGuardTests {
 
         #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
         #expect(menuBuilder.contains("selectedModel: modelId"))
-        #expect(modelMenuBody.contains("currentModelSelection()"))
-        #expect(modelMenuBody.contains("selection.options"))
+        #expect(modelMenuBody.contains("for option in options"))
         #expect(modelMenuBody.contains("item.representedObject = option"))
         #expect(modelMenuBody.contains("item.state = option.id == selectedModel ? .on : .off"))
         #expect(selectCleanupModelBody.contains("sender.representedObject as? CleanupModelOption"))
-        #expect(selectCleanupModelBody.contains("applyCleanupModel(option.id)"))
-    }
-
-    /// #2: switching the cleanup model must apply live to the next dictation. It
-    /// must NOT tear down and rebuild the pipeline, because a rebuild re-warms the
-    /// ASR model and shows the "Preparing Speech Model" loading pulse — alarming
-    /// and misleading for a change that only swaps the cleanup LLM id.
-    /// Stated sensitivity: route the cleanup-model change back through
-    /// retrySetup()/startPipeline (a pipeline rebuild) or drop the live push
-    /// through the effective-config funnel (`pushEffectiveCleanupConfig()`) → RED.
-    @Test
-    func changingCleanupModelAppliesLiveWithoutPipelineRebuild() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let cleanupMenu = try Self.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
-        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
-        let selectBody = try Self.functionBody(named: "selectCleanupModel", in: cleanupMenu)
-        let applyBody = try Self.functionBody(named: "applyCleanupModel", in: delegate)
-
-        #expect(selectBody.contains("applyCleanupModel(option.id)"))
-
-        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
-            #expect(!applyBody.contains(forbidden),
-                    "changing the cleanup model must not \(forbidden): that re-warms ASR and shows the loading pulse")
-        }
-        #expect(applyBody.contains("pushEffectiveCleanupConfig()"),
-                "the cleanup-model change must apply live through the effective-config funnel")
-        #expect(orchestrator.contains("func updateCleanupConfig"),
-                "the orchestrator must expose a live cleanup-config update so no rebuild is needed")
+        #expect(selectCleanupModelBody.contains("$0.config.openRouterModel = option.id"))
     }
 
     /// Production dictation is the restored WhisperKit transcriber, and the on-device
@@ -352,15 +357,15 @@ struct AppRuntimeSourceGuardTests {
                 "the idle title must stay guarded by the shown-pipeline-status flag")
     }
 
-    /// The live status line renders the bare state word: the "Status:" prefix was
-    /// dropped at every render site so it reads without a redundant label. The
-    /// prefix is set at roughly nine sites across these two app-target files
-    /// (recording, processing, idle, setup / hotkey-setup required, the
-    /// preparing-model pulse), only one of which the settle-to-idle guard above
-    /// pins by position — so a whole-file negative assert is what stops the prefix
-    /// creeping back into any unguarded site. Mirrors the DictationMenuBuilder
-    /// prefix guard. `code(_:)` strips comments (but keeps string literals), so a
-    /// future comment naming the old prefix cannot false-trip this.
+    /// The live status line renders the bare state word, with no "Status:" prefix,
+    /// so it reads without a redundant label. The status line is set at roughly
+    /// nine sites across these two app-target files (recording, processing, idle,
+    /// setup / hotkey-setup required, the preparing-model pulse), only one of
+    /// which the settle-to-idle guard above pins by position — so a whole-file
+    /// negative assert is what stops the prefix creeping back into any unguarded
+    /// site. Mirrors the DictationMenuBuilder prefix guard. `code(_:)` strips
+    /// comments (but keeps string literals), so a future comment naming the
+    /// prefix cannot false-trip this.
     /// Stated sensitivity: reintroduce `"Status: Idle"` in the model-gate file, or
     /// `"Status: Recording"` in AppDelegate, → the matching `#expect` goes RED.
     @Test
@@ -391,35 +396,25 @@ struct AppRuntimeSourceGuardTests {
     }
 
     /// AC11: the mute-while-dictating switch applies live to the NEXT dictation
-    /// without a pipeline rebuild — mirroring the cleanup-model change (#2). It must
-    /// push the flag to the running orchestrator and refresh the menu, never re-warm
-    /// ASR; and `makeMenu` must feed the builder the REAL persisted flag.
-    /// Stated sensitivity: route the change through a rebuild
-    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState), drop the
-    /// live orchestrator update, or hard-code the menu flag instead of reading config
-    /// → the matching `#expect` goes RED.
+    /// without a pipeline rebuild. The toggle writes the store; the push is the
+    /// store's subscriber (`AppStoreEffectsTests.muteAndBiasReachTheOrchestrator`).
+    /// Stated sensitivity: route the toggle through a rebuild
+    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState), write
+    /// anything but the toggled field, or hard-code the builder's menu flag → RED.
     @Test
     func changingMuteWhileDictatingAppliesLiveWithoutPipelineRebuild() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
-        let applyBody = try Self.functionBody(named: "applyMuteWhileDictating", in: delegate)
+        let builder = try Self.code("Sources/slovo/DictationMenuBuilder.swift")
         let toggleBody = try Self.functionBody(named: "toggleMuteWhileDictating", in: delegate)
-        let makeMenuBody = try Self.functionBody(named: "makeMenu", in: delegate)
 
         for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
-            #expect(!applyBody.contains(forbidden),
+            #expect(!toggleBody.contains(forbidden),
                     "changing the mute switch must not \(forbidden): that re-warms ASR and shows the loading pulse")
         }
-        #expect(applyBody.contains("updateMutesSystemAudioWhileDictating"),
-                "the mute-switch change must apply live to the running orchestrator")
-        #expect(applyBody.contains("installStatusMenu"),
-                "the mute switch is menu-visible, so its change must rebuild the status menu")
-        #expect(toggleBody.contains("applyMuteWhileDictating"),
-                "the @objc toggle selector must route through the live-apply path")
-        #expect(makeMenuBody.contains("mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating"),
-                "makeMenu must feed the builder the REAL persisted flag, not a literal")
-        #expect(orchestrator.contains("func updateMutesSystemAudioWhileDictating"),
-                "the orchestrator must expose a live mute-flag update so no rebuild is needed")
+        #expect(toggleBody.contains("$0.config.mutesSystemAudioWhileDictating.toggle()"),
+                "the @objc toggle selector must flip the stored switch through the store")
+        #expect(builder.contains("mutesSystemAudioWhileDictating: input.mutesSystemAudioWhileDictating"),
+                "the builder must feed the menu model the value from its input, not a literal")
     }
 
     /// The session factory must feed the pure `decodingOptions` the session's OWN
@@ -443,73 +438,6 @@ struct AppRuntimeSourceGuardTests {
                 "the session's own language must reach the decoding options, not a literal")
         #expect(factoryBody.contains("engine.tokenizer?.encode(text: text)"),
                 "the loaded model's tokenizer must measure the prompt, not a stub closure")
-    }
-
-    /// The experimental vocabulary-bias switch applies live to the NEXT dictation,
-    /// like the mute switch: persist, push the flag to the running orchestrator, and
-    /// never rebuild — a rebuild would re-warm ASR and show the loading pulse for a
-    /// flag that only decides what the next `begin` is handed.
-    /// Stated sensitivity, one per assertion — no test target links `Sources/slovo`,
-    /// so these are the only guards on the app-layer chain and each must pin a VALUE,
-    /// not a name: route the change through a rebuild
-    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState) → RED;
-    /// delete the `guard persist(config)` line (the switch works for the session and
-    /// is lost at relaunch) → RED; write a different config field (e.g.
-    /// `useSpellCheckHints`) → RED; push `!enabled` instead of `enabled` → RED;
-    /// unhook the pane's setter from the apply path → RED.
-    @Test
-    func changingVocabularyBiasAppliesLiveWithoutPipelineRebuild() throws {
-        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
-        let applyBody = try Self.functionBody(named: "applyVocabularyBias", in: settings)
-        let setterBody = try Self.functionBody(named: "setVocabularyBias", in: settings)
-
-        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
-            #expect(!applyBody.contains(forbidden),
-                    "changing the vocabulary-bias switch must not \(forbidden): that re-warms ASR and shows the loading pulse")
-        }
-        #expect(applyBody.contains("config.usesVocabularyBias = enabled"),
-                "the apply path must write THIS field, with the value it was given")
-        #expect(applyBody.contains("guard persist(config)"),
-                "the change must survive relaunch, not just the running session")
-        #expect(applyBody.contains("updateUsesVocabularyBias(enabled)"),
-                "the switch must push its own value live to the running orchestrator")
-        #expect(setterBody.contains("applyVocabularyBias(enabled)"),
-                "the pane's setter must route its own value through the live-apply path")
-        #expect(orchestrator.contains("func updateUsesVocabularyBias"),
-                "the orchestrator must expose a live vocabulary-bias update so no rebuild is needed")
-    }
-
-    /// A recognition-language change applies live to the NEXT dictation, like the
-    /// vocabulary-bias switch: persist, push the language to the running
-    /// orchestrator, and never rebuild. The loaded model decodes any language — the
-    /// language reaches only the decoder's per-session options — so a rebuild would
-    /// re-warm ASR and show the loading pulse for a change that costs neither.
-    /// Stated sensitivity, one per assertion — no test target links `Sources/slovo`,
-    /// so these are the only guards on the app-layer chain: route the change back
-    /// through a rebuild (retrySetup/startPipeline/prepareModelGate/
-    /// showModelLoadingState) → RED; delete the `guard persist(config)` line (the
-    /// language works for the session and is lost at relaunch) → RED; write a
-    /// different config field → RED; push a literal instead of the chosen language →
-    /// RED.
-    @Test
-    func changingRecognitionLanguageAppliesLiveWithoutPipelineRebuild() throws {
-        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        let orchestrator = try Self.code("Sources/SlovoCore/Orchestrator.swift")
-        let setterBody = try Self.functionBody(named: "setRecognitionLanguage", in: settings)
-
-        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
-            #expect(!setterBody.contains(forbidden),
-                    "a recognition-language change must not \(forbidden): that re-warms ASR and shows the loading pulse")
-        }
-        #expect(setterBody.contains("config.language = language"),
-                "the apply path must write THIS field, with the value it was given")
-        #expect(setterBody.contains("guard persist(config)"),
-                "the change must survive relaunch, not just the running session")
-        #expect(setterBody.contains("updateRecognitionLanguage(language)"),
-                "the change must push its own value live to the running orchestrator")
-        #expect(orchestrator.contains("func updateRecognitionLanguage"),
-                "the orchestrator must expose a live recognition-language update so no rebuild is needed")
     }
 
     /// AC12: the FSM stays PURE — `transition` decides on (state, event) only. The

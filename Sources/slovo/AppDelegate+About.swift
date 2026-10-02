@@ -18,7 +18,7 @@ extension AppDelegate {
             version: Self.bundleString("CFBundleShortVersionString"),
             build: Self.bundleString("CFBundleVersion"),
             isDevBuild: Self.isDevBuild,
-            hotkeys: ConfigStore.load(from: defaults).hotkeyConfiguration
+            hotkeys: store.state.config.hotkeyConfiguration
         )
     }
 

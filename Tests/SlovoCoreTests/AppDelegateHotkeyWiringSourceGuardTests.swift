@@ -97,7 +97,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// cleanup availability, through ONE shared path so the derivation cannot fork:
     /// both the `.down` and `.translateLatched` arms route the glyph through
     /// `applyRecordingGlyph`, and that helper derives it via `recordingGlyphMode` fed
-    /// the live `currentCleanupAvailability().isOn` (the single, consumed read). The
+    /// the live `store.state.cleanupAvailability.isOn` (the single, consumed read). The
     /// latch still surfaces the mode change LIVE while the key is held; a plain hold
     /// paints clean, and cleanup-off collapses either to raw.
     /// Killing mutation: paint a hard-coded glyph in either arm (drop the
@@ -126,7 +126,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let helper = try Self.functionBody(named: "applyRecordingGlyph", in: delegate)
         #expect(Self.containsInOrder([
             "MenuBarGlyph.recordingGlyphMode(",
-            "isCleanupOn: currentCleanupAvailability().isOn",
+            "isCleanupOn: store.state.cleanupAvailability.isOn",
         ], in: helper),
         "applyRecordingGlyph must derive the glyph via recordingGlyphMode fed the live availability")
         #expect(helper.contains("setStatusGlyph(recording: glyphMode"),
@@ -137,36 +137,44 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// App-level key facts (has-key, save-key, cleanup availability) must read a
     /// provider the AppDelegate OWNS, never one pulled out of the pipeline
-    /// composite. Reaching through `composition?.openRouterKeyProvider` gates an
-    /// app fact behind the pipeline's lifetime: before composition exists,
-    /// `hasConfiguredKey() ?? false` fabricates "no key" — freezing the launch menu
-    /// in offNoKey (toggle + translate disabled) while cleanup actually works — and
-    /// `store(key)` via the optional chain silently drops the save. Ownership
-    /// inversion (AppDelegate constructs the provider and injects it into makeLive)
-    /// removes the unknown state by construction.
-    /// Killing mutation: reintroduce `composition?.openRouterKeyProvider` for a key
-    /// read, or a `?? false` fallback on hasOpenRouterKey → RED.
+    /// composite: before composition exists, `hasConfiguredKey() ?? false` would
+    /// fabricate "no key" and freeze the launch menu in offNoKey. Key presence
+    /// lives in the store. It is written at launch, before each composition is
+    /// built, and in the one helper that ends every key save or removal, each time
+    /// read straight from the app-owned provider. A composition is seeded from the
+    /// store, so the `startPipeline` write must precede `AppComposition.makeLive(`;
+    /// `startPipeline` has no behavioural seam, so its source is read.
+    /// Stated sensitivity: reintroduce `composition?.openRouterKeyProvider` for a key
+    /// read, a `?? false` fallback, or a key-presence write that does not read the
+    /// provider → RED; drop one of the three write sites → the count reddens; move
+    /// the `startPipeline` write back below `AppComposition.makeLive(` → the order
+    /// assert reddens.
     @Test
     func appLayerKeyFactsReadTheAppOwnedProviderNotThePipeline() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
         let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
 
-        // Ownership: the app constructs the provider and injects it into the pipeline.
         #expect(delegate.contains("KeychainOpenRouterKeyProvider("),
                 "AppDelegate must own the key provider so key facts never depend on the pipeline's lifetime")
         #expect(delegate.contains("openRouterKeyProvider: openRouterKeyProvider"),
                 "the app-owned provider must be injected into AppComposition.makeLive")
-
-        // No app-layer key read may reach through the pipeline composite.
         for source in [delegate, settings] {
             #expect(!source.contains("composition?.openRouterKeyProvider"),
                     "app-layer key facts must use the AppDelegate-owned provider, not the pipeline composite")
         }
-        let hasKey = try Self.functionBody(named: "hasOpenRouterKey", in: settings)
-        #expect(!hasKey.contains("?? false"),
-                "hasOpenRouterKey must not fabricate 'no key' from a missing composition")
-        #expect(hasKey.contains("openRouterKeyProvider.hasConfiguredKey()"),
-                "hasOpenRouterKey must read the app-owned provider directly")
+        let writes = (delegate + "\n" + settings)
+            .components(separatedBy: "\n")
+            .filter { $0.contains("isOpenRouterKeyPresent") }
+        #expect(writes.count == 3, "key presence is written at launch, before each composition, and in the key-save/removal helper")
+        for write in writes {
+            #expect(write.contains("openRouterKeyProvider.hasConfiguredKey()"),
+                    "each key-presence write must read the app-owned provider: \(write)")
+            #expect(!write.contains("?? false"), "a key-presence write must not fabricate 'no key': \(write)")
+        }
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let write = try #require(startPipeline.range(of: "isOpenRouterKeyPresent"))
+        let build = try #require(startPipeline.range(of: "AppComposition.makeLive("))
+        #expect(write.lowerBound < build.lowerBound, "the composition must be seeded with key presence read just before it")
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be
@@ -339,60 +347,23 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
     }
 
-    /// All THREE key settings — push-to-talk key, translate key, and the
-    /// additional-key switch — apply live through ONE funnel: persist, hand the tap
-    /// the SAVED configuration, refresh the menu. Never a pipeline rebuild (no ASR
-    /// re-warm, no loading pulse — the applyCleanupModel principle), and never a
-    /// hand-built configuration, which would drop a role the user just saved.
-    /// Killing mutations: give any setter its own persist/reconfigure pair instead of
-    /// the funnel (the exactly-one-site counts catch it); route the funnel through
-    /// retrySetup/startPipeline (a rebuild); or reconfigure from anything but
-    /// `config.hotkeyConfiguration` → RED.
+    /// All three key settings apply live through the store's hotkey subscriber,
+    /// which hands the tap the saved configuration. The app target holds the one
+    /// reconfigure call, inside the target closure.
+    /// Stated sensitivity: add a second `hotkeyMonitor.reconfigure(configuration:`
+    /// call anywhere in Sources/slovo, or reconfigure from anything but the
+    /// subscriber's value → RED.
     @Test
     func everyKeySettingAppliesInPlaceWithoutRebuild() throws {
-        let hotkeyMenu = try Self.code("Sources/slovo/AppDelegate+HotkeyMenu.swift")
-        let funnel = try Self.functionBody(named: "applyHotkeyChange", in: hotkeyMenu)
-        #expect(funnel.contains("hotkeyMonitor.reconfigure(configuration: config.hotkeyConfiguration)"),
-                "the funnel must reconfigure the live tap in place from the persisted configuration")
-        #expect(funnel.contains("installStatusMenu()"),
-                "the funnel must refresh the menu so both header hints track the new keys")
-        for setter in ["applyTrigger", "applyTranslateTrigger", "applyTranslateKeyIsAdditional"] {
-            let body = try Self.functionBody(named: setter, in: hotkeyMenu)
-            #expect(body.contains("applyHotkeyChange"),
-                    "\(setter) must apply through the one funnel, not its own path")
+        var reconfigureCount = 0
+        for file in try AppRuntimeSourceGuardTests.swiftSourceFiles(under: "Sources/slovo") {
+            reconfigureCount += try Self.code(file).components(separatedBy: "hotkeyMonitor.reconfigure(configuration:").count - 1
         }
-        #expect(hotkeyMenu.components(separatedBy: "hotkeyMonitor.reconfigure(").count - 1 == 1,
-                "the persist→reconfigure→menu triple must exist exactly once")
-        #expect(hotkeyMenu.components(separatedBy: "ConfigStore.save(").count - 1 == 1,
-                "the persist step must exist exactly once")
-        #expect(!hotkeyMenu.contains("startPipeline"),
-                "a key change must not rebuild the pipeline")
-        #expect(!hotkeyMenu.contains("retrySetup"),
-                "a key change must not rebuild the pipeline via retrySetup")
-    }
-
-    /// The Settings seam's three key setters must reach the funnel, not persist on
-    /// their own — a setter that saved the blob itself would leave the live tap on the
-    /// old keys until relaunch.
-    /// Killing mutations: reimplement any of the three in the Settings extension with
-    /// its own `ConfigStore.save` → the no-save assertion reddens; do it through that
-    /// file's own `persist(_:)` wrapper — a double write the raw-call ban alone lets
-    /// through — → the no-wrapper assertion reddens.
-    @Test
-    func settingsKeySettersRouteIntoTheApplyFunnel() throws {
-        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        for (setter, apply) in [
-            ("setTrigger", "applyTrigger("),
-            ("setTranslateTrigger", "applyTranslateTrigger("),
-            ("setTranslateKeyIsAdditional", "applyTranslateKeyIsAdditional("),
-        ] {
-            let body = try Self.functionBody(named: setter, in: settings)
-            #expect(body.contains(apply), "\(setter) must delegate to the key apply path")
-            #expect(!body.contains("ConfigStore.save("),
-                    "\(setter) must not persist on its own — the tap would keep the old keys")
-            #expect(!body.contains("persist("),
-                    "\(setter) must not persist through the file's wrapper either — same double write, one indirection away")
-        }
+        #expect(reconfigureCount == 1, "the app target must reconfigure the tap from exactly one place")
+        let storeWiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        #expect(storeWiring.contains(
+            "reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) }"
+        ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
     }
 
     /// The fn-conflict notice must be recomputed on every menu OPEN, not only at
