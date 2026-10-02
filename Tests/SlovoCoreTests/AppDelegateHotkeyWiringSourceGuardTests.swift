@@ -366,26 +366,18 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
     }
 
-    /// The fn-conflict notice must be recomputed on every menu OPEN, not only at
-    /// menu rebuild: the user fixes the assignment in System Settings while the
-    /// app runs, and the very next open must reflect it — the update-row re-sync
-    /// precedent in the same body. Pinned: the consult's presence AND its
-    /// load-bearing ORDER — the fn re-sync must precede the update sync, whose
-    /// guard returns early when no coordinator exists; a below-placed re-sync
-    /// would silently couple the notice to updater health. HOW the notice row is
-    /// swapped stays free.
-    /// Killing mutations: revert to build-time-only evaluation (drop the live
-    /// fn-assignment consult from menuWillOpen), or move the re-sync below the
-    /// update guard's early return → RED.
+    /// The fn-conflict verdict must be re-read on every menu OPEN, not only at a
+    /// rebuild: the user fixes the assignment in System Settings while the app runs,
+    /// and the very next open must reflect it. menuWillOpen writes the live value
+    /// into state; the fn row's listener shows or hides the notice.
+    /// Stated sensitivity: revert to build-time-only evaluation (drop the write from
+    /// menuWillOpen) → RED.
     @Test
     func fnConflictNoticeIsRecomputedOnMenuOpen() throws {
         let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
-        #expect(Self.containsInOrder([
-            "fnKeyAssignmentReader.isFnKeySystemAssigned",
-            "updaterCoordinator?.currentIndication",
-        ], in: menuWillOpen),
-        "menuWillOpen must consult the live fn-assignment value BEFORE the update sync's early-return guard")
+        #expect(menuWillOpen.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
+                "menuWillOpen must write the live fn-assignment value into state")
     }
 
     /// makeMenu must feed the builder the READER'S live value, never a literal.

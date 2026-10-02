@@ -26,5 +26,11 @@ extension AppDelegate {
         store.subscribe(\.dictationMenuInput) { [weak self] input in
             self?.installStatusMenu(input)
         }
+        store.listen(\.isFnKeySystemAssigned) { [weak self] isAssigned in
+            self?.fnConflictMenuItem?.isHidden = !isAssigned
+        }
+        store.listen(\.updateIndication) { [weak self] indication in
+            self?.renderUpdateIndication(indication)
+        }
     }
 }

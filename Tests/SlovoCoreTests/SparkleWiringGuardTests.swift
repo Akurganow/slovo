@@ -117,12 +117,12 @@ struct SparkleWiringGuardTests {
     /// with the renderer gutted. The renderer's whole FILE must stay free of
     /// `NSMenuItem(` — construction belongs to the builder.
     /// Catches: rebuilding the item on transition, dropping retitle/visibility
-    /// from the switch, dropping the menuWillOpen re-sync, or deleting,
+    /// from the switch, dropping the update-row render from menuWillOpen, or deleting,
     /// nil-ing, or blanking the ready-state label → the matching pin → RED.
+    /// Stated sensitivity: drop `renderUpdateIndication(` from menuWillOpen → RED.
     @Test
     func updateRowIsPersistentInPlaceAndAccessible() throws {
         let sources = try Self.appSources()
-        let combined = sources.map(\.source).joined(separator: "\n")
         let renderers = sources.filter { $0.source.contains("case .downloading(") }
         #expect(!renderers.isEmpty, "an app-target renderer must switch over the update indication")
         for renderer in renderers {
@@ -146,7 +146,10 @@ struct SparkleWiringGuardTests {
             #expect(!renderer.source.contains("NSMenuItem("),
                     "\(renderer.path) must mutate the persistent row, not rebuild it")
         }
-        #expect(combined.contains("menuWillOpen"))
+        let menuWillOpen = try #require(Self.slice(fromToken: "func menuWillOpen", in: sources),
+                                        "the dropdown must re-sync its rows on open")
+        #expect(menuWillOpen.contains("renderUpdateIndication("),
+                "menuWillOpen must re-render the update row from state")
     }
 
     /// Settings → General carries the "Automatically install updates" switch, bound

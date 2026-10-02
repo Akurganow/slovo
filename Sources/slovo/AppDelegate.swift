@@ -54,9 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // The one persistent update-line item, built by DictationMenuBuilder and mutated
     // in place by the update renderer; never rebuilt on a transition.
     var updateMenuItem: NSMenuItem?
-    // The one persistent fn-conflict row, built by DictationMenuBuilder only for the
-    // fn trigger and shown or hidden on each open; nil for every other trigger,
-    // which cannot collide with the system's fn assignment.
+    // The one persistent fn-conflict row, built by DictationMenuBuilder only while fn
+    // is bound in some role; the fn listener shows or hides it as the verdict in
+    // state changes. Nil for every other trigger, which cannot collide.
     var fnConflictMenuItem: NSMenuItem?
     // True only while the onboarding menu is shown, so the dictation dropdown's
     // shared menu delegate never triggers the onboarding refresh on open.
@@ -72,7 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.fnKeyAssignmentReader = fnKeyAssignmentReader
         store = AppStore(state: AppState(
             config: ConfigStore.load(from: defaults),
-            isOpenRouterKeyPresent: openRouterKeyProvider.hasConfiguredKey()
+            isOpenRouterKeyPresent: openRouterKeyProvider.hasConfiguredKey(),
+            isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned
         ))
         speechModel = SharedSpeechModel(config: store.state.config)
     }
@@ -95,11 +96,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let built = DictationMenuBuilder(target: self).make(input, isFnKeySystemAssigned: fnKeyAssignmentReader.isFnKeySystemAssigned)
         statusTextItem = built.statusItem
         idleStatusTitle = DictationMenu.idleStatusLine(trigger: input.hotkeyConfiguration.main)
-        // Sync the freshly built update row to the current state, so a rebuild while
-        // an update is downloading or ready shows the right line immediately.
-        if let indication = updaterCoordinator?.currentIndication {
-            renderUpdateIndication(indication)
-        }
         return built.menu
     }
 
@@ -437,6 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// it to leave the setup menus.
     func installStatusMenu(_ input: DictationMenuInput) {
         statusItem?.menu = makeMenu(input)
+        renderUpdateIndication(store.state.updateIndication)
     }
 
     @objc
