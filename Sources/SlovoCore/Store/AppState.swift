@@ -24,9 +24,12 @@ extension AppState {
         cleanupScope = CleanupScopeReducer.reduce(cleanupScope, event)
     }
 
-    /// Feeds the availability edge, so `cleanupIsOn == cleanupAvailability.isOn`.
+    /// Migrates the model id as `ConfigStore.load` does, so an id written live is the
+    /// id the next launch loads, and feeds the availability edge, so
+    /// `cleanupIsOn == cleanupAvailability.isOn`.
     func reconciled() -> AppState {
         var next = self
+        next.config.openRouterModel = ConfigStore.migratedOpenRouterModel(next.config.openRouterModel)
         next.applyScope(.availabilityChanged(isOn: next.cleanupAvailability.isOn))
         return next
     }

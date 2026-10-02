@@ -139,12 +139,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// provider the AppDelegate OWNS, never one pulled out of the pipeline
     /// composite: before composition exists, `hasConfiguredKey() ?? false` would
     /// fabricate "no key" and freeze the launch menu in offNoKey. Key presence
-    /// lives in the store. It is written at launch, at hotkey start, and in the one
-    /// helper that ends every key save or removal, each time read straight from the
-    /// app-owned provider.
+    /// lives in the store. It is written at launch, before each composition is
+    /// built, and in the one helper that ends every key save or removal, each time
+    /// read straight from the app-owned provider. A composition is seeded from the
+    /// store, so the `startPipeline` write must precede `AppComposition.makeLive(`;
+    /// `startPipeline` has no behavioural seam, so its source is read.
     /// Stated sensitivity: reintroduce `composition?.openRouterKeyProvider` for a key
     /// read, a `?? false` fallback, or a key-presence write that does not read the
-    /// provider → RED; drop one of the three write sites → the count reddens.
+    /// provider → RED; drop one of the three write sites → the count reddens; move
+    /// the `startPipeline` write back below `AppComposition.makeLive(` → the order
+    /// assert reddens.
     @Test
     func appLayerKeyFactsReadTheAppOwnedProviderNotThePipeline() throws {
         let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
@@ -161,12 +165,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let writes = (delegate + "\n" + settings)
             .components(separatedBy: "\n")
             .filter { $0.contains("isOpenRouterKeyPresent") }
-        #expect(writes.count == 3, "key presence is written at launch, at hotkey start, and in the key-save/removal helper")
+        #expect(writes.count == 3, "key presence is written at launch, before each composition, and in the key-save/removal helper")
         for write in writes {
             #expect(write.contains("openRouterKeyProvider.hasConfiguredKey()"),
                     "each key-presence write must read the app-owned provider: \(write)")
             #expect(!write.contains("?? false"), "a key-presence write must not fabricate 'no key': \(write)")
         }
+        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let write = try #require(startPipeline.range(of: "isOpenRouterKeyPresent"))
+        let build = try #require(startPipeline.range(of: "AppComposition.makeLive("))
+        #expect(write.lowerBound < build.lowerBound, "the composition must be seeded with key presence read just before it")
     }
 
     /// A key-up whose key-down was swallowed by the readiness gate must be

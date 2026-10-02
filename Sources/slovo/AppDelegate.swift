@@ -104,6 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startPipeline() {
+        // The composition is seeded from the store, so a key added or removed
+        // outside Slovo must reach it before it is built.
+        store.update { $0.isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey() }
         do {
             let live = try AppComposition.makeLive(
                 state: store.state,
@@ -169,7 +172,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             do {
                 try live.hotkeyMonitor.start()
-                store.update { $0.isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey() }
                 store.update { $0.applyScope(.pipelineStarted) }
                 logger.info("production composition started")
             } catch {

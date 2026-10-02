@@ -2,6 +2,7 @@ import Synchronization
 import Testing
 
 import SlovoCore
+import SlovoTestSupport
 
 // The store's contract: one synchronous mutation path that publishes only real
 // changes, refuses an invalid Config whole, and hands each slice to its
@@ -93,5 +94,30 @@ struct AppStoreTests {
         store.listen(\.config.writingStyle) { [weak store] _ in seen.append(store?.state.config.writingStyle) }
         store.update { $0.config.writingStyle = .formal }
         #expect(seen == [.formal], "a subscriber must read the state that triggered it")
+    }
+
+    /// A model id written live is the id the next launch loads: a superseded id
+    /// follows its successor chain, a retired id falls back to the default, and a
+    /// custom id passes through. The seed is migrated the same way.
+    /// Stated sensitivity: remove the model migration from `reconciled()` → the
+    /// superseded, retired and seed cases go RED.
+    @Test
+    func writtenModelIdIsTheIdTheNextLaunchLoads() throws {
+        let cases: [(written: String, expected: String)] = [
+            ("openai/gpt-5.6-luna", "openai/gpt-6-luna"),
+            ("google/gemini-2.5-flash-lite", Config.defaultOpenRouterModel),
+            ("vendor/custom-model", "vendor/custom-model"),
+        ]
+        for entry in cases {
+            let store = AppStore(state: AppState(config: Config(openRouterModel: "vendor/start-model"), isOpenRouterKeyPresent: true))
+            store.update { $0.config.openRouterModel = entry.written }
+            #expect(store.state.config.openRouterModel == entry.expected, "\(entry.written) in the store")
+            #expect(store.state.effectiveCleanupConfig.model == entry.expected, "\(entry.written) at the orchestrator")
+            let defaults = FakeUserDefaults()
+            try ConfigStore.save(store.state.config, to: defaults)
+            #expect(ConfigStore.load(from: defaults).openRouterModel == entry.expected, "\(entry.written) after relaunch")
+        }
+        let seeded = AppStore(state: AppState(config: Config(openRouterModel: "openai/gpt-5.4-nano"), isOpenRouterKeyPresent: true))
+        #expect(seeded.state.config.openRouterModel == "openai/gpt-6-luna")
     }
 }
