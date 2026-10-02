@@ -63,6 +63,15 @@ struct GeneralSettingsPane: View {
                 Text("Auto handles mixed-language speech best.")
             }
             vocabularyBiasRow
+            // Shows the stored preference even while disabled: availability never
+            // rewrites it. The hint is the label's second Text, as in vocabularyBiasRow.
+            Toggle(isOn: store.binding(\.mutesSystemAudioWhileDictating)) {
+                Text("Mute Audio While Dictating")
+                if let hint = store.state.outputMuteAvailability.unavailableHint {
+                    Text(hint)
+                }
+            }
+            .disabled(!store.state.outputMuteAvailability.isToggleEnabled)
             Toggle("Sound Cues", isOn: store.binding(\.playsDictationSoundCues))
         }
     }

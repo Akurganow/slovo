@@ -20,7 +20,8 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(general.contains("option.displayName"))
         for field in [
             "trigger", "translateTrigger", "translateKeyIsAdditional", "language",
-            "usesVocabularyBias", "playsDictationSoundCues", "automaticallyInstallsUpdates",
+            "usesVocabularyBias", "mutesSystemAudioWhileDictating", "playsDictationSoundCues",
+            "automaticallyInstallsUpdates",
         ] {
             #expect(general.contains("store.binding(\\.\(field))"), "General must bind \(field) to the store")
         }
@@ -67,6 +68,21 @@ struct SettingsSurfaceSourceGuardTests {
         let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
         let onAppear = try Self.blockBody(after: ".onAppear", in: general)
         #expect(onAppear.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
+    }
+
+    /// The General pane's mute toggle is disabled, with the reason in its row, where
+    /// the default output device has no volume control macOS can set. The pane reads
+    /// the availability from the store, which the menu open and the CoreAudio
+    /// listener keep current. `panesWriteThroughStoreBindingsAndActions` pins the
+    /// toggle's binding.
+    /// Stated sensitivity: drop the `.disabled`, or drop the hint → RED.
+    @Test
+    func generalMuteToggleFollowsOutputAvailability() throws {
+        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        #expect(general.contains(".disabled(!store.state.outputMuteAvailability.isToggleEnabled)"),
+                "the toggle must be disabled where macOS can set neither mute nor volume")
+        #expect(general.contains("store.state.outputMuteAvailability.unavailableHint"),
+                "the toggle's row must show the reason")
     }
 
     /// The two key pickers cannot be pointed at the same key BY CONSTRUCTION: each
