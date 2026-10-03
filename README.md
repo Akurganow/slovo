@@ -81,12 +81,13 @@ tuned.
   when a downloaded update awaits restart; the recording glyph names the mode:
   `Ⱍ` clean, `Ⰳ` raw, `Ⱂ` translate — plus a monochrome app icon that follows
   the system theme.
-- A native **Settings** window (General, Cleanup, Vocabulary) for the
+- A native **Settings** window (General, Cleanup, Vocabulary, About) for the
   push-to-talk key, the translate key, recognition language, sound cues, launch at login,
   automatic updates, cleanup model and style, translation target language, API
   key, and vocabulary.
-- A menu-bar **About Slovo** window with a built-in quick guide (dictate,
-  cleanup, translate, vocabulary) and the running version.
+- An **About** pane in Settings with a built-in quick guide (dictate,
+  cleanup, translate, vocabulary) and the running version. **About Slovo**
+  in the menu bar opens it.
 - Silent automatic updates with an always-visible menu-bar update row:
   **Check for Updates…** runs a manual silent check, **Checking…** shows while
   any check runs, and a downloaded update switches the status bar glyph to `Ⱀ`
@@ -339,8 +340,7 @@ not implement:
 - **No history.** Nothing is stored after the text is inserted — no
   transcript log to browse, search, or leak.
 - **No main window.** No overlay, no visible live transcript — only the
-  menu-bar icon and the on-demand Settings, About, and Add Vocabulary
-  panels.
+  menu-bar icon and the on-demand Settings and Add Vocabulary panels.
 - **No features beyond the loop.** No meeting recording or file
   transcription, no voice commands or computer control, no snippets,
   modes, or personas.
@@ -397,7 +397,7 @@ SUSignatureVerifier), and the modified AbdrTar Bank Elhaz “Lower & Soft”
 sound cues (CC0 1.0). Applicable copyright and permission notices, plus the
 audio sources and transformation recipe, are in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which also ships inside the
-app (About ▸ Acknowledgements).
+app (Settings ▸ About ▸ Acknowledgements).
 
 `swift-argument-parser` (Apache-2.0) is resolved by the package graph but
 not linked into the shipped executable, and SwiftLint is a build-time lint

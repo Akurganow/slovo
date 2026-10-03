@@ -191,14 +191,18 @@ tap, verify on a real keyboard:
   key is additional. The menu-bar dropdown's second header line tracks both
   settings ("Add ⌃ to translate" / "Hold ⌃ to translate").
 
-## Manual About-window check (UI-only)
+## Manual About-pane check (UI-only)
 
-The About window is presented through AppKit and is not exercised in CI. After
-changing it, verify by hand:
+The About pane and the way Settings opens are presented through AppKit and are
+not exercised in CI. After changing them, verify by hand:
 
-- **Single instance:** open **About Slovo** from the menu bar, then open it again —
-  the same window is focused, not a second copy. The version line and the
-  push-to-talk keycap match the current build and the configured key.
+- **Opens on About:** choose **About Slovo** from the menu bar. Settings opens
+  on About, in front of the current app. The version line and both keycaps match
+  the current build and the configured keys.
+- **Last pane:** view Vocabulary, close Settings, then choose **Settings…**: it
+  opens on Vocabulary. Click About in the toolbar, close Settings, and choose
+  **Settings…** again: it still opens on Vocabulary. Each reopened pane shows
+  its content, and the window fits that pane's height.
 - **Dev-build marker:** on a dev build (`Scripts/build_and_run.sh`) the header
   version line ends with the Glagolitic capital Dobro `Ⰴ` — the marker stamped as
   the `SlovoDevBuild` Info.plist key by the launcher. A release build shows the

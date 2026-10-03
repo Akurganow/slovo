@@ -187,14 +187,15 @@ dropdown until permissions are granted. The **Settings…** window covers the
 push-to-talk key, the translate key, recognition language, mute while dictating,
 Sound Cues, launch at
 login, automatic updates, cleanup model and style, translation target,
-OpenRouter key, and vocabulary; the **About** window carries a quick guide and
-the running version. All configuration is native windows — there are no modal
-alerts.
+OpenRouter key, and vocabulary. Its last pane, About, carries a quick guide and
+the running version, and **About** in the dropdown opens Settings on it.
+**Settings…** reopens the pane viewed last, never About, and opens General after
+a launch. All configuration is native windows — there are no modal alerts.
 
 ## App State
 
 `AppState` is one value: the persisted `Config`, the mirrors the app keeps of
-state stored elsewhere, and five runtime fields described below. The mirrors are whether an OpenRouter key is in the
+state stored elsewhere, and six runtime fields described below. The mirrors are whether an OpenRouter key is in the
 Keychain, the key's model scope, and the vocabulary table. Derived values, such
 as cleanup availability, the effective cleanup config and the menu's input, are
 computed properties on `AppState`.
@@ -222,11 +223,19 @@ This supersedes K11's list of fetch, push and rebuild commands in
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
 
-The five runtime fields are never persisted: the menu mode
-(dictation, onboarding with its pending permission steps, or hotkey recovery),
-the status line (idle, recording, processing, or a status message), whether
-macOS also claims the fn key, the update indication folded from Sparkle's
-callbacks, and whether the default output device can be muted.
+The six runtime fields are never persisted:
+
+- the menu mode: dictation, onboarding with its pending permission steps, or
+  hotkey recovery
+- the status line: idle, recording, processing, or a status message
+- whether macOS also claims the fn key
+- the update indication folded from Sparkle's callbacks
+- whether the default output device can be muted
+- the last settings pane, which **Settings…** opens
+
+A key-value observation of the Settings toolbar's selection writes the last
+settings pane. `AppState.recordSettingsPane` never records About, so
+**Settings…** never opens on it.
 
 The status menu is a projection of that state. One build subscriber, keyed on
 the menu mode plus the values the dictation dropdown shows, builds and installs

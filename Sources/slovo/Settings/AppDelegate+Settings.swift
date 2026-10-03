@@ -68,6 +68,14 @@ extension AppDelegate: SettingsActions {
         store.update { $0.vocabulary = listVocabulary() }
     }
 
+    /// Opens the third-party license notices bundled in the app's Resources
+    /// (THIRD-PARTY-NOTICES.md, staged there by the packaging scripts) in the
+    /// user's default handler.
+    func openAcknowledgements() {
+        guard let url = Bundle.main.url(forResource: "THIRD-PARTY-NOTICES", withExtension: "md") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     /// The vocabulary mirror's one read of the database, for the seed in
     /// `startPipeline` and both edits. Not part of `SettingsActions`.
     func listVocabulary() -> [VocabularyRecord] {
@@ -90,41 +98,77 @@ extension AppDelegate: SettingsActions {
 }
 
 extension AppDelegate {
-    /// Builds the Settings window once (three panes) and shows it, activating the
-    /// app first. Slovo is an `.accessory` app, so without `activate` the window
-    /// opens behind other apps; the SwiftUI `openSettings` / `SettingsLink` route is
-    /// deliberately avoided — it is broken for menu-bar apps on macOS 26.
+    /// The dropdown's Settings… item: the last settings pane viewed, never About.
     @objc
     func showSettingsWindow() {
-        if settingsWindowController == nil {
-            settingsWindowController = makeSettingsWindowController()
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindowController?.show()
+        showSettings(on: store.state.lastSettingsPane)
     }
 
-    private func makeSettingsWindowController() -> SettingsWindowController {
-        SettingsWindowController(panes: [
-            Settings.Pane(
-                identifier: Settings.PaneIdentifier("general"),
-                title: "General",
-                toolbarIcon: Self.toolbarIcon("gearshape")
-            ) { GeneralSettingsPane(actions: self) },
-            Settings.Pane(
-                identifier: Settings.PaneIdentifier("cleanup"),
-                title: "Cleanup",
-                toolbarIcon: Self.toolbarIcon("wand.and.stars")
-            ) { CleanupSettingsPane(actions: self) },
-            Settings.Pane(
-                identifier: Settings.PaneIdentifier("vocabulary"),
-                title: "Vocabulary",
-                toolbarIcon: Self.toolbarIcon("text.book.closed")
-            ) { VocabularySettingsPane(actions: self) },
-        ])
+    /// The dropdown's About Slovo item.
+    @objc
+    func showAboutPane() {
+        showSettings(on: .about)
+    }
+
+    /// Builds the Settings window once and shows it on `pane`, activating the app
+    /// first. Slovo is an `.accessory` app, so without `activate` the window opens
+    /// behind other apps; the SwiftUI `openSettings` / `SettingsLink` route is
+    /// deliberately avoided — it is broken for menu-bar apps on macOS 26.
+    private func showSettings(on pane: SettingsPaneID) {
+        NSApp.activate(ignoringOtherApps: true)
+        // The first open uses show(pane:): a toolbar action sent in the same pass as the first show() throws an AppKit
+        // layer-backing exception. Later opens send the toolbar item's action instead. show(pane:) would switch without
+        // the crossfade, re-insert a pane an earlier crossfade left at alpha 0, and skip the resize to that pane's height.
+        guard let controller = settingsWindowController else {
+            let controller = SettingsWindowController(panes: SettingsPaneID.allCases.map(settingsPane(for:)))
+            settingsPaneObservation = controller.window?.toolbar?.observe(\.selectedItemIdentifier) { [weak self] toolbar, _ in
+                // NSToolbar is main-actor isolated, and KVO calls back on the thread that makes the change.
+                MainActor.assumeIsolated {
+                    let shown = toolbar.selectedItemIdentifier
+                        .flatMap { SettingsPaneID(rawValue: Settings.PaneIdentifier(fromToolbarItemIdentifier: $0).rawValue) }
+                    self?.store.update { $0.recordSettingsPane(shown) }
+                }
+            }
+            settingsWindowController = controller
+            controller.show(pane: pane.paneIdentifier)
+            return
+        }
+        if let item = controller.window?.toolbar?.items.first(where: { $0.itemIdentifier == pane.paneIdentifier.toolbarItemIdentifier }),
+           let action = item.action {
+            NSApp.sendAction(action, to: item.target, from: item)
+        }
+        controller.show()
+    }
+
+    private func settingsPane(for pane: SettingsPaneID) -> any SettingsPaneConvertible {
+        switch pane {
+        case .general:
+            Settings.Pane(identifier: pane.paneIdentifier, title: "General", toolbarIcon: Self.toolbarIcon("gearshape")) {
+                GeneralSettingsPane(actions: self)
+            }
+        case .cleanup:
+            Settings.Pane(identifier: pane.paneIdentifier, title: "Cleanup", toolbarIcon: Self.toolbarIcon("wand.and.stars")) {
+                CleanupSettingsPane(actions: self)
+            }
+        case .vocabulary:
+            Settings.Pane(identifier: pane.paneIdentifier, title: "Vocabulary", toolbarIcon: Self.toolbarIcon("text.book.closed")) {
+                VocabularySettingsPane(actions: self)
+            }
+        case .about:
+            Settings.Pane(identifier: pane.paneIdentifier, title: "About", toolbarIcon: Self.toolbarIcon("info.circle")) {
+                AboutSettingsPane(actions: self)
+            }
+        }
     }
 
     private static func toolbarIcon(_ symbol: String) -> NSImage {
         NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
             ?? NSImage(size: NSSize(width: 1, height: 1))
     }
+}
+
+private extension SettingsPaneID {
+    /// The package's identifier for this pane. The selection handler maps a toolbar
+    /// item back to it.
+    var paneIdentifier: Settings.PaneIdentifier { Settings.PaneIdentifier(rawValue) }
 }

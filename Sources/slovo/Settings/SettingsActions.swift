@@ -17,4 +17,6 @@ protocol SettingsActions: AnyObject {
     func removeOpenRouterKey()
     func addVocabulary(_ commaSeparatedTerms: String)
     func removeVocabulary(id: Int64)
+    /// Opens the bundled third-party notices file in the user's default handler.
+    func openAcknowledgements()
 }

@@ -247,6 +247,34 @@ struct AppStateTests {
         #expect(recovery.menuStructure != dictation.menuStructure)
     }
 
+    /// Settings… reopens the last pane the user viewed, General before any visit,
+    /// and never About: About Slovo opens it, but the rule never records it.
+    /// Stated sensitivity: default the field to another pane, drop the assignment,
+    /// let `.about` through the guard, record nil as General, or record only the
+    /// first visit → RED.
+    @Test
+    func settingsReopensTheLastSettingsPaneButNeverAbout() {
+        var state = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        #expect(state.lastSettingsPane == .general, "before any visit")
+        state.recordSettingsPane(.cleanup)
+        #expect(state.lastSettingsPane == .cleanup)
+        state.recordSettingsPane(.about)
+        #expect(state.lastSettingsPane == .cleanup, "About is never recorded")
+        state.recordSettingsPane(nil)
+        #expect(state.lastSettingsPane == .cleanup, "no selection, or an unknown one, records nothing")
+        state.recordSettingsPane(.general)
+        #expect(state.lastSettingsPane == .general, "a return to General is recorded")
+    }
+
+    /// The app builds the Settings toolbar from `allCases`, so this is the toolbar's
+    /// order: today's three panes, then About last.
+    /// Stated sensitivity: move `about` before another case, or reorder the first
+    /// three → RED.
+    @Test
+    func settingsPanesEndWithAbout() {
+        #expect(SettingsPaneID.allCases == [.general, .cleanup, .vocabulary, .about])
+    }
+
     /// The idle line names the main key, never the translate key.
     /// Stated sensitivity: seed the idle line from `config.translateTrigger` → RED.
     @Test

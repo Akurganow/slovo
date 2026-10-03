@@ -1,6 +1,6 @@
 /// The app's state as one value: the persisted `Config`, the mirrors the app
 /// keeps of the Keychain, the key's model scope and the vocabulary table, and
-/// the runtime state the status menu shows.
+/// the runtime state the status menu and the Settings window read.
 /// `AppStore.update` is its one mutation path. Derived values are the selectors
 /// below, each a call into an existing pure function.
 public struct AppState: Equatable, Sendable {
@@ -21,6 +21,10 @@ public struct AppState: Equatable, Sendable {
     /// opens only from the dropdown, whose open re-reads this.
     public var outputMuteAvailability: OutputMuteAvailability = .available
     public var updateIndication: UpdateIndication = .idle
+    /// The pane Settings… opens: the last one the user viewed, About excepted.
+    /// General until the first visit, and again after a relaunch.
+    /// `recordSettingsPane`, in this file, is its only writer.
+    public private(set) var lastSettingsPane: SettingsPaneID = .general
 
     public init(
         config: Config,
@@ -39,6 +43,14 @@ extension AppState {
     /// Applies one scope event. The only writer of `cleanupScope`.
     public mutating func applyScope(_ event: CleanupScopeEvent) {
         cleanupScope = CleanupScopeReducer.reduce(cleanupScope, event)
+    }
+
+    /// Records the pane the Settings toolbar selects. About, and nil (no selection,
+    /// or an identifier that names no pane), record nothing, so Settings… never
+    /// opens on About.
+    public mutating func recordSettingsPane(_ pane: SettingsPaneID?) {
+        guard let pane, pane != .about else { return }
+        lastSettingsPane = pane
     }
 
     /// Migrates the model id as `ConfigStore.load` does, so an id written live is the
@@ -121,6 +133,12 @@ public enum MenuMode: Equatable, Sendable {
         if case .onboarding = self { return true }
         return false
     }
+}
+
+/// The Settings window's panes, in toolbar order: the app builds the toolbar from
+/// `allCases`. A raw value is the pane's identifier string in the Settings package.
+public enum SettingsPaneID: String, CaseIterable, Sendable {
+    case general, cleanup, vocabulary, about
 }
 
 /// What a menu build depends on. The status, fn and update rows and the mute item's
