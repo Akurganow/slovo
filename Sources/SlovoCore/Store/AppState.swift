@@ -15,6 +15,11 @@ public struct AppState: Equatable, Sendable {
     public var statusLine: StatusLine = .idle
     /// Whether macOS also claims the fn key; read from the system on each menu open.
     public var isFnKeySystemAssigned: Bool
+    /// Whether the default output device can be muted. Re-read on each menu open and
+    /// on each default-output change. Not in `menuStructure`: the mute item's row
+    /// listener updates it in place. The default is never shown, because Settings
+    /// opens only from the dropdown, whose open re-reads this.
+    public var outputMuteAvailability: OutputMuteAvailability = .available
     public var updateIndication: UpdateIndication = .idle
 
     public init(
@@ -94,8 +99,8 @@ public extension AppState {
 }
 
 /// The configuration values the dictation menu is built from. The menu rebuilds
-/// when these or the menu mode change; the status, fn and update rows follow
-/// state through their own listeners.
+/// when these or the menu mode change; the status, fn and update rows and the
+/// mute item's availability follow state through their own listeners.
 public struct DictationMenuInput: Equatable, Sendable {
     public let hotkeyConfiguration: HotkeyConfiguration
     public let cleanupModelSelection: CleanupModelSelection.Result
@@ -118,8 +123,9 @@ public enum MenuMode: Equatable, Sendable {
     }
 }
 
-/// What a menu build depends on. The status, fn and update rows are not in it:
-/// their listeners update them in place, so a change to one never rebuilds the menu.
+/// What a menu build depends on. The status, fn and update rows and the mute item's
+/// availability are not in it: their listeners update them in place, so a change to
+/// one never rebuilds the menu.
 public struct MenuStructure: Equatable, Sendable {
     public let mode: MenuMode
     public let input: DictationMenuInput

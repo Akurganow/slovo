@@ -31,7 +31,10 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   `HotkeyDecisionCore` is the pure, unit-tested policy that turns key events
   into start / stop (plain or translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
-  the "Mute Audio While Dictating" menu setting is on (the default).
+  the "Mute Audio While Dictating" setting is on (the default).
+  `CoreAudioOutputMute.outputMuteAvailability()` reports whether the default
+  output device has a mute or volume control macOS can set. On a device without
+  one, the menu item and the Settings toggle are disabled.
   Known limitation: a restore that the audio device rejects (for example, the
   output device disappeared mid-dictation) is swallowed, leaving output muted with
   nothing left to restore from — and cues queued afterwards, including Error, go
@@ -181,7 +184,8 @@ language; while no OpenRouter key is saved the whole block collapses to a single
 vocabulary quick-add with adjacent mute-while-dictating and Sound Cues switches, and a bottom section
 with **Settings…**, **About**, and quit; first-run setup actions replace the
 dropdown until permissions are granted. The **Settings…** window covers the
-push-to-talk key, the translate key, recognition language, Sound Cues, launch at
+push-to-talk key, the translate key, recognition language, mute while dictating,
+Sound Cues, launch at
 login, automatic updates, cleanup model and style, translation target,
 OpenRouter key, and vocabulary; the **About** window carries a quick guide and
 the running version. All configuration is native windows — there are no modal
@@ -190,7 +194,7 @@ alerts.
 ## App State
 
 `AppState` is one value: the persisted `Config`, the mirrors the app keeps of
-state stored elsewhere, and four runtime fields described below. The mirrors are whether an OpenRouter key is in the
+state stored elsewhere, and five runtime fields described below. The mirrors are whether an OpenRouter key is in the
 Keychain, the key's model scope, and the vocabulary table. Derived values, such
 as cleanup availability, the effective cleanup config and the menu's input, are
 computed properties on `AppState`.
@@ -204,7 +208,7 @@ nothing.
 Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
 SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
 tap, the cue controller, the updater switch and the scope fetch. The app target
-adds only what needs AppKit: the menu's build subscriber and its three row
+adds only what needs AppKit: the menu's build subscriber and its four row
 listeners, described below.
 
 An effect that is not a function of state stays reducer output, as in
@@ -218,18 +222,21 @@ This supersedes K11's list of fetch, push and rebuild commands in
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
 
-The four runtime fields are never persisted: the menu mode
+The five runtime fields are never persisted: the menu mode
 (dictation, onboarding with its pending permission steps, or hotkey recovery),
 the status line (idle, recording, processing, or a status message), whether
-macOS also claims the fn key, and the update indication folded from Sparkle's
-callbacks.
+macOS also claims the fn key, the update indication folded from Sparkle's
+callbacks, and whether the default output device can be muted.
 
 The status menu is a projection of that state. One build subscriber, keyed on
 the menu mode plus the values the dictation dropdown shows, builds and installs
-the menu for the mode and seeds its rows from state. Three row listeners — on the
-status line, the fn verdict and the update indication — update their rows in
-place. So a rebuild keeps the status line, and a status change never rebuilds the
-menu. Opening the menu re-reads the fn assignment and re-renders the update row.
+the menu for the mode and seeds its rows from state. Four row listeners — on the
+status line, the fn verdict, the update indication and the output device's mute
+availability — update their rows in place. So a rebuild keeps the status line,
+and a status change never rebuilds the menu. Opening the menu re-reads the fn
+assignment and the output device's mute availability, and re-renders the update
+row. A CoreAudio listener on the default output device also writes the
+availability, so an open Settings window follows a device switch.
 
 One effect is not a projection of state. The idle glyph repaints on every Sparkle
 callback, changed indication or not, through the coordinator's per-event

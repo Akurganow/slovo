@@ -43,9 +43,12 @@ tuned.
   part of the same cleanup step. Turn **Use as additional key** off and it
   becomes a second push-to-talk key that always translates. Either way a plain
   hold is unchanged.
-- Optional muting of system audio while dictating — a menu-bar **Mute Audio
-  While Dictating** switch (on by default) silences playback while speech is
-  delivered to recognition and restores it afterward.
+- Optional muting of system audio while dictating. A **Mute Audio While
+  Dictating** switch (on by default) sits in Settings → General and in the
+  menu-bar dropdown. It silences playback while speech is delivered to
+  recognition and restores it afterward. On an output device where macOS can set
+  neither the mute nor the volume, both switches are disabled, and Settings
+  explains why.
 - **Sound Cues** for recording readiness, key-up, and failures (on by default),
   switchable in Settings → General or beside Mute in the menu-bar dropdown. Cues
   never hold up dictation: the microphone opens without waiting for a cue, and

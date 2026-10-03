@@ -9,6 +9,9 @@ import CoreAudio
 /// settable mute (e.g. some Bluetooth/USB DACs). The `AudioDeviceID` is pinned
 /// at mute time so a device change mid-dictation cannot misdirect the restore.
 ///
+/// The availability read checks the same two levers `muteSystemOutput` uses, in
+/// the same way: a settable mute, else a settable virtual main volume.
+///
 /// Exercised on real hardware, not in CI.
 public struct CoreAudioOutputMute: SystemAudioController {
     /// Raised when CoreAudio reports a non-success status for a HAL call.
@@ -19,10 +22,42 @@ public struct CoreAudioOutputMute: SystemAudioController {
 
     public init() {}
 
+    /// Reads whether the default output device has a mute or volume control macOS
+    /// can set. An unreadable device or check reports `.available`, which keeps
+    /// today's behaviour: only positive absence of both levers disables the switch.
+    public func outputMuteAvailability() -> OutputMuteAvailability {
+        guard let deviceID = try? defaultOutputDeviceID(), deviceID != kAudioObjectUnknown else {
+            return .available
+        }
+        return .derive(
+            hasSettableMute: (try? isPropertySettable(deviceID, muteAddress())) ?? true,
+            hasSettableVolume: (try? isPropertySettable(deviceID, virtualMasterVolumeAddress())) ?? true,
+            deviceName: try? deviceName(deviceID)
+        )
+    }
+
+    /// Calls `handler` with a fresh reading after every change of the default output
+    /// device. The HAL keeps the block until a matching remove, and this type never
+    /// removes it, so call it once per process. The block runs on the main queue, so
+    /// the read and the handler's store write share one turn.
+    @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
+    @MainActor
+    public func observeOutputMuteAvailability(
+        _ handler: @escaping @MainActor (OutputMuteAvailability) -> Void
+    ) -> OSStatus {
+        var address = defaultOutputAddress()
+        // The changed-address list is ignored: with one registered property, a
+        // re-read is always right.
+        return AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main) { _, _ in
+            let availability = outputMuteAvailability()
+            MainActor.assumeIsolated { handler(availability) }
+        }
+    }
+
     public func muteSystemOutput() throws -> PriorAudioState {
         let deviceID = try defaultOutputDeviceID()
 
-        if try isMutePropertySettable(deviceID) {
+        if try isPropertySettable(deviceID, muteAddress()) {
             let wasAlreadyMuted = try currentMute(deviceID)
             if !wasAlreadyMuted {
                 try setMute(deviceID, muted: true)
@@ -65,12 +100,33 @@ public struct CoreAudioOutputMute: SystemAudioController {
 
     // MARK: - Device resolution
 
-    private func defaultOutputDeviceID() throws -> AudioDeviceID {
-        var address = AudioObjectPropertyAddress(
+    private func defaultOutputAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
+    }
+
+    /// The device's display name. `kAudioObjectPropertyName` returns a CFString the
+    /// caller releases, hence `takeRetainedValue()`.
+    private func deviceName(_ deviceID: AudioDeviceID) throws -> String {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &name)
+        guard status == noErr, let name else {
+            throw CoreAudioError(status: status, operation: "getDeviceName")
+        }
+        return name.takeRetainedValue() as String
+    }
+
+    private func defaultOutputDeviceID() throws -> AudioDeviceID {
+        var address = defaultOutputAddress()
         var deviceID = AudioDeviceID(0)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
         let status = AudioObjectGetPropertyData(
@@ -92,13 +148,15 @@ public struct CoreAudioOutputMute: SystemAudioController {
         )
     }
 
-    private func isMutePropertySettable(_ deviceID: AudioDeviceID) throws -> Bool {
-        var address = muteAddress()
+    /// A lever counts only when the property exists AND is settable: a present but
+    /// read-only volume would make the fallback's set throw.
+    private func isPropertySettable(_ deviceID: AudioDeviceID, _ address: AudioObjectPropertyAddress) throws -> Bool {
+        var address = address
         guard AudioObjectHasProperty(deviceID, &address) else { return false }
         var settable = DarwinBoolean(false)
         let status = AudioObjectIsPropertySettable(deviceID, &address, &settable)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "isMuteSettable")
+            throw CoreAudioError(status: status, operation: "isPropertySettable")
         }
         return settable.boolValue
     }

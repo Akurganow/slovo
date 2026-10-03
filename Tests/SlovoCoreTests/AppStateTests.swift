@@ -212,10 +212,11 @@ struct AppStateTests {
         }
     }
 
-    /// The status row, the fn row and the update row update in place, so none of
-    /// them may rebuild the menu.
-    /// Stated sensitivity: include any of them in the structure → RED (a rebuild
-    /// per status change).
+    /// The status row, the fn row, the update row and the mute item's availability
+    /// update in place, so none of them may rebuild the menu.
+    /// Stated sensitivity: include any of them in the structure, or add the mute
+    /// availability to `DictationMenuInput` or `MenuStructure` → RED (a rebuild per
+    /// status change or device event).
     @Test
     func statusLineChangesLeaveMenuStructureEqual() {
         let base = AppState(config: .defaults, isOpenRouterKeyPresent: false)
@@ -225,9 +226,12 @@ struct AppStateTests {
         fnAssigned.isFnKeySystemAssigned.toggle()
         var updateReady = base
         updateReady.updateIndication = .ready(version: "9.9.9")
+        var muteUnavailable = base
+        muteUnavailable.outputMuteAvailability = .unavailable(deviceName: "Example Output")
         #expect(recording.menuStructure == base.menuStructure)
         #expect(fnAssigned.menuStructure == base.menuStructure)
         #expect(updateReady.menuStructure == base.menuStructure)
+        #expect(muteUnavailable.menuStructure == base.menuStructure)
     }
 
     /// The installed menu follows the mode, so a mode change must rebuild it.

@@ -138,6 +138,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - A user-muted output stays muted, intentional cancellation is silent, and each
   red dictation-failure glyph produces one Error cue. Update-install failure does
   not use the dictation cue path.
+- On an output device with no mute or volume control macOS can set, the
+  dropdown's **Mute Audio While Dictating** item and the Settings toggle are both
+  disabled with their checkmark kept, and Settings states the reason. On the
+  built-in output both are enabled.
 - Silence plays Start, End, then Error — the recording did end, so End belongs —
   and the log line shows `plan=silent`, nothing is inserted. A failure DURING
   recording plays Start then Error alone, since no recording ended. A later
