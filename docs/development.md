@@ -201,7 +201,8 @@ not exercised in CI. After changing them, verify by hand:
   the current build and the configured keys.
 - **Last pane:** view Vocabulary, close Settings, then choose **Settings…**: it
   opens on Vocabulary. Click About in the toolbar, close Settings, and choose
-  **Settings…** again: it still opens on Vocabulary.
+  **Settings…** again: it still opens on Vocabulary. Each reopened pane shows
+  its content, and the window fits that pane's height.
 - **Dev-build marker:** on a dev build (`Scripts/build_and_run.sh`) the header
   version line ends with the Glagolitic capital Dobro `Ⰴ` — the marker stamped as
   the `SlovoDevBuild` Info.plist key by the launcher. A release build shows the

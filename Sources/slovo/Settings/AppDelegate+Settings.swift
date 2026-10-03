@@ -114,9 +114,11 @@ extension AppDelegate {
     /// first. Slovo is an `.accessory` app, so without `activate` the window opens
     /// behind other apps; the SwiftUI `openSettings` / `SettingsLink` route is
     /// deliberately avoided — it is broken for menu-bar apps on macOS 26.
-    /// A later open switches panes the way a toolbar click does, then shows the window.
     private func showSettings(on pane: SettingsPaneID) {
         NSApp.activate(ignoringOtherApps: true)
+        // The first open uses show(pane:): a toolbar action sent in the same pass as the first show() throws an AppKit
+        // layer-backing exception. Later opens send the toolbar item's action instead. show(pane:) would switch without
+        // the crossfade, re-insert a pane an earlier crossfade left at alpha 0, and skip the resize to that pane's height.
         guard let controller = settingsWindowController else {
             let controller = SettingsWindowController(panes: SettingsPaneID.allCases.map(settingsPane(for:)))
             settingsPaneObservation = controller.window?.toolbar?.observe(\.selectedItemIdentifier) { [weak self] toolbar, _ in
@@ -131,8 +133,6 @@ extension AppDelegate {
             controller.show(pane: pane.paneIdentifier)
             return
         }
-        // The package's show(pane:) switches without the crossfade. It re-inserts a pane an
-        // earlier crossfade left at alpha 0, and skips the resize to that pane's height.
         if let item = controller.window?.toolbar?.items.first(where: { $0.itemIdentifier == pane.paneIdentifier.toolbarItemIdentifier }),
            let action = item.action {
             NSApp.sendAction(action, to: item.target, from: item)
