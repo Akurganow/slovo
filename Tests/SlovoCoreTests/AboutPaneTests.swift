@@ -48,10 +48,13 @@ struct AboutPaneTests {
     /// About Slovo opens Settings on About. Settings… opens the last settings pane,
     /// which the toolbar observation records through the store. The toolbar is built
     /// from the pane enum, so `AppStateTests.settingsPanesEndWithAbout` pins its order.
+    /// Only the first open switches through the package's `show(pane:)`. A later open
+    /// sends the toolbar item's action, as a click does. `show(pane:)` would re-show a
+    /// pane an earlier crossfade left transparent, at the old pane's height.
     /// Stated sensitivity: route `showAboutPane` to the last pane, open Settings… on
-    /// a fixed pane, pass no pane (`show()`), drop the toolbar observation or its
-    /// store write, release the observation with `_ =`, or build the toolbar from a
-    /// literal list → RED.
+    /// a fixed pane, open without switching (`show()` alone), reopen through
+    /// `show(pane:)`, drop the toolbar observation or its store write, release the
+    /// observation with `_ =`, or build the toolbar from a literal list → RED.
     @Test
     func settingsOpenersChooseTheirPanes() throws {
         let opener = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
@@ -59,7 +62,15 @@ struct AboutPaneTests {
         let settings = try AppRuntimeSourceGuardTests.functionBody(named: "showSettingsWindow", in: opener)
         #expect(about.contains(".about"), "About Slovo must open the About pane")
         #expect(settings.contains("store.state.lastSettingsPane"), "Settings… must open the last settings pane")
-        #expect(opener.contains("show(pane:"), "the pane must reach the package")
+        #expect(
+            opener.components(separatedBy: "show(pane:").count == 2
+                && AppRuntimeSourceGuardTests.containsInOrder(["SettingsWindowController(panes:", "show(pane:"], in: opener),
+            "only the open that builds the window may switch through show(pane:)"
+        )
+        #expect(
+            AppRuntimeSourceGuardTests.containsInOrder(["NSApp.sendAction(", ".show()"], in: opener),
+            "a later open must switch as a toolbar click does, then show without a pane"
+        )
         #expect(opener.contains("observe(\\.selectedItemIdentifier"))
         #expect(opener.contains("settingsPaneObservation ="), "the observation must be retained")
         #expect(opener.contains("recordSettingsPane("))
