@@ -1,20 +1,25 @@
-import AppKit
 import SlovoCore
 import SwiftUI
 
-/// The About window's content: brand header, a short "how it works" guide, a
-/// privacy note, and footer links. It takes its dynamic values (version, build,
-/// dev-build marker, trigger key name) as plain parameters so it renders in
-/// previews and tests without reaching into `Bundle` or the config store — the
-/// window supplies them.
+/// Settings → About: the brand header, a short "how it works" guide, a privacy
+/// note, and footer links. The keycaps read the observed store, so a key changed
+/// in General shows here at once.
 @MainActor
-struct AboutView: View {
-    let version: String
-    let build: String
-    let isDevBuild: Bool
+struct AboutSettingsPane: View {
+    // Unowned, not strong: AppDelegate (the only conformer) is an app-lifetime
+    // singleton that always outlives this pane, matching DictationMenuBuilder's
+    // `unowned let target: AppDelegate`.
+    unowned let actions: any SettingsActions
+    @ObservedObject private var store: AppStore
+
+    init(actions: any SettingsActions) {
+        self.actions = actions
+        _store = ObservedObject(wrappedValue: actions.store)
+    }
+
     /// The configured keys, shown as inline keycaps so the guide states the gesture
     /// the user actually has rather than the defaults.
-    let hotkeys: HotkeyConfiguration
+    private var hotkeys: HotkeyConfiguration { store.state.config.hotkeyConfiguration }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -25,7 +30,7 @@ struct AboutView: View {
             footer
         }
         .padding()
-        .frame(width: 400)
+        .frame(width: 420)
     }
 
     private var header: some View {
@@ -47,7 +52,7 @@ struct AboutView: View {
             // The dev marker's Dobro glyph renders through the same Glagolitic
             // cascade the header glyphs above already rely on, and only on dev
             // builds — where the wordmark proves the face is available.
-            Text(AboutInfo.versionLine(marketingVersion: version, buildNumber: build, isDevBuild: isDevBuild))
+            Text(Self.versionLine)
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Text("Private, on-device push-to-talk dictation for macOS")
@@ -138,21 +143,31 @@ struct AboutView: View {
             Text("·").foregroundStyle(.secondary)
             Link("Support on Ko-fi", destination: Self.supportURL)
             Text("·").foregroundStyle(.secondary)
-            // A file, not a web URL, so it is a link-styled Button rather than a
-            // `Link`: it resolves the bundled notices at tap time, keeping this
-            // view's rendering free of `Bundle` access (previews/tests still draw).
-            Button("Acknowledgements") { Self.openAcknowledgements() }
+            Button("Acknowledgements") { actions.openAcknowledgements() }
                 .buttonStyle(.link)
         }
         .font(.footnote)
     }
 
-    /// Opens the third-party license notices bundled in the app's Resources
-    /// (THIRD-PARTY-NOTICES.md, staged there by the packaging scripts) in the
-    /// user's default handler.
-    private static func openAcknowledgements() {
-        guard let url = Bundle.main.url(forResource: "THIRD-PARTY-NOTICES", withExtension: "md") else { return }
-        NSWorkspace.shared.open(url)
+    /// The bundle's version, build and dev-build marker are fixed for the process,
+    /// so the line is composed once.
+    private static let versionLine = AboutInfo.versionLine(
+        marketingVersion: bundleString("CFBundleShortVersionString"),
+        buildNumber: bundleString("CFBundleVersion"),
+        isDevBuild: isDevBuild
+    )
+
+    /// True only when the dev launcher stamped `SlovoDevBuild` into the staged
+    /// bundle's plist. A release plist never carries the key, so absence — or any
+    /// non-true value — reads as production.
+    private static var isDevBuild: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "SlovoDevBuild") as? Bool) == true
+    }
+
+    /// The bundle's `key` as a string, or an em dash when the key is missing so the
+    /// pane never shows an empty or crashed version line.
+    private static func bundleString(_ key: String) -> String {
+        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "—"
     }
 
     private static let repositoryURL = URL(string: "https://github.com/Akurganow/slovo")!

@@ -49,8 +49,7 @@ public enum DictationMenuItem: Equatable, Sendable {
     case soundCues(isOn: Bool)
     case settings
     case quit
-    /// The About window entry; the first interactive item, in its own group
-    /// directly below the status header.
+    /// The About Slovo entry, which opens Settings on the About pane.
     case about
 }
 

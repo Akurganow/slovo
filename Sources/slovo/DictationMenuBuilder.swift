@@ -127,7 +127,7 @@ struct DictationMenuBuilder {
             entry.state = isOn ? .on : .off
             menu.addItem(entry)
         case .about:
-            menu.addItem(target.actionItem("About Slovo", #selector(AppDelegate.showAboutWindow)))
+            menu.addItem(target.actionItem("About Slovo", #selector(AppDelegate.showAboutPane)))
         case .settings:
             let entry = target.actionItem("Settings…", #selector(AppDelegate.showSettingsWindow))
             entry.keyEquivalent = ","
