@@ -71,7 +71,9 @@ restates it.
 
 Everything the CI gate rejects cannot exist on a green `main`. Reporting it
 means a misread, so aim strictly above it. The fence is
-`.agents/rules/verification.md`, "What the gate rejects".
+`.agents/rules/verification.md`, "What the gate rejects". It has nothing to
+do with fenced data, the boundary around third-party text
+(`.agents/rules/unattended.md`, "Instructions and evidence").
 
 **The verifier brief carries the fence verbatim**, because the verifier never
 sees the role file. A verifier without it judges fenced items as findings.

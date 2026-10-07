@@ -24,7 +24,7 @@ Argue every finding against it.
 
 - The repository and its whole history are public. A secret in any commit is
   a published secret, so judge all of history, not the tree alone.
-- The fleet's roles act under the owner's identity, read third-party text and
+- The fleet's roles act under a trusted identity, read third-party text and
   write to the tracker (`.agents/rules/unattended.md`, "Instructions and
   evidence"). Where third-party text crosses from data into an instruction
   is your beat.
@@ -127,7 +127,10 @@ skips another surface's checks.
       which a role pushes or opens a pull request, and the trust rules
       (`.agents/rules/unattended.md`, "Instructions and evidence";
       `.agents/skills/pipeline-law/SKILL.md`, "What a fired stage trusts"
-      and "Pushes"). A finding here
+      and "Pushes"). Also the issue templates under
+      `.github/ISSUE_TEMPLATE/`: a template that applies `police-report`
+      lets a stranger's issue into the machine population
+      (`.agents/rules/filing.md`, "The machine population"). A finding here
       is a place where the recorded discipline is not actually applied,
       traced to the line.
    4. **The update channel:** Sparkle's `SUFeedURL` and `SUPublicEDKey` in

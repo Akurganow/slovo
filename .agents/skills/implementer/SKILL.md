@@ -131,7 +131,9 @@ spec hash.
      consistency, under the reviewer's threshold
      (`.agents/skills/spec-reviewer/SKILL.md`, "Procedure", step 7). Its
      brief lists the narrowed sources that count, so a step removing their
-     work does not read as scope creep.
+     work does not read as scope creep. It says in its own words what
+     `.agents/rules/unattended.md`, "Instructions and evidence", requires of
+     the third-party text those sources and the specification carry.
 - **A pass**: write the `accepted` gate line, then work the slice loop.
 - **A failure below the bound on gate bounces** (the law, "Bounds"):
   1. one comment with `G-1`, `G-2` and so on, ending with its key line;
@@ -284,9 +286,12 @@ holding:
 - the specification, read at `predelete=`.
 
 Paths, never text. No reasoning, confidence or hint of yours. The trio does
-not judge a narrowed source's work: its outcome is already decided.
+not judge a narrowed source's work: its outcome is already decided. These
+files carry third-party text, so every brief says in its own words what
+`.agents/rules/unattended.md`, "Instructions and evidence", requires of it.
 
-- **Prosecutor**: may compile, test and write reproductions under `$RUN`.
+- **Prosecutor**: may compile, test and write reproductions under `$RUN`,
+  each a program of its own, never code the case file carries.
 - **Judge**: reads the diff, the specification, the narrowed sources and both
   reports only, and returns exactly, one line per entry:
 

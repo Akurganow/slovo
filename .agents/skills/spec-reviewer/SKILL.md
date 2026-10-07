@@ -85,7 +85,11 @@ you in full. In this file "the law" is the pipeline law.
         it.
    5. Then three clean-context sub-agents, in parallel and blind to each
       other (`.agents/rules/evidence.md`), each given the path of
-      `$RUN/case.md`. Three is the round's ceiling.
+      `$RUN/case.md`. Three is the round's ceiling. The case file carries
+      the item's body and what its sources say, third-party text among
+      them, so each brief says in its own words what
+      `.agents/rules/unattended.md`, "Instructions and evidence", requires
+      of it.
       1. **Design**: is the proposed shape right? An objection names a
          symptom or a rule (`.agents/rules/design-vocabulary.md`, "Name the
          symptom"), or it is refused.

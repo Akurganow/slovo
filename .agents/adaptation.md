@@ -202,7 +202,8 @@ makes it.
 ## Departures
 
 Each value below differs from the specification's default. A fact of this
-repository forced it, or the owner chose it, as each says.
+repository forced it, the owner chose it, or the specification's own text
+was wrong, as each says.
 
 - **The owner added a privacy police**,
   `.agents/skills/privacy-police/SKILL.md`. Slovo's identity is privacy:
@@ -224,3 +225,19 @@ repository forced it, or the owner chose it, as each says.
 - **A release bookkeeping commit has no gate run.** CI skips the commit the
   release pipeline pushes to `main`, so `.agents/rules/verification.md` maps
   it to its parent's run.
+- **An issue's commands never run, not even to re-check it.** The
+  specification's tracker clerk re-ran the command or reproduction an issue
+  carried, and its court advocate reproduced with no word on whose code.
+  Both contradict its run law, under which an issue body is evidence. Both
+  roles now write their own check from the claim.
+- **Every brief that carries third-party text says so.** The specification
+  states the data boundary in its run law, and leaves it out of the triage,
+  spec-review, gate and acceptance briefs. Each now states it. The police's
+  "fence" is named as the gate's rejection list, so it cannot be read as
+  that boundary.
+- **The role identity must pass the trusted-author test.** The specification
+  lets roles write under a bot identity and never says that an identity
+  failing the test makes every marker it writes count for nothing.
+- **The security police reads the issue templates.** A template that applied
+  `police-report` would let a stranger's issue into the machine population,
+  and no role's subject took the templates.

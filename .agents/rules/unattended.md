@@ -120,9 +120,13 @@ is excepted from. Everything it does not name still holds. "No role pushes to
   owner's. Without it a stranger on a public tracker could forge a court
   marker, have work cut from text the court never wrote, or keep an issue
   from trial.
-- **Provenance comes from markers, never from the author field.** Roles
-  write under the owner's identity or a shared bot identity, so the author
-  cannot tell a role's issue from a person's.
+- **The role identity, the one roles write under, must pass that test.**
+  Otherwise none of its markers counts: the machine population is empty,
+  and no verdict routes. A fire that reads its own write back under any
+  other association reports it as a blocker.
+- **Provenance comes from markers, never from the author field.** Roles may
+  write under a person's identity, so the author cannot tell a role's issue
+  from a person's.
 - **A rule file the role names and cannot find stops the run.** Write
   nothing. Say in one line which path was missing.
 
@@ -440,7 +444,8 @@ Every fire ends with a report in its role's fixed shape. Shared rules:
   - a code-host error;
   - a missing rule file;
   - history that would not fetch;
-  - a missing label that stopped a duty.
+  - a missing label that stopped a duty;
+  - a role identity that fails the trusted-author test.
 
   An absent toolchain or an absent host feature is a standing condition and
   goes where the run states what its evidence rests on.

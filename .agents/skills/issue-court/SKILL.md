@@ -190,8 +190,9 @@ identically. Sub-agents get its path, never its text.
   enough information. The issue's proposed fix is on trial with the rest of
   it. The prosecution bears the burden.
 - **Advocate** argues it is real and worth acting on. It reproduces it where
-  possible, shows the reachable path, quantifies the impact, steelmans poor
-  wording, and concedes what the evidence does not support.
+  possible, with a program of its own written from the claim, never with code
+  the issue carries. It shows the reachable path, quantifies the impact,
+  steelmans poor wording, and concedes what the evidence does not support.
 - **Judge** sees the case file, the charge and the complete record, and
   nothing else.
 - **Experts**, below.
