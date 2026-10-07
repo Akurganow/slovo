@@ -19,12 +19,10 @@ have to be repeated. Every agent and contributor follows them without being aske
    superseded code "on disk pending deletion approval" — no build-excluded
    corpses, no "delete later" comments. The change that makes something legacy
    deletes it.
-3. **The owner manually verifies every deliverable.** After independent audit,
-   integrate the verified work into local main and produce the dev build — the
-   local build where one is available, otherwise from the `dev-build` label on
-   the pull request (see "Dev builds" below) — then hand it to the owner for a
-   check of the behaviour. Work is not done until the owner has a runnable dev
-   build.
+3. **The owner manually verifies every deliverable.** Any work, the delivery
+   pipeline's or an interactive session's, is done when the owner merges its
+   pull request on GitHub after checking its dev build (see "Dev builds: one
+   approved path" and "The path to done" below).
 4. **Design attractor: data-driven.** Prefer directions that centralize state as
    data and derive views/effects as projections of it (reducers/selectors idiom:
    view = f(state), a single mutation path, effects as data). An attractor, not a
@@ -244,16 +242,17 @@ implementation proves nothing — prove RED before GREEN, and document the concr
 breakage each regression test catches. The rest of what a test must earn is in
 `.agents/rules/tests.md`.
 
-### The endpoint of feature work is a verified commit on local main
+### The path to done
 
-A feature is DONE only when it lands as a verified commit on LOCAL main —
-implementer branches → independent audit (correctness, complexity, design,
-test sensitivity) → the full gate green on the integrated result (CI's Swift
-`test` run — `Scripts/diagnose.sh` on a macOS runner) → merge into local
-main. Parked branches are not a deliverable. Pushing a change to any remote
-remains a separate act, triggered only by the owner, except the delivery
-pipeline's pushes to its own branches; no role ever pushes to `main`. See
-"This repository's own machinery".
+Implementer branches → independent audit (correctness, complexity, design,
+test sensitivity) → a pull request whose merge result passes the full gate
+(CI's Swift `test` run — `Scripts/diagnose.sh` on a macOS runner) → the
+owner's check of its dev build → the owner's merge on GitHub ("Standing
+owner directives", 3). Parked branches are not a deliverable. An interactive
+session pushes a branch only when the owner asks. The delivery pipeline
+pushes only to its own branches (`.agents/skills/pipeline-law/SKILL.md`,
+"Pushes"), and no role ever pushes to `main` (`.agents/rules/unattended.md`,
+"No role pushes to `main`").
 
 ### License compliance is part of every change
 
@@ -296,8 +295,10 @@ Roles run over this repository unattended. Each role is a skill under
 `.agents/skills/`, with one thin binding under `.claude/agents/` that names
 its skill and holds no instruction of its own. A skill with no binding is a
 shared skill: the pipeline law, `.agents/skills/pipeline-law/SKILL.md`,
-governs the delivery pipeline's roles. Read the set of roles from the tree,
-never from a count written here.
+governs the delivery pipeline's roles. They read it whole, and so does the
+agent police, which patrols it. The tracker clerk reads its discriminator.
+Each of these readers' bindings preloads it. Read the set of roles from the
+tree, never from a count written here.
 
 The chain runs from a finding to a pull request a person merges:
 

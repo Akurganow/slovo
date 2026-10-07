@@ -51,16 +51,18 @@ never judges it later.
 4. **Prosecution after the code, before the merge.** A separate agent gets
    the diff and the instruction to prove it cannot be merged, with
    executable oracles: tests, byte comparisons, live runs.
-5. **Merge, then a live run.** Checks run against the merged state. Anything
-   with an effect outside the process is proved by a live run, not by tests.
-   Here the live run is the owner's, on a runnable build (`AGENTS.md`,
-   "Standing owner directives", 3).
+5. **A live run before the merge.** Checks run against the pull request's
+   merge result. Anything with an effect outside the process is proved by a
+   live run, not by tests. Here the live run is the owner's, on the dev
+   build, before the owner merges (`AGENTS.md`, "Standing owner
+   directives", 3).
 6. **Acceptance.** A large round ends with the three seats, never with a
    single reviewer.
 
 ## What "done" means
 
-All of these at once:
+The owner's merge marks work done (`AGENTS.md`, "Standing owner
+directives", 3). What reaches it holds all of these at once:
 
 - no defects: checks are green and a live run confirms the behaviour on real
   data. Every known hole is closed or written down as an accepted risk;

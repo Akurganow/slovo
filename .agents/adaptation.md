@@ -7,10 +7,6 @@ reads this file like any other fleet document. Where a value lives in a rule
 file, a role file or the pipeline law, this record names that place and does
 not restate the value: the place is the authority.
 
-"Pending the owner" marks a choice the specification leaves open and no fact
-of this repository settles. A role that reads such a slot treats it as the
-slot's empty value until the owner decides.
-
 ## The owner's decisions
 
 - **The delivery pipeline is built.** Sustained findings go to the pipeline
@@ -26,6 +22,8 @@ slot's empty value until the owner decides.
 - **No role ever pushes to `main`** (`.agents/rules/unattended.md`, "No role
   pushes to `main`"). The rule does not depend on what the code host
   enforces.
+- **Work is done when the owner merges its pull request** after checking
+  its dev build (`AGENTS.md`, "Standing owner directives", 3).
 - **CI's run is the gate of record, and a local gate run is a pre-check**
   (`.agents/rules/unattended.md`, "Claim only what you ran"). Roles may
   build and run the automated tests in their own clone. Manual checks stay
@@ -70,10 +68,10 @@ slot's empty value until the owner decides.
 | `CLOSED_PATHS` | `.agents/rules/boundaries.md`, "Closed paths" | The release pipeline writes them, or they are never committed |
 | `LICENCE_POLICY` | GPLv3, with `THIRD-PARTY-NOTICES.md` and the README licence section kept current (`AGENTS.md`, "License compliance is part of every change") | A new dependency stays a person's decision |
 | `DELIBERATE_LANGUAGE_EXCEPTIONS` | `.agents/rules/text-residue.md`, "Protected: never a finding", item 5 | Recognising mixed Russian and English speech is the product |
-| `PREDECESSOR_QUIRKS` | Settings stored by earlier releases keep decoding: an absent field takes its default, and the key trigger's stored values predate the split by key side (the comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`) | Behaviour kept on purpose, with no migration |
+| `PREDECESSOR_QUIRKS` | The comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`, carried into `.agents/skills/logic-police/SKILL.md`, "Not findings", and `.agents/skills/issue-court/SKILL.md`, "What you read first" | Behaviour kept on purpose, with no migration |
 | `ARCHITECTURE_BANS` | Empty | The recorded bans, the core free of the app shell and the update engine and the import direction of role-tagged modules, are all enforced by the gate (`.agents/rules/verification.md`, "What the gate rejects") |
 | `PUBLICATION_RULES` | `.agents/rules/boundaries.md`, "What never appears in the tree or on a published page" | `AGENTS.md`, `SECURITY.md` and the owner's decisions bar them |
-| `FLEET_SOURCES` | The default: the harness's documentation for skills, bindings, rule files and links; the skill format specification; the code host's documentation for each behaviour the run law relies on | The default. No manifest specification applies, because no manifest is adopted |
+| `FLEET_SOURCES` | `.agents/skills/agent-police/SKILL.md`, "Subject" | The owner's decision: the four kinds the specification lists. The kind for a manifest specification names none, because no manifest is adopted |
 
 ### Build, gate and toolchain
 
@@ -84,11 +82,11 @@ slot's empty value until the owner decides.
 | `GATE_BLIND_SPOTS` | `.agents/rules/verification.md`, "What a green run does not prove" | |
 | `FENCE` | `.agents/rules/verification.md`, "What the gate rejects" | One list, carried verbatim into every verifier brief |
 | `TOOLCHAIN_FREE_CHECKS` | `bash -n` over each script; `plutil -lint` needs macOS but not the toolchain (`.agents/rules/verification.md`) | Every other stage needs Xcode |
-| `TOOLCHAIN_REFRESH` | None. A local gate run is a pre-check, and CI's run on the merge result is the gate of record | The owner's decision. CI takes whatever Xcode its runner image carries |
-| `CONDITIONAL_GUARDS` | An update of the speech-recognition engine needs a recognition-quality review on real hardware (`.github/dependabot.yml`; `AGENTS.md`, "Non-negotiable principles", 4 and 6). A dependency change keeps the licence notices current (`AGENTS.md`). A change to user-visible behaviour, setup, privacy or the release workflow updates the docs (`AGENTS.md`). Moving the pinned changelog tool needs the replay in `docs/release-ci.md`, "Version computation" | Recorded rules tied to what a change touches |
+| `TOOLCHAIN_REFRESH` | `.agents/skills/implementer/SKILL.md`, "The slice loop", step 5 | The owner's decision: CI's run is the gate of record ("The owner's decisions" above) |
+| `CONDITIONAL_GUARDS` | `.agents/skills/implementer/SKILL.md`, "The slice loop", the guards a change's content triggers | Recorded rules tied to what a change touches |
 | `TEST_SUMMARY_FORMAT` | `.agents/rules/unattended.md`, "Reporting" | The default |
 | `TESTING_REFERENCE` | `docs/references/testing-swift.md` | The verified reference `.agents/rules/tests.md` cites |
-| `MANUAL_ONLY_TESTS` | The tests enabled only while the `CI` variable is unset (`.agents/rules/verification.md`, "What a green run does not prove"). A change to the spelling and grammar hints or to input-source reading runs them where the toolchain is present | Their stated reason: they call a real system service, skipped on shared CI |
+| `MANUAL_ONLY_TESTS` | `.agents/rules/verification.md`, "What a green run does not prove"; the guard that runs them, `.agents/skills/implementer/SKILL.md`, "The slice loop" | Their stated reason: they call a real system service, skipped on shared CI |
 | `SENSITIVITY_NOTE_FORMAT` | `Stated sensitivity: … → RED` | The form the test suite uses |
 | `TARGET_PLATFORM_RUNNER` | A Mac with the toolchain `CONTRIBUTING.md` requires, or CI's macOS runner | Where an environment-coupled experiment can run |
 | `ACCEPTANCE_PLATFORM` | A Mac with Apple Silicon, on the app's supported macOS | `README.md` and `CONTRIBUTING.md` |
@@ -98,31 +96,31 @@ slot's empty value until the owner decides.
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `ESCAPE_HATCH_MARKERS` | Force unwraps, `try!`, `as!`, `unowned`, `fatalError`, `preconditionFailure`; and, against the concurrency checks, `@unchecked Sendable`, `nonisolated(unsafe)` and `assumeIsolated` | Swift's constructs that bypass its checks. `force_unwrapping` is disabled in `.swiftlint.yml`, so nothing fences force unwraps |
-| `HIDDEN_CALLER_MECHANISMS` | Protocol witnesses called only through the protocol, `@objc` selectors, string-based class lookup, SwiftUI property wrappers and result builders, `#Preview` blocks, Swift Testing macros, and code a build-tool plugin or the manifest reaches | What hides a Swift caller from text search |
-| `CALLER_RULE` | The default: a package's own tests, examples and binaries do not keep its interface alive. `SlovoTestSupport` exists for tests, so its own types used only from tests are not dead | `.agents/rules/design-vocabulary.md`, "Recorded answers in this tree" |
-| `HIGH_CONSEQUENCE_PATHS` | The dictation pipeline from key down to insertion; the guard that keeps an empty transcript from the cleanup provider and the pasteboard; the sound-cue queue and its release deadline; mute and restore; the Keychain; the update engine's states; decoding the cleanup provider's response; the encrypted personalization database; the Objective-C exception boundary | Where `AGENTS.md`, "Product intent — how the app must work", puts the cost of a defect |
-| `ENTRY_POINTS` | The entry of each executable target in `Package.swift`, and every callback the app hands to the system: the key event tap, menu and Settings actions, notification and update-engine callbacks | Where a reachability trace starts |
-| `NAME_CENSUS_CONCEPTS` | Pending the owner | No glossary exists. `AGENTS.md`, "Product intent — how the app must work", names the domain concepts a list could take |
-| `CHURN_WINDOW` | The default, stated in the role files that rank churn | |
-| `EXPERT_KINDS` | Pending the owner | The court's experts. With the toolchain present a reproduction engineer can run |
+| `ESCAPE_HATCH_MARKERS` | `.agents/skills/logic-police/SKILL.md`, "Where to look" | Swift's constructs that bypass its checks |
+| `HIDDEN_CALLER_MECHANISMS` | `.agents/skills/abstraction-police/SKILL.md`, "Proof" | What hides a Swift caller from text search |
+| `CALLER_RULE` | `.agents/rules/design-vocabulary.md`, "Rules of judgement" and "Recorded answers in this tree" | The default, with the recorded answer on `SlovoTestSupport` |
+| `HIGH_CONSEQUENCE_PATHS` | `.agents/skills/logic-police/SKILL.md`, "Where to look" | Where `AGENTS.md`, "Product intent — how the app must work", puts the cost of a defect |
+| `ENTRY_POINTS` | `.agents/skills/logic-police/SKILL.md`, "Proof" | Where a reachability trace starts |
+| `NAME_CENSUS_CONCEPTS` | `.agents/skills/text-residue-police/SKILL.md`, "Where to look" | The owner's decision: the concepts `AGENTS.md`, "Product intent — how the app must work", names. No glossary exists |
+| `CHURN_WINDOW` | `.agents/rules/police.md`, "Shared rules" | The default |
+| `EXPERT_KINDS` | `.agents/skills/issue-court/SKILL.md`, "The trial" | The owner's decision: the kinds the specification lists for a court with the toolchain present |
 | `BUG_TEMPLATE_FIELDS` | The field labels of `.github/ISSUE_TEMPLATE/bug_report.yml` | The bug template's own field names |
 
 ### Security and dependencies
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `THREAT_MODEL` | The repository and its history are public. Roles read third-party text and write to the tracker, and provenance comes from markers, never from the author. A person merges. A releasable merge signs, notarizes and publishes an update that installed copies take on their own (`docs/release-ci.md`). Every push to a pull request starts CI on a macOS runner | What every security finding is argued against |
-| `SECRET_INVENTORY` | The signing certificate and its password, the notarization key and its identifiers, the update feed's EdDSA private key (`docs/release-ci.md`, "One-time owner setup"); the cleanup provider's API key | The secrets the project holds |
-| `PRIVILEGED_PIPELINES` | `.github/workflows/release.yml`, `.github/workflows/dev-build.yml` | They sign, notarize, publish or push |
-| `UPDATE_CHANNEL` | Sparkle: `SUFeedURL` and `SUPublicEDKey` in `Resources/Info.plist`, and the appcast the `package` job of `.github/workflows/release.yml` signs | How installed copies receive updates |
-| `RENDERED_OUTPUT` | Pending the owner | `CHANGELOG.md` and the release notes are rendered from merged commit headers, which come from pull-request titles anyone can propose. Whether that counts as external data decides whether the security police sweeps it |
-| `UPDATE_BOT` | `dependabot[bot]` | `.github/dependabot.yml` |
-| `DEPENDENCY_PROMISES` | The comments in `Package.swift` and `.github/dependabot.yml`; the app floor in `Package.swift` `platforms:`; the licence posture | Recorded decisions a bump must not break |
-| `QUALITY_GATED_DEPENDENCIES` | The speech-recognition engine, `argmax-oss-swift` | `.github/dependabot.yml` |
-| `ADVISORY_SOURCES` | The code host's advisory database for the Swift and GitHub Actions ecosystems, and each dependency's own security advisories | The two ecosystems the update bot watches |
-| `DEPENDENCY_PRS_PER_RUN` | The default, stated in the dependency police's role file | |
-| `FOLLOW_THROUGH_WINDOW` | The default, stated in the dependency police's role file | |
+| `THREAT_MODEL` | `.agents/skills/security-police/SKILL.md`, "Threat model" | What every security finding is argued against |
+| `SECRET_INVENTORY` | `.agents/skills/security-police/SKILL.md`, "Where to look", the secrets sweep | The secrets the project holds (`docs/release-ci.md`, "One-time owner setup"; `docs/privacy.md`, "Keychain") |
+| `PRIVILEGED_PIPELINES` | `.agents/skills/security-police/SKILL.md`, "Where to look", the workflow sweep | They sign, notarize, publish or push |
+| `UPDATE_CHANNEL` | `.agents/skills/security-police/SKILL.md`, "Where to look", the update-channel sweep | How installed copies receive updates |
+| `RENDERED_OUTPUT` | `.agents/skills/security-police/SKILL.md`, "Where to look", the rendered-output sweep | The owner's decision: `CHANGELOG.md` and the release notes, both rendered from merged pull-request titles |
+| `UPDATE_BOT` | `.agents/skills/dependency-police/SKILL.md`, "Dependency Police" | `.github/dependabot.yml` |
+| `DEPENDENCY_PROMISES` | `.agents/skills/dependency-police/SKILL.md`, "What every verification checks" | Recorded decisions a bump must not break |
+| `QUALITY_GATED_DEPENDENCIES` | `.agents/skills/dependency-police/SKILL.md`, "What every verification checks" | `.github/dependabot.yml` |
+| `ADVISORY_SOURCES` | `.agents/skills/dependency-police/SKILL.md`, "Advisories" | The two ecosystems the update bot watches |
+| `DEPENDENCY_PRS_PER_RUN` | `.agents/skills/dependency-police/SKILL.md`, "The review queue" | The default |
+| `FOLLOW_THROUGH_WINDOW` | `.agents/skills/dependency-police/SKILL.md`, "The review queue" | The default |
 
 ### Tracker vocabulary and bounds
 
@@ -140,15 +138,15 @@ slot's empty value until the owner decides.
 | `MARKER_NS` | `slovo` | The repository's name |
 | `TRUSTED_AUTHOR_TEST` | `.agents/rules/unattended.md`, "Instructions and evidence" | Write-level membership, as the code host reports it on a repository owned by a personal account |
 | `POLICE_SKIP_COURT` | Off | The default. Every police report is tried |
-| `COMMIT_CONVENTION` | `feat` releases a minor version; `fix` and `perf` a patch; a `!` header or a `BREAKING CHANGE` footer a major; every other type releases nothing (`cliff.toml`). Kind mapping: `bug` → `fix:`, `enhancement` → `feat:`. `tech-debt` and `documentation`: pending the owner | `cliff.toml` and `AGENTS.md`, "Before you open a pull request". Any header outside `feat:`, `fix:` and `perf:` merges without a release, so the header a `tech-debt` change takes decides whether it ships at once |
+| `COMMIT_CONVENTION` | What releases: `cliff.toml`. The kind mapping: `.agents/skills/implementer/SKILL.md`, "The hand-off on an accepted verdict", step 2 | The owner's decision for `tech-debt` and `documentation`. Any header outside `feat:`, `fix:` and `perf:` merges without a release (`AGENTS.md`, "Before you open a pull request") |
 
 ### The delivery pipeline
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
 | `PIPELINE_LABELS` | The default names (`.agents/rules/labels.md`) | The owner creates them |
-| `BRANCH_NS` | `pipeline/` | The default |
-| `SPEC_DIR` | Pending the owner | A per-item directory `main` never carries. No fact of the tree picks its path |
+| `BRANCH_NS` | `.agents/skills/pipeline-law/SKILL.md`, "Identity and the discriminator" | The default |
+| `SPEC_DIR` | `.agents/skills/pipeline-law/SKILL.md`, "Shape" | The owner's decision |
 | `RULE_FILES` | What each stage reads first, as the pipeline law and each stage's role file name it | |
 | `IN_FLIGHT` | The default, stated in the pipeline law's "Bounds" | |
 | `QUEUE_CAP` | The default, stated in the pipeline law's "Bounds" | |
@@ -157,9 +155,9 @@ slot's empty value until the owner decides.
 | `CLERK_REPAIRS_PER_FIRE` | The default, stated in the pipeline law's "Bounds" | |
 | `PARKED_HOLDS_SLOT` | Off | The default |
 | `CLOSE_ON_MERGE` | Off | The default. A merge closes nothing by itself, and the tracker clerk closes each source once it re-derives as gone |
-| `EXTERNAL_REVIEWER` | Empty | The default. No outside reviewer is asked. An outside reviewer's comments on a pull request are evidence |
+| `EXTERNAL_REVIEWER` | `.agents/skills/pipeline-law/SKILL.md`, "What a fired stage trusts" | The owner's decision. Its state line is `.agents/rules/markers.md`, "The pipeline clerk's records" |
 | `MAX_PARTS` | Off: findings are never split | The default |
-| `PLAN_HEADINGS` | The default headings, "Tests first" among them | Changes here carry tests |
+| `PLAN_HEADINGS` | `.agents/skills/pipeline-law/SKILL.md`, "The specification shape" | The default. Changes here carry tests |
 
 ### Optional roles
 
@@ -167,7 +165,7 @@ slot's empty value until the owner decides.
 | :-- | :-- | :-- |
 | `OPERATION`, `RECORD_WINDOW` | Not used | The record police is off |
 | `PUBLISHED_SURFACE`, `SUPPORTED_SURFACES`, `REFERENCE_SOURCES`, `CONFORMANCE_CHECK`, `HYGIENE_SET` | Not used | The published-surface police is off |
-| The pipeline law's skill id | `pipeline-law`, pending the owner | The specification names no id for the shared law. A rename is one search and replace |
+| The pipeline law's skill id | `pipeline-law` | The specification names no id for the shared law. A rename is one search and replace |
 
 ## What the code host supports
 
