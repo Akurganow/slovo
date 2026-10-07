@@ -10,8 +10,8 @@ public struct InputDevice: Codable, Hashable, Sendable {
     }
 }
 
-/// The present devices with at least one input channel, in HAL order, and the
-/// system default input's UID.
+/// The present devices with at least one input channel and not private to one
+/// process, in HAL order, and the system default input's UID.
 public struct InputDevices: Equatable, Sendable {
     public var present: [InputDevice]
     public var systemDefaultUID: String?

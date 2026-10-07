@@ -1,4 +1,5 @@
 import CoreAudio
+import Foundation
 
 /// Reads the input side of the CoreAudio HAL. Stateless: every call reads the HAL
 /// afresh.
@@ -7,12 +8,13 @@ import CoreAudio
 public struct CoreAudioInputDevices: Sendable {
     public init() {}
 
-    /// The present devices with at least one input channel, in HAL order, and the
-    /// system default input's UID. A device whose UID or name cannot be read is not
-    /// listed.
+    /// The present devices with at least one input channel and not private to one
+    /// process, in HAL order, and the system default input's UID. A device whose UID
+    /// or name cannot be read is not listed.
     public func inputDevices() -> InputDevices {
         let present = deviceIDs().compactMap { deviceID -> InputDevice? in
             guard inputChannelCount(of: deviceID) > 0,
+                  !isPrivateAggregate(deviceID),
                   let uid = readDeviceString(deviceID, selector: kAudioDevicePropertyDeviceUID),
                   let name = readDeviceString(deviceID, selector: kAudioObjectPropertyName)
             else { return nil }
@@ -114,6 +116,29 @@ public struct CoreAudioInputDevices: Sendable {
         var deviceIDs = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
         guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &deviceIDs) == noErr else { return [] }
         return Array(deviceIDs.prefix(Int(size) / MemoryLayout<AudioDeviceID>.size))
+    }
+
+    /// Whether the device is an aggregate private to the process that created it,
+    /// such as the one the HAL makes for a process that opens the default input.
+    /// false when unreadable.
+    private func isPrivateAggregate(_ deviceID: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var transport = UInt32(0)
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transport) == noErr,
+              transport == kAudioDeviceTransportTypeAggregate else { return false }
+        address.mSelector = kAudioAggregateDevicePropertyComposition
+        var composition: Unmanaged<CFDictionary>?
+        size = UInt32(MemoryLayout<Unmanaged<CFDictionary>?>.size)
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &composition) == noErr,
+              let composition else { return false }
+        // The HAL returns a dictionary the caller releases.
+        let isPrivate = (composition.takeRetainedValue() as? [String: Any])?[kAudioAggregateDeviceIsPrivateKey] as? Int
+        return (isPrivate ?? 0) != 0
     }
 
     /// The device's input channels across all its input streams; 0 when unreadable.
