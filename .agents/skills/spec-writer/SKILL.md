@@ -93,7 +93,8 @@ pipeline law.
     law's skeleton line: none may survive. On a failure, fix and check
     again. Never push a known failure for the reviewer to catch.
 12. **Stage explicitly.** The index lists only paths in the item's
-    specification directory.
+    specification directory. Commit with a message that carries no CI skip
+    instruction (`AGENTS.md`, "Before you open a pull request").
 13. **Push, then read both files back** from the pushed branch and compare
     them with what you wrote. Not confirmed: fix and push again, up to the
     bound on the writer's file read-back (the law, "Bounds"). Still not: a

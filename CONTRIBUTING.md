@@ -88,6 +88,8 @@ request — which produces a signed (but not notarized) DMG; see
       title, or from the single commit's message. `git-cliff` classifies
       that header (`cliff.toml`). Any other header merges green but releases
       nothing ([docs/release-ci.md](docs/release-ci.md)).
+- [ ] No commit message on the branch carries a CI skip instruction
+      ([AGENTS.md](AGENTS.md#before-you-open-a-pull-request)).
 - [ ] No secrets, local databases, seeds, or signing material are staged.
 - [ ] User-facing behavior changes are documented.
 - [ ] Security or privacy boundary changes are called out explicitly.

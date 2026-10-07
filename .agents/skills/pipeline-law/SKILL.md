@@ -500,9 +500,10 @@ discriminator, or the branch the clerk is about to open an item from.
 - the implementer: its slices, its conflict merges and its final slice.
 
 Each push starts CI on the pull request as a side effect. That is the
-accepted price. No role dispatches or re-runs a CI pipeline, and no role
-suppresses CI with a message token, a path filter or a draft condition: a
-skip token could switch off a release in silence.
+accepted price. No role dispatches or re-runs a CI pipeline. No role
+suppresses CI with a path filter, a draft condition or a skip instruction in
+a commit message (`AGENTS.md`, "Before you open a pull request"): a skip
+instruction could switch off a release in silence.
 
 ## The owner's control surface
 
