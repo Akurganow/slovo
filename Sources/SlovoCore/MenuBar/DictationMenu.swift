@@ -41,6 +41,10 @@ public enum DictationMenuItem: Equatable, Sendable {
     /// are omitted and this single affordance takes their separator-delimited slot.
     case addOpenRouterKey
     case addVocabulary
+    /// The Microphone submenu. It carries no data: its rows follow the input devices
+    /// and the choice in state through their own listener, so a device event never
+    /// rebuilds the menu.
+    case microphone
     /// The mute-while-dictating switch; the argument is the current setting so the
     /// builder renders the checkmark.
     case muteWhileDictating(isOn: Bool)
@@ -89,8 +93,8 @@ public enum DictationMenu {
     /// The dropdown's top-level items in display order, grouped by role so each part
     /// reads where it is expected: the header (the status line, and the fn conflict
     /// notice when it applies), then the untitled cleanup block (see
-    /// `cleanupBlock`), the vocabulary block (Add Vocabulary with the
-    /// availability-independent mute switch adjacent to it), and the bottom section
+    /// `cleanupBlock`), the vocabulary block (Add Vocabulary, the Microphone submenu,
+    /// then the availability-independent Mute and Sound Cues switches), and the bottom section
     /// holding Settings, then About, then Quit — each group fenced by a separator.
     /// The status row is seeded with `rows.statusLine`, the line the app shows now,
     /// so a rebuild keeps it.
@@ -115,6 +119,7 @@ public enum DictationMenu {
         ) + [
             .separator,
             .addVocabulary,
+            .microphone,
             .muteWhileDictating(isOn: mutesSystemAudioWhileDictating),
             .soundCues(isOn: playsDictationSoundCues),
             .separator,

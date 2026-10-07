@@ -111,6 +111,13 @@ struct DictationMenuBuilder {
             menu.addItem(entry)
         case .addVocabulary:
             menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
+        case .microphone:
+            // The submenu's rows are the renderer's; the item keeps one submenu object
+            // so an open dropdown keeps its item.
+            let entry = NSMenuItem(title: "Microphone", action: nil, keyEquivalent: "")
+            entry.submenu = NSMenu(title: "Microphone")
+            target.microphoneMenuItem = entry
+            menu.addItem(entry)
         case .muteWhileDictating(let isOn):
             let entry = target.actionItem(
                 "Mute Audio While Dictating",

@@ -89,16 +89,18 @@ extension AppDelegate {
         }
     }
 
-    /// Re-reads two system facts into state in one update: the live macOS fn
-    /// assignment and the default output device's mute availability. Their row
-    /// listeners update the fn notice and the mute item. Then it re-renders the
-    /// update row from state, which undoes a highlight swap that left "Restart" on
-    /// the row. The read here keeps the dropdown right even when the CoreAudio
-    /// listener failed to register or was lost to an audio service reset.
+    /// Re-reads three system facts into state in one update: the live macOS fn
+    /// assignment, the default output device's mute availability and the input
+    /// devices. Their row listeners update the fn notice, the mute item and the
+    /// Microphone submenu. Then it re-renders the update row from state, which undoes
+    /// a highlight swap that left "Restart" on the row. The reads here keep the
+    /// dropdown right even when a CoreAudio listener failed to register or was lost
+    /// to an audio service reset.
     func menuWillOpen(_ menu: NSMenu) {
         store.update {
             $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned
             $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
+            $0.inputDevices = CoreAudioInputDevices().inputDevices()
         }
         renderUpdateIndication(store.state.updateIndication)
     }

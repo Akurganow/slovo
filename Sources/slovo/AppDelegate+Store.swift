@@ -35,7 +35,8 @@ extension AppDelegate {
                     structure.input,
                     rows: DictationMenuRows(statusLine: state.statusLineText, isFnKeySystemAssigned: state.isFnKeySystemAssigned),
                     indication: state.updateIndication,
-                    muteAvailability: state.outputMuteAvailability
+                    muteAvailability: state.outputMuteAvailability,
+                    inputDeviceChoice: state.inputDeviceChoice
                 )
             case .onboarding(let steps):
                 statusItem?.menu = makeOnboardingMenu(for: steps)
@@ -54,6 +55,9 @@ extension AppDelegate {
         }
         store.listen(\.outputMuteAvailability) { [weak self] availability in
             self?.renderMuteAvailability(availability)
+        }
+        store.listen(\.inputDeviceChoice) { [weak self] choice in
+            self?.renderMicrophoneMenu(choice)
         }
     }
 }

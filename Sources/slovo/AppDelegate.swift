@@ -56,6 +56,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // The dictation menu's mute item, stored by DictationMenuBuilder on every
     // dictation build; renderMuteAvailability enables or disables it in place.
     var muteMenuItem: NSMenuItem?
+    // The dictation menu's Microphone item, stored by DictationMenuBuilder on every
+    // dictation build; renderMicrophoneMenu refills its submenu in place.
+    var microphoneMenuItem: NSMenuItem?
 
     init(
         logger: Logger,
@@ -83,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = item
         startStoreEffects()
         startObservingOutputMuteAvailability()
+        startObservingInputDevices()
         startPipeline()
         startUpdater()
         logger.info("menu bar app ready")
@@ -92,12 +96,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         _ input: DictationMenuInput,
         rows: DictationMenuRows,
         indication: UpdateIndication,
-        muteAvailability: OutputMuteAvailability
+        muteAvailability: OutputMuteAvailability,
+        inputDeviceChoice: InputDeviceChoice
     ) -> NSMenu {
         let built = DictationMenuBuilder(target: self).make(input, rows: rows)
         statusTextItem = built.statusItem
         renderUpdateIndication(indication)
         renderMuteAvailability(muteAvailability)
+        renderMicrophoneMenu(inputDeviceChoice)
         return built.menu
     }
 

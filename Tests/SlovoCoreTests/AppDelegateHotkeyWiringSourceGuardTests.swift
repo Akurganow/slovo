@@ -367,11 +367,12 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// The system facts the dropdown shows must be re-read on every menu OPEN, not
-    /// only at a rebuild: the user changes the fn assignment in System Settings, or
-    /// the default output device, while the app runs, and the very next open must
-    /// reflect it. menuWillOpen writes both live values into state; the row
-    /// listeners update the fn notice and the mute item.
-    /// Stated sensitivity: drop either write from menuWillOpen → RED.
+    /// only at a rebuild: the user changes the fn assignment in System Settings, the
+    /// default output device or the input devices while the app runs, and the very
+    /// next open must reflect it. menuWillOpen writes the three live values into
+    /// state; the row listeners update the fn notice, the mute item and the
+    /// Microphone submenu.
+    /// Stated sensitivity: drop any write from menuWillOpen → RED.
     @Test
     func systemFactsAreReReadOnMenuOpen() throws {
         let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
@@ -380,6 +381,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "menuWillOpen must write the live fn-assignment value into state")
         #expect(menuWillOpen.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
                 "menuWillOpen must write the live output mute availability into state")
+        #expect(menuWillOpen.contains("inputDevices = CoreAudioInputDevices().inputDevices()"),
+                "menuWillOpen must write the live input devices into state")
     }
 
     /// The fn verdict reaches the menu only through state: the init seed and
