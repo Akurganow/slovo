@@ -13,15 +13,18 @@ name: Release
 #     creates no tag and no release.
 #
 # Humans never run release commands, edit versions, or push tags — the pipeline is
-# the only path. The publish job pushes the bump commit and tag with GITHUB_TOKEN,
-# whose pushes deliberately do NOT re-trigger workflows (GitHub loop protection);
-# together with `[skip ci]` this is why the release completes in a single run and
-# needs no PAT. There is no standalone `tags: v*` trigger: tags are created by this
-# pipeline, so a second, tag-triggered packaging run can never double-fire.
+# the only path. The publish job pushes the bump commit and tag over SSH with a
+# write-access deploy key: deploy keys bypass the `main` ruleset's pull-request
+# rule, and the GITHUB_TOKEN (the GitHub Actions app) does not. A deploy-key push does
+# start workflow runs. `[skip ci]` in the bump commit skips every push-triggered
+# workflow, and no workflow triggers on tags, so the release completes in a single
+# run and needs no PAT. There is no standalone `tags: v*` trigger: tags are created
+# by this pipeline, so a second, tag-triggered packaging run can never double-fire.
 #
 # Never runs on pull_request: fork PRs get no secrets, and packaging must never be
 # exposed to untrusted code. Signing secrets live in the protected `release`
-# environment and are reachable only from the packaging job.
+# environment and are reachable only from the packaging job. The deploy key lives
+# alone in the `release-push` environment and is reachable only from the publish job.
 on:
   push:
     branches: [ "main" ]
@@ -229,15 +232,20 @@ jobs:
     # from the packaged one — a Linux runner has neither tool (exit 127).
     if: needs.decide.outputs.releasable == 'true'
     runs-on: macos-26
+    # Holds only the deploy key; the signing secrets stay in `release`.
+    environment: release-push
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
           # Full history so the committed CFBundleVersion matches the packaged one
-          # deterministically. persist-credentials (default) lets the GITHUB_TOKEN
-          # push the bump commit and tag; those pushes do not re-trigger workflows.
+          # deterministically.
           fetch-depth: 0
+          # persist-credentials (default) keeps the key in the git config, so the
+          # bump commit and tag push over SSH as the deploy key. gh release create
+          # below stays on GITHUB_TOKEN: creating a release is not a branch push.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - name: Download signed artifacts
         uses: actions/download-artifact@v8
         with:
