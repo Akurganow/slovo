@@ -165,8 +165,10 @@ by line:
   writes one. The stop line is the newest stop.
 - `<role>` is exactly one of `spec-writer`, `spec-reviewer`, `gate`,
   `implementer`. A token spelled any other way is a marker nobody can find.
-- `cr_rounds` counts requests to an outside reviewer. Its seed and its bound
-  are the pipeline law's, "Bounds".
+- `cr_rounds` counts requests to the outside reviewer. Its seed and its
+  bound are the pipeline law's, "Bounds".
+- Once the clerk first asks the outside reviewer, the block also holds the
+  clerk's `pipeline-cr` line ("The pipeline clerk's records").
 - A stop is also the last line of the stop comment, in the same line shape.
 - **Writers:** the pipeline roles, one writer per counter and per line, as
   the pipeline law, "Where state lives", assigns them. The pipeline clerk
@@ -206,6 +208,7 @@ key, for either outcome:
 ```
 <!-- pipeline-stale: sources=#<a>,#<b> at=<UTC> -->
 <!-- pipeline-carried: item=#<cr> verdict_tree=<12 hex> merge=<sha> at=<UTC> -->
+<!-- pipeline-cr: head=<12 hex> outcome=asking|asked|returned|clean findings=<n> at=<UTC> -->
 ```
 
 - `pipeline-stale` is the last line of the comment on an item closed because
@@ -213,6 +216,10 @@ key, for either outcome:
   one conflict merge the pipeline clerk made into an item whose
   implementation was already accepted: one comment per merge, never
   rewritten.
+- `pipeline-cr` is the outside review's state: a line of the state block,
+  rewritten with the block. `head=` names the head the request asked about,
+  `outcome=` the step the clerk's round reached, and `findings=` the count
+  of actionable findings in the answer, 0 until one returns.
 - Comment openers, each the comment's first line exactly, one source or
   blocker per comment:
   - `Narrowing: #<n> closed as <reason>`, where `<reason>` is the close
