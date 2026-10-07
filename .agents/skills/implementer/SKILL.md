@@ -106,15 +106,16 @@ final slice has not run, and the gate's completion line decides whether the
 gate runs. Absent means the gate is over.
 
 A return of kind 1 or 2 moves the tree. A return of kind 5, a send-back, a
-narrowing and a restore move it where they change work. Whatever moves the
-tree finishes from step 4 of "The final slice": push, rerun the exit
-criteria, record the tree id, and run the trio. Hand off only on an accepted
-verdict.
+narrowing, a restore and the owner's release of a parked item move it where
+they change work. Whatever moves the tree finishes from step 4 of "The final
+slice": push, rerun the exit criteria, record the tree id, and run the trio.
+Hand off only on an accepted verdict.
 
-Where they change no work, such as findings all answered as out of scope,
-the tree does not move and no trio runs:
+Where they change no work, such as findings all answered as out of scope or
+a release that left nothing to work, the tree does not move and no trio
+runs:
 
-1. answer each finding by id in one summary comment;
+1. answer each finding by id in one summary comment, where there are any;
 2. take the last read;
 3. rewrite your completion line with `at=` that time, keeping its tree and
    outcome;

@@ -257,7 +257,10 @@ was wrong, as each says.
   named no stage. A stage applied beside `pipeline/stuck` resumes nothing,
   and a reviewer bound needs the writer. The comment now names the label,
   and the owner makes it the only stage label, then removes
-  `pipeline/stuck`.
+  `pipeline/stuck`. The fresh-round test named only the clerk's re-entry
+  or the owner's release as the label's application. It now also counts the
+  hand-on of a stage that act woke, so the writer's revision after the
+  release earns the reviewer or the gate its one more round.
 - **The marker inventory is complete.** Each stage comment kind has its
   step, the skeleton line lives in the pipeline law, the pipeline clerk is
   a reader of the taken marker, and the fields no role branches on are

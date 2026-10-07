@@ -378,9 +378,10 @@ un-stick or a repair. Every number here lives here and nowhere else.
 both hold:
 
 - the bound's own key moved since the stop;
-- the stage's input label was applied after the stop's `at=`, and after its
-  `spent_at=` where that is set. That application is the clerk's re-entry
-  or the owner's release.
+- the clerk's re-entry or the owner's release came after the stop's `at=`,
+  and after its `spent_at=` where that is set, and the stage's input label
+  was applied since: by that act, or by the hand-on of a stage it woke. A
+  stage's hand-on with no such act before it grants nothing.
 
 Whoever takes the fresh round writes `spent_at` on the stop it spends: a
 stage in the body write that records the round's outcome, the clerk in the
