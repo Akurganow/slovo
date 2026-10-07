@@ -296,12 +296,14 @@ mono output. Slovo immediately forwards each resulting chunk to live recognition
   `stop()`, optionally run one final `convert` with `inputStatus = .endOfStream`
   to drain the converter's remaining output (TN3136). For dictation the loss is
   usually inaudible, but flush if the ASR is sensitive to clipped word endings.
-- **Engine restart.** Build a fresh `AVAudioEngine` per capture and observe
-  `AVAudioEngineConfigurationChange`. Reusing one engine across sessions caches
-  the input hardware format, so after an audio device change (e.g. unplugging
-  headphones) `installTap` asserts `format.sampleRate == hwFormat.sampleRate`,
-  raises an `NSException`, and the process aborts. A fresh engine re-queries the
-  current device; the small startup cost is acceptable for push-to-talk.
+- **Engine restart.** Build a fresh `AVAudioEngine` per capture. Reusing one
+  engine across sessions caches the input hardware format, so after an audio
+  device change (e.g. unplugging headphones) `installTap` asserts
+  `format.sampleRate == hwFormat.sampleRate`, raises an `NSException`, and the
+  process aborts. A fresh engine re-queries the current device; the small startup
+  cost is acceptable for push-to-talk. Slovo does not observe the engine's
+  configuration change notification: assigning a device posts it at start while
+  the engine keeps running.
 
 ## Full sources
 
