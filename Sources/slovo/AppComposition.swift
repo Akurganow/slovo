@@ -10,6 +10,7 @@ enum AppComposition {
         let modelWarmUp: Task<Void, Never>
         let personalization: GRDBPersonalizationSource
         let cueController: any DictationCueController
+        let recorder: AVAudioEngineRecorder
     }
 
     static func makeLive(
@@ -86,7 +87,8 @@ enum AppComposition {
             permissionRequester: permissionPreflighter,
             modelWarmUp: modelWarmUp,
             personalization: source,
-            cueController: cueController
+            cueController: cueController,
+            recorder: recorder
         )
     }
 

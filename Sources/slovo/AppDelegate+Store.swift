@@ -14,6 +14,7 @@ extension AppDelegate {
             reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) },
             cueController: { [weak self] in self?.composition?.cueController },
             updaterSwitch: { [weak self] in self?.updaterCoordinator?.updater },
+            updateInputDevice: { [weak self] in self?.composition?.recorder.updatePreferredInputDevice($0) },
             // Built per fetch over the app's one key provider: no second Keychain
             // read path, no stored fetcher.
             fetchScopeIds: {
