@@ -55,7 +55,7 @@ struct WhisperSampleConverterTests {
 
     /// The pair clipped to the delivered buffer, else channels 1 and 2 clipped to it,
     /// as zero-based indices. Never empty for a buffer with a channel.
-    /// Stated sensitivity: drop the `- 1`, drop the clip, return `[]` or nil for an
+    /// Stated sensitivity: drop the `- 1`, drop the clip, return `[]` for an
     /// empty result, or fall back to all channels → RED.
     @Test
     func mixedChannelIndicesClipsThePairToTheBuffer() {

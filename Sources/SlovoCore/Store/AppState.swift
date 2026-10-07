@@ -20,9 +20,9 @@ public struct AppState: Equatable, Sendable {
     /// listener updates it in place. The default is never shown, because Settings
     /// opens only from the dropdown, whose open re-reads this.
     public var outputMuteAvailability: OutputMuteAvailability = .available
-    /// The present input devices and the system default input. Re-read on each menu
-    /// open and on each device-list or default-input change. Not in `menuStructure`:
-    /// the Microphone submenu's row listener updates it in place.
+    /// The present input devices and the system default input. Read once at launch,
+    /// then on each menu open and each device-list or default-input change. Not in
+    /// `menuStructure`: the Microphone submenu's row listener updates it in place.
     public var inputDevices = InputDevices()
     public var updateIndication: UpdateIndication = .idle
     /// The pane Settings… opens: the last one the user viewed, About excepted.

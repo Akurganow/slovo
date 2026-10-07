@@ -53,7 +53,7 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   preferred stereo pair, read once per capture start. The converter mixes that pair
   to mono before resampling; a mono device passes through unchanged. With a
   chosen microphone present, the recorder assigns it to the fresh engine's input
-  node; a chosen device that is absent falls back to the system default. On both
+  node. A chosen device that is absent falls back to the system default. On both
   paths the tap takes the node's input format, read after any assignment, since
   the node's output format can still be the previous device's.
 - `DictationCueController` snapshots the on-by-default Sound Cues preference per
@@ -214,7 +214,8 @@ nothing.
 
 Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
 SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
-tap, the cue controller, the updater switch and the scope fetch. The app target
+tap and the cue controller. It also registers the recorder's input device, the
+updater switch and the scope fetch. The app target
 adds only what needs AppKit: the menu's build subscriber and its five row
 listeners, described below.
 
@@ -254,8 +255,8 @@ menu re-reads the fn assignment, the output device's mute availability and the
 input devices, and re-renders the update row. A CoreAudio listener on the default
 output device also writes the availability, so an open Settings window follows a
 device switch. A second listener, on the device list and the default input, writes
-the input devices, so the Microphone submenu and an open Settings window follow a
-plug, an unplug or a default-input change.
+the input devices. The Microphone submenu and an open Settings window then follow
+a plug, an unplug or a default-input change.
 
 One effect is not a projection of state. The idle glyph repaints on every Sparkle
 callback, changed indication or not, through the coordinator's per-event

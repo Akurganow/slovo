@@ -7,8 +7,9 @@ extension AppDelegate {
     /// plug, an unplug or a default-input switch. The handler only writes the store.
     /// A failed registration leaves the dropdown right, since each open re-reads the
     /// devices; only an open Settings window stops following that address. The
-    /// first read follows the registration, so no change falls between the two, and
-    /// nothing renders against the empty default device list.
+    /// first read follows the registration, so no change falls between the two. The
+    /// menu's first build precedes it and shows System Default alone. This read
+    /// refills that submenu in the same turn, before anyone can open it.
     func startObservingInputDevices() {
         let inputDevices = CoreAudioInputDevices()
         let failed = inputDevices.observeInputDevices { [weak self] devices in

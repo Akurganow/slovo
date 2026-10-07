@@ -514,7 +514,7 @@ struct AppRuntimeSourceGuardTests {
         let observe = try Self.functionBody(named: "startObservingInputDevices", in: inputDevice)
         #expect(observe.contains("$0.inputDevices = devices"), "the listener's reading must reach the store")
         #expect(observe.contains("$0.inputDevices = inputDevices.inputDevices()"),
-                "launch must read the devices once, so nothing renders against the empty default")
+                "launch must read the devices once, refilling the first menu build before it opens")
         let select = try Self.functionBody(named: "selectInputDevice", in: inputDevice)
         #expect(select.contains("$0.config.preferredInputDevice ="), "a row must write the preference")
         let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)

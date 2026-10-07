@@ -188,7 +188,7 @@ struct AVAudioEngineRecorderSourceGuardTests {
     /// Sensitivity: delete the validator call or order `installTap` ahead of it → RED.
     /// A unit test of the validator alone stays green, which is the false green this closes.
     /// Stated sensitivity: read the format before assigning, read the output format
-    /// instead of the input format, or assign after the tap → RED.
+    /// instead of the input format, assign after the tap, or tap with `format: nil` → RED.
     @Test
     func recorderSourceValidatesFormatBeforeInstallingTap() throws {
         let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
@@ -199,6 +199,7 @@ struct AVAudioEngineRecorderSourceGuardTests {
             "inputFormat(forBus: 0)",
             "AudioTapFormatValidator",
             "installTap(onBus:",
+            "format: inputFormat)",
         ], in: startBody),
         "start() must assign the chosen device, then read the node's input format and validate it before installTap")
     }

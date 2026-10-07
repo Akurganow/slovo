@@ -54,7 +54,7 @@ tuned.
   specific device. A chosen device that is not connected falls back to the system
   default, and Settings says so.
 - Multi-channel audio interfaces are recorded from their main stereo pair, the two
-  inputs macOS uses for stereo, so a loopback pair on other channels stays out of
+  inputs macOS uses for stereo. A loopback pair on other channels stays out of
   dictation.
 - **Sound Cues** for recording readiness, key-up, and failures (on by default),
   switchable in Settings → General or beside Mute in the menu-bar dropdown. Cues

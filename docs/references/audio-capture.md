@@ -207,8 +207,8 @@ final class MicCapture {
 
         // Build the converter from the live hardware format to the ASR format.
         converter = AVAudioConverter(from: hwFormat, to: targetFormat)
-        // Tap with format: nil to receive buffers in the node's own format.
-        input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
+        // Tap in the same input format the converter reads.
+        input.installTap(onBus: 0, bufferSize: 4096, format: hwFormat) { [weak self] buffer, _ in
             self?.append(buffer)   // runs off the main thread
         }
 
@@ -274,10 +274,11 @@ mono output. Slovo immediately forwards each resulting chunk to live recognition
   audio.
 - **Stereo → mono.** Some inputs report 2 channels. Letting `AVAudioConverter`
   target a 1-channel format performs the downmix for you; do not assume mono.
-- **`format: nil` vs. explicit format on the tap.** Passing `nil` gives buffers
-  in the node's native format (recommended — let the converter do all the work).
-  If you pass an explicit format it must be compatible with the node's format or
-  the tap install fails. Do not try to make the tap itself output 16 kHz; the tap
+- **The tap's format.** Slovo passes the node's input format object,
+  `inputFormat(forBus: 0)`, as the tap format. Passing `nil` gives buffers in the
+  output bus format. After a device assignment that bus can still hold the previous
+  device's format. An explicit format must be compatible with the node's format,
+  or the tap install fails. Do not try to make the tap itself output 16 kHz; the tap
   is not a resampler.
 - **Tap block runs off the main thread.** Keep `append` allocation-light and
   never touch UI or AppKit from it. Forward each converted chunk to the

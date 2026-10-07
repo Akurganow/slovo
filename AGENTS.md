@@ -96,11 +96,11 @@ Clarifications:
   dictation. On an output device where macOS can set neither the mute nor the
   volume, both switches are disabled and Settings explains why.
 - **Microphone.** A **Microphone** choice in Settings → General and in the
-  menu-bar dropdown picks the input device dictation records from: System Default
-  (the default) or one specific device, remembered across launches. When the
-  chosen device is not connected or has no input, dictation records from the
-  system default with no failure glyph and no cue; only Settings says so, naming
-  both devices. A change applies from the next dictation; a dictation in progress
+  menu-bar dropdown picks the input device dictation records from. It offers
+  System Default (the default) or one specific device, remembered across launches.
+  When the chosen device is not connected or has no input, dictation records from
+  the system default with no failure glyph and no cue. Only Settings says so,
+  naming both devices. A change applies from the next dictation; a dictation in progress
   keeps its device.
 - **Sound cues.** A switch in Settings → General and beside Mute in the menu-bar
   dropdown is on by default.
