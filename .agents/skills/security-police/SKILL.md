@@ -67,7 +67,8 @@ does.
 ## Your row of the ownership table
 
 "Security police" in `.agents/rules/filing.md`, "Ownership routing". Rule of
-thumb: no outsider in the scenario, no finding here.
+thumb: no outsider in the scenario, no finding here. A leak of data with no
+outsider in it is the privacy police's. One an outsider causes is yours.
 
 ## The fence
 

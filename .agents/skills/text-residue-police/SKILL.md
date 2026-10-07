@@ -96,8 +96,9 @@ its measured size. Otherwise read only the hits.
     specification describes work on purpose. A template is boilerplate on
     purpose. A reference describes the platform rather than this code.
   - A false or unsourced sentence about an outside system or a released
-    artifact is not yours: route it (`.agents/rules/filing.md`, "Ownership
-    routing").
+    artifact is not yours, and neither is a sentence of `docs/privacy.md`
+    the code no longer bears out: route it (`.agents/rules/filing.md`,
+    "Ownership routing").
   - Excluded: machine-written text, data, the fleet's instructions and
     `docs/architecture.md` (`.agents/rules/text-residue.md`, "Protected:
     never a finding"). `CHANGELOG.md` is excluded too: an entry describes the

@@ -307,10 +307,11 @@ verifier's `belongs_to` field resolves against this table.
 
 | Role | Owns |
 | :-- | :-- |
-| Logic police | Code that computes the wrong thing, crashes, races or corrupts state, on a reachable path **with no adversary in it** |
+| Logic police | Code that computes the wrong thing, crashes, races or corrupts state, on a reachable path **with no adversary in it**. Never data taken beyond what `docs/privacy.md` allows, which is privacy's |
 | Abstraction police | An abstraction that is dead, superfluous, wrong or duplicated: a type, protocol, generic parameter, wrapper, module, build target or layer, or a concept modelled twice. Stops at the test tree |
 | Proportion police | A mechanism out of proportion to what it does. A part a half-landed change left pointless. Nonsense where two features meet, including a guard for a state an upstream layer already made impossible. A tool that never fit, including hand-rolled code that a dependency the package already ships would do. Never proposes a new dependency |
-| Security police | A path by which **an outside party** could exploit the code, a pipeline, a secret, the update feed, or a role that reads their text. An outsider in the scenario makes a finding this row's, except a published advisory on a dependency |
+| Privacy police | Data that leaves the Mac, or persists or is exposed on it, beyond what `docs/privacy.md` allows, on a path **with no adversary in it**. A row or statement of `docs/privacy.md` the code no longer bears out |
+| Security police | A path by which **an outside party** could exploit the code, a pipeline, a secret, the update feed, or a role that reads their text. An outsider in the scenario makes a finding this row's, a leak of data among it, except a published advisory on a dependency |
 | Dependency police | The update bot's pull requests, and published advisories that no bot pull request answers. Takes nothing routed to it |
 | Text-residue police | Text that carries no fact, or a false one about the repository's own tree: comments, names, doc comments, test names, strings, documents. A test or gate check that cannot fail. What the process that wrote a change left behind. Never the fleet's instructions |
 | Test police | A test that can fail but fails for a reason other than the product, or costs more than it protects. Helpers and abstractions under the test tree. The seam by which tests reach the code |
@@ -320,6 +321,8 @@ Secondary rules:
 
 - A swallowed error or hidden fallback with a reachable wrong result is
   logic.
+- A sentence of `docs/privacy.md` the code no longer bears out is privacy's
+  `drift`, never text residue's `lying`.
 - A guard for an impossible state or an oversized mechanism is proportion.
 - A thin wrapper, a one-implementor protocol and a duplicated helper are
   abstraction.

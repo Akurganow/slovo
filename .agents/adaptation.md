@@ -32,7 +32,8 @@ not restate the value: the place is the authority.
   (`.agents/rules/boundaries.md`, "What never appears in the tree or on a
   published page").
 - **Names are the specification's defaults**: the role ids and the rule-file
-  names.
+  names. The privacy police, which the specification does not name, takes
+  the id `privacy-police` ("Departures").
 - **Directives adopted** from the specification's list of owner directives:
   documentation first; nobody checks their own work; prefer a mature
   dependency over hand-rolled code; strict about our own data, never strict
@@ -62,7 +63,7 @@ not restate the value: the place is the authority.
 | `ARCHITECTURE_DOC` | `docs/architecture.md` | The layering and mechanism document |
 | `DESIGN_DOCS` | `docs/architecture.md` | The default. Storage and the cleanup request are described there, in "Storage" and "Cleanup Mechanism"; no separate stored-format document exists |
 | `FORMAT_DOCS` | Empty | No document beyond `docs/architecture.md` fixes a stored or wire format |
-| `PRIVACY_PROMISES` | `docs/privacy.md`; `AGENTS.md`, "Before you open a pull request"; `SECURITY.md`, "Current Boundaries" | Raw audio stays local. Only transcript text leaves, for cleanup, plus the key-scope request that carries no user content |
+| `PRIVACY_PROMISES` | `docs/privacy.md`; `AGENTS.md`, "Before you open a pull request"; `README.md`, "Privacy Model" and "Support"; `SECURITY.md`, "Current Boundaries" | Raw audio stays local. Only transcript text leaves, for cleanup, plus the key-scope request that carries no user content. The app has no telemetry |
 | `OWNER_DIRECTIVES` | `AGENTS.md`, "Standing owner directives", "Non-negotiable principles" and "Engineering process" | The owner's recorded rules, the adopted directives among them |
 | `RECORDED_ANSWERS` | `.agents/rules/design-vocabulary.md`, "Recorded answers in this tree" | Shapes the tree already argues for |
 | `CLOSED_PATHS` | `.agents/rules/boundaries.md`, "Closed paths" | The release pipeline writes them, or they are never committed |
@@ -200,9 +201,19 @@ makes it.
 
 ## Departures
 
-Each value below differs from the specification's default because a fact of
-this repository forced it.
+Each value below differs from the specification's default. A fact of this
+repository forced it, or the owner chose it, as each says.
 
+- **The owner added a privacy police**,
+  `.agents/skills/privacy-police/SKILL.md`. Slovo's identity is privacy:
+  `docs/privacy.md` holds the data-path table, and `AGENTS.md` and
+  `README.md` state the promises it keeps. A leak with no adversary would
+  otherwise have no owner: the logic police meets one only in passing, and
+  the security police owns only the attacker's path. The role extends the
+  specification on the police skeleton every police role shares
+  (`.agents/rules/police.md`). It owns its row of `.agents/rules/filing.md`,
+  "Ownership routing", which the logic police's row gives up, and it holds
+  no bound, table or vocabulary another file already holds.
 - **The test kinds keep the testing reference's wording.**
   `.agents/rules/tests.md` takes its kind definitions and measurements word
   for word from `docs/references/testing-swift.md`, "5. The criteria a review

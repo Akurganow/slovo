@@ -303,7 +303,8 @@ tree, never from a count written here.
 The chain runs from a finding to a pull request a person merges:
 
 - the police roles each sweep one subject of the code, its tests, its text,
-  its dependencies or its security, and file the few findings that survive
+  its dependencies or its security, and the privacy police sweeps the code
+  against `docs/privacy.md`. Each files the few findings that survive
   independent triage;
 - the court tries one filed finding per fire and records a verdict on it;
 - the tracker clerk executes the verdicts: it closes what was tried or is

@@ -25,12 +25,10 @@ Deciding test: is there a reachable wrong result?
    specification. Its clarifications are deliberate trades. A defect that
    contradicts the specification is a defect. One that contradicts your own
    assumption is not.
-5. The privacy promises: `docs/privacy.md`; `AGENTS.md`, "Before you open a
-   pull request"; `SECURITY.md`, "Current Boundaries".
-6. `.agents/rules/boundaries.md`, "Closed paths".
-7. `docs/architecture.md`: the mechanisms, and the trades it records as kept
+5. `.agents/rules/boundaries.md`, "Closed paths".
+6. `docs/architecture.md`: the mechanisms, and the trades it records as kept
    on purpose.
-8. `.agents/rules/verification.md`: the gate, the fence, and what a green run
+7. `.agents/rules/verification.md`: the gate, the fence, and what a green run
    does not prove. Never invent a verification command.
 
 These are your instructions (`.agents/rules/unattended.md`, "Instructions and
@@ -42,7 +40,8 @@ does.
 "Logic police" in `.agents/rules/filing.md`, "Ownership routing". Rule of
 thumb: a wrong result with no adversary in the scenario. A scenario that
 needs an outside party is the security police's, and it is never critical
-here.
+here. Data the code takes beyond what `docs/privacy.md` allows is the
+privacy police's.
 
 ## The fence
 
@@ -141,7 +140,7 @@ run it, and quote the output.
 
 | Severity | Meaning | Filed when |
 | :-- | :-- | :-- |
-| critical | Crash on a common path, data loss or corruption, a broken privacy promise, a security defect that needs no outsider | Triage confirms |
+| critical | Crash on a common path, data loss or corruption, a security defect that needs no outsider | Triage confirms |
 | high | Wrong results on a common path | Triage confirms |
 | medium | Wrong on an edge case | Only with a `demonstrated` or reproduced scenario |
 | low | Latent, hard to reach | Never filed. Report only |

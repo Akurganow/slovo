@@ -44,6 +44,7 @@ police opens:
 | `logic-police` | `<path>::<symbol>::<defect-class>` | Always |
 | `abstraction-police` | `<path>::<symbol>::<kind>` | Never |
 | `proportion-police` | `<path>::<symbol>::<kind>` | Never |
+| `privacy-police` | `<path>::<symbol>::<kind>` | Never |
 | `security-police` | `<surface>::<path>::<defect-class>` | Always |
 | `dependency-police` | `<dependency>::<advisory-id>::advisory` | Never |
 | `text-residue-police` | `<path>::<symbol-or-concept>::<kind>` | Never |

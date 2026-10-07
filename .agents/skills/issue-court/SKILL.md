@@ -29,7 +29,8 @@ executes your verdicts, and no role downstream argues with one.
    must work", in full.
 6. `docs/architecture.md`: the layering and the mechanisms.
 7. The privacy promises: `docs/privacy.md`; `AGENTS.md`, "Before you open a
-   pull request"; `SECURITY.md`, "Current Boundaries".
+   pull request"; `README.md`, "Privacy Model" and "Support"; `SECURITY.md`,
+   "Current Boundaries".
 8. `.agents/rules/verification.md`: the gate a fix must pass, and the tests
    the gate does not run.
 9. The standing decisions a trial must not trip over:
@@ -58,15 +59,16 @@ role file, `.agents/skills/<role-id>/SKILL.md`, names the rulebook that
 judges its findings (`.agents/rules/police.md`, "Name the rulebook"). The
 issue body's `Judged by:` line names one too. Check it against the role file.
 Where they disagree, the role file wins, and the comment says which document
-applied. A finding must meet all three of these, and one that fails any is
-dismissed on that alone:
+applied. A finding judged by a catalogue, a rulebook with kinds, must meet
+all three of these, and one that fails any is dismissed on that alone:
 
 - it is one of the rulebook's kinds;
 - it is measured as that kind prescribes;
 - it is outside the rulebook's protected list.
 
 An agent-police finding names the authority it rests on. One naming none
-fails on that alone.
+fails on that alone. A privacy-police finding quotes the row or statement of
+`docs/privacy.md` it differs from. One quoting none fails on that alone.
 
 ## The queue
 
