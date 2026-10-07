@@ -69,7 +69,7 @@ The lint script runs:
 - shell syntax checks
 - plist and entitlements linting
 - strict SwiftLint, including the `custom_rules` that fence generator
-  residue (catalogue: `.agents/rules/slop.md`)
+  residue (catalogue: `.agents/rules/text-residue.md`)
 - SwiftLint analyzer checks over `Sources/` and `Tools/`, backed by a
   compiler log. The log must carry a `swiftc` invocation for every module
   the analyzer reads, and SwiftPM logs only what it actually compiles, so the

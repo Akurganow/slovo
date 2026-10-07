@@ -20,10 +20,11 @@ have to be repeated. Every agent and contributor follows them without being aske
    corpses, no "delete later" comments. The change that makes something legacy
    deletes it.
 3. **The owner manually verifies every deliverable.** After independent audit,
-   integrate the verified work into local main and produce the dev build — from
-   the `dev-build` label on the pull request, or via the approved launcher on a
-   Mac that can build (see below) — then hand it to the owner for a check of the
-   behaviour. Work is not done until the owner has a runnable dev build.
+   integrate the verified work into local main and produce the dev build — the
+   local build where one is available, otherwise from the `dev-build` label on
+   the pull request (see "Dev builds" below) — then hand it to the owner for a
+   check of the behaviour. Work is not done until the owner has a runnable dev
+   build.
 4. **Design attractor: data-driven.** Prefer directions that centralize state as
    data and derive views/effects as projections of it (reducers/selectors idiom:
    view = f(state), a single mutation path, effects as data). An attractor, not a
@@ -33,6 +34,24 @@ have to be repeated. Every agent and contributor follows them without being aske
    mechanism that makes the app safer or more reliable earns its keep — but the
    more moving parts, the likelier the failure, so always prefer the smallest
    mechanism that delivers the reliability.
+6. **Documentation first.** Read the official documentation before the source;
+   read the source only where the documentation does not answer.
+7. **Nobody checks their own work.** Implementing, reviewing and declaring
+   done are three different agents or people.
+8. **Prefer a mature dependency over hand-rolled code.** Hand-rolled code
+   carries a comment saying why no dependency fits. A police role never
+   proposes a new dependency: vetting one is a person's decision.
+9. **Strict about our own data, never strict at the agent.** Enforce in code,
+   not in instructions to a model. Where reliability matters, the agent
+   selects rather than restates.
+10. **Published history is never rewritten.** Commit identity is whatever the
+    environment produces.
+11. **Versions are never moved by hand.** The release tooling moves them.
+12. **The merge is the release confirmation.** A releasable merge publishes on
+    its own. Never build a switch that stops a merged change from publishing.
+13. **The model and the tool may be named anywhere. A session link never
+    appears in anything published:** it opens only for the owner, so to anyone
+    else it is noise.
 
 ## Product intent — how the app must work
 
@@ -174,29 +193,33 @@ Clarifications:
 
 ## Engineering process
 
-### User-testable app on this development Mac — one approved build path
+### Dev builds: one approved path
 
-When building an app for the user to test on this development Mac, use only the
-repository launcher with the exact stable Developer ID identity already
-installed in the macOS Keychain:
+A dev build is the runnable app the owner checks before a change ships.
 
-```sh
-SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" \
+- **Where a local build is available, the dev build is the local one.** Set
+  `SIGNING_IDENTITY` in your environment to your own stable code-signing
+  identity, then run the repository launcher:
+
+  ```sh
   Scripts/build_and_run.sh --verify
-```
+  ```
 
-Do not substitute ad-hoc signing, another local-development identity, a raw
-SwiftPM executable, or a hand-built app bundle. Before asking the user to test,
-verify that `.build/dev-run/Slovo.app` passes strict code-sign validation, is
-signed by team `ZN8H5SF4R7`, has bundle identifier `com.slovo.app`, and that the
-running `slovo` process executes from that exact bundle.
-
-When nothing is building on this Mac, the `dev-build` label on a pull request
-from this repository produces a signed (not notarized) dev build in CI — same
-team `ZN8H5SF4R7`, same `com.slovo.app`, verified the same way — and is how the
-owner gets a build to test. The packaging job runs only when the pull request's
-head is in this repository, so a fork's pull request takes the launcher above
-instead.
+  Do not substitute ad-hoc signing, a raw SwiftPM executable, or a hand-built
+  app bundle. Before asking for a check, verify that `.build/dev-run/Slovo.app`
+  passes strict code-sign validation, is signed by the identity in
+  `SIGNING_IDENTITY`, has bundle identifier `com.slovo.app`, and that the
+  running `slovo` process executes from that exact bundle. A role whose caller
+  runs where a local build is available builds the same way.
+- **Where no local build is available, the dev build comes from the
+  `dev-build` label on the pull request.** CI builds and signs, without
+  notarizing, the pull request's merge result; verify the downloaded app the
+  same way, against the identity it was signed with. The packaging job runs
+  only when the pull request's head is in this repository, so a fork's pull
+  request needs a local build.
+- **Release builds** are made only on GitHub, by CI, after a pull request
+  merges ([docs/release-ci.md](docs/release-ci.md)). A local or dev build is
+  never a release.
 
 ### Gate RED→GREEN by Cynefin
 
@@ -228,8 +251,9 @@ implementer branches → independent audit (correctness, complexity, design,
 test sensitivity) → the full gate green on the integrated result (CI's Swift
 `test` run — `Scripts/diagnose.sh` on a macOS runner) → merge into local
 main. Parked branches are not a deliverable. Pushing a change to any remote
-remains a separate act, triggered only by the owner. The one push a role
-makes changes no file: see "This repository's own machinery".
+remains a separate act, triggered only by the owner, except the delivery
+pipeline's pushes to its own branches; no role ever pushes to `main`. See
+"This repository's own machinery".
 
 ### License compliance is part of every change
 
@@ -268,47 +292,81 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
 
 ## This repository's own machinery
 
-Roles run over this repository unattended, as skills under
-`.agents/skills/`, each with one thin binding under `.claude/agents/` that
-names its skill and holds no instruction of its own. Read the set from the
-tree rather than from a count written here, which the next role added would
-falsify.
+Roles run over this repository unattended. Each role is a skill under
+`.agents/skills/`, with one thin binding under `.claude/agents/` that names
+its skill and holds no instruction of its own. A skill with no binding is a
+shared skill: the pipeline law, `.agents/skills/pipeline-law/SKILL.md`,
+governs the delivery pipeline's roles. Read the set of roles from the tree,
+never from a count written here.
 
-These review the code and what it says: the Logic, Abstraction, Sanity and
-Slop Police; a Test Police that asks what each test protects and at what
-price; a Dependency Police that verifies the update bot's pull requests
-rather than hunting for updates itself; and a Security Police that looks
-for what an outside party could exploit. The Issue Court tries one
-open issue and records a verdict on it. The Clerk executes those verdicts,
-cutting work issues the owner can start from and closing the reports that
-have been tried. The Specifier takes a `ready` issue the Clerk cut, has a
-specification drafted and argued for and against, and opens it as a draft
-pull request only when the argument shows it adds something the issue does
-not already give; otherwise it says why on the issue. The Agent Police
-patrols the others, and itself, for documents that have begun to describe
-two machines instead of one. It also checks `docs/architecture.md` against
-the code.
+The chain runs from a finding to a pull request a person merges:
 
-None of them changes code. The chain ends at a `ready` issue and, for the
-few a review finds worth one, at a draft pull request whose body is the
-specification and whose single commit changes no file. A person writes
-every change a pull request here carries, and only a person takes one out
-of draft or merges it.
+- the police roles each sweep one subject of the code, its tests, its text,
+  its dependencies or its security, and file the few findings that survive
+  independent triage;
+- the court tries one filed finding per fire and records a verdict on it;
+- the tracker clerk executes the verdicts: it closes what was tried or is
+  provably gone, and hands each sustained finding to the delivery pipeline;
+- the pipeline clerk turns a handed finding into a draft pull request. The
+  spec writer specifies the change, the spec reviewer reviews the
+  specification, and the implementer writes and tests it on that branch,
+  until the pipeline clerk marks the pull request `ready-for-human`;
+- the agent police patrols the fleet's own documents, itself included, for
+  documents that have begun to describe two machines instead of one, and
+  checks `docs/architecture.md` against the code.
 
-What they share is in `.agents/rules/`: how a run works alone
-(`unattended.md`), how an automated run files, within which bounds and under
-which role (`tracker.md`), how issues are labelled (`issues.md`), how a claim
-is proved in a judged round (`evidence.md`), the slop catalogue
-(`slop.md`), and what a test must earn (`tests.md`). `.claude/rules` and
-`.claude/skills/` are symlinks into `.agents/`, so there is one text rather
-than two that drift apart.
+What the roles share is in `.agents/rules/`, one file per job:
 
-A role lives here rather than in whatever fires it, so that changing one is a
-pull request with a review and a history.
+- `.agents/rules/unattended.md`: how any run behaves alone, what it
+  publishes, and what it never does;
+- `.agents/rules/evidence.md`: how a claim is proved in a judged round;
+- `.agents/rules/process.md`: acceptance rounds and the cycle for
+  implementing work;
+- `.agents/rules/filing.md`: how an automated run files an issue, within
+  which bounds, and which role owns a finding;
+- `.agents/rules/labels.md`: the label axes and what each label means;
+- `.agents/rules/police.md`: what every police role shares;
+- `.agents/rules/markers.md`: every marker the roles write and read;
+- `.agents/rules/text-residue.md`, `.agents/rules/tests.md`,
+  `.agents/rules/design-vocabulary.md` and `.agents/rules/claims.md`: the
+  catalogues findings are measured by;
+- `.agents/rules/context.md`: precedence between documents, and the
+  standard every fleet document is written to;
+- `.agents/rules/verification.md`: the gate CI runs, and what a green run
+  does not prove;
+- `.agents/rules/boundaries.md`: paths closed to hand edits, and what never
+  enters the tree or a published page.
 
-**Nothing here says what fires a role, or how often.** Whatever does carries
-the facts of the environment it runs in — what the network refuses, what is
-installed, how a clone is made, how often it happens — and the role reads
-them there. That is what lets another person run the same role in an
-environment of their own, so a document here states the action and never the
-instrument: what has to be done with GitHub, never which client does it.
+`.agents/adaptation.md` records how the fleet's build specification is filled
+in this repository. `.claude/rules` and every entry under `.claude/skills/`
+are links into `.agents/`, so there is one text rather than two that drift
+apart.
+
+A role lives here rather than in whatever fires it, its caller, so that
+changing one is a pull request with a review and a history. **Nothing here
+says what fires a role, or how often.** The caller carries the facts of the
+environment it runs in: what the network refuses, what is installed, how a
+clone is made, how often it fires. The role reads them there. That is what
+lets another person run the same role in an environment of their own, so a
+document here states the action and never the instrument.
+
+**Where the chain ends.** The machine stops at a pull request marked
+`ready-for-human`. A person always makes these writes, and no role makes
+them:
+
+- merging a pull request, and so every change that reaches `main` and every
+  release a merge starts;
+- creating, renaming or deleting a label;
+- applying or removing the owner's veto label `wontfix` and the freeze label
+  `pipeline/hold`;
+- creating, changing or deleting a caller.
+
+The prohibitions easiest to breach, each owned by the file and heading
+named:
+
+- no role ever pushes to `main` (`.agents/rules/unattended.md`, "No role
+  pushes to `main`");
+- no run starts or re-runs a CI pipeline beyond the pushes the pipeline law
+  names (`.agents/rules/unattended.md`, "What a run never does");
+- nothing under a closed path is edited by hand
+  (`.agents/rules/boundaries.md`, "Closed paths").

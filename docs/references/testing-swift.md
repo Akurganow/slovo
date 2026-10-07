@@ -565,7 +565,8 @@ Read at the commits named; licenses read from each `LICENSE` file.
 red on broken code" and that each regression test document "the concrete
 breakage" it catches. That is a requirement to kill at least one mutant (§3.1),
 the note naming it. The notes are recorded as "Stated sensitivity: … → RED"
-lines, which `.agents/rules/slop.md:60` protects from the prose review.
+lines, which `.agents/rules/text-residue.md`, "Protected: never a finding",
+protects from the prose review.
 
 The rule governs a test's birth and nothing after it. It sets no bar on
 redundancy, environment or price, and nothing in it removes a test once it
@@ -656,7 +657,7 @@ that fails, alone and in the full suite.
 ## 5. The criteria a review applies
 
 Each kind is a way a test that **can** fail costs more than it protects. A test
-that cannot fail at all is `ceremony` in `.agents/rules/slop.md:40` and is not
+that cannot fail at all is `ceremony` in `.agents/rules/text-residue.md` and is not
 repeated here. Each criterion names the exhibit that proves it; where nothing
 can be run, the exhibit is a traced argument and the conclusion is plausible,
 never confirmed. The repository adopts these criteria in

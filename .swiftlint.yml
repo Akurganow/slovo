@@ -140,7 +140,7 @@ file_length:
 
 # Two constructs with no legitimate reading in this code base, fenced so
 # they never reach main; everything phrased in words is a reviewer's call
-# (`.agents/rules/slop.md`). CI is strict, so a warning fails the build.
+# (`.agents/rules/text-residue.md`). CI is strict, so a warning fails the build.
 custom_rules:
   slop_print_leftover:
     name: "print() in library or app code"
