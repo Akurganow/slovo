@@ -283,6 +283,23 @@ a real trap already caught once: Lightning-SimulWhisper).
   both the same conventional header. Any other header merges green and
   releases nothing: the push runs trunk verification, with no version, no
   tag, and no GitHub Release ([docs/release-ci.md](docs/release-ci.md)).
+- No commit message carries a CI skip instruction: `[skip ci]`, `[ci skip]`,
+  `[no ci]`, `[skip actions]`, `[actions skip]`, or a `skip-checks:true` or
+  `skip-checks: true` trailer. GitHub runs no `push` or `pull_request`
+  workflow for a commit that carries one (code host documentation, "Skipping
+  workflow runs", `github/docs` at `1484a08`). GitHub's default squash
+  message carries the single commit's message, or the pull request title and
+  the list of commits (code host documentation, "Configuring commit squashing
+  for pull requests", `github/docs` at `0b183d5`). An instruction in any
+  branch commit thus reaches `main` and skips every push-triggered run there,
+  so a releasable merge never publishes ("Standing owner directives", 12).
+  GitHub matches the string, not its intent. A sentence that only describes
+  the release job's skip still triggers one, so describe the skip in words
+  and never write a token or the trailer. The one exception is the
+  version-bump commit `.github/workflows/release.yml` writes itself
+  (`docs/release-ci.md`, "Why one run does everything (no PAT, no
+  double-fire)"). Whoever commits, a person or a role, checks the message
+  before every commit.
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
   macOS runner — on the pull request's merge result, cited by number and
   conclusion. A local `Scripts/diagnose.sh` is a convenience for whoever is already

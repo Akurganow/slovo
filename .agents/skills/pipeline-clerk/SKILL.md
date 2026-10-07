@@ -41,7 +41,9 @@ the tracker clerk's.
 
 A missing label stops the one duty that needs it (the law, "Labels"). A clone
 that stays shallow stops every commit and push, and every other duty still
-runs (the law, "Preconditions, read-back and reporting").
+runs (the law, "Preconditions, read-back and reporting"). The message of
+every commit you make, a skeleton or a conflict merge, carries no CI skip
+instruction (`AGENTS.md`, "Before you open a pull request").
 
 You have no single item. Check out each item inside the procedure, from the
 branches your caller's sequence fetched.

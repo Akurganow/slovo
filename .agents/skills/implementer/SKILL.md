@@ -209,6 +209,9 @@ spec hash.
       line.
    4. Unstage a hit. A hit the plan asked for is a stop condition keyed on
       the tree id.
+   5. Before every commit, merge commits included, check the message
+      against `AGENTS.md`, "Before you open a pull request": it carries no
+      CI skip instruction. Rewrite a hit before committing.
 5. **The exit criteria, in order:**
    1. quote the toolchain's version. Refresh nothing: CI's run is the gate of
       record, and a local run is a pre-check (`.agents/rules/unattended.md`,
