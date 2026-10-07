@@ -1,5 +1,4 @@
 import CoreAudio
-import Foundation
 
 /// Reads the input side of the CoreAudio HAL. Stateless: every call reads the HAL
 /// afresh.

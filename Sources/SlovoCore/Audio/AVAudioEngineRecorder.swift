@@ -83,11 +83,9 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         // identify the hardware instance.
         var assignedDeviceID: AudioDeviceID?
         let choice = preference.map { InputDeviceChoice.derive(preference: $0, devices: devices.inputDevices()) }
-        if let uid = choice?.captureUID {
-            // The device can leave between the read above and this translation.
-            guard var deviceID = devices.deviceID(forUID: uid), let audioUnit = inputNode.audioUnit else {
-                throw AudioCaptureError.engineStartFailed
-            }
+        // A device that leaves between the read above and this translation is absent.
+        if var deviceID = choice?.captureUID.flatMap(devices.deviceID(forUID:)) {
+            guard let audioUnit = inputNode.audioUnit else { throw AudioCaptureError.engineStartFailed }
             let status = AudioUnitSetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
                                               &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size))
             guard status == noErr else { throw AudioCaptureError.engineStartFailed }
