@@ -9,7 +9,9 @@ import SlovoObjC
 /// Each `start()` builds a FRESH engine so an audio device/route change since the
 /// previous dictation (e.g. unplugging headphones) cannot leave a stale input
 /// format — Apple's documented cause of the `installTap` sample-rate `NSException`
-/// crash. It reads the input node's actual format, installs a tap through an
+/// crash. A chosen microphone that is present is assigned to the fresh input node
+/// before its format is read; an absent one leaves the system default. It reads
+/// the input node's hardware input format, installs a tap in it through an
 /// Obj-C exception catcher (a residual mismatch becomes a recoverable
 /// `AudioCaptureError`, never a `SIGABRT`), and observes
 /// `AVAudioEngineConfigurationChange` to end capture cleanly if the hardware
@@ -44,13 +46,22 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
 
     private let lock = NSLock()
     private var session: Session?
+    /// Guarded by `lock`. Read once per `start()`, so an update reaches the next
+    /// dictation and never the one in progress.
+    private var preferredInputDevice: InputDevice?
 
     public init(
         authorizer: MicrophoneAuthorizer,
+        preferredInputDevice: InputDevice?,
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "audio")
     ) {
         self.authorizer = authorizer
+        self.preferredInputDevice = preferredInputDevice
         self.log = log
+    }
+
+    public func updatePreferredInputDevice(_ device: InputDevice?) {
+        lock.withLock { preferredInputDevice = device }
     }
 
     deinit {
@@ -69,12 +80,33 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
 
         // Idempotent: fully tear down any prior session before building a new one.
         await stop()
+        let preference = lock.withLock { preferredInputDevice }
 
         // A fresh engine reflects the CURRENT default input device, so its format
         // matches the hardware even after a device change since the last capture.
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        let devices = CoreAudioInputDevices()
+        // A chosen device present now is assigned to the node; an absent one leaves
+        // the system default. The log line carries no UID or name: a UID can
+        // identify the hardware instance.
+        var assignedDeviceID: AudioDeviceID?
+        let choice = preference.map { InputDeviceChoice.derive(preference: $0, devices: devices.inputDevices()) }
+        if let uid = choice?.captureUID {
+            // The device can leave between the read above and this translation.
+            guard var deviceID = devices.deviceID(forUID: uid), let audioUnit = inputNode.audioUnit else {
+                throw AudioCaptureError.engineStartFailed
+            }
+            let status = AudioUnitSetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                              &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size))
+            guard status == noErr else { throw AudioCaptureError.engineStartFailed }
+            assignedDeviceID = deviceID
+        } else if choice != nil {
+            log.event("input device unavailable, using the system default")
+        }
+        // Read after any assignment. The tap applies this object to the output bus,
+        // whose own format can still be the previous device's after an assignment.
+        let inputFormat = inputNode.inputFormat(forBus: 0)
         if let rejection = AudioTapFormatValidator.rejectionReason(
             sampleRate: inputFormat.sampleRate,
             channelCount: inputFormat.channelCount
@@ -87,10 +119,10 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         }
 
         // The pair of the device the capture uses, read once per start. The default
-        // input's id comes from the HAL: on this path the audio unit's current
+        // input's id comes from the HAL: on that path the audio unit's current
         // device names no input device.
-        let devices = CoreAudioInputDevices()
-        let preferredStereoChannels = devices.defaultInputDeviceID().flatMap { devices.preferredStereoChannels(of: $0) }
+        let preferredStereoChannels = (assignedDeviceID ?? devices.defaultInputDeviceID())
+            .flatMap { devices.preferredStereoChannels(of: $0) }
         if preferredStereoChannels == nil {
             log.event("preferred stereo pair unread, using channels 1 and 2")
         }

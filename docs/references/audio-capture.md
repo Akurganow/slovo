@@ -200,8 +200,10 @@ final class MicCapture {
 
     func start() throws {
         let input = engine.inputNode
-        // Hardware-native format on bus 0 (e.g. 48 kHz, 1–2 ch). Source of truth.
-        let hwFormat = input.outputFormat(forBus: 0)
+        // Hardware input format on bus 0 (e.g. 48 kHz, 1–2 ch). Source of truth:
+        // the output bus can still hold the previous device's format after a
+        // device assignment.
+        let hwFormat = input.inputFormat(forBus: 0)
 
         // Build the converter from the live hardware format to the ASR format.
         converter = AVAudioConverter(from: hwFormat, to: targetFormat)
@@ -264,10 +266,12 @@ mono output. Slovo immediately forwards each resulting chunk to live recognition
 
 ## slovo gotchas
 
-- **Never hardcode the source format.** Read `inputNode.outputFormat(forBus: 0)`
-  at capture start and build the converter from it. The user can switch mics
-  (AirPods 24 kHz vs. built-in 48 kHz) between sessions; a stale converter
-  resamples from the wrong rate and produces garbage or wrong-speed audio.
+- **Never hardcode the source format.** Read `inputNode.inputFormat(forBus: 0)`
+  at capture start and build the converter from it, since the output bus can
+  still hold the previous device's format after a device assignment. The user
+  can switch mics (AirPods 24 kHz vs. built-in 48 kHz) between sessions; a stale
+  converter resamples from the wrong rate and produces garbage or wrong-speed
+  audio.
 - **Stereo → mono.** Some inputs report 2 channels. Letting `AVAudioConverter`
   target a 1-channel format performs the downmix for you; do not assume mono.
 - **`format: nil` vs. explicit format on the tap.** Passing `nil` gives buffers

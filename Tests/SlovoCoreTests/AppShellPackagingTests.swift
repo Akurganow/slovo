@@ -51,6 +51,10 @@ struct AppShellPackagingTests {
         #expect(composition.contains("GRDBPersonalizationSource(database:"))
         #expect(composition.contains("CoreAudioOutputMute()"))
         #expect(composition.contains("AVAudioEngineRecorder(authorizer:"))
+        // Stated sensitivity: build the recorder without the stored preference (the
+        // first dictation after launch ignores the choice) → RED.
+        #expect(composition.contains("preferredInputDevice: config.preferredInputDevice"),
+                "the recorder must start from the stored microphone choice")
         // Every new orchestrator starts on the derived model and the effective on/off
         // (K6), so its first dictation never runs the raw preference.
         // Stated sensitivity: pass `state.config.cleanupConfig`, or omit the argument

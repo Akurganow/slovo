@@ -181,19 +181,26 @@ struct AVAudioEngineRecorderSourceGuardTests {
 
     /// The format is validated BEFORE `installTap`: a degenerate format raises an
     /// `NSException` inside the call that Swift cannot catch, so rejecting it first is
-    /// the only defence.
+    /// the only defence. A chosen device is assigned before the format is read, and
+    /// the tap takes the node's input format: after an assignment the output format
+    /// can still be the previous device's, and a tap in it fails to start or
+    /// delivers nothing.
     /// Sensitivity: delete the validator call or order `installTap` ahead of it → RED.
     /// A unit test of the validator alone stays green, which is the false green this closes.
+    /// Stated sensitivity: read the format before assigning, read the output format
+    /// instead of the input format, or assign after the tap → RED.
     @Test
     func recorderSourceValidatesFormatBeforeInstallingTap() throws {
         let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
         let startBody = try Self.functionBody(named: "start", in: recorder)
 
         #expect(Self.containsInOrder([
+            "AudioUnitSetProperty",
+            "inputFormat(forBus: 0)",
             "AudioTapFormatValidator",
             "installTap(onBus:",
         ], in: startBody),
-        "start() must reject the format via AudioTapFormatValidator before installTap")
+        "start() must assign the chosen device, then read the node's input format and validate it before installTap")
     }
 
     /// Each chunk carries the stereo pair of the device the capture uses, read once
