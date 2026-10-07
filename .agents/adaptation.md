@@ -1,8 +1,8 @@
 # Adaptation record
 
 How this repository fills the slots of the fleet's build specification, what
-the code host was measured to support, and where a fact of this repository
-forced a value other than the specification's default. The agent police
+it decides about the code host's capabilities, and where a value differs
+from the specification's default. The agent police
 reads this file like any other fleet document. Where a value lives in a rule
 file, a role file or the pipeline law, this record names that place and does
 not restate the value: the place is the authority.
@@ -25,9 +25,11 @@ not restate the value: the place is the authority.
 - **Work is done when the owner merges its pull request** after checking
   its dev build (`AGENTS.md`, "Standing owner directives", 3).
 - **CI's run is the gate of record, and a local gate run is a pre-check**
-  (`.agents/rules/unattended.md`, "Claim only what you ran"). Roles may
-  build and run the automated tests in their own clone. Manual checks stay
-  with the owner.
+  (`.agents/rules/unattended.md`, "Claim only what you ran"). The reason:
+  CI's macOS runner image floats, so the toolchain where a role runs may
+  differ from CI's. The local toolchain is never refreshed to match it, and
+  the CI run on the pull request decides. Roles may build and run the
+  automated tests in their own clone. Manual checks stay with the owner.
 - **No fact of a caller's machine enters the repository**
   (`.agents/rules/boundaries.md`, "What never appears in the tree or on a
   published page").
@@ -41,12 +43,13 @@ not restate the value: the place is the authority.
   moved by hand; the merge is the release confirmation. They stand in
   `AGENTS.md`, "Standing owner directives".
 - **Not adopted:** the directive that money beyond the standing allowance is
-  spent only when a person asks, as written.
+  spent only when a person asks.
 - **Replaced:** the directive that bans model identity in code or on a
-  published page. In its place stands the owner's own rule: the model and the
-  tool may be named anywhere, and a session link never appears in anything
-  published (`AGENTS.md`, "Standing owner directives"). No role's issue,
-  comment or pull-request template carries a session link.
+  published page. In its place stands the owner's own rule: attribution may
+  name the model and the tool that produced a text, anywhere, and a session
+  link never appears in anything published (`AGENTS.md`, "Standing owner
+  directives", 13). No role's issue, comment or pull-request template
+  carries a session link.
 
 ## Slots
 
@@ -83,7 +86,7 @@ not restate the value: the place is the authority.
 | `GATE_BLIND_SPOTS` | `.agents/rules/verification.md`, "What a green run does not prove" | |
 | `FENCE` | `.agents/rules/verification.md`, "What the gate rejects" | One list, carried verbatim into every verifier brief |
 | `TOOLCHAIN_FREE_CHECKS` | `bash -n` over each script; `plutil -lint` needs macOS but not the toolchain (`.agents/rules/verification.md`) | Every other stage needs Xcode |
-| `TOOLCHAIN_REFRESH` | `.agents/skills/implementer/SKILL.md`, "The slice loop", step 5 | The owner's decision: CI's run is the gate of record ("The owner's decisions" above) |
+| `TOOLCHAIN_REFRESH` | None: the local toolchain is never refreshed (`.agents/skills/implementer/SKILL.md`, "The slice loop", step 5) | The owner's decision, with its reason, in "The owner's decisions" above. It replaces the specification's default, a refresh before any verification that must match CI |
 | `CONDITIONAL_GUARDS` | `.agents/skills/implementer/SKILL.md`, "The slice loop", the guards a change's content triggers | Recorded rules tied to what a change touches |
 | `TEST_SUMMARY_FORMAT` | `.agents/rules/unattended.md`, "Reporting" | The default |
 | `TESTING_REFERENCE` | `docs/references/testing-swift.md` | The verified reference `.agents/rules/tests.md` cites |
@@ -129,7 +132,7 @@ not restate the value: the place is the authority.
 | :-- | :-- | :-- |
 | `PROVENANCE_LABEL` | `police-report` | The default. It is on the label list, and no issue template applies it |
 | `TRACKER_SCOPE` | `machine` | The owner's decision |
-| `AREA_LABELS` | `asr`, `cleanup`, `i18n`, `ux` (`.agents/rules/labels.md`) | The repository's areas |
+| `AREA_LABELS` | `.agents/rules/labels.md`, "Axes" | The repository's areas |
 | `VETO_LABEL` | `wontfix` | The default |
 | `NO_TRIAL_LABEL` | `no-trial` | The default. The owner creates it |
 | `DEPENDENCY_LABEL` | `dependencies` | The default, applied by the update bot |
@@ -168,35 +171,23 @@ not restate the value: the place is the authority.
 | `PUBLISHED_SURFACE`, `SUPPORTED_SURFACES`, `REFERENCE_SOURCES`, `CONFORMANCE_CHECK`, `HYGIENE_SET` | Not used | The published-surface police is off |
 | The pipeline law's skill id | `pipeline-law` | The specification names no id for the shared law. A rename is one search and replace |
 
-## What the code host supports
+## What the code host must support
 
-Each capability was measured by a read of this repository where a read
-could measure it. A write is measured at acceptance, by the first fire that
-makes it.
+The fleet needs every capability the specification lists. Whether the code
+host serves each one, and how this repository's settings stand, are
+measured facts of the environment. The owner decided that the callers carry
+them (`.agents/rules/context.md`, "The context standard"). The repository
+decides only these:
 
-| # | Capability | Status |
-| :-- | :-- | :-- |
-| 1 | Read the repository's own identity | Served |
-| 2 | List issues by state and label, with full bodies, paginated | Served |
-| 3 | Search issue and pull-request bodies for a marker, in every state | Served. Whether the index lags a write: measured at acceptance |
-| 4 | Read and write comments byte for byte, hidden markers included, with creation and edit times | Read served: the raw body keeps the hidden comment, the rendered body hides it, and both times are present. Write: measured at acceptance |
-| 5 | Create issues with labels; add a label without replacing the set | Measured at acceptance |
-| 6 | Close an issue with a reason, a duplicate naming its survivor | The close reason reads back. Write: measured at acceptance |
-| 7 | The author's association on issues and comments | Served |
-| 8 | Pull requests in every state with body, author, head branch, head repository, labels, merged distinct from closed, close time | Served. The head repository is present on closed pull requests too |
-| 9 | CI results per commit: status, conclusion, link, re-run attempts, failed job logs | Served |
-| 10 | Closing references in a pull-request body, with documented parsing | The issues a pull request links as closing read back. Needed for the backpressure leave-out only, since `CLOSE_ON_MERGE` is off |
-| 11 | Draft pull requests, readable and writable | Read served. Write: measured at acceptance |
-| 12 | Remote branches listed by prefix, without lag | Listing served. Lag: measured at acceptance |
-| 13 | Labels on pull requests, with label events per pull request | Served: each label applied carries its author and time |
-| 14 | Plain comments and review comments on a pull request, each with the author's association | Served |
-| 15 | Pushes to non-default branches by the machine identity, with the default branch protected against it | Pushes: measured at acceptance. Protection: not in place. The default branch's rules refuse only its deletion and non-fast-forward updates. The run law forbids a role's push to `main` regardless |
-| 16 | Confidential vulnerability records | Private vulnerability reporting is enabled, and the advisory listing is served. Drafting an advisory: measured at acceptance |
-| 17 | A scheduler that fires a role on a schedule, on an event and by hand, with a payload and a known session length | Outside the repository: the callers carry it |
-| 18 | Issue state and label events with author and time, and what caused a close | Served: close events carry author and time, and the pull request that closed an issue reads back |
-| 19 | Close a pull request unmerged and read it back; edit a body and a title and read each back | Closed and merged read back distinctly. Writes: measured at acceptance |
-| 20 | The repository's description, topics, licence field and homepage | Served |
-| 21 | An issue's parent and ordered parts | Not needed: findings are never split |
+- **Closing references** count only for the backpressure leave-out
+  (`.agents/rules/filing.md`, "Backpressure"), since `CLOSE_ON_MERGE` is
+  off.
+- **A protected default branch** is not relied on. The run law forbids a
+  role's push to `main` whatever the code host enforces
+  (`.agents/rules/unattended.md`, "No role pushes to `main`").
+- **The scheduler** is outside the repository: the callers carry it.
+- **An issue's parent and ordered parts** are not needed: findings are
+  never split.
 
 ## Departures
 
@@ -297,3 +288,20 @@ was wrong, as each says.
   spam: a person's issue, which its court section says exists only under
   tracker scope `all`. Under `machine` every issue the court reads is a
   police report, so the path and its `skipped` verdict are left out.
+- **Run classes name inclusions, and only an analysis run names
+  exceptions.** The specification's run law lists, for each class beyond
+  the analysis run, the sections that still apply, then says any role that
+  writes more than an analysis run names its exceptions and everything else
+  holds: two polarities for one class. Here the exception sentence covers
+  an analysis run that writes more, such as the tracker clerk's closes, and
+  every other class takes its row's sections plus those its role file or
+  the pipeline law cites.
+- **No `ready` standard.** `.agents/rules/labels.md` leaves out the
+  specification's standard for a `ready` work issue. No role cuts one: a
+  sustained finding goes to the delivery pipeline. The label keeps its
+  meaning for the owner, and the court still drops an issue that carries it.
+- **The police triage ceiling has one home.** The specification has the role
+  that convenes a round state its sub-agent ceiling. Every police role
+  convenes the same triage round, so `.agents/rules/filing.md`, "Independent
+  triage", states that ceiling once, and `.agents/rules/evidence.md` points
+  at it.

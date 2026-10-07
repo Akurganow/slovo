@@ -41,7 +41,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 | `bash-syntax:<script>` | `bash -n` parses each script under `Scripts/` |
 | `plist-lint` | `plutil -lint` parses `Resources/Info.plist` and `slovo.entitlements` |
 | `swiftlint-strict` | SwiftLint's command plugin lints the configuration's whole `included:` set in strict mode, `Package.swift` among it, so a warning fails. The build-tool plugin of `swift-build` lints target by target during the build |
-| `swiftlint-compiler-log` | A verbose build, forced to recompile every module under `Sources` and `Tools`, wrote a compiler invocation for each of them to `.build/swiftlint-compiler.log` |
+| `swiftlint-compiler-log` | After every Swift file under `Sources` and `Tools` is touched, a verbose build exits 0, writes its log to `.build/swiftlint-compiler.log`, and prints the modules with a compiler invocation in it. That every analyzed file has one is checked by `swiftlint-analyze` |
 | `swiftlint-analyze` | SwiftLint's analyzer rules pass in strict mode on every Swift file under `Sources` and `Tools`, and the analyzer read as many files as it was given |
 
 ### What needs the toolchain, and what writes

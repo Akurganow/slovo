@@ -86,9 +86,12 @@ staleness clause, naming what it describes.
   the owner's, with no day. A date format is written as a format
   (`YYYY-MM-DD`), never as an example. Quoted data and machine-written trees
   keep their dates.
-- **The action, never the instrument.** A sentence states what must be done,
-  never which client, tool, harness or route does it. The same action may be
-  done through a command-line client, a harness tool or a person by hand.
+- **The action, never the instrument.** A sentence that tells a role what
+  to do states the action, never which client, tool, harness or route does
+  it. The same action may be done through a command-line client, a harness
+  tool or a person by hand. Attribution is another matter: which model and
+  tool produced a text may be named (`AGENTS.md`, "Standing owner
+  directives", 13).
   Nameable at the edge of a rule:
   - the repository's own substrate: version control, the Swift package
     manager, the scripts under `Scripts/` and the pipeline definitions under

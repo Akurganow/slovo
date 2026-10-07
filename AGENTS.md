@@ -47,9 +47,9 @@ have to be repeated. Every agent and contributor follows them without being aske
 11. **Versions are never moved by hand.** The release tooling moves them.
 12. **The merge is the release confirmation.** A releasable merge publishes on
     its own. Never build a switch that stops a merged change from publishing.
-13. **The model and the tool may be named anywhere. A session link never
-    appears in anything published:** it opens only for the owner, so to anyone
-    else it is noise.
+13. **Attribution may name the model and the tool that produced a text,
+    anywhere. A session link never appears in anything published:** it opens
+    only for the owner, so to anyone else it is noise.
 
 ## Product intent — how the app must work
 
@@ -268,13 +268,14 @@ a real trap already caught once: Lightning-SimulWhisper).
 ### Before you open a pull request
 
 - Title the pull request as a Conventional Commit header — `feat:`, `fix:`,
-  `perf:` — whenever it carries release-worthy changes. Every pull request
-  lands as a squash merge. GitHub pre-fills the merged commit's header from
-  the pull request title, or from the single commit's message on a
-  one-commit branch. Give both the same conventional header. Any other
-  header merges green and releases nothing: the push runs trunk
-  verification, with no version, no tag, and no GitHub Release
-  ([docs/release-ci.md](docs/release-ci.md)).
+  `perf:` — whenever it carries release-worthy changes. The owner merges
+  every pull request as a squash merge. GitHub's default squash message
+  takes its header from the pull request title, or from the single commit's
+  message on a one-commit branch (code host documentation, "Configuring
+  commit squashing for pull requests", `github/docs` at `0b183d5`). Give
+  both the same conventional header. Any other header merges green and
+  releases nothing: the push runs trunk verification, with no version, no
+  tag, and no GitHub Release ([docs/release-ci.md](docs/release-ci.md)).
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
   macOS runner — on the pull request's merge result, cited by number and
   conclusion. A local `Scripts/diagnose.sh` is a convenience for whoever is already
@@ -296,9 +297,12 @@ Roles run over this repository unattended. Each role is a skill under
 its skill and holds no instruction of its own. A skill with no binding is a
 shared skill: the pipeline law, `.agents/skills/pipeline-law/SKILL.md`,
 governs the delivery pipeline's roles. They read it whole, and so does the
-agent police, which patrols it. The tracker clerk reads its discriminator.
-Each of these readers' bindings preloads it. Read the set of roles from the
-tree, never from a count written here.
+agent police, which patrols it. The tracker clerk reads its discriminator,
+and so does every police role, through `.agents/rules/filing.md`,
+"Backpressure". The security police also reads its trust and push rules as
+part of its subject. The bindings of the pipeline's roles, the agent police
+and the tracker clerk preload it. Read the set of roles from the tree, never
+from a count written here.
 
 The chain runs from a finding to a pull request a person merges:
 
@@ -356,8 +360,8 @@ document here states the action and never the instrument.
 `ready-for-human`. A person always makes these writes, and no role makes
 them:
 
-- merging a pull request, and so every change that reaches `main` and every
-  release a merge starts;
+- merging a pull request, which every change a role makes needs to reach
+  `main`, and which starts every release;
 - creating, renaming or deleting a label;
 - applying or removing the owner's veto label `wontfix` and the freeze label
   `pipeline/hold`;

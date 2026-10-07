@@ -97,7 +97,9 @@ the docs.
     the braces passes, and swallowing `CancellationError` is exempt.
 
   CI is strict, so each is a build failure.
-- **The admission test for a fence rule.** All of:
+- **The admission test for a fence rule.** A new rule passes all of these.
+  The two rules above predate the test and have no fixture yet. A change to
+  either adds one:
   - the construct does harm and has no legitimate reading;
   - it has zero hits on the whole tree;
   - a fixture holds positive cases and must-not-trip negatives;

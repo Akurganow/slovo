@@ -11,7 +11,8 @@ restates it. How a claim is proved in a judged round is in
 update or a force-push, by any route, for any reason. This is the owner's
 decision.
 
-- A change reaches `main` only through a person's merge of a pull request.
+- A change a role makes reaches `main` only through a person's merge of a
+  pull request.
 - The rule holds whether or not the code host would accept the push. A
   refused push is never the reason a role did not push. A push the host
   would accept is never permission.
@@ -27,9 +28,11 @@ decision.
 | Read-only stage | The spec reviewer. It writes no file | The pipeline law. Of this file, "No role pushes to `main`", "Instructions and evidence", "Probing access", "Leave no trace", "What a run never does", "What a run publishes" and "Reporting" still apply, and so does `.agents/rules/evidence.md` |
 | Implementing session | The spec writer, the implementer, and people | The pipeline law and `AGENTS.md`. Of this file, "No role pushes to `main`", "Instructions and evidence", "Probing access", "What a run publishes" and "Reporting" still apply, and so does `.agents/rules/evidence.md` |
 
-A role that writes more than an analysis run names each rule of this file it
-is excepted from. Everything it does not name still holds. "No role pushes to
-`main`" has no exception.
+An analysis run whose role writes more than issues, comments and labels,
+such as the tracker clerk's closes, names each rule of this file it is
+excepted from. Everything it does not name still holds. A role of another
+class takes the sections its row names, and any other section its role file
+or the pipeline law cites. "No role pushes to `main`" has no exception.
 
 ## The subject of the run
 
