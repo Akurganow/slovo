@@ -49,6 +49,10 @@ tuned.
   recognition and restores it afterward. On an output device where macOS can set
   neither the mute nor the volume, both switches are disabled, and Settings
   explains why.
+- A **Microphone** choice in the menu-bar dropdown and in Settings → General picks
+  the input dictation records from: **System Default** (the default) or one
+  specific device. A chosen device that is not connected falls back to the system
+  default, and Settings says so.
 - Multi-channel audio interfaces are recorded from their main stereo pair, the two
   inputs macOS uses for stereo, so a loopback pair on other channels stays out of
   dictation.

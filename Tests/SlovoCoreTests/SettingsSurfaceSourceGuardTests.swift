@@ -85,6 +85,26 @@ struct SettingsSurfaceSourceGuardTests {
                 "the toggle's row must show the reason")
     }
 
+    /// The General pane's Microphone picker lists the present devices and, while the
+    /// chosen one is absent, that device too, so the selection never blanks. The
+    /// label names the fallback, and a choice writes the stored preference through
+    /// the store. The app target has no behavioural seam for the pane, so this reads
+    /// its source.
+    /// Stated sensitivity: omit `absent` (the picker blanks), drop the line, or bind a
+    /// local `@State` → RED.
+    @Test
+    func generalMicrophonePickerFollowsTheChoice() throws {
+        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        for needle in [
+            "inputDeviceChoice.present",
+            "inputDeviceChoice.absent",
+            "inputDeviceChoice.fallbackLine",
+            "$0.config.preferredInputDevice =",
+        ] {
+            #expect(general.contains(needle), "the Microphone picker must use \(needle)")
+        }
+    }
+
     /// The two key pickers cannot be pointed at the same key BY CONSTRUCTION: each
     /// renders the other's key, read from the store, as an unselectable row —
     /// disabled, not hidden, so the user sees why. The store's validation stays the
