@@ -84,7 +84,8 @@ closes, or a comment of its own on an issue that stays open.
 ```
 
 - `sha` is the court marker the action rests on, or `none` where no court
-  marker stands. `tip` is the commit the fire re-derived at.
+  marker stands. `tip` is the commit the fire re-derived at. `tip=` and
+  `cr=` are for a person reading the record: no role branches on them.
 - `action` is one of:
 
   | Action | Closes the issue? | Extra field |
@@ -113,9 +114,10 @@ written after the item opens and never rewritten:
 ```
 
 - **Writer:** the pipeline clerk.
-- **Readers:** the tracker clerk, to bar a second hand-off. It is advisory:
-  no close reads it, because a fire can die between opening the item and
-  writing it. The item fingerprint is the authority.
+- **Readers:** the tracker clerk, to bar a second hand-off. The pipeline
+  clerk, to write it only once per item and source. It is advisory: no close
+  reads it, because a fire can die between opening the item and writing it.
+  The item fingerprint is the authority.
 
 ## The dependency review
 
@@ -130,7 +132,8 @@ request, one per head:
   dependency police's role file lists the phrases. A phrase never stands in
   the marker, because its spaces and punctuation break the `key=value`
   reading.
-- **Writer and reader:** the dependency police, by `head=`.
+- **Writer and reader:** the dependency police, by `head=`. `verdict=` is
+  for a person reading the record: no role branches on it.
 
 ## The item fingerprint
 

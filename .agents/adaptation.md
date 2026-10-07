@@ -197,7 +197,6 @@ makes it.
 | 19 | Close a pull request unmerged and read it back; edit a body and a title and read each back | Closed and merged read back distinctly. Writes: measured at acceptance |
 | 20 | The repository's description, topics, licence field and homepage | Served |
 | 21 | An issue's parent and ordered parts | Not needed: findings are never split |
-| 22 | Applying a label already present emits no label event, so the pipeline law's re-entry primitive removes and re-applies it | No documentation states it. Measured at acceptance |
 
 ## Departures
 
@@ -241,3 +240,37 @@ was wrong, as each says.
 - **The security police reads the issue templates.** A template that applied
   `police-report` would let a stranger's issue into the machine population,
   and no role's subject took the templates.
+- **A stage's result is a completion line newer than its wake**
+  (`.agents/skills/pipeline-law/SKILL.md`, "Where state lives"). The
+  specification read a dead run, and a stage's audit, from any completion
+  line at the key. A writer re-woken at an unchanged spec hash, or an
+  implementer returned at an unchanged tree, then had a line there from its
+  earlier round. The pipeline clerk could not see the dead fire, and the
+  implementer's audit handed a returned item on without working it. The
+  implementer also gains the path for answers that change no work.
+- **Whoever takes a fresh round writes `spent_at`.** The specification's law
+  requires it, and no role's steps wrote it. The reviewer, the gate, the
+  trio and the clerk's outside review now write it in their round's body
+  write.
+- **A stop on a clone that stays shallow, or without the toolchain, is
+  recorded.** The specification stopped such a committing stage before its
+  claim and left no record, so the pipeline clerk read the fire as dead and
+  re-entered the stage on every sweep. The stage now takes its claim,
+  records a condition stop, and ends.
+- **Un-sticking names one stage label.** The specification let the owner
+  either remove `pipeline/stuck` or apply a stage, and the clerk's comment
+  named no stage. A stage applied beside `pipeline/stuck` resumes nothing,
+  and a reviewer bound needs the writer. The comment now names the label,
+  and the owner makes it the only stage label, then removes
+  `pipeline/stuck`.
+- **The marker inventory is complete.** Each stage comment kind has its
+  step, the skeleton line lives in the pipeline law, the pipeline clerk is
+  a reader of the taken marker, and the fields no role branches on are
+  marked as a person's.
+- **The CI wait is a bound.** It moves a counter, which the specification's
+  own definition makes a bound, yet it stopped as a condition. The clerk
+  writes no completion line, and the law now says so.
+- **The re-entry primitive claims nothing about the code host.** The
+  specification stated, with no source, that applying a label already
+  present emits no event. Removing the label first wakes the stage either
+  way, so the law no longer rests on the claim.

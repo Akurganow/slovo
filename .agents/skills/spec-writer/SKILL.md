@@ -31,12 +31,13 @@ pipeline law.
 ## Procedure
 
 1. **Preconditions** (the law, "Preconditions, read-back and reporting"). A
-   shallow clone is a hard stop.
+   clone that stays shallow does not end the fire here: step 3 records it.
 2. **The discriminator** (the law, "Identity and the discriminator"), all
    three facts. Then the input test: the item carries `spec/needs-work` and
    neither `pipeline/stuck` nor `pipeline/hold`.
 3. **Claim** against `spec/needs-work` (the law, "Claims"). Release it at
-   every exit.
+   every exit. On a clone that stays shallow, record the law's condition
+   stop on the spec hash, release the claim, and end.
 4. **Audit** (the law, "Exit writes and the audit in the stages"). Then
    detect, report and skip any state the clerk's sweep repairs. Never repair
    it yourself.
@@ -89,9 +90,8 @@ pipeline law.
     forever with every label correct.
 11. **Run the structural check** (the law, "The specification shape"),
     identical to the gate's. Quote its output. Search both files for the
-    skeleton line's text: no skeleton line may survive, because a skeleton
-    passes all four signals. On a failure, fix and check again. Never push a
-    known failure for the reviewer to catch.
+    law's skeleton line: none may survive. On a failure, fix and check
+    again. Never push a known failure for the reviewer to catch.
 12. **Stage explicitly.** The index lists only paths in the item's
     specification directory.
 13. **Push, then read both files back** from the pushed branch and compare

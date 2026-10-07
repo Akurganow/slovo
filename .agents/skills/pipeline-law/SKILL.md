@@ -157,14 +157,14 @@ host").
   fire therefore leaves the baton visible. The claim and the completion
   marker absorb a double fire on a label still hanging.
 - **Remove the input first, apply the successor second.** Apply-first leaves
-  both labels present, and a repeated hand-over then emits no event because
-  the successor is already there. Remove-first leaves no stage label for one
-  call, a state the clerk recognises and repairs.
-- **The re-entry primitive.** Applying a label already present emits no
-  event. That is a behaviour of the code host its documentation does not
-  state, measured at acceptance. To re-wake a stage whose label is correct,
-  remove the label and apply it again. It has exactly two users: the clerk's
-  sweep and the implementer's slice loop.
+  both labels present, and a repeated hand-over may then emit no event,
+  because the successor is already there. Remove-first leaves no stage label
+  for one call, a state the clerk recognises and repairs.
+- **The re-entry primitive.** To re-wake a stage whose label is correct,
+  remove the label and apply it again. The code host's documentation does
+  not say whether applying a label already present emits an event, and
+  removing it first makes the application new either way. It has exactly
+  two users: the clerk's sweep and the implementer's slice loop.
 - **The one inversion: promotion.** The clerk applies `spec/needs-work`
   first and removes `pipeline/queued` second. The clerk holds no claim, and
   reading "in flight" and then promoting is not one operation. With the
@@ -300,10 +300,13 @@ block and is rewritten with it.
 
 A comment's `key` is the key that role's completion line uses. Its `kind`
 names the step that posted it, so one role's several comments at one key
-stay apart. Every reader of a verdict line matches its outcome token,
-`ACCEPTED` or `REJECTED`, never the `verdict:` prefix alone. Every marker
-stands on a line of its own, and a comment that ends with a marker carries
-it as its last line.
+stay apart: `findings` for the reviewer's `F-n`, `objections` for the
+gate's `G-n`, `answers` for the writer's answers, `approval` for the
+reviewer's approval, `summary` for the implementer's summary, and `note`
+for any other stage comment, such as a parking lot or a pause. Every reader
+of a verdict line matches its outcome token, `ACCEPTED` or `REJECTED`, never
+the `verdict:` prefix alone. Every marker stands on a line of its own, and a
+comment that ends with a marker carries it as its last line.
 
 **Each counter has exactly one writer** once the clerk has seeded it.
 `review_rounds` is the reviewer's. `gate_bounces`, `judge_rejects` and
@@ -313,6 +316,11 @@ early. The clerk seeds `cr_rounds` at 0 on every item.
 
 An item's **newest machine marker** is the latest `at=` among its state-block
 lines and the trusted markers that end its comments.
+
+A stage's **wake** is the current application of its input label, read from
+the label events. Its **result** at a key is its completion line at that key
+with an `at=` later than the wake. A line from before the wake belongs to an
+earlier round: the item has come back since.
 
 **Three content keys, never confused.** Each is 12 hexadecimal characters.
 
@@ -347,8 +355,7 @@ lines and the trusted markers that end its comments.
 - A claim of your own role blocks you only if it is **all** of these:
   - held;
   - younger than the claim lifetime;
-  - newer than the current application of the label you answer to, read
-    from the label events.
+  - newer than your wake ("Where state lives").
 
   A released claim never blocks.
 - **The clerk holds no claim**, on purpose: it has no single item to anchor
@@ -375,11 +382,13 @@ both hold:
   `spent_at=` where that is set. That application is the clerk's re-entry
   or the owner's release.
 
-The stage that grants the round writes `spent_at` on the stop. Without it,
-each new revision would differ from a key frozen at the first stop, and
-every one would earn a round. A worklist alone never lifts a bound. A
-narrowing or a restore is changed content only where it moves the bound's
-own key.
+Whoever takes the fresh round writes `spent_at` on the stop it spends: a
+stage in the body write that records the round's outcome, the clerk in the
+`outcome=asking` write of its request. A re-entry takes no round, so the
+clerk's sweep writes none. Without `spent_at`, each new revision would differ
+from a key frozen at the first stop, and every one would earn a round. A
+worklist alone never lifts a bound. A narrowing or a restore is changed
+content only where it moves the bound's own key.
 
 | Bound | Limit | Key | Counter | On exhaustion | Re-opened by |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -400,7 +409,7 @@ own key.
 | Skeleton read-back | 1 fix and push | | | Stop that item, leave the branch | The next clerk fire adopts it |
 | Writer's file read-back | 1 fix and push | | | Stop with `kind=condition` | The clerk decides |
 | Comment length | 15 lines | | | | |
-| CI wait in the code-review round | 3 clerk fires | Head sha | `ci_waits`, with `ci_wait_head` | Stop with `kind=condition` and `key_kind=head-sha`, naming the missing CI run | A new head resets both fields |
+| CI wait in the code-review round | 3 clerk fires | Head sha | `ci_waits`, with `ci_wait_head` | Stop with `kind=bound` and `key_kind=head-sha`, naming the missing CI run | A new head resets both fields |
 | Outside review requests per item | 3, never more than one per head | Head sha | `cr_rounds`, over the item's whole life | Stop with `kind=bound` and `key_kind=head-sha` | The fresh round: one more request, at a new head |
 
 A counter or a state block that is absent, or will not parse, is a stop
@@ -418,6 +427,8 @@ bound.
   Each role names its own conditions beside the check that meets them. The
   law keeps no closed list: a list kept apart from the checks goes stale when
   a check changes.
+- **The clerk writes no completion line.** Its two bound stops, the CI wait
+  and the outside review, record the counter, the stop line and one comment.
 - **Every stop writes the stop line twice**, in the exit order ("Exit writes
   and the audit in the stages"): as the last line of the stop comment, then
   as the state block's stop line. The comment survives when the body write
@@ -506,9 +517,10 @@ skip token could switch off a release in silence.
 - **Removing `pipeline/hold` or `pipeline/stuck` is the owner's whole act.**
   The clerk's next sweep sees the removal event, newer than the newest
   machine marker, and re-enters the stage label the item still carries.
-- **Un-sticking.** Remove `pipeline/stuck`, or apply the stage the clerk's
-  comment names. To answer a bound, settle the question its stop comment
-  names first. Changed content then earns one more round.
+- **Un-sticking.** Remove `pipeline/stuck`. Where the clerk's comment names
+  a stage label, first make it the item's only stage label. To answer a
+  bound, settle the question its stop comment names first. Changed content
+  then earns one more round.
 - **Sending a finished item back**: remove `ready-for-human` and apply
   `spec/approved`. The owner's review comments become the worklist.
 - `ready-for-human` means the machine's part is done. The merge, the live
@@ -641,6 +653,16 @@ reviewer's round two and the gate refuse it. It is how the pipeline marks
 what is not yet known: a question a person can answer. It is never a guess,
 because a guess is indistinguishable from a decision three stages later.
 
+**The skeleton line.** The clerk writes this exact line under each heading
+of a new item's files:
+
+```
+[NEEDS CLARIFICATION: unfilled skeleton — the spec writer fills this section]
+```
+
+A skeleton passes all four signals, so the writer searches both files for
+this line, and the gate refuses it as a clarification marker.
+
 ## Exit writes and the audit in the stages
 
 Every stage writes its exit in the order of `.agents/rules/unattended.md`,
@@ -667,7 +689,8 @@ runs the review, the gate or the acceptance trio again.
 **A stage owes the audit** when, before its work, it finds any of these:
 
 - a held claim of its own role;
-- its own completion line or keyed comment at the key it came to judge;
+- its own result at the key it came to judge, or a keyed comment of its own
+  there newer than its wake ("Where state lives");
 - its input label on an item whose records show the work went further.
 
 Beyond the run law's list, a stage's audit may rewrite its own claim. It

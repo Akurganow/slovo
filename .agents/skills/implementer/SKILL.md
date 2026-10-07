@@ -32,16 +32,18 @@ binds a person changing Slovo. In this file "the law" is the pipeline law.
 
 ## Preconditions
 
-- The law's preconditions. A shallow clone is a hard stop.
+- The law's preconditions.
 - **The discriminator** (the law, "Identity and the discriminator"), all
   three facts. Then the input test: `spec/approved` present, neither
   `pipeline/stuck` nor `pipeline/hold`.
 - **Claim** against `spec/approved` (the law, "Claims"). Release it at every
   exit.
-- **The toolchain** `CONTRIBUTING.md`, "Development Setup", requires. Without
-  it you can verify nothing. Record a stop with `kind=condition` and
-  `key_kind=tree-id` (the law, "Stops"), naming the missing toolchain. Commit
-  and push nothing, and release the claim.
+- **Two stop conditions, checked once the claim is held**: a clone that
+  stays shallow, and the absence of the toolchain `CONTRIBUTING.md`,
+  "Development Setup", requires. Without either you can verify nothing.
+  Record a stop with `kind=condition` and `key_kind=tree-id` (the law,
+  "Stops"), naming the condition. Commit and push nothing, release the
+  claim, and end.
 
 ## Classify the waking
 
@@ -69,10 +71,8 @@ overlaps the returns and the re-entry.
   after a narrowing is the clerk's route, not a send-back: only the owner's
   review comments mark a send-back.
 
-  Where no work serves only the narrowed source, the tree does not move, and
-  no trio runs. Take the last read. Rewrite your completion line with `at=`
-  that time, keeping its tree and outcome. Go on by that line's row in "The
-  deterministic gate".
+  Where no work serves only the narrowed source, the tree does not move
+  (below).
 - **A fresh item**: no verdict comment yet. Run the gate, then the slice
   loop.
 - **A return from the clerk's round.** The clerk's comment names what failed,
@@ -105,10 +105,20 @@ In a re-entry the directory says where the item stands. Present means the
 final slice has not run, and the gate's completion line decides whether the
 gate runs. Absent means the gate is over.
 
-A return of kind 1, 2 or 5, a send-back, and a narrowing or restore that
-changes work all move the tree. Each finishes from step 4 of "The final
-slice": push, rerun the exit criteria, record the tree id, and run the trio.
-Hand off only on an accepted verdict.
+A return of kind 1 or 2 moves the tree. A return of kind 5, a send-back, a
+narrowing and a restore move it where they change work. Whatever moves the
+tree finishes from step 4 of "The final slice": push, rerun the exit
+criteria, record the tree id, and run the trio. Hand off only on an accepted
+verdict.
+
+Where they change no work, such as findings all answered as out of scope,
+the tree does not move and no trio runs:
+
+1. answer each finding by id in one summary comment;
+2. take the last read;
+3. rewrite your completion line with `at=` that time, keeping its tree and
+   outcome;
+4. go on by that line's row in "The deterministic gate".
 
 ## The deterministic gate
 
@@ -145,13 +155,18 @@ spec hash.
      (`kind=bound`, `key_kind=spec-hash`);
   2. the counter, the gate line and the stop line, in one body write;
   3. leave `spec/approved`.
+- **At or above the bound on gate bounces**, the gate runs only on the
+  law's fresh round ("Bounds"), and that run's body write sets `spent_at` on
+  the stop it spends. Without the fresh round, end: the stop stands.
 - An implementer line `rejected` at the current tree id: this tree was
   already judged. Do not run the trio again. Work the `must_change` list from
   the `REJECTED` verdict comment. The next commit moves the tree id and opens
   the trio again.
-- An implementer line `accepted` at the current tree id: the trio already
-  accepted this tree and the body was rewritten. Finish the labels ("The
-  hand-off on an accepted verdict", step 5). Dispatch nothing.
+- An implementer line `accepted` at the current tree id, newer than your
+  wake (the law, "Where state lives"): the trio already accepted this tree
+  and the body was rewritten. Finish the labels ("The hand-off on an
+  accepted verdict", step 5). Dispatch nothing. An older one means the item
+  came back: work the waking it is.
 - A verdict comment for the current tree with no line in the block: a fire
   died after posting it. Dispatch nothing. On a `REJECTED` verdict, write the
   counter and the `rejected` line in one body write, then work `must_change`.
@@ -316,6 +331,10 @@ files carry third-party text, so every brief says in its own words what
      in one body write.
   3. Go on through the slice loop with `must_change`. At the bound on
      consecutive judge rejections: stop, and leave `spec/approved`.
+- **At or above the bound on consecutive judge rejections**, dispatch the
+  trio only on the law's fresh round ("Bounds"). The verdict's body write
+  sets `spent_at` on the stop it spends. Without the fresh round, end: the
+  stop stands.
 - Never overrule the judge, never soften a rejection, and never hand off on
   anything but a quoted `VERDICT: ACCEPTED`.
 

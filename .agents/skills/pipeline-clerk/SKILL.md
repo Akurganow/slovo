@@ -139,17 +139,22 @@ owner should read about it before the sweep writes more.
    1. Read the stop only from its line (the law, "Stops").
    2. Compute the key its `key_kind` names.
    3. Compare it with the stop's key.
-   4. Try your own repairs first, and name each. A key that moved spends the
-      stop, and the stage is re-entered. A conflict resolved this fire moves
-      the tree id and the head.
+   4. Try your own repairs first, and name each. A repair that moves the key
+      lifts the stop: re-enter the stage, which takes the fresh round and
+      writes `spent_at` (the law, "Bounds"). You write none. A conflict
+      resolved this fire moves the tree id and the head.
    5. Only where nothing moves the item: apply `pipeline/stuck` beside the
       stage label, or under `pipeline/code-review` in the law's order
       ("Stops"). Then post a comment giving the bound, the key, every repair
-      tried, and **the decision needed from the owner**.
+      tried, **the decision needed from the owner**, and the stage label that
+      resumes the item once it is made (the law, "The owner's control
+      surface"): `spec/needs-work` where the specification must change, as
+      after a review or gate bound, and otherwise the stage label standing.
 10. **A confirmed dead run.** All of these hold:
     - a stage label is present;
     - no claim of that role is both held and fresh;
-    - the stage left no result at the key it is judged on.
+    - the stage left no result at the key it is judged on: no completion
+      line there newer than its wake (the law, "Where state lives").
       `spec/needs-work` and `spec/awaiting-review` read the spec hash.
       `spec/approved` reads the tree id;
     - the item is not paused for the day. Case 12 takes a paused item.
@@ -207,9 +212,9 @@ For every open item carrying `pipeline/code-review` and neither
    - red: return it (step 6) with the failing check and its decisive log
      lines;
    - none at all: leave it, and report. Reset `ci_waits` to 0 where
-     `ci_wait_head` differs from the head, then raise it by one. At its bound
-     (the law, "Bounds"), stop with `kind=condition` and `key_kind=head-sha`.
-     The next sweep parks the item.
+     `ci_wait_head` differs from the head, then raise it by one. At its bound,
+     stop as the bound's row says (the law, "Bounds"). The next sweep parks
+     the item.
 5. **Re-read the head.** If it moved, leave the item, and report.
 6. **Return**, on any failed check:
    1. remove `pipeline/code-review`;
@@ -232,7 +237,8 @@ names, as that line says. Its state is one line of the state block
   1. Check `cr_rounds` against its bound. At or above it, stop as the bound's
      row says, unless the fresh round grants one more request.
   2. Otherwise write `outcome=asking`, with `cr_rounds` raised by one, in
-     one body write.
+     one body write. On a fresh round, the same write sets `spent_at` on the
+     stop it spends.
   3. Post the request.
   4. Rewrite the line to `outcome=asked`.
 - **Recover from `asking`.** The request carries no key line, because its
@@ -348,14 +354,7 @@ file before each create.
 - **The skeleton files**: `spec.md` and `plan.md` in the item's
   specification directory. Each holds its title line, then its own headings
   from the law's "The specification shape", in order. Under each heading
-  stands exactly this one line:
-
-  ```
-  [NEEDS CLARIFICATION: unfilled skeleton — the spec writer fills this section]
-  ```
-
-  The gate refuses to start while any such line remains, so nobody can
-  mistake a skeleton for content.
+  stands exactly the skeleton line that section gives, and nothing else.
 - **After the push, read both files back from the pushed branch** and compare
   each file's headings with its list in the law. Not confirmed: fix and push
   again, up to the bound on skeleton read-back. Still not: stop that item, and leave

@@ -45,14 +45,16 @@ you in full. In this file "the law" is the pipeline law.
         content unchanged. Record a stop with `kind=bound` and
         `key_kind=spec-hash`, leave `spec/awaiting-review`, and spend no
         round;
-      - otherwise, your own completion line or keyed comment at this hash:
-        finish the hand-off that record names, and spend no round it already
+      - otherwise, your own result at this hash, or a keyed comment of yours
+        there newer than your wake (the law, "Where state lives"): finish
+        the hand-off that record names, and spend no round it already
         records.
 5. **Which round**, from `review_rounds`: 0 means round one, 1 means round
    two. Rounds come from the counter, never from a sense that another look
    would help. At or above the bound on review rounds (the law, "Bounds"), a
    changed spec hash earns one verify-only round under the law's fresh-round
-   test. Otherwise the item goes straight to the bound path.
+   test, and that round's body write sets `spent_at` on the stop it spends.
+   Otherwise the item goes straight to the bound path.
 6. **The narrowing check, in every round** where a narrowing or a restore
    counts (the law, "Narrowing, restore and the last read"). It is the
    writer's edit list for a narrowed source
