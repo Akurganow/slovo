@@ -42,7 +42,7 @@ notarize locally; without it a phase stops after signing.
 1. Build, sign, and notarize the app bundle:
 
    ```sh
-   SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" \
+   SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
      NOTARY_PROFILE="…" Scripts/sign-and-notarize.sh app
    ```
 
@@ -55,7 +55,7 @@ notarize locally; without it a phase stops after signing.
 3. Package the stapled app into a signed, notarized `Slovo.dmg`:
 
    ```sh
-   SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" \
+   SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
      NOTARY_PROFILE="…" Scripts/sign-and-notarize.sh dmg
    ```
 
