@@ -30,7 +30,8 @@ attacking anything?
    Boundaries".
 6. `AGENTS.md`, "Product intent — how the app must work": what the app must
    do, raw mode's zero network requests among it. `AGENTS.md`, "Standing
-   owner directives", 9: the owner's rule that a promise is kept in code.
+   owner directives", 9: enforce in code, not in instructions to a model,
+   which is why every finding proposes a code-level guard.
 7. `docs/architecture.md`: the mechanisms that move data.
 8. `.agents/rules/verification.md`: the gate, the fence, and what a green run
    does not prove.
@@ -49,10 +50,9 @@ police's.
 
 ## The fence
 
-`.agents/rules/police.md`, "The fence". Know where it stops: it rejects a
-logger interpolation that makes a payload value public, never one that logs,
-at any privacy level, a value `docs/privacy.md`, "Logging", keeps out of the
-log.
+`.agents/rules/police.md`, "The fence". Know where it stops: a log line
+that keeps a value private still passes it, so a value `docs/privacy.md`,
+"Logging", keeps out of the log is yours at any privacy level.
 
 ## Where to look
 
@@ -123,9 +123,10 @@ nothing off the machine.
   compares the hosts the code can contact with the table, or a lint rule
   over the construct that leaked. It takes the form of a fence proposal
   (`.agents/rules/police.md`, "Shared rules"), shown firing on this
-  finding's code. A lint rule must pass the admission test of
-  `.agents/rules/text-residue.md`, "The fence", once the fix lands. Where no
-  guard is possible, one line says why.
+  finding's code, and the issue body carries it as the finding's remedy. A
+  lint rule must pass the admission test of `.agents/rules/text-residue.md`,
+  "The fence", once the fix lands. Where no guard is possible, one line says
+  why.
 - Verification named as what must run: the gate and its CI run
   (`.agents/rules/verification.md`, "The gate" and "Which run covers a
   commit"), and each effect only a live run can prove.
@@ -139,7 +140,7 @@ analyst's. Its schema:
 verdict: real | not-real
 kind: egress | persistence | exposure | drift
 promise: the row or statement of docs/privacy.md, quoted
-path_shown: yes | no      # every step from where the data is made to where it lands, quoted
+path_shown: yes | no | n/a   # every step from where the data is made to where it lands, quoted; n/a for drift
 adversary_needed: yes | no
 guard: the guard proposed | none possible, and why
 confidence: 1-5
@@ -148,7 +149,8 @@ rationale: one line
 ```
 
 Threshold, on top of the floor in `.agents/rules/filing.md`, "Independent
-triage": `path_shown = yes` and `adversary_needed = no`.
+triage": `adversary_needed = no`, and `path_shown = yes` for every kind but
+`drift`, which moves no data and has no path to show.
 
 **Cap exception.** An `egress` finding is always filed, in its own place
 above the cap: data that has left the Mac cannot be called back. The

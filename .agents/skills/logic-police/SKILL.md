@@ -140,7 +140,7 @@ run it, and quote the output.
 
 | Severity | Meaning | Filed when |
 | :-- | :-- | :-- |
-| critical | Crash on a common path, data loss or corruption, a security defect that needs no outsider | Triage confirms |
+| critical | Crash on a common path, data loss or corruption | Triage confirms |
 | high | Wrong results on a common path | Triage confirms |
 | medium | Wrong on an edge case | Only with a `demonstrated` or reproduced scenario |
 | low | Latent, hard to reach | Never filed. Report only |

@@ -63,7 +63,8 @@ restates it.
   list shows the owner which decisions read as arbitrary to an outside eye.
 - **Fence proposals.** A tell that recurs across files and could be matched
   by a pattern is a proposal for a check. It goes in the report, with the
-  pattern, shown firing on a real or planted instance. A proposed check that
+  pattern, shown firing on a real or planted instance. A role whose remedy
+  names such a guard carries it in the issue body as well. A proposed check that
   could never fire is ceremony and is not proposed. Never add a check on the
   spot.
 

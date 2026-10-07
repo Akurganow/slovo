@@ -212,13 +212,17 @@ was wrong, as each says.
   the security police owns only the attacker's path. The role extends the
   specification on the police skeleton every police role shares
   (`.agents/rules/police.md`). It owns its row of `.agents/rules/filing.md`,
-  "Ownership routing", which the logic police's row gives up, and it holds
-  no bound, table or vocabulary another file already holds.
+  "Ownership routing", which the logic police's row and severity table give
+  up, and it holds no bound, table or vocabulary another file already holds.
+  Its guard goes in the issue body, as `.agents/rules/police.md`, "Shared
+  rules", allows a role whose remedy names one.
 - **The test kinds keep the testing reference's wording.**
   `.agents/rules/tests.md` takes its kind definitions and measurements word
   for word from `docs/references/testing-swift.md`, "5. The criteria a review
-  applies", which the reference requires to match. The specification's
-  shorter wording says the same.
+  applies", which records the sources behind each and names
+  `.agents/rules/tests.md` the authority. The specification's shorter
+  wording says the same. The agent police's subject takes that section, so
+  the two texts cannot drift apart unread.
 - **No run-log diagnosis rule.** The run law leaves out the rule for a paid
   run that writes its own job log: no fleet role runs or owns a CI job here.
 - **A release bookkeeping commit has no gate run.** CI skips the commit the
@@ -274,3 +278,22 @@ was wrong, as each says.
   specification stated, with no source, that applying a label already
   present emits no event. Removing the label first wakes the stage either
   way, so the law no longer rests on the claim.
+- **The agent police reads `.agents/rules/police.md`.** The specification
+  gave it no reader of the shared police rules, so it restated the payload
+  rule, had no cost line, and could not carry the fence into a verifier
+  brief as `.agents/rules/filing.md` requires.
+- **The agent police checks cited headings and the label list.** The
+  specification's M11 checked paths alone, so a renamed heading passed every
+  read, and nothing compared `.agents/rules/labels.md` with the label list
+  that file yields to. M11 now reads each cited heading, and M15 compares
+  the label names both ways.
+- **A re-trial's way back removes the old state label.** The specification's
+  re-trial applies a new label and removes none, so `question` outlived a
+  sustained re-trial, and a dismissed one left `invalid` beside it. The
+  court cannot tell its own label from one a person set, so removing it is
+  the owner's step on the way back.
+- **The court has no skip path.** The specification's skip path takes a
+  support question, a feature request, a discussion, an empty template or
+  spam: a person's issue, which its court section says exists only under
+  tracker scope `all`. Under `machine` every issue the court reads is a
+  police report, so the path and its `skipped` verdict are left out.

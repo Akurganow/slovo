@@ -58,8 +58,9 @@ never a list written here.
 - **Suppressions that hide dead shapes:** `swiftlint:disable` comments,
   `#if` conditions that can no longer hold, deprecation attributes. One
   without a written justification is a candidate.
-- **A dead-code scanner** where the caller names one that installs. If none
-  does, report the check as not run, never as clean.
+- **A dead-dependency scanner**, for a package `Package.swift` declares that
+  no target uses, where the caller names one that installs. If none does,
+  report the check as not run, never as clean.
 - **Reference counts** for every public and internal type, protocol and
   function across all targets, tests, tools and scripts included.
 - **Near-duplicates:**

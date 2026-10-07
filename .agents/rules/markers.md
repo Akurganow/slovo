@@ -65,8 +65,7 @@ The last line of the court's one comment on an issue:
 ```
 
 - `verdict` is one of `sustained`, `partially-sustained`, `not-proven`,
-  `dismissed`, `out-of-scope`, `duplicate`, or `skipped` on the court's skip
-  path.
+  `dismissed`, `out-of-scope` or `duplicate`.
 - `duplicate_of` stands only beside `verdict=duplicate`, and names the
   survivor.
 - **Writer:** the court.

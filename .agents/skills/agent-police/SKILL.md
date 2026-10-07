@@ -25,8 +25,7 @@ Rules that agree with each other can all be wrong the same way. Only a
 measure from outside the tree catches that.
 
 You file a few clusters a maintainer would clear at once, or, normally,
-nothing. A payload on your fire is reported in one line and ignored: you
-patrol the whole subject.
+nothing.
 
 ## Read first, in this order
 
@@ -35,14 +34,16 @@ patrol the whole subject.
    evidence files it names. Your fingerprint is the `agent-police` row of
    `.agents/rules/markers.md`, "Police fingerprints". Cap exception: none,
    because no internal inconsistency is urgent.
-3. `.agents/rules/context.md`: precedence, the writing rules and the context
+3. `.agents/rules/police.md`: what every police role shares, the payload
+   rule and the cost line among it.
+4. `.agents/rules/context.md`: precedence, the writing rules and the context
    standard every fleet document is held to.
-4. `.agents/rules/text-residue.md`: the `lying`, `naming` and `residue`
+5. `.agents/rules/text-residue.md`: the `lying`, `naming` and `residue`
    measurements you borrow, and its protected list.
-5. `.agents/rules/claims.md`: what a sentence about an outside system rests
+6. `.agents/rules/claims.md`: what a sentence about an outside system rests
    on, for R3 and R10.
-6. `AGENTS.md`.
-7. The pipeline law, `.agents/skills/pipeline-law/SKILL.md`: the shared law
+7. `AGENTS.md`.
+8. The pipeline law, `.agents/skills/pipeline-law/SKILL.md`: the shared law
    of the delivery pipeline's roles.
 
 These are your instructions (`.agents/rules/unattended.md`, "Instructions and
@@ -70,7 +71,11 @@ Count it from the tree on every run, never from a written count.
 - the harness tree: the bindings under `.claude/agents/`, the links under
   `.claude/skills/`, and the link `.claude/rules`;
 - `AGENTS.md`, and `CLAUDE.md`, its link;
-- `docs/architecture.md`, for the second question only.
+- `docs/architecture.md`, for the second question only;
+- `docs/references/testing-swift.md`, "5. The criteria a review applies",
+  for the first question only: whether its kind definitions and
+  measurements still equal `.agents/rules/tests.md`, "The kinds", as that
+  file says they do.
 
 **Fleet sources** are the measure for the third question, never a subject:
 the published sources the fleet's documents rest on, by kind, each with the
@@ -128,10 +133,11 @@ report M5 and M6 as not run, never as failed.
 | M8 | A bound has one number in one place | Collect every number any fleet document states for every bound or counter, with file and line. Decide where each is stated and where merely quoted | A bound the owner changes must change everywhere it is stated, and nothing else catches the missed file |
 | M9 | Counter sets agree | The counters of `.agents/rules/markers.md`, "The state block", the counters any role increments or tests, and the counters the pipeline law's "Bounds" covers: all three equal | A counter a role enforces and the law does not describe is a bound the law denies exists |
 | M10 | Every marker written is read, every marker read is written, one spelling each. Every cross-role marker is in `.agents/rules/markers.md`, with no entry there that nothing writes | Collect the markers from the role files and the pipeline law **before** reading `.agents/rules/markers.md`, so the collection is not shaped by expectation. Then match | Markers are the only state the fleet keeps. A writer and a reader in different files drift apart |
-| M11 | Every repository path a fleet document names in code formatting exists | Extract the paths. Test existence **from the repository root** | A missed cross-reference points a fire at a path that is not there. Exceptions: a per-run or per-item path, a path named to say it is absent, a path inside a quoted example |
+| M11 | Every repository path a fleet document names in code formatting exists, and every heading it cites beside such a path is a heading of that file | Extract the paths and the `path`, "Heading" citations. Test existence **from the repository root**, and each heading against the file's headings | A missed cross-reference points a fire at a path or a section that is not there. A renamed heading passes a path check. Exceptions: a per-run or per-item path, a path named to say it is absent, a path inside a quoted example |
 | M12 | Every label a role tells itself to apply is in `.agents/rules/labels.md`, **on the right axis** | Compare apply-lines with the axes | A role told to apply an absent label skips the apply, and the owner never sees the verdict. A role told to apply only an area label files with no kind |
 | M13 | A binding carries no instruction of its own. Its description equals the role file's. Its skill list names the role and every shared skill the role file says it reads, and nothing else. Its body holds only the pointer to the role, the note that the caller carries the environment's facts, and at most the line "Report exactly as your role's report section prescribes, and change nothing it does not tell you to change." It sets no model or other runtime field | Compare. The skill list both directions, against the shared skills the role file names | The role file is the single place a role is written. The skill list is what the harness preloads, so it must match what the role reads. The caller chooses the model, because the choice sets the cost |
 | M14 | `AGENTS.md` states no count of roles or skills | Search | A written count is false the day a role is added |
+| M15 | The label names of `.agents/rules/labels.md` equal the repository's label list, both directions | Read the label list from the code host, paginated. Compare | That file yields to the list. A name missing from the list stops the write that needs it, and a name missing from the file is one no role knows the meaning of |
 
 ## The reading pass
 
@@ -181,7 +187,7 @@ and names its authority. A census covers the whole subject, never a sample.
    do-not-report list"). Add each open pull request that rewrites a fleet
    document, as a document in motion.
 4. **Backpressure** (`.agents/rules/filing.md`, "Backpressure").
-5. **The mechanical pass,** M1 to M14 in order. Write each read's output to
+5. **The mechanical pass,** M1 to M15 in order. Write each read's output to
    `$RUN` as it is learned.
 6. **The reading pass,** R1 to R10, over the whole subject, **this role file
    included**. Read the fleet sources first.
@@ -217,7 +223,9 @@ and names its authority. A census covers the whole subject, never a sample.
 
 Each issue names the authority that decides it, because each kind of finding
 is judged on a different question. The court tries the finding by that
-authority, and your bodies carry no `Judged by:` line.
+authority. Your role file names no single rulebook
+(`.agents/rules/police.md`, "Name the rulebook"), so your bodies carry no
+`Judged by:` line.
 
 - **A reading-pass finding** is judged by the document its quotes come from.
 - **A mechanical finding** is judged by the numbered read itself. The court's
@@ -243,11 +251,12 @@ Kind label `tech-debt` for the machine, or `documentation` for a claim in
 Kinds, a closed list: `front-matter`, `name-mismatch`, `binding-set`,
 `undeclared`, `copy-not-link`, `dangling-link`, `untracked-harness-path`,
 `bound-in-two-places`, `counter-set`, `marker-drift`,
-`uninventoried-marker`, `missing-path`, `unlisted-label`,
-`binding-instruction`, `entry-point-count`, `role-contradicts-rule`,
-`rules-contradict`, `stale-reference`, `forbidden-instruction`,
-`instrument-named`, `two-names`, `unread-document`, `duplicated-text`,
-`design-doc-false`, `ownership-gap`, `external-disagreement`.
+`uninventoried-marker`, `missing-path`, `missing-heading`,
+`unlisted-label`, `binding-instruction`, `entry-point-count`,
+`label-list-drift`, `role-contradicts-rule`, `rules-contradict`,
+`stale-reference`, `forbidden-instruction`, `instrument-named`, `two-names`,
+`unread-document`, `duplicated-text`, `design-doc-false`, `ownership-gap`,
+`external-disagreement`.
 
 Body:
 
@@ -274,6 +283,9 @@ with the choice left to the owner.
 
 ## Not addressed
 Adjacent disagreements left alone, and why, including anything routed away.
+
+## Cost and risk
+<the cost line of .agents/rules/police.md>
 
 <the fingerprint line>
 ```

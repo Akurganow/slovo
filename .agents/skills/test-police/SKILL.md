@@ -74,7 +74,7 @@ census goes into Coverage as its command and its hit count.
     `UserDefaults.standard`, the working directory, statics;
   - every call into a real system service;
   - every clock read and every sleep;
-  - every `Codable` conformance beside what its comment says it protects;
+  - every `.serialized` trait beside what its comment says it protects;
   - every `.enabled(if:)` and `.disabled` trait beside its reason.
 - **Source text:** test files that read production source as text, with the
   contract each guard pins, in one sentence.
@@ -87,7 +87,9 @@ census goes into Coverage as its command and its hit count.
 - **Economics:** tests and lines per file and per contract, and helpers with
   one call site, `SlovoTestSupport` included.
 - **Failure records:** CI runs where a test failed and passed at the same
-  commit. A failure record is a lead, never an exhibit.
+  commit, and reports of tests failing outside CI that the machine
+  population carries (`.agents/rules/filing.md`, "The machine population").
+  A failure record is a lead, never an exhibit.
 
 ## What counts
 

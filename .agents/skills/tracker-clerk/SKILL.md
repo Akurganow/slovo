@@ -62,7 +62,7 @@ decides the action and the close reason.
 4. **Its item closed unmerged**: closed as not planned ("Closes after an item
    settles").
 5. **Sustained, fully or in part**: handed to the pipeline ("The hand-off").
-6. **Not proven, skipped, or not yet tried**: nothing is written. The report
+6. **Not proven, or not yet tried**: nothing is written. The report
    lists it.
 
 **Case 1, gone.** It runs on every open issue in scope, every fire. Re-derive
@@ -100,7 +100,7 @@ may be filed again as a regression linking this issue. Action `gone`.
 | `duplicate` | First, the court's sentence on what this issue adds goes into a comment on #N, posted only where no comment of yours on #N links this issue. Where the court found it adds nothing, or #N is closed, no comment | Closed as a duplicate of #N. The closing comment links the comment on #N, or says the earlier decision on a closed #N stands. Action `duplicate`. Where #N is outside the machine population: a report line, and nothing closes |
 | `dismissed`, `out-of-scope` | Acquitted | Closed as not planned, one line citing the court's conclusion. Action `acquitted` |
 | `sustained`, `partially-sustained` | "The hand-off" | Stays open until its item settles |
-| `not-proven`, `skipped` | Nothing. The court's comment already names what is missing, or why the tracker does not take the issue | Stays open. The report lists it under "Waiting on a person" |
+| `not-proven` | Nothing. The court's comment already names what is missing | Stays open. The report lists it under "Waiting on a person" |
 
 A duplicate named only in the court's prose, without `verdict=duplicate` in
 its marker, is a report line, never an action.
@@ -113,8 +113,8 @@ clerk's marker".
 - **Placement follows whether you closed the issue.** A closed issue carries
   the marker as the last line of its closing comment. An issue that stays
   open after an action gets a comment of its own, ending with the marker. An
-  issue you take no action on gets no marker. A not-proven or skipped issue
-  is re-read every fire, which costs a read and writes nothing.
+  issue you take no action on gets no marker. A not-proven issue is re-read
+  every fire, which costs a read and writes nothing.
 - **The close comes last** (`.agents/rules/unattended.md`, "The order of exit
   writes"): post the closing comment, read it back, then close the issue.
   A fire that dies after the comment leaves its marker on an open issue, and
@@ -202,7 +202,7 @@ Beyond them, never:
 - write to a pull request: no open, merge, close, comment or label;
 - create an issue type;
 - close a police report the court has not tried, except under case 1 or
-  case 4. A not-proven or skipped verdict is never grounds for a close;
+  case 4. A not-proven verdict is never grounds for a close;
 - close again an issue a trusted author reopened after you closed it.
 
 ## The report
@@ -213,7 +213,7 @@ Beyond them, never:
    hand-off; every note.
 3. **Audited**: every issue where a marker of your own already stood, what
    was checked and what was finished. "None" is the ordinary day.
-4. **Waiting on a person**: every not-proven and every skipped issue, each
+4. **Waiting on a person**: every not-proven issue, each
    with what is missing in a clause, its age in days, and its way back
    (`.agents/skills/issue-court/SKILL.md`, "Labels and re-trials").
 5. **Queue**: untried police reports; every handed issue not yet taken; every
