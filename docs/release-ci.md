@@ -60,11 +60,13 @@ stages a contributor runs before a pull request. The pipeline never runs on
 | `test` | macOS | `contents: read` | none | reusable gate (`Scripts/diagnose.sh`) |
 | `decide` | Linux | `contents: read` | none | run git-cliff: is a release due, and at which version |
 | `package` | macOS | `contents: read`, `environment: release` | signing secrets | stamp version, build, sign, notarize, staple, verify, upload artifact |
-| `publish` | macOS | `contents: write` | none (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
+| `publish` | macOS | `contents: write`, `environment: release-push` | the push deploy key only (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
 Signing secrets live only in the protected `release` environment and are reachable
 only from `package`. Write access to the repository is isolated to `publish`,
-which holds no signing secrets. This split is deliberate; keep it.
+which holds no signing secrets. Its one secret, the deploy key that pushes the
+version bump, lives alone in the `release-push` environment and is reachable only
+from `publish`. This split is deliberate; keep it.
 
 CI bakes in the strict release checks: `codesign --verify --strict --deep`, bundle
 identifier `com.slovo.app`, team identifier `ZN8H5SF4R7`, `stapler validate` on
@@ -128,13 +130,33 @@ is **not** a distribution channel.
 
 ## Why one run does everything (no PAT, no double-fire)
 
-The `publish` job pushes the version-bump commit and the tag with the built-in
-`GITHUB_TOKEN`. GitHub deliberately does **not** start a new workflow run from
-events triggered by `GITHUB_TOKEN` (loop protection), and the bump commit also
-carries `[skip ci]`. That is why the whole release finishes in the single run that
-a human's push started, with no personal access token and no second, tag-triggered
-run. The workflow has no `tags: v*` trigger at all — tags are created only by this
-pipeline — so a tag push can never spawn a duplicate packaging run.
+The `publish` job pushes the version-bump commit and the tag over SSH with a
+write-access deploy key, `RELEASE_DEPLOY_KEY`. The `main` ruleset requires a pull
+request, and deploy keys are on its bypass list. The built-in `GITHUB_TOKEN`
+pushes as the GitHub Actions app, which the ruleset does not list. `gh release
+create` still uses the `GITHUB_TOKEN`, since creating a release is not a branch
+push.
+
+A deploy-key push starts workflow runs. GitHub's loop protection covers only
+events the `GITHUB_TOKEN` triggers
+([GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)).
+Two facts keep the release's two pushes from starting any:
+
+- **The bump commit.** Two workflows trigger on a push to `main`: `release.yml`
+  and [codeql.yml](../.github/workflows/codeql.yml). The commit carries
+  `[skip ci]`, which skips every `push` and `pull_request` run its own push would
+  start
+  ([Skipping workflow runs](https://docs.github.com/en/actions/how-tos/managing-workflow-runs-and-deployments/managing-workflow-runs/skipping-workflow-runs)).
+  It is the only commit in that push: a `main` that moved meanwhile rejects the
+  push as non-fast-forward.
+- **The `v<version>` tag.** Both workflows filter `push` by branch only, and such
+  a workflow never runs for a tag push
+  ([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)).
+  No workflow triggers on `tags`, `create`, or `release`.
+
+That is why the whole release finishes in the single run that a human's push
+started, with no personal access token and no second, tag-triggered run. A
+workflow that later triggers on tags or on `create` starts on every release.
 
 ## Changelog
 
@@ -268,14 +290,34 @@ name `dev-build` (color and description free). Applying it to a pull request is
 the one-click dev-build trigger described in
 [Dev builds on demand](#dev-builds-on-demand).
 
-### Branch protection nuance
+### 5. Create the `release-push` environment and its deploy key
 
-The pipeline works today because `main` is not protected. If you enable branch
-protection on `main`, the `publish` job's push of the version-bump commit will be
-rejected unless the rule lets the automation through. Either allow the
-`github-actions[bot]` actor (or the `GITHUB_TOKEN`) to bypass the pull-request
-requirement, or exempt it from the push restriction. Without that, releases will
-package artifacts but fail at the commit/tag step.
+The `publish` job pushes the version bump as a deploy key, the pusher the `main`
+ruleset lets past its pull-request rule (see [The `main` ruleset](#the-main-ruleset)).
+
+1. In a local terminal, create a key pair with no passphrase:
+   `ssh-keygen -t ed25519 -N "" -C "slovo release push" -f slovo_release_push`
+2. In **Settings → Deploy keys → Add deploy key**, paste `slovo_release_push.pub`.
+3. Tick **Allow write access** and add the key.
+4. In **Settings → Environments**, create an environment named `release-push`.
+5. Restrict it to **Deployment branches → Selected branches → `main`**.
+6. Add one environment secret: `RELEASE_DEPLOY_KEY`, the whole `slovo_release_push` file.
+7. Delete both local key files.
+
+No other secret belongs in `release-push`, and the deploy key belongs in no other
+environment. That keeps the signing secrets away from the job that can write to
+the repository, and the write key away from the job that signs.
+
+### The `main` ruleset
+
+A ruleset on `main` requires a pull request and blocks force pushes and deletion.
+Deploy keys are on its bypass list, which is what lets `publish` push the version
+bump. The bypass covers every rule in the ruleset, so whoever holds the private
+key can also rewrite `main`. Only `publish`, running on `main`, can read it.
+
+Without the key, or with deploy keys off the bypass list, a release packages its
+artifacts and then fails at the commit push, before any tag or GitHub Release
+exists.
 
 ## What you observe
 

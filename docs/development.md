@@ -25,8 +25,11 @@ The development run script rebuilds the `slovo` product, stages
 `.build/dev-run/Slovo.app`, signs it with a stable local code-signing identity
 and the app entitlements, opens the menu-bar app, and verifies that the `slovo`
 process is running. Stable signing is required for macOS TCC permission
-persistence; pass the identity explicitly so a different certificate cannot be
-selected implicitly. Ad-hoc builds are not valid for user testing.
+persistence. The script signs with `SIGNING_IDENTITY` when it is set, and
+otherwise with the keychain's code-signing identity when exactly one is
+valid. Failing both, it signs ad-hoc when `ALLOW_AD_HOC_SIGNING=1` is set,
+and otherwise stops with a hint to set one of the two variables. Ad-hoc
+builds are not valid for user testing.
 
 ## Test
 
@@ -69,7 +72,7 @@ The lint script runs:
 - shell syntax checks
 - plist and entitlements linting
 - strict SwiftLint, including the `custom_rules` that fence generator
-  residue (catalogue: `.agents/rules/slop.md`)
+  residue (catalogue: `.agents/rules/text-residue.md`)
 - SwiftLint analyzer checks over `Sources/` and `Tools/`, backed by a
   compiler log. The log must carry a `swiftc` invocation for every module
   the analyzer reads, and SwiftPM logs only what it actually compiles, so the
@@ -124,7 +127,7 @@ local packaging is only for verifying a build before it is merged.
 Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
 
 ```sh
-SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" Scripts/sign-and-notarize.sh app
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" Scripts/sign-and-notarize.sh app
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See

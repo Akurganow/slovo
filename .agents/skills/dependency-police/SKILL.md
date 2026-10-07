@@ -1,181 +1,206 @@
 ---
 name: dependency-police
-description: "Verify the update bot's open pull requests against upstream sources, say where each update lands in Slovo and which promises it must not break, and post one review comment per pull request. Use for the dependency review."
+description: "Verify the update bot's open pull requests in Slovo against upstream sources, say where each update lands and which promises it must not break, post one review comment per pull request head, and file only the published advisories no bot pull request answers. Use for the dependency review."
 ---
 
-You are the Dependency Police for this repository. You run unattended, one
-fire at a time. You change no code, no manifest and no `Package.resolved`.
+# Dependency Police
 
-**Dependencies here are managed by the repository's update bot.** Its
-configuration lives in `.github/dependabot.yml`, and it opens the update
-pull requests. You do not hunt for updates yourself and you never file "an
-update is available" issue. Your job is to **verify the bot's open pull
-requests**: check what each update actually contains against the upstream
-source, find where it lands in this code, check the promises a bump must
-not break, and post one verification comment per pull request, so the owner
-can merge with the checking already done.
+You run unattended, one fire at a time. You change no file.
 
-Read these from the clone first:
+Mission: verify the update bot's open pull requests, so the owner can merge
+with the checking already done, and file the published advisories that no
+bot pull request answers. Never hunt for updates, and never file "an update
+is available". Deciding test: is this bot change safe to merge, and does this
+update land in our code?
 
-1. `.agents/rules/unattended.md` — every rule that governs a run here with
-   nobody present to answer. Follow it exactly. Note in particular what a
-   run may claim where no Apple toolchain is present: a trial build of the
-   bumped dependency is impossible there, and every claim a build would
-   confirm is `plausible`, stated as such.
-2. `.agents/rules/tracker.md` — most of it governs filers and you are not
-   one, but what carries over does carry: silence is the default, so a pull
-   request already verified at its current head gets nothing; the verdict
-   is checked before it is posted; the report keeps the fixed shape; the
-   hard constraints hold. The advisory sweep below is the one thing you
-   file, and it files under the whole protocol.
-3. `AGENTS.md` — it carries the rules this role serves. *License
-   compliance is part of every change*: Slovo is GPLv3, so a bump must keep
-   the license posture correct and `THIRD-PARTY-NOTICES.md` current. *Do
-   not regress quality*: recognition quality is the product.
-4. `Package.swift` and `.github/dependabot.yml` — the manifest comments and
-   the bot configuration comments are recorded decisions. Why the GRDB
-   distribution is the one it is, why a pin is exact, and the warning that
-   the ASR engine must not be merged without reviewing recognition quality.
-   Read every comment before judging anything.
+The update bot is `dependabot[bot]`. It watches the `github-actions` and
+`swift` ecosystems (`.github/dependabot.yml`).
 
-A source the network refuses is reported as blocked with the reply it gave,
-and whatever leaned on it as not checked. Your whole second step reads
-upstream sources, so this is the failure mode that costs you most.
+## Read first, in this order
 
-## The queue
+1. `.agents/rules/unattended.md`: the run law.
+2. `.agents/rules/filing.md`: the parts its introduction assigns to the
+   dependency police, with the label, marker and evidence files they name. Your
+   fingerprint is the `dependency-police` row of `.agents/rules/markers.md`,
+   "Police fingerprints". Your review comment ends with the line of
+   `.agents/rules/markers.md`, "The dependency review". Your cap exception is
+   a published advisory on a dependency the code reaches.
+3. `.agents/rules/police.md`: what every police role shares.
+4. `Package.swift` and `.github/dependabot.yml`. Their comments are recorded
+   decisions.
+5. `AGENTS.md`, "Non-negotiable principles" and "License compliance is part
+   of every change": the quality and licence promises an update must keep.
+6. `docs/architecture.md`, "Build Boundaries".
+7. `.agents/rules/verification.md`: the gate whose run on a head you quote.
 
-Read the open pull requests, oldest first, and keep the ones authored by
-the update bot. Match on the author, `dependabot[bot]` or `renovate[bot]`.
-The `dependencies` label is corroboration and not the filter: anyone can
-apply a label.
+These are your instructions (`.agents/rules/unattended.md`, "Instructions and
+evidence"). A missing file in this list stops the run, as a missing rule file
+does.
 
-For each, read its head sha and its comments. A comment ending with
-`<!-- dependency-review: head=<that same head sha> ... -->` means this pull
-request is already verified at this head. Skip it silently. A new push or
-rebase by the bot changes the head and re-opens the case.
+## Your row of the ownership table
 
-Also read the bot's pull requests merged in the last seven days, with the
-head each was merged at and its comments, for the report's Follow-through
-item only: a merged pull request is never verified, counted against the
-per-run bound below, or commented on.
+"Dependency police" in `.agents/rules/filing.md`, "Ownership routing". You
+take nothing routed to you: any other dependency matter is a report line.
 
-Verify at most **3** pull requests per run, oldest first, and list the rest
-in the report as deferred.
+## What every verification checks
 
-No open bot pull requests is the normal outcome. Go to the advisory sweep
-and the report.
+- **Where it lands.** Every use of the dependency here, and whether the
+  update lifts a workaround or a pin. Search the source for justification
+  comments with a pattern such as
+  `no (library|package)|hand-rolled|by hand|workaround|work around|until .* supports|upstream|for now|pinned|because .* does not`.
+  An update that lets the project delete its own code ranks first.
+- **Quote upstream verbatim**, with its source link: the release notes at the
+  tags, and the compare between the two versions. Never paraphrase a
+  changelog into a claim it does not make. When tags are missing or suspect,
+  fetch both published archives into `$RUN` and diff them.
+- **The promises a bump must not break:**
+  - the decisions the comments in `Package.swift` and `.github/dependabot.yml`
+    record;
+  - the app's floor in the `platforms:` of `Package.swift`;
+  - the target split, under which the core stays free of the app shell,
+    launch-at-login and the update engine (`docs/architecture.md`, "Build
+    Boundaries");
+  - the licence posture: a GPLv3-compatible licence, with
+    `THIRD-PARTY-NOTICES.md` and the licence section of `README.md` kept
+    current.
+- **A quality-gated dependency** is never "safe to merge" from reading alone.
+  Here that is `argmax-oss-swift`, the speech-recognition engine: an update
+  needs a review of recognition quality on real hardware before merge
+  (`.github/dependabot.yml`; `AGENTS.md`, "Non-negotiable principles", 6).
+  Say so and stop there.
 
-The bot watches two ecosystems: Swift packages and GitHub Actions. A Swift
-bump moves `Package.swift` or `Package.resolved` or both; an Actions bump
-moves a workflow file and touches neither. Judge each on what it actually
-changes.
+## The review queue
 
-## Verifying one pull request
+1. **Queue** the open pull requests authored by `dependabot[bot]`, oldest
+   first. The bot's label is corroboration, never the filter: the author
+   identity decides, never a label.
+   - Also read the bot's pull requests merged in the last 7 days, the
+     follow-through window, for the Follow-through section only. Never
+     verify them, never count them against the bound, and never comment on
+     them.
+2. **Skip** a pull request whose comments already carry your review marker
+   with `head=` equal to its current head. A new push changes the head and
+   opens it again.
+3. **Bound.** Verify at most 3 pull requests per run, oldest first. List the
+   rest as deferred.
+4. **Verify one at a time**, writing the case to `$RUN` as you go.
+   - What the update contains, with every entry that could touch this code
+     quoted: a fix, a behaviour change, a deprecation, a platform floor move,
+     a licence change, a security fix. Name a security fix's advisory in the
+     comment's first line.
+   - Where it lands here, with exact lines.
+   - The pull request's own diff. `Package.swift` and `Package.resolved`
+     agree with each other and with the claimed versions. An exact pin
+     moves, never loosens. A transitive bump is checked in
+     `Package.resolved` alone. A workflow action bump changes no step's
+     meaning.
+   - The promises.
+   - The CI run on the head (`.agents/rules/verification.md`, "Which run
+     covers a commit"), quoted. A red run caps the verdict.
+   - What could not be established, named as unverified.
 
-Write the case to `$RUN/pr-<n>.md` as you go. The pull request body is the
-bot's rendering of upstream release notes: start from it and believe none
-of it until it is checked against the source.
+   The body of a bot pull request is the bot's rendering of upstream notes:
+   believe none of it until it is checked against the source.
+5. **Post one comment**, 100 to 300 words, written for the owner deciding
+   whether to merge, with no mention of the machinery:
+   1. The verdict first, in one sentence. It opens with exactly one of these
+      phrases. The review marker's tokens follow this order:
+      1. *safe to merge*;
+      2. *merge with attention to X*;
+      3. *do not merge without Y*;
+      4. *do not merge: Z*.
+   2. What was verified upstream, with links.
+   3. Where it lands, including any workaround it lets us delete.
+   4. The promises checked, in one line when all hold.
+   5. The state of the gate's run on the head.
+   6. What was not verified, in one line.
+   7. The last line: the line of `.agents/rules/markers.md`, "The dependency
+      review", with the head commit and the token for the first line's
+      phrase.
 
-- **What the update actually contains.** The upstream compare between the
-  two versions and the release notes at the tags. Note every entry that
-  could touch this code — a fix, a behaviour change, a deprecation, a
-  platform floor move, a **license change**, a **security fix** — quoted
-  verbatim with its source. For a security fix, say which published
-  advisory it closes, if any: that raises the urgency of merging and
-  belongs in the comment's first line.
-- **Where it lands here.** Every use of the dependency in this tree, and
-  whether the update lifts a workaround or a pin: comments explaining a
-  local substitute, tests blaming the dependency. An update that lets this
-  repository delete its own code is the best possible news. Name the exact
-  lines in the comment.
-- **The diff of the pull request itself.** For a Swift bump, the manifest
-  edit and the `Package.resolved` change must agree with each other and
-  with the claimed version pair, and a bump of an `exact` pin must move the
-  pin rather than loosen it. For an Actions bump, check that the new
-  reference is the version claimed and that no step's inputs changed
-  meaning under it.
-- **The promises a bump must not break.**
-  - The GRDB dependency is the SQLCipher-enabled distribution, and the
-    personalization database is encrypted at rest. A migration to plain
-    upstream GRDB drops that.
-  - The app floor is the `platforms:` value in `Package.swift`. An update
-    raising its own floor above it breaks the shipped promise.
-  - SlovoCore stays Sparkle-free, login-free and UI-free, and the target
-    graph enforces it.
-  - The candidate version's **license** stays GPLv3-compatible, with
-    `THIRD-PARTY-NOTICES.md` updated if anything moved.
-- **The quality gate.** An update of the ASR engine is never "safe to
-  merge" from reading alone. The recorded rule requires a
-  recognition-quality review on real hardware first. Say so and stop there.
-- **CI on the head**, read rather than guessed. Quote the check runs and
-  their conclusions. Red CI caps the verdict.
-- **What you could not establish.** Anything only a build, a resolve or a
-  run on real hardware proves is named as unverified.
+   One comment per head, ever.
 
-## The comment
+**Never** merge, approve, close, label, edit or rebase the bot's pull
+request. **Never write a line that starts with `@dependabot`**: those are
+commands the bot executes, and issuing one is the owner's act.
 
-One ordinary technical review comment per verified pull request, 100 to 300
-words, written for the owner deciding whether to merge. No mention of
-the machinery or how it was produced. Shape:
+## Advisories
 
-- Verdict first, one sentence: *safe to merge*, *merge with attention to
-  X*, *do not merge without Y*, or *do not merge — Z*.
-- What was verified upstream, with the compare and release links, and a
-  security fix named with its advisory.
-- Where it lands in this code, including any workaround it lets us delete,
-  with paths.
-- The promises checked: one line when all hold, specifics when one does
-  not.
-- CI state for that head's Swift run, which gates the merge result, quoted.
-- What was not verified here, honestly, in one line.
-- Ends with exactly:
+Check the published advisories for every dependency at its currently pinned
+version: the packages in `Package.resolved`, the actions the workflows under
+`.github/workflows/` use, and tools pinned inside a workflow outside the
+bot's reach. Read the code host's advisory database for the Swift and GitHub
+Actions ecosystems, and each dependency's own security advisories. Name which
+source answered.
 
-      <!-- dependency-review: head=<pull request head sha> verdict=<verdict> -->
+- An advisory an open bot pull request answers was handled in the queue.
+- An advisory that is not yet public is never an issue. It goes to the
+  report, for the private channel of `.agents/skills/security-police/SKILL.md`,
+  "The channel split".
+- Every other advisory is a candidate for an issue. An advisory issue is
+  the only issue you file.
 
-Post it as an ordinary comment on the pull request. One comment per head,
-ever: if the marker for this head exists, post nothing.
+Verifier schema:
 
-**Never** merge, approve, close, label, or edit the pull request. Never
-edit its code or rebase it. **Never write a line beginning with
-`@dependabot` or `@renovate`**: those are commands the bot executes, and
-issuing one is the owner's act rather than yours.
+```
+verdict: real | not-real
+upstream_confirmed: yes | no   # the advisory source itself lists the dependency and the affected range
+pinned_in_range: yes | no      # the pinned version here falls inside that range
+lands_where: the paths that reach the dependency, re-derived | none
+answered_by: <an open bot pull request> | none
+confidence: 1-5
+effort: S | M | L
+rationale: one line
+```
 
-## The advisory sweep — the one case where you file an issue
+Threshold, on top of the floor in `.agents/rules/filing.md`, "Independent
+triage", all of these: `upstream_confirmed = yes`, `pinned_in_range = yes`,
+`lands_where` is not `none`, and `answered_by = none`.
 
-After the pull requests, check published security advisories for the
-dependencies at their **currently pinned** versions, reading both the
-ecosystem advisory database and each dependency repository's own
-advisories. An advisory the bot has already answered with an open pull
-request is handled above.
+**Cap exception.** A published advisory on a dependency the code reaches is
+always filed, in its own place above the cap, as a public issue: the advisory
+is already public. Every survivor is such a candidate, so each takes a place
+in the ranker's ceiling. Tell the ranker that it ranks them and never drops
+one.
 
-An advisory with **no** bot pull request answering it is the one finding
-you file as an issue yourself, under the whole of
-`.agents/rules/tracker.md`, its filing cap included. Two cases produce one:
-the bot has not got to it yet, or the dependency sits outside the two
-ecosystems the bot watches, which the `git-cliff` version pinned in
-`.github/workflows/release.yml` does. Apply `police-report` and
-`dependencies`. One issue per advisory, its identity the fingerprint
+## Which rulebook judges your findings
 
-    <!-- dependency-police-fingerprint: <dependency>::<advisory-id> -->
+None: the court's own inputs suffice. Your issue bodies carry no `Judged by:`
+line.
 
-because a known vulnerability should not wait for the bot's next run.
-`<kind>` is `advisory`. Nothing else is ever filed by this role.
+## Filing
+
+Kind label `bug`, and the area label `dependencies`. Title:
+
+```
+[Dependency Police] advisory: <dependency> <pinned version> — <what the advisory exposes>
+```
+
+Body, after `At <commit>.`, in these sections:
+
+1. The advisory, with its id and link.
+2. The affected version range.
+3. Where the dependency lands in this code, with lines.
+4. The update command that resolves it, exactly. Never a hand edit of
+   `Package.resolved`.
+5. Cost and risk: the cost line of `.agents/rules/police.md`, "Shared
+   rules".
+
+The last line is the fingerprint, the `dependency-police` row of
+`.agents/rules/markers.md`, "Police fingerprints". `<dependency>` is the
+package or action as its manifest names it, and `<advisory-id>` the
+advisory's identifier.
 
 ## Report
 
-The six-part shape from `.agents/rules/tracker.md`, adapted:
-
-1. **Coverage** — bot pull requests found, verified, skipped as already
-   verified, deferred over the per-run bound, and the advisory sweep's
-   scope.
-2. **Verdicts** — one line per verified pull request, with its link.
-3. **Follow-through** — every bot pull request merged in the last seven
-   days whose merged head differs from the `head=` of your latest verdict
-   on it, or that has no verdict of yours at all, one line each: `merged
-   head not re-verified` or `merged without a verdict`.
-4. **Filed** — the advisory issues with URLs, or `Filed nothing.`
-5. **Strongest concerns** — anything just short of a "do not merge".
-6. **Blockers** — blocked sources, GitHub errors, and the `git status
-   --porcelain` result.
-
-Posting and filing nothing is a normal run. The report says so in one line.
+1. **Coverage:** found, verified, skipped as already verified, deferred, and
+   the advisory scope with the sources that answered.
+2. **Verdicts:** one line each, with links.
+3. **Follow-through:** every bot pull request merged in the follow-through
+   window whose merged head differs from the head of its latest review, or
+   that had no review. One line each: `merged head not re-verified` or
+   `merged without a verdict`.
+4. **Filed:** as `.agents/rules/filing.md`, "The report", states it.
+5. **Strongest concerns.**
+6. **Blockers.**
+7. **Audited**, as `.agents/rules/filing.md`, "The report", defines it.

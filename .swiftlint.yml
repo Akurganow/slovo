@@ -140,9 +140,9 @@ file_length:
 
 # Two constructs with no legitimate reading in this code base, fenced so
 # they never reach main; everything phrased in words is a reviewer's call
-# (`.agents/rules/slop.md`). CI is strict, so a warning fails the build.
+# (`.agents/rules/text-residue.md`). CI is strict, so a warning fails the build.
 custom_rules:
-  slop_print_leftover:
+  print_in_sources:
     name: "print() in library or app code"
     included: "Sources/.*\\.swift"
     regex: '(?<![.\w])(?:Swift\.)?(?:print|debugPrint|dump|NSLog)\('
@@ -150,7 +150,7 @@ custom_rules:
     message: "Sources/ logs through the redaction-safe logger; print-family calls bypass it and can leak transcript text (command-line tools live under Tools/)."
     severity: warning
 
-  slop_empty_catch:
+  empty_catch:
     name: "Empty catch"
     regex: '\bcatch\b(?![^{\n]*\bCancellationError\b)[^{\n]*\{\s*\}'
     excluded_match_kinds: [comment, doccomment, string]

@@ -59,7 +59,7 @@ Local packaging requires a stable signing identity and runs in two phases —
 `app`, then `dmg`:
 
 ```sh
-SIGNING_IDENTITY="Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)" Scripts/sign-and-notarize.sh app
+SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" Scripts/sign-and-notarize.sh app
 ```
 
 The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, because

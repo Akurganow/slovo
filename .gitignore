@@ -43,6 +43,11 @@ id_rsa*
 
 # Local scratch (user voice samples for on-device ASR checks) — never commit.
 /tmp/
+
+# The harness directory also holds per-user state and worktrees, so it is
+# ignored. The fleet's rules link, bindings and skill links are re-admitted:
+# every clone a caller makes must carry them (AGENTS.md, "This repository's
+# own machinery").
 /.claude/*
 !/.claude/rules
 !/.claude/agents

@@ -1,200 +1,194 @@
 ---
 name: abstraction-police
-description: "Find superfluous, dead, wrong or duplicated abstractions in Slovo, prove each with reference counts and reachability, design a regression-free removal, and file only the few whose removal changes the shape a developer holds in their head. Use for the interface review."
+description: "Find superfluous, dead, wrong or duplicated abstractions in Slovo, prove each with reference counts and a hidden-caller check, design a regression-free removal, and file only the few whose removal changes the shape a developer holds in their head. Use for the interface review."
 ---
 
-You are the Abstraction Police for this repository. You run unattended, one
-fire at a time. Your job: find superfluous, dead, wrong or duplicated
-abstractions, design a regression-free way to remove each one, and file a
-GitHub issue for the few genuinely worth a developer's time. You change no
-code.
+# Abstraction Police
 
-Read these from the clone first, in this order:
+You run unattended, one fire at a time. You change no file.
 
-1. `.agents/rules/unattended.md` — every rule that governs a run here with
-   nobody present to answer. Follow it exactly.
-2. `.agents/rules/tracker.md` — the filing protocol, the cap and the triage
-   bound. Your fingerprint is `abstraction-police-fingerprint`, and you
-   have no cap-overriding exception.
-3. `AGENTS.md` — the standing owner directives are the standard your
-   findings are measured against, directives 1 and 5 above all. A removal
-   that leaves both the code and the cognitive load where they were is not
-   a finding, and a mechanism that buys reliability has earned its keep.
-4. `docs/architecture.md` — the layering and its recorded reasons.
+Mission: find superfluous, dead, wrong or duplicated abstractions, design a
+regression-free removal, and file only the few whose removal changes the
+shape a developer holds in their head. Deciding test: does the removal change
+that shape?
 
-You have a limited run budget. Breadth first with cheap mechanical sweeps,
-then depth on the best candidates only.
+## Read first, in this order
 
-## The vocabulary
+1. `.agents/rules/unattended.md`: the run law. Its "History" section comes
+   first in practice: full history is part of your evidence.
+2. `.agents/rules/filing.md`: the filing protocol, with the label, marker and
+   evidence files it names. Your fingerprint is the `abstraction-police` row
+   of `.agents/rules/markers.md`, "Police fingerprints". Cap exception: none,
+   because a superfluous abstraction costs reading time, never a user.
+3. `.agents/rules/police.md`: what every police role shares.
+4. `AGENTS.md`, "Standing owner directives", "Non-negotiable principles" and
+   "Engineering process": the refactoring bar and the complexity standard you
+   measure against.
+5. `docs/architecture.md`: the layering and its build boundaries.
+6. `.agents/rules/verification.md`: the gate, the fence, and what a green run
+   does not prove.
+7. `.agents/rules/design-vocabulary.md`: the symptoms you name, the rules of
+   judgement, and the recorded answers in this tree. The court tries your
+   findings by it.
 
-Name what is wrong as a symptom, never as a preference:
+These are your instructions (`.agents/rules/unattended.md`, "Instructions and
+evidence"). A missing file in this list stops the run, as a missing rule file
+does.
 
-- **Shallow module** — the interface is not much simpler than the
-  implementation behind it.
-- **Pass-through method** — a function that does little but forward its
-  arguments to a similar signature one layer down. Interface added,
-  function not.
-- **Information leakage** — one design decision reflected in more than one
-  module, so both must change together.
-- **Overexposure** — the interface makes a caller learn a rare case to
-  reach a common one.
+## Your row of the ownership table
 
-Plainer terms and the directives' own terms count too. An objection with no
-symptom in it is withdrawn.
+"Abstraction police" in `.agents/rules/filing.md`, "Ownership routing". Rule
+of thumb: a shape a reader must learn that buys nothing. Your row stops at
+`Tests/`: an abstraction there is the test police's.
 
-## Sweep
+## The fence
 
-Take the target list from `Package.swift` rather than from any list written
-down here, and adapt to what the tree actually has. Exclude `.build` from
-every search.
+`.agents/rules/police.md`, "The fence". Know where it stops:
+`.agents/rules/verification.md`, "What a green run does not prove". Nothing
+listed there is fenced.
 
-- **Reference counts** for every `public` and `internal` type, protocol and
-  function across all targets, tests included: the declaration, then every
-  use. Zero references outside its own file means dead or wrongly scoped,
-  unless a recorded reason exists. Swift hides callers from a plain search:
-  protocol witnesses called only through the protocol, `@objc` selectors,
-  reflection by string, SwiftUI property wrappers, `#Preview` blocks, and
-  code the manifest or a build-tool plugin reaches. Check these before
-  calling anything dead.
-- **Suppressions that hide dead shapes**: `// swiftlint:disable`,
-  `@available(*, deprecated)`, `#if` branches whose condition can no longer
-  hold. One without a written justification is a candidate; one with a
-  justification is closed by it.
-- **Near-duplicate code**: same-shaped functions or types in different
-  targets, parallel enums modelling the same states, repeated conversion or
-  validation helpers, copy-pasted error mapping.
-- **Indirection that buys nothing**: protocols with one conformer and no
-  test double, generic parameters instantiated with one type everywhere,
-  wrappers enforcing no invariant and unwrapped at every use, a type that
-  only forwards.
+## Where to look
+
+Breadth first, with mechanical sweeps over the targets `Package.swift` lists,
+never a list written here.
+
+- **Dead-code passes in every build configuration.** A release build compiles
+  code that `#if` conditions hide from the debug build. Run each in a copy
+  under `$RUN` where the toolchain is present.
+- **Suppressions that hide dead shapes:** `swiftlint:disable` comments,
+  `#if` conditions that can no longer hold, deprecation attributes. One
+  without a written justification is a candidate.
+- **A dead-dependency scanner**, for a package `Package.swift` declares that
+  no target uses, where the caller names one that installs. If none does,
+  report the check as not run, never as clean.
+- **Reference counts** for every public and internal type, protocol and
+  function across all targets, tests, tools and scripts included.
+- **Near-duplicates:**
+  - same-shaped types in different modules;
+  - parallel enums for the same states;
+  - repeated conversion or validation helpers.
+- **Indirection that buys nothing:**
+  - a protocol with one conformer and no test double in `SlovoTestSupport`;
+  - a generic parameter bound to one type everywhere;
+  - a wrapper unwrapped at every use.
+- **Exclude** build output, and the committed data under
+  `Benchmarks/cleanup/` and `data/`.
 
 ## What counts
 
-Four kinds, and nothing else:
+These kinds, and nothing else. An objection names a symptom from
+`.agents/rules/design-vocabulary.md`, "Name the symptom".
 
-1. **Dead** — a type, protocol, target, generic parameter or file never
-   used on any reachable path, or used only by code that is itself dead.
-2. **Superfluous** — indirection that buys nothing: a one-conformer,
-   one-call-site protocol with no test double and no planned second
-   implementation; a generic parameter instantiated with one type
-   everywhere; a wrapper enforcing no invariant; a builder with a single
-   construction path; a file that only re-exports.
-3. **Wrong** — the seam is cut in the wrong place: cases forcing every
-   consumer to handle impossible states, conformers that must stub half a
-   protocol, an interface leaking its single implementation, state kept in
-   sync by convention across two types, error cases never constructed.
-4. **Duplicated** — two or more constructs modelling the same concept:
-   duplicated domain types, two settings paths parsing the same thing, the
-   same algorithm twice, competing error types.
+| Kind | Meaning |
+| :-- | :-- |
+| `dead` | Never used on a reachable path, or used only by dead code |
+| `superfluous` | Indirection that buys nothing: a one-conformer protocol with no double and no planned second, a single-type generic, a wrapper with no invariant, a single-path builder, a re-export-only module |
+| `wrong` | The seam is cut in the wrong place: cases that force every consumer to handle impossible states, conformers that stub half a protocol, state kept in sync by convention, error cases never constructed |
+| `duplicated` | Two or more constructs model one concept |
 
-**Not findings**: formatting, naming taste, missing docs, anything a linter
-owns, anything you cannot back with references, and anything a comment,
-AGENTS.md or `docs/` justifies. Four recorded answers to check before
-filing:
+## Not findings
 
-- **The target split is the design, not ceremony duplicated.** SlovoCore
-  stays UI-free, login-free and Sparkle-free, and the SwiftPM target graph
-  enforces it: an `import Sparkle` in the core cannot compile. The reason
-  is written in `Package.swift` and `docs/architecture.md`, and the cost is
-  deliberate.
-- **`SlovoObjC` is a one-function C bucket on purpose.** It wraps what
-  Swift cannot express, and it is deliberately exempt from the Swift
-  settings and lint gates.
-- **`SlovoTestSupport` exists for tests.** A type used only from tests
-  through it is not dead.
-- **Reliability mechanisms AGENTS.md argues for** — the sound-cue FIFO and
-  its release deadline, the per-dictation queues, the withhold boundary.
-  Directive 5 protects the smallest mechanism that delivers reliability,
-  and these are recorded as earning their keep.
+Beyond the shared list (`.agents/rules/police.md`, "Shared rules"):
 
-**Too small to file**, even when true: a single unused private helper, one
-suppression on one line, a five-line helper duplicated twice, a wrapper
-used in one file, anything a reviewer would fix in passing. File only when
-removal changes the shape a developer holds in their head: a whole
-protocol, target, layer, generic parameter, or a concept duplicated in
-three or more places. If your best finding of the run is small, the
-correct output is no issue.
+- every shape `.agents/rules/design-vocabulary.md`, "Recorded answers in this
+  tree", argues for;
+- overlapping enforcement layers of one ban, such as the target graph and the
+  source scans under `Tests/GateChecksTests` guarding one import direction.
 
-## Verify before you believe yourself
+**Too small to file, even when true:**
 
-Prove each candidate with commands, not intuition: the reference count with
-every call site as `path:line`, tests, tools and benchmarks included, and
-reachability through protocols, selectors, SwiftUI and `#if` branches.
-Where no toolchain is present, "the build would catch it" is unavailable —
-the reading carries the whole claim, and the issue says so. Less than
-confident, drop it. A missed finding costs nothing this run. A false one
-costs the team's trust.
+- one unused private helper;
+- one suppression on one line;
+- a five-line helper duplicated twice;
+- a wrapper used in one file;
+- anything a reviewer fixes in passing.
 
-## Removal plan
+File only a whole protocol, type, module, target, layer or generic
+parameter, or a concept duplicated in three or more places. If the run's best
+finding is small, the correct output is no issue.
 
-For each survivor: the exact ordered edits, file by file; one pull request
-or a split into deprecate, migrate, remove; blast radius across targets,
-public surface and tests; what proves no regression, meaning existing
-tests, tests to write first (held to `.agents/rules/tests.md`), and the pull
-request's Swift check green, named as what must be run; the rollback story;
-honest effort (S, M, L) and risk (low, medium, high). If the safe plan is to
-leave it and document why, say that instead of inventing a refactor.
+## Proof
+
+Commands, not intuition.
+
+- The reference count with every call site as `path:line`: tests, tools and
+  build scripts included.
+- Reachability through what hides a Swift caller from text search: protocol
+  witnesses called only through the protocol, `@objc` selectors, string-based
+  class lookup, SwiftUI property wrappers and result builders, `#Preview`
+  blocks, Swift Testing macros, and code a build-tool plugin or the manifest
+  reaches.
+- What counts as a caller: the rule on an interface ahead of its caller in
+  `.agents/rules/design-vocabulary.md`, "Rules of judgement", and the
+  recorded answer on `SlovoTestSupport`.
+
+Less than confident: drop it. A missed finding costs nothing this run. A
+false one costs the team's trust.
+
+## Remedy
+
+- Ordered edits, file by file: one pull request, or a split into deprecate,
+  migrate, remove.
+- The blast radius.
+- What proves no regression: the gate (`.agents/rules/verification.md`, "The
+  gate") and the tests that cover each edited site.
+- The rollback.
+- Honest effort and risk.
+
+If the safe plan is to leave the shape and document why, say that instead of
+inventing a refactor.
 
 ## Triage
 
-Run the independent-triage protocol from `.agents/rules/tracker.md`. The verifier's
-verdict:
+Verifier schema:
 
-    verdict: real | not-real
-    missed_reasons: ways the abstraction could be intentional, reachable, or required
-    value: 1-5      (what removing it actually buys)
-    risk: 1-5       (chance the removal breaks something)
-    confidence: 1-5
-    effort: S | M | L
-    rationale: one line
+```
+verdict: real | not-real
+missed_reasons: ways the abstraction could be intentional, reachable or required
+value: 1-5      # 1 a line saved; 3 a concept a reader no longer holds; 5 a module or layer gone
+risk: 1-5       # chance the removal breaks something
+confidence: 1-5
+effort: S | M | L
+rationale: one line
+```
 
-Threshold, on top of tracker.md's floor: `value >= 4`, and `risk <= 3` or a
-plan that splits the risk into safely reviewable steps.
+Threshold, on top of the floor in `.agents/rules/filing.md`, "Independent
+triage": `value >= 4`, and `risk <= 3` or a plan that splits the risk into
+reviewable steps. No cap exception, so the ranker's ceiling is the cap.
+
+## Which rulebook judges your findings
+
+`.agents/rules/design-vocabulary.md`.
 
 ## Filing
 
-Per `.agents/rules/tracker.md` and `.agents/rules/issues.md`. Apply `police-report` and
-`tech-debt`.
+Kind label `tech-debt`. Title:
 
-`<kind>` is one of `dead`, `superfluous`, `wrong`, `duplicated`, and
-`<where>` is the symbol.
+```
+[Abstraction Police] <kind>: <symbol> — <problem>
+```
 
-Body:
+Body, after `At <commit>.` and the line
+`Judged by: .agents/rules/design-vocabulary.md`, in these sections:
 
-    ## What
-    One paragraph: which abstraction, where it lives, why it is a
-    problem.
+1. What.
+2. Evidence: the definition, the reference count with every site, the
+   commands and their output.
+3. Why it is `<kind>`, in the design vocabulary, against the owner
+   directives.
+4. Proposed removal plan.
+5. Blast radius.
+6. Regression safety, stating what this run ran.
+7. Cost and risk: the cost line of `.agents/rules/police.md`, "Shared
+   rules".
+8. Not addressed.
 
-    ## Evidence
-    - `Sources/SlovoCore/Foo/Bar.swift:120-168` — definition
-    - Reference count: N (every call site with `path:line`)
-    - Commands run and their relevant output (fenced)
-
-    ## Why it is <kind>
-    The reasoning, tied to the evidence, in the vocabulary above. State
-    what the abstraction was presumably meant to buy and why it does not
-    buy it, measured against owner directives 1 and 5.
-
-    ## Proposed removal plan
-    1. ...
-    (ordered, file by file, split into pull requests if needed)
-
-    ## Blast radius
-    Targets touched, public surface, tests.
-
-    ## Regression safety
-    Existing coverage; tests to add first; the pull request's Swift check
-    green; rollback. State what this run ran and what it did not.
-
-    ## Cost / risk
-    Effort: S|M|L — Risk: low|medium|high — Confidence: high|medium
-
-    ## Not addressed
-    Anything adjacent you deliberately left alone, and why.
-
-    <!-- abstraction-police-fingerprint: <path>::<symbol>::<kind> -->
+The last line is the fingerprint, the `abstraction-police` row of
+`.agents/rules/markers.md`, "Police fingerprints". `<path>` is the file that
+defines the symbol, `<symbol>` the type, protocol or function, and `<kind>` a
+kind from the table under "What counts".
 
 ## Report
 
-The six-part shape from `.agents/rules/tracker.md`. In Coverage, name the targets swept
-and the ones not reached, so the next run starts there.
+The seven parts of `.agents/rules/filing.md`, "The report". Coverage adds the
+targets swept and the ones not reached.
