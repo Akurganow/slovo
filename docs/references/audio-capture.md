@@ -200,13 +200,15 @@ final class MicCapture {
 
     func start() throws {
         let input = engine.inputNode
-        // Hardware-native format on bus 0 (e.g. 48 kHz, 1–2 ch). Source of truth.
-        let hwFormat = input.outputFormat(forBus: 0)
+        // Hardware input format on bus 0 (e.g. 48 kHz, 1–2 ch). Source of truth:
+        // the output bus can still hold the previous device's format after a
+        // device assignment.
+        let hwFormat = input.inputFormat(forBus: 0)
 
         // Build the converter from the live hardware format to the ASR format.
         converter = AVAudioConverter(from: hwFormat, to: targetFormat)
-        // Tap with format: nil to receive buffers in the node's own format.
-        input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
+        // Tap in the same input format the converter reads.
+        input.installTap(onBus: 0, bufferSize: 4096, format: hwFormat) { [weak self] buffer, _ in
             self?.append(buffer)   // runs off the main thread
         }
 
@@ -264,16 +266,19 @@ mono output. Slovo immediately forwards each resulting chunk to live recognition
 
 ## slovo gotchas
 
-- **Never hardcode the source format.** Read `inputNode.outputFormat(forBus: 0)`
-  at capture start and build the converter from it. The user can switch mics
-  (AirPods 24 kHz vs. built-in 48 kHz) between sessions; a stale converter
-  resamples from the wrong rate and produces garbage or wrong-speed audio.
+- **Never hardcode the source format.** Read `inputNode.inputFormat(forBus: 0)`
+  at capture start and build the converter from it, since the output bus can
+  still hold the previous device's format after a device assignment. The user
+  can switch mics (AirPods 24 kHz vs. built-in 48 kHz) between sessions; a stale
+  converter resamples from the wrong rate and produces garbage or wrong-speed
+  audio.
 - **Stereo → mono.** Some inputs report 2 channels. Letting `AVAudioConverter`
   target a 1-channel format performs the downmix for you; do not assume mono.
-- **`format: nil` vs. explicit format on the tap.** Passing `nil` gives buffers
-  in the node's native format (recommended — let the converter do all the work).
-  If you pass an explicit format it must be compatible with the node's format or
-  the tap install fails. Do not try to make the tap itself output 16 kHz; the tap
+- **The tap's format.** Slovo passes the node's input format object,
+  `inputFormat(forBus: 0)`, as the tap format. Passing `nil` gives buffers in the
+  output bus format. After a device assignment that bus can still hold the previous
+  device's format. An explicit format must be compatible with the node's format,
+  or the tap install fails. Do not try to make the tap itself output 16 kHz; the tap
   is not a resampler.
 - **Tap block runs off the main thread.** Keep `append` allocation-light and
   never touch UI or AppKit from it. Forward each converted chunk to the
@@ -291,12 +296,14 @@ mono output. Slovo immediately forwards each resulting chunk to live recognition
   `stop()`, optionally run one final `convert` with `inputStatus = .endOfStream`
   to drain the converter's remaining output (TN3136). For dictation the loss is
   usually inaudible, but flush if the ASR is sensitive to clipped word endings.
-- **Engine restart.** Build a fresh `AVAudioEngine` per capture and observe
-  `AVAudioEngineConfigurationChange`. Reusing one engine across sessions caches
-  the input hardware format, so after an audio device change (e.g. unplugging
-  headphones) `installTap` asserts `format.sampleRate == hwFormat.sampleRate`,
-  raises an `NSException`, and the process aborts. A fresh engine re-queries the
-  current device; the small startup cost is acceptable for push-to-talk.
+- **Engine restart.** Build a fresh `AVAudioEngine` per capture. Reusing one
+  engine across sessions caches the input hardware format, so after an audio
+  device change (e.g. unplugging headphones) `installTap` asserts
+  `format.sampleRate == hwFormat.sampleRate`, raises an `NSException`, and the
+  process aborts. A fresh engine re-queries the current device; the small startup
+  cost is acceptable for push-to-talk. Slovo does not observe the engine's
+  configuration change notification: assigning a device posts it at start while
+  the engine keeps running.
 
 ## Full sources
 

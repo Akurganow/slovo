@@ -63,6 +63,7 @@ struct GeneralSettingsPane: View {
                 Text("Auto handles mixed-language speech best.")
             }
             vocabularyBiasRow
+            microphoneRow
             // Shows the stored preference even while disabled: availability never
             // rewrites it. The hint is the label's second Text, as in vocabularyBiasRow.
             Toggle(isOn: store.binding(\.mutesSystemAudioWhileDictating)) {
@@ -73,6 +74,31 @@ struct GeneralSettingsPane: View {
             }
             .disabled(!store.state.outputMuteAvailability.isToggleEnabled)
             Toggle("Sound Cues", isOn: store.binding(\.playsDictationSoundCues))
+        }
+    }
+
+    /// The input device dictation records from. The binding is custom: `selection`
+    /// is the present entry, which may carry a newer name than the stored one, and a
+    /// choice stores the picked device, name included. While the chosen device is
+    /// absent it stays listed, so the picker never shows a blank selection, and the
+    /// label's second Text names the device used instead.
+    private var microphoneRow: some View {
+        Picker(selection: Binding(
+            get: { store.state.inputDeviceChoice.selection },
+            set: { device in store.update { $0.config.preferredInputDevice = device } }
+        )) {
+            Text("System Default").tag(InputDevice?.none)
+            ForEach(store.state.inputDeviceChoice.present, id: \.uid) { device in
+                Text(device.name).tag(Optional(device))
+            }
+            if let absent = store.state.inputDeviceChoice.absent {
+                Text(absent.name).tag(Optional(absent))
+            }
+        } label: {
+            Text("Microphone")
+            if let line = store.state.inputDeviceChoice.fallbackLine {
+                Text(line)
+            }
         }
     }
 

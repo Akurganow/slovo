@@ -121,21 +121,15 @@ struct AVAudioEngineRecorderSourceGuardTests {
         ], in: yieldBody), "the callback must be trimmed against the capture boundary before it is yielded")
     }
 
-    /// Hardware callbacks outlive `stop()` transiently, so each carries a session token
+    /// Tap callbacks outlive `stop()` transiently, so each carries a session token
     /// and rejects a newer session under the lock.
-    /// Sensitivity: delete either captured token or either guard → RED.
+    /// Sensitivity: delete the captured token or either guard → RED.
     @Test
     func recorderSourceRejectsStaleSessionCallbacks() throws {
         let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
         let startBody = try Self.functionBody(named: "start", in: recorder)
         let yieldFunction = try Self.functionBody(named: "yield", in: recorder, includingSignature: true)
         let yieldBody = try Self.functionBody(named: "yield", in: recorder)
-        let changeFunction = try Self.functionBody(
-            named: "handleConfigurationChange",
-            in: recorder,
-            includingSignature: true
-        )
-        let changeBody = try Self.functionBody(named: "handleConfigurationChange", in: recorder)
         let teardownBody = try Self.functionBody(named: "teardown", in: recorder)
 
         #expect(recorder.contains("final class SessionToken"), "recorder sessions need a stable callback identity")
@@ -143,15 +137,11 @@ struct AVAudioEngineRecorderSourceGuardTests {
             "let sessionToken = SessionToken()",
             "buffer, when in",
             "yield(buffer, capturedAt: when, sessionToken: sessionToken)",
-            "handleConfigurationChange(sessionToken: sessionToken)",
             "token: sessionToken",
-        ], in: startBody), "tap and configuration callbacks must capture the token published with their session")
+        ], in: startBody), "the tap callback must capture the token published with its session")
         #expect(yieldFunction.contains("sessionToken: SessionToken"))
         #expect(Self.identityCheckPrecedes("session.continuation", in: yieldBody),
                 "the tap must reject a stale token before reading the current continuation")
-        #expect(changeFunction.contains("sessionToken: SessionToken"))
-        #expect(changeBody.contains("teardown(sessionToken: sessionToken)"),
-                "configuration changes must tear down only their originating session")
         #expect(teardownBody.contains("sessionToken"))
         #expect(Self.identityCheckPrecedes("self.session = nil", in: teardownBody),
                 "teardown must reject a stale token before clearing the current session")
@@ -181,19 +171,47 @@ struct AVAudioEngineRecorderSourceGuardTests {
 
     /// The format is validated BEFORE `installTap`: a degenerate format raises an
     /// `NSException` inside the call that Swift cannot catch, so rejecting it first is
-    /// the only defence.
+    /// the only defence. A chosen device is assigned before the format is read, and
+    /// the tap takes the node's input format: after an assignment the output format
+    /// can still be the previous device's, and a tap in it fails to start or
+    /// delivers nothing.
     /// Sensitivity: delete the validator call or order `installTap` ahead of it → RED.
     /// A unit test of the validator alone stays green, which is the false green this closes.
+    /// Stated sensitivity: read the format before assigning, read the output format
+    /// instead of the input format, assign after the tap, or tap with `format: nil` → RED.
     @Test
     func recorderSourceValidatesFormatBeforeInstallingTap() throws {
         let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
         let startBody = try Self.functionBody(named: "start", in: recorder)
 
         #expect(Self.containsInOrder([
+            "AudioUnitSetProperty",
+            "inputFormat(forBus: 0)",
             "AudioTapFormatValidator",
             "installTap(onBus:",
+            "format: inputFormat)",
         ], in: startBody),
-        "start() must reject the format via AudioTapFormatValidator before installTap")
+        "start() must assign the chosen device, then read the node's input format and validate it before installTap")
+    }
+
+    /// Each chunk carries the stereo pair of the device the capture uses, read once
+    /// per start. On the default path that device comes from the default-input read:
+    /// there the audio unit's current device names no input device.
+    /// Stated sensitivity: read the pair from the audio unit instead of the
+    /// default-input id → RED. Drop the pair read, or build `AudioChunk(buffer: copy)`
+    /// without the pair → RED. `WhisperSampleConverterTests` cannot catch any of these.
+    @Test
+    func recorderSourceCarriesTheCapturedDevicesPair() throws {
+        let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
+        let startBody = try Self.functionBody(named: "start", in: recorder)
+        let yieldBody = try Self.functionBody(named: "yield", in: recorder)
+
+        #expect(Self.containsInOrder([
+            "defaultInputDeviceID(",
+            "preferredStereoChannels(of:",
+        ], in: startBody), "start() must read the pair of the default input device")
+        #expect(yieldBody.contains("AudioChunk(buffer: copy, preferredStereoChannels:"),
+                "each yielded chunk must carry the session's pair")
     }
 
     private static func code(_ relativePath: String) throws -> String {

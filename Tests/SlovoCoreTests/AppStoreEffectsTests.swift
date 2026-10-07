@@ -22,6 +22,7 @@ struct AppStoreEffectsTests {
         reconfigureHotkeys: @escaping (HotkeyConfiguration) -> Void = { _ in },
         cueController: (any DictationCueController)? = nil,
         updaterSwitch: (any UpdaterSwitch)? = nil,
+        updateInputDevice: @escaping (InputDevice?) -> Void = { _ in },
         fetchScopeIds: @escaping @Sendable () async throws -> Set<String> = { [] }
     ) -> AppStoreEffectTargets {
         AppStoreEffectTargets(
@@ -30,6 +31,7 @@ struct AppStoreEffectsTests {
             reconfigureHotkeys: reconfigureHotkeys,
             cueController: { cueController },
             updaterSwitch: { updaterSwitch },
+            updateInputDevice: updateInputDevice,
             fetchScopeIds: fetchScopeIds
         )
     }
@@ -141,6 +143,19 @@ struct AppStoreEffectsTests {
         AppStoreEffects.wire(store, to: Self.targets(reconfigureHotkeys: { received.append($0) }))
         store.update { $0.config.trigger = .rightCommand }
         #expect(received == [store.state.config.hotkeyConfiguration], "the tap must receive the new keys once")
+    }
+
+    /// The recorder reads the preference at its next start, so a choice must reach it
+    /// without a pipeline rebuild.
+    /// Stated sensitivity: drop the listener, or key it on another field → RED.
+    @Test
+    func inputDeviceChangeReachesTheRecorder() {
+        let store = Self.makeStore()
+        var received: [InputDevice?] = []
+        AppStoreEffects.wire(store, to: Self.targets(updateInputDevice: { received.append($0) }))
+        let interface = InputDevice(uid: "example-uid-1", name: "Example Interface")
+        store.update { $0.config.preferredInputDevice = interface }
+        #expect(received == [interface], "the recorder must receive the new preference once")
     }
 
     /// The controller snapshots the preference at key-down, so the update must land

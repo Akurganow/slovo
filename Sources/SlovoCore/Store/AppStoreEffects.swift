@@ -11,6 +11,7 @@ public struct AppStoreEffectTargets {
     public var reconfigureHotkeys: (HotkeyConfiguration) -> Void
     public var cueController: () -> (any DictationCueController)?
     public var updaterSwitch: () -> (any UpdaterSwitch)?
+    public var updateInputDevice: (InputDevice?) -> Void
     public var fetchScopeIds: @Sendable () async throws -> Set<String>
 
     @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
@@ -20,6 +21,7 @@ public struct AppStoreEffectTargets {
         reconfigureHotkeys: @escaping (HotkeyConfiguration) -> Void,
         cueController: @escaping () -> (any DictationCueController)?,
         updaterSwitch: @escaping () -> (any UpdaterSwitch)?,
+        updateInputDevice: @escaping (InputDevice?) -> Void,
         fetchScopeIds: @escaping @Sendable () async throws -> Set<String>
     ) {
         self.defaults = defaults
@@ -27,6 +29,7 @@ public struct AppStoreEffectTargets {
         self.reconfigureHotkeys = reconfigureHotkeys
         self.cueController = cueController
         self.updaterSwitch = updaterSwitch
+        self.updateInputDevice = updateInputDevice
         self.fetchScopeIds = fetchScopeIds
     }
 }
@@ -70,6 +73,9 @@ public enum AppStoreEffects {
         store.listen(\.config.hotkeyConfiguration) { targets.reconfigureHotkeys($0) }
         // Synchronous: the controller snapshots the preference at the next key-down.
         store.listen(\.config.playsDictationSoundCues) { targets.cueController()?.updateEnabled($0) }
+        // `listen`: the recorder is built from state. It reads the preference at its
+        // next start.
+        store.listen(\.config.preferredInputDevice) { targets.updateInputDevice($0) }
         store.listen(\.config.automaticallyInstallsUpdates) { isOn in
             guard let updater = targets.updaterSwitch() else { return }
             UpdaterActivation.apply(automaticUpdatesEnabled: isOn, to: updater)

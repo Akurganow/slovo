@@ -81,6 +81,7 @@ struct AppStateTests {
             { $0.config.usesVocabularyBias = true },
             { $0.config.language = .ru },
             { $0.config.automaticallyInstallsUpdates = false },
+            { $0.config.preferredInputDevice = InputDevice(uid: "example-uid-1", name: "Example Interface") },
         ]
         for change in unshown {
             var changed = base
@@ -212,14 +213,17 @@ struct AppStateTests {
         }
     }
 
-    /// The status row, the fn row, the update row and the mute item's availability
-    /// update in place, so none of them may rebuild the menu.
+    /// The status row, the fn row, the update row, the mute item's availability and
+    /// the Microphone submenu update in place, so none of them may rebuild the menu.
     /// Stated sensitivity: include any of them in the structure, or add the mute
     /// availability to `DictationMenuInput` or `MenuStructure` → RED (a rebuild per
-    /// status change or device event).
+    /// status change or device event). Add the devices or the preference to
+    /// `DictationMenuInput` or `MenuStructure` → RED (a rebuild per device event or
+    /// choice).
     @Test
     func statusLineChangesLeaveMenuStructureEqual() {
         let base = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        let interface = InputDevice(uid: "example-uid-1", name: "Example Interface")
         var recording = base
         recording.statusLine = .recording
         var fnAssigned = base
@@ -228,10 +232,31 @@ struct AppStateTests {
         updateReady.updateIndication = .ready(version: "9.9.9")
         var muteUnavailable = base
         muteUnavailable.outputMuteAvailability = .unavailable(deviceName: "Example Output")
+        var devicesChanged = base
+        devicesChanged.inputDevices = InputDevices(present: [interface], systemDefaultUID: "example-uid-1")
+        var microphoneChosen = base
+        microphoneChosen.config.preferredInputDevice = interface
         #expect(recording.menuStructure == base.menuStructure)
         #expect(fnAssigned.menuStructure == base.menuStructure)
         #expect(updateReady.menuStructure == base.menuStructure)
         #expect(muteUnavailable.menuStructure == base.menuStructure)
+        #expect(devicesChanged.menuStructure == base.menuStructure)
+        #expect(microphoneChosen.menuStructure == base.menuStructure)
+    }
+
+    /// The menu and the Settings picker read one derivation over the stored
+    /// preference and the present devices.
+    /// Stated sensitivity: feed `derive` an empty `InputDevices` or a nil preference →
+    /// RED.
+    @Test
+    func inputDeviceChoiceReadsThePreferenceAndTheDevices() {
+        let interface = InputDevice(uid: "example-uid-1", name: "Example Interface")
+        let devices = InputDevices(present: [interface], systemDefaultUID: "example-uid-1")
+        var state = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        state.config.preferredInputDevice = interface
+        state.inputDevices = devices
+
+        #expect(state.inputDeviceChoice == InputDeviceChoice.derive(preference: interface, devices: devices))
     }
 
     /// The installed menu follows the mode, so a mode change must rebuild it.

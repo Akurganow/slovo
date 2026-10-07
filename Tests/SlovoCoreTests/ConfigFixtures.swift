@@ -17,7 +17,8 @@ enum ConfigFixtures {
         modelCatalogVersion: Int? = nil,
         writingStyle: String = "casual",
         translationTargetLanguage: String? = nil,
-        translateTrigger: String? = nil
+        translateTrigger: String? = nil,
+        preferredInputDevice: [String: String]? = nil
     ) throws -> Data {
         var cleanup: [String: Any] = [
             "enabled": legacyEnabledField,
@@ -53,6 +54,9 @@ enum ConfigFixtures {
         }
         if let translateTrigger {
             object["translateTrigger"] = translateTrigger
+        }
+        if let preferredInputDevice {
+            object["preferredInputDevice"] = preferredInputDevice
         }
         return try encoded(object)
     }

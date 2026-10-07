@@ -9,13 +9,16 @@ import SlovoObjC
 /// Each `start()` builds a FRESH engine so an audio device/route change since the
 /// previous dictation (e.g. unplugging headphones) cannot leave a stale input
 /// format — Apple's documented cause of the `installTap` sample-rate `NSException`
-/// crash. It reads the input node's actual format, installs a tap through an
+/// crash. A chosen microphone that is present is assigned to the fresh input node
+/// before its format is read; an absent one leaves the system default. It reads
+/// the input node's hardware input format, installs a tap in it through an
 /// Obj-C exception catcher (a residual mismatch becomes a recoverable
-/// `AudioCaptureError`, never a `SIGABRT`), and observes
-/// `AVAudioEngineConfigurationChange` to end capture cleanly if the hardware
-/// reconfigures mid-dictation. Capture delivers from its first frame;
-/// `suspendDelivery()`/`resumeDelivery()` withhold the readiness cue's interval.
-/// `stop()` closes capture and finishes the stream.
+/// `AudioCaptureError`, never a `SIGABRT`). A device assignment makes the engine
+/// post its configuration change notification at start while it keeps running.
+/// The orchestrator finalizes at key-up whether or not the stream ended early, so
+/// the recorder does not observe that notification. Capture delivers from its
+/// first frame; `suspendDelivery()`/`resumeDelivery()` withhold the readiness
+/// cue's interval. `stop()` closes capture and finishes the stream.
 public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     private let authorizer: MicrophoneAuthorizer
     private let log: RedactionSafeLog
@@ -24,39 +27,40 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
 
     private typealias Delivery = (
         boundary: AudioCaptureBoundary,
-        continuation: AsyncStream<AudioChunk>.Continuation
+        continuation: AsyncStream<AudioChunk>.Continuation,
+        preferredStereoChannels: [Int]?
     )
 
-    /// A live capture session: the engine, its configuration-change observer, and
-    /// the stream continuation the audio-thread tap yields into. Bundling them
-    /// lets `start()` publish and `teardown()` clear the whole session under one
-    /// lock, so start/stop and the notification callback never see a half-built
-    /// state.
+    /// A live capture session: the engine and the stream continuation the
+    /// audio-thread tap yields into. Bundling them lets `start()` publish and
+    /// `teardown()` clear the whole session under one lock, so start, stop and
+    /// the tap callback never see a half-built state.
     private struct Session {
         let token: SessionToken
         let engine: AVAudioEngine
-        let observer: NSObjectProtocol
         let continuation: AsyncStream<AudioChunk>.Continuation
         let captureBoundary: AudioCaptureBoundary
+        let preferredStereoChannels: [Int]?
     }
 
     private let lock = NSLock()
     private var session: Session?
+    /// Guarded by `lock`. Read once per `start()`, so an update reaches the next
+    /// dictation and never the one in progress.
+    private var preferredInputDevice: InputDevice?
 
     public init(
         authorizer: MicrophoneAuthorizer,
+        preferredInputDevice: InputDevice?,
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "audio")
     ) {
         self.authorizer = authorizer
+        self.preferredInputDevice = preferredInputDevice
         self.log = log
     }
 
-    deinit {
-        // App-lifetime singleton in practice; this only guards against leaking the
-        // NotificationCenter observer token if the recorder is ever released with a
-        // live session.
-        let observer = lock.withLock { self.session?.observer }
-        if let observer { NotificationCenter.default.removeObserver(observer) }
+    public func updatePreferredInputDevice(_ device: InputDevice?) {
+        lock.withLock { preferredInputDevice = device }
     }
 
     public func start() async throws -> AsyncStream<AudioChunk> {
@@ -67,12 +71,31 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
 
         // Idempotent: fully tear down any prior session before building a new one.
         await stop()
+        let preference = lock.withLock { preferredInputDevice }
 
         // A fresh engine reflects the CURRENT default input device, so its format
         // matches the hardware even after a device change since the last capture.
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        let devices = CoreAudioInputDevices()
+        // A chosen device present now is assigned to the node; an absent one leaves
+        // the system default. The log line carries no UID or name: a UID can
+        // identify the hardware instance.
+        var assignedDeviceID: AudioDeviceID?
+        let choice = preference.map { InputDeviceChoice.derive(preference: $0, devices: devices.inputDevices()) }
+        // A device that leaves between the read above and this translation is absent.
+        if var deviceID = choice?.captureUID.flatMap(devices.deviceID(forUID:)) {
+            guard let audioUnit = inputNode.audioUnit else { throw AudioCaptureError.engineStartFailed }
+            let status = AudioUnitSetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                              &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size))
+            guard status == noErr else { throw AudioCaptureError.engineStartFailed }
+            assignedDeviceID = deviceID
+        } else if choice != nil {
+            log.event("input device unavailable, using the system default")
+        }
+        // Read after any assignment. The tap applies this object to the output bus,
+        // whose own format can still be the previous device's after an assignment.
+        let inputFormat = inputNode.inputFormat(forBus: 0)
         if let rejection = AudioTapFormatValidator.rejectionReason(
             sampleRate: inputFormat.sampleRate,
             channelCount: inputFormat.channelCount
@@ -82,6 +105,15 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             log.event("audio tap format rejected"
                 + " sampleRate=\(inputFormat.sampleRate) channelCount=\(inputFormat.channelCount)")
             throw rejection
+        }
+
+        // The pair of the device the capture uses, read once per start. The default
+        // input's id comes from the HAL: on that path the audio unit's current
+        // device names no input device.
+        let preferredStereoChannels = (assignedDeviceID ?? devices.defaultInputDeviceID())
+            .flatMap { devices.preferredStereoChannels(of: $0) }
+        if preferredStereoChannels == nil {
+            log.event("preferred stereo pair unread, using channels 1 and 2")
         }
 
         let (stream, continuation) = AsyncStream<AudioChunk>.makeStream()
@@ -108,26 +140,15 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             throw AudioCaptureError.formatUnavailable
         }
 
-        // Apple-documented mechanism: on an input/output hardware change the engine
-        // stops and uninitializes itself and posts this notification. End the stream
-        // so an in-flight dictation finishes cleanly instead of feeding a dead tap.
-        let observer = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange,
-            object: engine,
-            queue: nil
-        ) { [weak self] _ in
-            self?.handleConfigurationChange(sessionToken: sessionToken)
-        }
-
         // Publish the whole session atomically before starting, so the tap's yield
         // sees the continuation and there is a single object to tear down on failure.
         lock.withLock {
             self.session = Session(
                 token: sessionToken,
                 engine: engine,
-                observer: observer,
                 continuation: continuation,
-                captureBoundary: AudioCaptureBoundary()
+                captureBoundary: AudioCaptureBoundary(),
+                preferredStereoChannels: preferredStereoChannels
             )
         }
 
@@ -159,16 +180,9 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         teardown(sessionToken: sessionToken)
     }
 
-    /// The engine has stopped and uninitialized itself on a hardware change; tear
-    /// the session down so the in-flight dictation finishes instead of hanging.
-    private func handleConfigurationChange(sessionToken: SessionToken) {
-        log.event("audio engine configuration changed")
-        teardown(sessionToken: sessionToken)
-    }
-
-    /// Clears and dismantles the live session under the lock: removes the observer
-    /// and tap, stops the engine, and finishes the stream. Idempotent — a no-op
-    /// when there is no session.
+    /// Clears and dismantles the live session under the lock: removes the tap,
+    /// stops the engine, and finishes the stream. Idempotent — a no-op when there
+    /// is no session.
     private func teardown(sessionToken: SessionToken) {
         let session = lock.withLock { () -> Session? in
             guard let session = self.session,
@@ -177,7 +191,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             return session
         }
         guard let session else { return }
-        NotificationCenter.default.removeObserver(session.observer)
         session.engine.inputNode.removeTap(onBus: 0)
         session.engine.stop()
         session.continuation.finish()
@@ -192,7 +205,11 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     ) {
         let delivery: Delivery? = lock.withLock {
             guard let session, session.token === sessionToken else { return nil }
-            return (boundary: session.captureBoundary, continuation: session.continuation)
+            return (
+                boundary: session.captureBoundary,
+                continuation: session.continuation,
+                preferredStereoChannels: session.preferredStereoChannels
+            )
         }
         let callbackTime = capturedAt
         let continuation = delivery?.continuation
@@ -200,6 +217,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         guard let copy = boundary?.takeDeliverableBuffer(buffer, capturedAt: callbackTime) else {
             return
         }
-        continuation?.yield(AudioChunk(buffer: copy))
+        continuation?.yield(AudioChunk(buffer: copy, preferredStereoChannels: delivery?.preferredStereoChannels))
     }
 }

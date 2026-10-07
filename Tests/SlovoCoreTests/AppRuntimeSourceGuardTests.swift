@@ -360,13 +360,14 @@ struct AppRuntimeSourceGuardTests {
                 "the idle line must stay guarded by the shown-pipeline-status flag")
     }
 
-    /// Between rebuilds the status, fn and update rows and the mute item's
-    /// availability follow state through their four listeners, and a rebuild seeds
-    /// the status and fn rows and the mute item from the committed state.
+    /// Between rebuilds the status, fn and update rows, the mute item's availability
+    /// and the Microphone submenu follow state through their five listeners, and a
+    /// rebuild seeds the status and fn rows, the mute item and the Microphone submenu
+    /// from the committed state.
     /// The app target has no behavioural seam for these rows, so this reads its source.
-    /// Stated sensitivity: delete any of the four listeners, pass the idle hint or a
-    /// literal into the build's rows or its mute availability, or write the status
-    /// row's title anywhere else in the app target → RED.
+    /// Stated sensitivity: delete any of the five listeners, pass the idle hint or a
+    /// literal into the build's rows, its mute availability or its microphone choice,
+    /// or write the status row's title anywhere else in the app target → RED.
     @Test
     func menuRowsFollowState() throws {
         let wiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
@@ -375,6 +376,7 @@ struct AppRuntimeSourceGuardTests {
             ("store.listen(\\.isFnKeySystemAssigned)", "fnConflictMenuItem?.isHidden ="),
             ("store.listen(\\.updateIndication)", "renderUpdateIndication("),
             ("store.listen(\\.outputMuteAvailability)", "renderMuteAvailability("),
+            ("store.listen(\\.inputDeviceChoice)", "renderMicrophoneMenu("),
         ]
         for (listener, write) in rowWrites {
             let body = try Self.slice(of: wiring, from: listener, to: "\n        }")
@@ -389,6 +391,8 @@ struct AppRuntimeSourceGuardTests {
         )
         #expect(build.contains("muteAvailability: state.outputMuteAvailability"),
                 "the build must seed the mute item from the committed availability")
+        #expect(build.contains("inputDeviceChoice: state.inputDeviceChoice"),
+                "the build must seed the Microphone submenu from the committed choice")
         var titleWrites = 0
         for file in try Self.swiftSourceFiles(under: "Sources/slovo") {
             titleWrites += try Self.code(file).components(separatedBy: "statusTextItem?.title =").count - 1
@@ -491,6 +495,34 @@ struct AppRuntimeSourceGuardTests {
         #expect(launch.contains("startObservingOutputMuteAvailability()"), "launch must register the listener")
         let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
         #expect(makeMenu.contains("renderMuteAvailability("), "a rebuild must render the availability onto the new item")
+    }
+
+    /// The Microphone submenu follows the devices and the choice in state. Launch
+    /// registers the CoreAudio listener and reads the devices once into the store, the
+    /// listener writes the store, a build stores the item and renders the choice onto
+    /// it, and a row writes the preference. The app target has no behavioural seam for
+    /// these, so this reads its source.
+    /// Stated sensitivity: drop any of these → RED.
+    @Test
+    func inputDevicesReachTheMicrophoneMenu() throws {
+        let inputDevice = try Self.code("Sources/slovo/AppDelegate+InputDevice.swift")
+        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
+        let builder = try Self.code("Sources/slovo/DictationMenuBuilder.swift")
+        let render = try Self.functionBody(named: "renderMicrophoneMenu", in: inputDevice)
+        #expect(render.contains("choice.present"), "the submenu must list the present devices")
+        #expect(render.contains("== choice.selection"), "a row must be checked when its device is the selection")
+        let observe = try Self.functionBody(named: "startObservingInputDevices", in: inputDevice)
+        #expect(observe.contains("$0.inputDevices = devices"), "the listener's reading must reach the store")
+        #expect(observe.contains("$0.inputDevices = inputDevices.inputDevices()"),
+                "launch must read the devices once, refilling the first menu build before it opens")
+        let select = try Self.functionBody(named: "selectInputDevice", in: inputDevice)
+        #expect(select.contains("$0.config.preferredInputDevice ="), "a row must write the preference")
+        let launch = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
+        #expect(launch.contains("startObservingInputDevices()"), "launch must register the listener")
+        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
+        #expect(makeMenu.contains("renderMicrophoneMenu("), "a rebuild must render the choice onto the new item")
+        let microphoneArm = try Self.slice(of: builder, from: "case .microphone:", to: "case .muteWhileDictating")
+        #expect(microphoneArm.contains("microphoneMenuItem ="), "the microphone arm must store its item for the renderer")
     }
 
     /// The session factory must feed the pure `decodingOptions` the session's OWN

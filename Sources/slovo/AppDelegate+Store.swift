@@ -14,6 +14,7 @@ extension AppDelegate {
             reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) },
             cueController: { [weak self] in self?.composition?.cueController },
             updaterSwitch: { [weak self] in self?.updaterCoordinator?.updater },
+            updateInputDevice: { [weak self] in self?.composition?.recorder.updatePreferredInputDevice($0) },
             // Built per fetch over the app's one key provider: no second Keychain
             // read path, no stored fetcher.
             fetchScopeIds: {
@@ -34,7 +35,8 @@ extension AppDelegate {
                     structure.input,
                     rows: DictationMenuRows(statusLine: state.statusLineText, isFnKeySystemAssigned: state.isFnKeySystemAssigned),
                     indication: state.updateIndication,
-                    muteAvailability: state.outputMuteAvailability
+                    muteAvailability: state.outputMuteAvailability,
+                    inputDeviceChoice: state.inputDeviceChoice
                 )
             case .onboarding(let steps):
                 statusItem?.menu = makeOnboardingMenu(for: steps)
@@ -53,6 +55,9 @@ extension AppDelegate {
         }
         store.listen(\.outputMuteAvailability) { [weak self] availability in
             self?.renderMuteAvailability(availability)
+        }
+        store.listen(\.inputDeviceChoice) { [weak self] choice in
+            self?.renderMicrophoneMenu(choice)
         }
     }
 }

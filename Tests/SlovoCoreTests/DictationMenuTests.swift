@@ -59,7 +59,8 @@ struct DictationMenuTests {
     /// With a key and cleanup on, the dropdown appears in the fixed order: header
     /// (the status line carrying the hold-to-talk hint), separator, the cleanup
     /// block (switch, model, translate — all active), separator, the vocabulary
-    /// block (Add Vocabulary + the adjacent Mute and Sound Cues switches), separator,
+    /// block (Add Vocabulary, the Microphone submenu, then the Mute and Sound Cues
+    /// switches), separator,
     /// and the bottom section holding Settings, About, then Quit.
     /// Stated sensitivity: reorder, drop, or misposition any item — or ignore either
     /// live-switch argument — → the exact sequence mismatches → RED.
@@ -74,6 +75,7 @@ struct DictationMenuTests {
             .translationLanguage(selected: "en", enabled: true),
             .separator,
             .addVocabulary,
+            .microphone,
             .muteWhileDictating(isOn: true),
             .soundCues(isOn: true),
             .separator,
@@ -99,6 +101,7 @@ struct DictationMenuTests {
             .translationLanguage(selected: "en", enabled: false),
             .separator,
             .addVocabulary,
+            .microphone,
             .muteWhileDictating(isOn: true),
             .soundCues(isOn: true),
             .separator,
@@ -123,6 +126,7 @@ struct DictationMenuTests {
             .addOpenRouterKey,
             .separator,
             .addVocabulary,
+            .microphone,
             .muteWhileDictating(isOn: true),
             .soundCues(isOn: true),
             .separator,
@@ -205,21 +209,24 @@ struct DictationMenuTests {
     /// The live switches live in the vocabulary block — NOT in the cleanup block —
     /// and are availability-INDEPENDENT. Sound Cues sits directly after Mute in every
     /// availability state. The block is exactly
-    /// `[separator, Add Vocabulary, Mute, Sound Cues, separator]`.
+    /// `[separator, Add Vocabulary, Microphone, Mute, Sound Cues, separator]`.
     /// Stated sensitivity: move either switch into the cleanup block, couple either to
-    /// availability, detach Mute from Add Vocabulary, or detach Sound Cues from Mute → RED.
+    /// availability, detach the Microphone submenu from Add Vocabulary, detach Mute from
+    /// the Microphone submenu, or detach Sound Cues from Mute → RED.
     @Test
     func muteAndSoundCuesLiveTogetherInTheVocabularyBlockInAllStates() {
         for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
             let list = items(availability: availability, mute: true)
             guard let vocabIndex = list.firstIndex(of: .addVocabulary),
+                  let microphoneIndex = list.firstIndex(of: .microphone),
                   let muteIndex = list.firstIndex(of: .muteWhileDictating(isOn: true)),
                   let soundCuesIndex = list.firstIndex(of: .soundCues(isOn: true))
             else {
-                Issue.record("vocab/mute/sound cues missing for \(availability): \(list)")
+                Issue.record("vocab/microphone/mute/sound cues missing for \(availability): \(list)")
                 continue
             }
-            #expect(muteIndex == vocabIndex + 1, "mute sits right after Add Vocabulary for \(availability)")
+            #expect(microphoneIndex == vocabIndex + 1, "the Microphone submenu sits right after Add Vocabulary for \(availability)")
+            #expect(muteIndex == microphoneIndex + 1, "mute sits right after the Microphone submenu for \(availability)")
             #expect(soundCuesIndex == muteIndex + 1, "Sound Cues sits right after Mute for \(availability)")
             #expect(list[vocabIndex - 1] == .separator, "the vocabulary block opens with a separator for \(availability)")
             #expect(list[soundCuesIndex + 1] == .separator,
@@ -230,15 +237,15 @@ struct DictationMenuTests {
     /// AC9: passing the mute flag as `false` yields `.muteWhileDictating(isOn: false)`
     /// in its pinned vocabulary-block slot — proving the item reflects the argument.
     /// Stated sensitivity: hard-code the item's `isOn`, or move it out of the
-    /// after-Add-Vocabulary slot → RED.
+    /// after-Microphone slot → RED.
     @Test
     func muteWhileDictatingReflectsDisabledFlag() {
         let list = items(availability: .on, mute: false)
-        guard let vocabIndex = list.firstIndex(of: .addVocabulary) else {
-            Issue.record("Add Vocabulary missing: \(list)")
+        guard let microphoneIndex = list.firstIndex(of: .microphone) else {
+            Issue.record("the Microphone submenu missing: \(list)")
             return
         }
-        #expect(list[vocabIndex + 1] == .muteWhileDictating(isOn: false), "mute reflects the flag in its pinned slot")
+        #expect(list[microphoneIndex + 1] == .muteWhileDictating(isOn: false), "mute reflects the flag in its pinned slot")
     }
 
     /// Passing the cue flag as `false` yields `.soundCues(isOn: false)` directly

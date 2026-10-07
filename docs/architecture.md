@@ -49,7 +49,13 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   suppression is armed): it needs the boundary to CANCEL suppression back to `open`
   when the cue turns out to be inaudible, instead of ending it with a second edge.
   This excludes the cue's directly captured sound, not later acoustic echo from the
-  speakers or room.
+  speakers or room. The recorder tags each chunk with the capture device's
+  preferred stereo pair, read once per capture start. The converter mixes that pair
+  to mono before resampling; a mono device passes through unchanged. With a
+  chosen microphone present, the recorder assigns it to the fresh engine's input
+  node. A chosen device that is absent falls back to the system default. On both
+  paths the tap takes the node's input format, read after any assignment, since
+  the node's output format can still be the previous device's.
 - `DictationCueController` snapshots the on-by-default Sound Cues preference per
   session and serializes Start, End, and Error through the public macOS alert-sound
   channel. Playback is never awaited by a dictation step: the readiness cue's
@@ -181,10 +187,10 @@ silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up
 Dictation** switch, cleanup model selection, and the translate-to target
 language; while no OpenRouter key is saved the whole block collapses to a single
 **Add OpenRouter Key…** item that opens a dedicated key-entry window. Then come
-vocabulary quick-add with adjacent mute-while-dictating and Sound Cues switches, and a bottom section
+vocabulary quick-add, the **Microphone** submenu, and the mute-while-dictating and Sound Cues switches, then a bottom section
 with **Settings…**, **About**, and quit; first-run setup actions replace the
 dropdown until permissions are granted. The **Settings…** window covers the
-push-to-talk key, the translate key, recognition language, mute while dictating,
+push-to-talk key, the translate key, recognition language, microphone, mute while dictating,
 Sound Cues, launch at
 login, automatic updates, cleanup model and style, translation target,
 OpenRouter key, and vocabulary. Its last pane, About, carries a quick guide and
@@ -195,7 +201,7 @@ a launch. All configuration is native windows — there are no modal alerts.
 ## App State
 
 `AppState` is one value: the persisted `Config`, the mirrors the app keeps of
-state stored elsewhere, and six runtime fields described below. The mirrors are whether an OpenRouter key is in the
+state stored elsewhere, and seven runtime fields described below. The mirrors are whether an OpenRouter key is in the
 Keychain, the key's model scope, and the vocabulary table. Derived values, such
 as cleanup availability, the effective cleanup config and the menu's input, are
 computed properties on `AppState`.
@@ -208,8 +214,9 @@ nothing.
 
 Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
 SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
-tap, the cue controller, the updater switch and the scope fetch. The app target
-adds only what needs AppKit: the menu's build subscriber and its four row
+tap and the cue controller. It also registers the recorder's input device, the
+updater switch and the scope fetch. The app target
+adds only what needs AppKit: the menu's build subscriber and its five row
 listeners, described below.
 
 An effect that is not a function of state stays reducer output, as in
@@ -223,7 +230,7 @@ This supersedes K11's list of fetch, push and rebuild commands in
 `pendingFetch` selector with a subscriber. The push and the menu rebuild are
 subscribers.
 
-The six runtime fields are never persisted:
+The seven runtime fields are never persisted:
 
 - the menu mode: dictation, onboarding with its pending permission steps, or
   hotkey recovery
@@ -231,6 +238,7 @@ The six runtime fields are never persisted:
 - whether macOS also claims the fn key
 - the update indication folded from Sparkle's callbacks
 - whether the default output device can be muted
+- the present input devices and the system default input
 - the last settings pane, which **Settings…** opens
 
 A key-value observation of the Settings toolbar's selection writes the last
@@ -239,13 +247,16 @@ settings pane. `AppState.recordSettingsPane` never records About, so
 
 The status menu is a projection of that state. One build subscriber, keyed on
 the menu mode plus the values the dictation dropdown shows, builds and installs
-the menu for the mode and seeds its rows from state. Four row listeners — on the
-status line, the fn verdict, the update indication and the output device's mute
-availability — update their rows in place. So a rebuild keeps the status line,
-and a status change never rebuilds the menu. Opening the menu re-reads the fn
-assignment and the output device's mute availability, and re-renders the update
-row. A CoreAudio listener on the default output device also writes the
-availability, so an open Settings window follows a device switch.
+the menu for the mode and seeds its rows from state. Five row listeners — on the
+status line, the fn verdict, the update indication, the output device's mute
+availability and the microphone choice — update their rows in place. So a rebuild
+keeps the status line, and a status change never rebuilds the menu. Opening the
+menu re-reads the fn assignment, the output device's mute availability and the
+input devices, and re-renders the update row. A CoreAudio listener on the default
+output device also writes the availability, so an open Settings window follows a
+device switch. A second listener, on the device list and the default input, writes
+the input devices. The Microphone submenu and an open Settings window then follow
+a plug, an unplug or a default-input change.
 
 One effect is not a projection of state. The idle glyph repaints on every Sparkle
 callback, changed indication or not, through the coordinator's per-event
