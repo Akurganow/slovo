@@ -32,7 +32,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         return .derive(
             hasSettableMute: (try? isPropertySettable(deviceID, muteAddress())) ?? true,
             hasSettableVolume: (try? isPropertySettable(deviceID, virtualMasterVolumeAddress())) ?? true,
-            deviceName: try? deviceName(deviceID)
+            deviceName: readDeviceString(deviceID, selector: kAudioObjectPropertyName)
         )
     }
 
@@ -106,23 +106,6 @@ public struct CoreAudioOutputMute: SystemAudioController {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-    }
-
-    /// The device's display name. `kAudioObjectPropertyName` returns a CFString the
-    /// caller releases, hence `takeRetainedValue()`.
-    private func deviceName(_ deviceID: AudioDeviceID) throws -> String {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioObjectPropertyName,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        var name: Unmanaged<CFString>?
-        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &name)
-        guard status == noErr, let name else {
-            throw CoreAudioError(status: status, operation: "getDeviceName")
-        }
-        return name.takeRetainedValue() as String
     }
 
     private func defaultOutputDeviceID() throws -> AudioDeviceID {

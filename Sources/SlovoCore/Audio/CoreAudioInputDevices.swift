@@ -7,6 +7,69 @@ import CoreAudio
 public struct CoreAudioInputDevices: Sendable {
     public init() {}
 
+    /// The present devices with at least one input channel, in HAL order, and the
+    /// system default input's UID. A device whose UID or name cannot be read is not
+    /// listed.
+    public func inputDevices() -> InputDevices {
+        let present = deviceIDs().compactMap { deviceID -> InputDevice? in
+            guard inputChannelCount(of: deviceID) > 0,
+                  let uid = readDeviceString(deviceID, selector: kAudioDevicePropertyDeviceUID),
+                  let name = readDeviceString(deviceID, selector: kAudioObjectPropertyName)
+            else { return nil }
+            return InputDevice(uid: uid, name: name)
+        }
+        let systemDefaultUID = defaultInputDeviceID().flatMap { readDeviceString($0, selector: kAudioDevicePropertyDeviceUID) }
+        return InputDevices(present: present, systemDefaultUID: systemDefaultUID)
+    }
+
+    /// The device a UID names now, or nil when no present device has it. The HAL
+    /// answers an unknown UID with `kAudioObjectUnknown`, not an error.
+    func deviceID(forUID uid: String) -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var deviceID = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = withUnsafePointer(to: uid as CFString) { qualifier in
+            AudioObjectGetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject), &address,
+                UInt32(MemoryLayout<CFString>.size), qualifier, &size, &deviceID
+            )
+        }
+        guard status == noErr, deviceID != kAudioObjectUnknown else { return nil }
+        return deviceID
+    }
+
+    /// Calls `handler` with a fresh reading after each change of the device list or
+    /// of the system default input, and returns the labels of the registrations that
+    /// failed. One registration per address, so a registration that succeeded stays.
+    /// The HAL keeps a block until a matching remove, and this type never removes
+    /// it, so call it once per process. The blocks run on the main queue, so the
+    /// read and the handler's store write share one turn.
+    @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
+    @MainActor
+    public func observeInputDevices(_ handler: @escaping @MainActor (InputDevices) -> Void) -> [String] {
+        let addresses = [
+            ("device list", kAudioHardwarePropertyDevices),
+            ("default input", kAudioHardwarePropertyDefaultInputDevice),
+        ]
+        return addresses.compactMap { label, selector in
+            var address = AudioObjectPropertyAddress(
+                mSelector: selector,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            // The changed-address list is ignored: either change calls for one re-read.
+            let status = AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main) { _, _ in
+                let devices = inputDevices()
+                MainActor.assumeIsolated { handler(devices) }
+            }
+            return status == noErr ? nil : label
+        }
+    }
+
     /// The system default input device, or nil when the HAL names none.
     func defaultInputDeviceID() -> AudioDeviceID? {
         var address = AudioObjectPropertyAddress(
@@ -37,5 +100,35 @@ public struct CoreAudioInputDevices: Sendable {
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &channels)
         guard status == noErr, size == expectedSize else { return nil }
         return channels.map(Int.init)
+    }
+
+    private func deviceIDs() -> [AudioDeviceID] {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var size = UInt32(0)
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return [] }
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &deviceIDs) == noErr else { return [] }
+        return Array(deviceIDs.prefix(Int(size) / MemoryLayout<AudioDeviceID>.size))
+    }
+
+    /// The device's input channels across all its input streams; 0 when unreadable.
+    private func inputChannelCount(of deviceID: AudioDeviceID) -> Int {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size = UInt32(0)
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &size) == noErr, size > 0 else { return 0 }
+        let raw = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: MemoryLayout<AudioBufferList>.alignment)
+        defer { raw.deallocate() }
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, raw) == noErr else { return 0 }
+        let buffers = UnsafeMutableAudioBufferListPointer(raw.assumingMemoryBound(to: AudioBufferList.self))
+        return buffers.reduce(0) { $0 + Int($1.mNumberChannels) }
     }
 }
