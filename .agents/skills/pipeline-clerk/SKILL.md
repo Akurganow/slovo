@@ -245,13 +245,17 @@ names, as that line says. Its state is one line of the state block
   whole body is a command to the reviewer. Look for your own request posted
   after the line's `at=`. Not found: post it now. Then rewrite the line to
   `asked`.
-- **Read the answer.** A finding is actionable only when it names a file and
-  a line in this change's diff and asserts something checkable. A nit about
-  taste, a compliment, a summary, or a finding about an untouched file is
-  not.
+- **Read the answer.** An answer is a review performed at the head the line
+  names. A reply saying no review was performed is not one: the reviewer
+  skipped, hit a limit, or reviewed nothing. Such a notice may still name the
+  head or list files. Read it as no answer. A finding is actionable only
+  when it names a file and a line in this change's diff and asserts something
+  checkable. A nit about taste, a compliment, a summary, or a finding about
+  an untouched file is not.
   - Actionable findings: write `outcome=returned` with `findings=` their
     count, then return the item (step 6).
-  - None: write `outcome=clean` with `findings=0`, then go on to step 4.
+  - An answer with none: write `outcome=clean` with `findings=0`, then go
+    on to step 4.
   - No answer in the fire that asked: leave the item, and report. Still none
     at a later fire: stop with `kind=condition` and `key_kind=head-sha`,
     naming the request. That head is never asked again.
