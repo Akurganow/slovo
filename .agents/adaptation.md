@@ -343,3 +343,8 @@ was wrong, as each says.
   overlapping fires both read no claim and both do the work. The pipeline
   law now requires the caller to serialize a stage's fires, and says the
   claim guards only against a dead or stale fire.
+- **The sweep never flips a draft under `ready-for-human`.** The
+  specification flipped one where the round's comment recorded writing that
+  label, but the round posts no comment at hand-over. It applies the label
+  only after its own flip has read back, so a draft under it is a person's
+  act, and the sweep leaves it.

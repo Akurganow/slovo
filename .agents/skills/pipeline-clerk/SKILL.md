@@ -173,9 +173,9 @@ owner should read about it before the sweep writes more.
 13. **A missing flip**: still a draft under `pipeline/code-review` or
     `ready-for-human`.
     - Under `pipeline/code-review`: flip it, and read it back.
-    - Under `ready-for-human`: flip it only where your own round comment
-      records writing that label. Otherwise the owner applied it by hand:
-      leave it, and report.
+    - Under `ready-for-human`: leave it, and report. The round applies that
+      label only after its own flip has read back, so a draft under it is a
+      person's act.
 14. **No stage label at all**, and none of the other pipeline labels: a fire
     died in the hand-off window. Reconstruct from evidence, never by judging
     the work.
