@@ -20,6 +20,10 @@ public struct AppState: Equatable, Sendable {
     /// listener updates it in place. The default is never shown, because Settings
     /// opens only from the dropdown, whose open re-reads this.
     public var outputMuteAvailability: OutputMuteAvailability = .available
+    /// The present input devices and the system default input. Re-read on each menu
+    /// open and on each device-list or default-input change. Not in `menuStructure`:
+    /// the Microphone submenu's row listener updates it in place.
+    public var inputDevices = InputDevices()
     public var updateIndication: UpdateIndication = .idle
     /// The pane Settings… opens: the last one the user viewed, About excepted.
     /// General until the first visit, and again after a relaunch.
@@ -101,6 +105,10 @@ public extension AppState {
         )
     }
 
+    var inputDeviceChoice: InputDeviceChoice {
+        InputDeviceChoice.derive(preference: config.preferredInputDevice, devices: inputDevices)
+    }
+
     var menuStructure: MenuStructure {
         MenuStructure(mode: menuMode, input: dictationMenuInput)
     }
@@ -111,8 +119,9 @@ public extension AppState {
 }
 
 /// The configuration values the dictation menu is built from. The menu rebuilds
-/// when these or the menu mode change; the status, fn and update rows and the
-/// mute item's availability follow state through their own listeners.
+/// when these or the menu mode change; the status, fn and update rows, the mute
+/// item's availability and the Microphone submenu follow state through their own
+/// listeners.
 public struct DictationMenuInput: Equatable, Sendable {
     public let hotkeyConfiguration: HotkeyConfiguration
     public let cleanupModelSelection: CleanupModelSelection.Result
@@ -141,9 +150,9 @@ public enum SettingsPaneID: String, CaseIterable, Sendable {
     case general, cleanup, vocabulary, about
 }
 
-/// What a menu build depends on. The status, fn and update rows and the mute item's
-/// availability are not in it: their listeners update them in place, so a change to
-/// one never rebuilds the menu.
+/// What a menu build depends on. The status, fn and update rows, the mute item's
+/// availability and the Microphone submenu are not in it: their listeners update
+/// them in place, so a change to one never rebuilds the menu.
 public struct MenuStructure: Equatable, Sendable {
     public let mode: MenuMode
     public let input: DictationMenuInput
