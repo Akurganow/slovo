@@ -83,6 +83,9 @@ public struct Config: Equatable, Sendable {
     /// Whether dictation boundaries and failures use audible system-alert cues.
     /// The system alert volume owns loudness; Slovo has no separate volume value.
     public var playsDictationSoundCues: Bool
+    /// The input device dictation captures from. nil follows the system default.
+    /// Identified by UID, with the name kept to label it while it is absent.
+    public var preferredInputDevice: InputDevice?
     /// The persisted target language a translate pass renders into; read only in
     /// translate mode. Config never yields `translate = true`.
     public var translationTargetLanguage: Language
@@ -132,6 +135,7 @@ public struct Config: Equatable, Sendable {
         useSpellCheckHints: Bool = true,
         mutesSystemAudioWhileDictating: Bool = true,
         playsDictationSoundCues: Bool = true,
+        preferredInputDevice: InputDevice? = nil,
         translationTargetLanguage: Language = .en,
         automaticallyInstallsUpdates: Bool = true
     ) {
@@ -149,6 +153,7 @@ public struct Config: Equatable, Sendable {
         self.useSpellCheckHints = useSpellCheckHints
         self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
         self.playsDictationSoundCues = playsDictationSoundCues
+        self.preferredInputDevice = preferredInputDevice
         self.translationTargetLanguage = translationTargetLanguage
         self.automaticallyInstallsUpdates = automaticallyInstallsUpdates
     }

@@ -69,6 +69,9 @@ public enum ConfigStore {
         // An absent wire field defaults to `true`, enabling accessibility feedback
         // on installs whose stored blob predates dictation cues.
         let playsDictationSoundCues: Bool
+        // An absent wire field means System Default, so installs predating the
+        // microphone choice keep capturing from the system default input.
+        let preferredInputDevice: InputDevice?
         // An absent wire field defaults to "en" at decode, so existing installs
         // predating translate mode keep decoding (backward compatible, no migration),
         // mirroring the cleanup.useSpellCheckHints precedent.
@@ -88,6 +91,7 @@ public enum ConfigStore {
             case cleanup
             case mutesSystemAudioWhileDictating
             case playsDictationSoundCues
+            case preferredInputDevice
             case translationTargetLanguage
             case automaticallyInstallsUpdates
         }
@@ -110,6 +114,7 @@ public enum ConfigStore {
             playsDictationSoundCues = try container.decodeIfPresent(
                 Bool.self, forKey: .playsDictationSoundCues
             ) ?? true
+            preferredInputDevice = try container.decodeIfPresent(InputDevice.self, forKey: .preferredInputDevice)
             translationTargetLanguage = try container.decodeIfPresent(Language.self, forKey: .translationTargetLanguage) ?? .en
             automaticallyInstallsUpdates = try container.decodeIfPresent(
                 Bool.self, forKey: .automaticallyInstallsUpdates
@@ -130,6 +135,7 @@ public enum ConfigStore {
             // Explicit on the wire (like `useSpellCheckHints`), never omitted.
             try container.encode(mutesSystemAudioWhileDictating, forKey: .mutesSystemAudioWhileDictating)
             try container.encode(playsDictationSoundCues, forKey: .playsDictationSoundCues)
+            try container.encodeIfPresent(preferredInputDevice, forKey: .preferredInputDevice)
             try container.encode(translationTargetLanguage, forKey: .translationTargetLanguage)
             // Explicit on the wire (like `mutesSystemAudioWhileDictating`), never omitted.
             try container.encode(automaticallyInstallsUpdates, forKey: .automaticallyInstallsUpdates)
@@ -205,6 +211,7 @@ public enum ConfigStore {
                 useSpellCheckHints: cleanup.useSpellCheckHints,
                 mutesSystemAudioWhileDictating: mutesSystemAudioWhileDictating,
                 playsDictationSoundCues: playsDictationSoundCues,
+                preferredInputDevice: preferredInputDevice,
                 translationTargetLanguage: translationTargetLanguage,
                 automaticallyInstallsUpdates: automaticallyInstallsUpdates
             ))
@@ -219,6 +226,7 @@ public enum ConfigStore {
             mode = Config.defaultMode
             mutesSystemAudioWhileDictating = config.mutesSystemAudioWhileDictating
             playsDictationSoundCues = config.playsDictationSoundCues
+            preferredInputDevice = config.preferredInputDevice
             translationTargetLanguage = config.translationTargetLanguage
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
             asr = StoredAsr(
