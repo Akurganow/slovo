@@ -196,6 +196,26 @@ struct AVAudioEngineRecorderSourceGuardTests {
         "start() must reject the format via AudioTapFormatValidator before installTap")
     }
 
+    /// Each chunk carries the stereo pair of the device the capture uses, read once
+    /// per start. On the default path that device comes from the default-input read:
+    /// there the audio unit's current device names no input device.
+    /// Stated sensitivity: read the pair from the audio unit instead of the
+    /// default-input id → RED. Drop the pair read, or build `AudioChunk(buffer: copy)`
+    /// without the pair → RED. `WhisperSampleConverterTests` cannot catch any of these.
+    @Test
+    func recorderSourceCarriesTheCapturedDevicesPair() throws {
+        let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
+        let startBody = try Self.functionBody(named: "start", in: recorder)
+        let yieldBody = try Self.functionBody(named: "yield", in: recorder)
+
+        #expect(Self.containsInOrder([
+            "defaultInputDeviceID(",
+            "preferredStereoChannels(of:",
+        ], in: startBody), "start() must read the pair of the default input device")
+        #expect(yieldBody.contains("AudioChunk(buffer: copy, preferredStereoChannels:"),
+                "each yielded chunk must carry the session's pair")
+    }
+
     private static func code(_ relativePath: String) throws -> String {
         try strippingComments(from: String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8))
     }

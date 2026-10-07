@@ -24,7 +24,8 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
 
     private typealias Delivery = (
         boundary: AudioCaptureBoundary,
-        continuation: AsyncStream<AudioChunk>.Continuation
+        continuation: AsyncStream<AudioChunk>.Continuation,
+        preferredStereoChannels: [Int]?
     )
 
     /// A live capture session: the engine, its configuration-change observer, and
@@ -38,6 +39,7 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         let observer: NSObjectProtocol
         let continuation: AsyncStream<AudioChunk>.Continuation
         let captureBoundary: AudioCaptureBoundary
+        let preferredStereoChannels: [Int]?
     }
 
     private let lock = NSLock()
@@ -84,6 +86,15 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             throw rejection
         }
 
+        // The pair of the device the capture uses, read once per start. The default
+        // input's id comes from the HAL: on this path the audio unit's current
+        // device names no input device.
+        let devices = CoreAudioInputDevices()
+        let preferredStereoChannels = devices.defaultInputDeviceID().flatMap { devices.preferredStereoChannels(of: $0) }
+        if preferredStereoChannels == nil {
+            log.event("preferred stereo pair unread, using channels 1 and 2")
+        }
+
         let (stream, continuation) = AsyncStream<AudioChunk>.makeStream()
         let sessionToken = SessionToken()
 
@@ -127,7 +138,8 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
                 engine: engine,
                 observer: observer,
                 continuation: continuation,
-                captureBoundary: AudioCaptureBoundary()
+                captureBoundary: AudioCaptureBoundary(),
+                preferredStereoChannels: preferredStereoChannels
             )
         }
 
@@ -192,7 +204,11 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     ) {
         let delivery: Delivery? = lock.withLock {
             guard let session, session.token === sessionToken else { return nil }
-            return (boundary: session.captureBoundary, continuation: session.continuation)
+            return (
+                boundary: session.captureBoundary,
+                continuation: session.continuation,
+                preferredStereoChannels: session.preferredStereoChannels
+            )
         }
         let callbackTime = capturedAt
         let continuation = delivery?.continuation
@@ -200,6 +216,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         guard let copy = boundary?.takeDeliverableBuffer(buffer, capturedAt: callbackTime) else {
             return
         }
-        continuation?.yield(AudioChunk(buffer: copy))
+        continuation?.yield(AudioChunk(buffer: copy, preferredStereoChannels: delivery?.preferredStereoChannels))
     }
 }

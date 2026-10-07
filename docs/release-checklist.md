@@ -142,6 +142,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
   dropdown's **Mute Audio While Dictating** item and the Settings toggle are both
   disabled with their checkmark kept, and Settings states the reason. On the
   built-in output both are enabled.
+- With a 4-channel USB audio interface as the system input, a microphone on input
+  1 and then on input 2 each inserts text. Audio played through the interface's
+  loopback pair while the key is held stays out of dictation. A stereo webcam
+  microphone still inserts text.
 - Silence plays Start, End, then Error — the recording did end, so End belongs —
   and the log line shows `plan=silent`, nothing is inserted. A failure DURING
   recording plays Start then Error alone, since no recording ended. A later

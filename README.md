@@ -49,6 +49,9 @@ tuned.
   recognition and restores it afterward. On an output device where macOS can set
   neither the mute nor the volume, both switches are disabled, and Settings
   explains why.
+- Multi-channel audio interfaces are recorded from their main stereo pair, the two
+  inputs macOS uses for stereo, so a loopback pair on other channels stays out of
+  dictation.
 - **Sound Cues** for recording readiness, key-up, and failures (on by default),
   switchable in Settings → General or beside Mute in the menu-bar dropdown. Cues
   never hold up dictation: the microphone opens without waiting for a cue, and

@@ -49,7 +49,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   suppression is armed): it needs the boundary to CANCEL suppression back to `open`
   when the cue turns out to be inaudible, instead of ending it with a second edge.
   This excludes the cue's directly captured sound, not later acoustic echo from the
-  speakers or room.
+  speakers or room. The recorder tags each chunk with the capture device's
+  preferred stereo pair, read once per capture start. The converter mixes that pair
+  to mono before resampling; a mono device passes through unchanged.
 - `DictationCueController` snapshots the on-by-default Sound Cues preference per
   session and serializes Start, End, and Error through the public macOS alert-sound
   channel. Playback is never awaited by a dictation step: the readiness cue's
