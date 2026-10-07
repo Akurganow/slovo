@@ -59,7 +59,7 @@ because other roles write the same body. At the slice bound (the law,
 2. comment where the next fire resumes;
 3. exit without touching the tree.
 
-Then the audit (the law, "Exit writes and the audit in the stages"). Five
+Then the audit (the law, "Exit writes and the audit in the stages"). Six
 wakings look alike. **Test the narrowing waking first**, because its evidence
 overlaps the returns and the re-entry.
 
@@ -92,9 +92,12 @@ overlaps the returns and the re-entry.
 - **A re-entry of your own run**: the progress line's `slice=` and the
   checklist say where to resume.
 - **The owner's send-back**: the owner's review comments are the worklist.
+- **The owner's release of a parked item after the final slice**: the clerk's
+  comment names the removal. Work it by the paragraphs below this list: it
+  moves the tree only where it changes work.
 
 **After the final slice** has deleted the specification directory, in a
-return, a send-back, a narrowing or a restore:
+return, a send-back, a narrowing, a restore or the owner's release:
 
 - work from the pull-request body, the comments, the branch history and the
   diff;

@@ -154,6 +154,8 @@ Kind label `tech-debt`. Title:
 [Proportion Police] <kind>: <where> — <what is out of proportion>
 ```
 
+`<where>` is the fingerprint's `<path>`, defined below.
+
 Body, after `At <commit>.` and the line
 `Judged by: .agents/rules/design-vocabulary.md`, in these sections:
 

@@ -181,8 +181,12 @@ Kind label `tech-debt`. Title:
 [Text Residue Police] <kind>: <module>::<where> — <what>
 ```
 
-`<what>` is the missing fact, the false fact, the mutation that stays green,
-or the leftover.
+`<module>` and `<where>` come from the fingerprint's fields, defined below.
+For a `<path>` under `Sources/` or `Tests/`, `<module>` is the target
+directory: `Sources/<Target>/…` gives `<Target>`. For any other `<path>`, it
+is the first segment, such as `README.md` or `docs`. `<where>` is the
+`<symbol-or-concept>`. `<what>` is the missing fact, the false fact, the
+mutation that stays green, or the leftover.
 
 Body, after `At <commit>.` and the line
 `Judged by: .agents/rules/text-residue.md`, in these sections:

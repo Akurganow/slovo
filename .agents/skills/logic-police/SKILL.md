@@ -184,6 +184,8 @@ Kind label `bug`. Title:
 [Logic Police] <severity>: <where> — <wrong behaviour>
 ```
 
+`<where>` is the fingerprint's `<path>`, defined below.
+
 Body:
 
 ```

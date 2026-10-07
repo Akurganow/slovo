@@ -170,6 +170,8 @@ proposed fix is the document's text. Title:
 [Privacy Police] <kind>: <where> — <what goes beyond the table>
 ```
 
+`<where>` is the fingerprint's `<path>`, defined below.
+
 Body:
 
 ```

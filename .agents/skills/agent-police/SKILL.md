@@ -248,6 +248,8 @@ Kind label `tech-debt` for the machine, or `documentation` for a claim in
 [Agent Police] <kind>: <where> — <what disagrees with what>
 ```
 
+`<where>` is the fingerprint's `<path>`, defined below.
+
 Kinds, a closed list: `front-matter`, `name-mismatch`, `binding-set`,
 `undeclared`, `copy-not-link`, `dangling-link`, `untracked-harness-path`,
 `bound-in-two-places`, `counter-set`, `marker-drift`,
