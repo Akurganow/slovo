@@ -161,9 +161,10 @@ host").
   the successor is already there. Remove-first leaves no stage label for one
   call, a state the clerk recognises and repairs.
 - **The re-entry primitive.** Applying a label already present emits no
-  event. To re-wake a stage whose label is correct, remove the label and
-  apply it again. It has exactly two users: the clerk's sweep and the
-  implementer's slice loop.
+  event. That is a behaviour of the code host its documentation does not
+  state, measured at acceptance. To re-wake a stage whose label is correct,
+  remove the label and apply it again. It has exactly two users: the clerk's
+  sweep and the implementer's slice loop.
 - **The one inversion: promotion.** The clerk applies `spec/needs-work`
   first and removes `pipeline/queued` second. The clerk holds no claim, and
   reading "in flight" and then promoting is not one operation. With the
@@ -415,8 +416,8 @@ bound.
     condition and the content key. No counter moves.
 
   Each role names its own conditions beside the check that meets them. The
-  law keeps no closed list: one went stale when it named five conditions and
-  three had no implementation.
+  law keeps no closed list: a list kept apart from the checks goes stale when
+  a check changes.
 - **Every stop writes the stop line twice**, in the exit order ("Exit writes
   and the audit in the stages"): as the last line of the stop comment, then
   as the state block's stop line. The comment survives when the body write
@@ -449,9 +450,10 @@ bound.
 
 ## The branch stays mergeable
 
-- **A conflict is work, not a wall.** A pull request that does not merge has
-  no merge result to test, so CI never runs, and anything waiting on CI
-  waits forever.
+- **A conflict is work, not a wall.** CI runs on pull-request activity, and
+  such workflows do not run while the pull request has a merge conflict
+  (code host documentation, "Events that trigger workflows", `pull_request`,
+  `github/docs` at `73050b4`). Anything waiting on CI then waits forever.
 - **The committing role working the item resolves it**, in the fire that
   meets it, then does the work it was woken for. The writer is exempt: its
   branch adds only the specification directory, which `main` never carries.
@@ -559,10 +561,16 @@ written (`.agents/rules/unattended.md`, "Instructions and evidence").
 4. Settle the clone by the caller's sequence.
 
 **A clone that stays shallow is a hard stop for every commit and push**: a
-comment on the item where there is one, a report line, and no commit and no
-push. A stage that commits writes nothing else in that fire, except its
-claim's release. The clerk's label, comment and close repairs still run. The
-reviewer reads no history, so a shallow clone is not its stop.
+report line, and no commit and no push.
+
+- A stage that commits finds its item and takes its claim as usual. It then
+  records a stop with `kind=condition` ("Stops"), keyed as its other stops
+  are: the writer on the spec hash, the implementer on the tree id. It writes
+  nothing else in that fire, except its claim's release. Without the stop,
+  the clerk's sweep reads the fire as dead and re-enters the stage on every
+  sweep.
+- The clerk's label, comment and close repairs still run.
+- The reviewer reads no history, so a shallow clone is not its stop.
 
 **Read back after every write** (`.agents/rules/unattended.md`, "What a run
 publishes"). The pipeline's fields:
@@ -586,8 +594,6 @@ an unchanged situation is one line linking the first. The comment-length
 bound is the ceiling, except for a `must_change` worklist, the decisive lines
 of a failing log, and a table this law requires. No comment narrates which
 roles ran, how many rounds, or the reasoning behind a judgement already made.
-One item once carried 24 machine comments, 93,637 characters in all, against
-a 32,080-character diff.
 
 **The report**, every fire, in this order:
 
@@ -627,8 +633,8 @@ character at least as long.
 
 This is the one list. The writer checks it after writing, the reviewer in
 both rounds, and the gate first. **The writer's check is the gate's check,
-character for character.** A weaker self-check once passed a guidance line
-pushed down by a blank line. The gate bounced it, spending a round.
+character for character.** A weaker self-check passes what the gate then
+bounces, and the bounce spends a round.
 
 `[NEEDS CLARIFICATION: …]` is not a signal. It is legal in a draft, and the
 reviewer's round two and the gate refuse it. It is how the pipeline marks

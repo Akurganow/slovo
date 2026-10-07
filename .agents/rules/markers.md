@@ -15,8 +15,9 @@ trusted marker of one writer on one subject wins. Nobody edits an older one.
   that would hold spaces is written with a hyphen for each space.
 - `<sha>` and `<commit>` are full commit ids. `<12 hex>` is the first
   12 hexadecimal characters of the id or hash the field names. `<UTC>` is an
-  ISO-8601 timestamp in UTC. `#<n>` names an issue and `#<cr>` a pull
-  request.
+  ISO-8601 timestamp in UTC. `<YYYY-MM-DD>` is the UTC date, and "today"
+  compared with it is the current UTC date. `#<n>` names an issue and `#<cr>`
+  a pull request.
 
 ## Police fingerprints
 
@@ -98,7 +99,8 @@ closes, or a comment of its own on an issue that stays open.
 - **Readers:** the tracker clerk, for its skip test and for a close marker on
   an open issue. The pipeline clerk at intake, for `action=handed`. Every
   police role, for `action=gone` under the regression rule of
-  `.agents/rules/filing.md`.
+  `.agents/rules/filing.md`. The court, for `action=gone` on a closed issue
+  its `duplicate` verdict would name.
 
 ## The taken marker
 
@@ -228,6 +230,7 @@ key, for either outcome:
   - `Restored: #<n> reopened`.
 - A body line above the state block: `Blocked by #<cr>`.
 - **Writer:** the pipeline clerk.
-- **Readers:** the pipeline clerk. The `Narrowing:`, `Restored:` and
-  `Blocked by` lines are also read by the spec writer and the implementer at
-  their last read, and by the spec reviewer.
+- **Readers:** the pipeline clerk. The `Narrowing:` and `Restored:` comments
+  are also read by the spec writer and the implementer at their last read,
+  and by the spec reviewer. The `Blocked by` line is read by the pipeline
+  clerk only.

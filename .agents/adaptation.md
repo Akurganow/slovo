@@ -196,6 +196,7 @@ makes it.
 | 19 | Close a pull request unmerged and read it back; edit a body and a title and read each back | Closed and merged read back distinctly. Writes: measured at acceptance |
 | 20 | The repository's description, topics, licence field and homepage | Served |
 | 21 | An issue's parent and ordered parts | Not needed: findings are never split |
+| 22 | Applying a label already present emits no label event, so the pipeline law's re-entry primitive removes and re-applies it | No documentation states it. Measured at acceptance |
 
 ## Departures
 

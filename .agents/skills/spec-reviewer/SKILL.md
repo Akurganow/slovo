@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: "Review one Slovo pipeline item's specification against the repository's rules in at most two rounds, post its blocking findings or an approval, and hand the item on, never committing. Use when a pipeline pull request carries spec/awaiting-review."
+description: "Review one Slovo pipeline item's specification against the repository's rules in bounded rounds, post its blocking findings or an approval, and hand the item on, never committing. Use when a pipeline pull request carries spec/awaiting-review."
 ---
 
 # The spec reviewer

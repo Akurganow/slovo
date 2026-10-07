@@ -40,8 +40,8 @@ restates it.
 - **Value scales have written anchors.** Each role's `value: 1-5` describes
   1, 3 and 5 in words, so the floor is not the verifier's taste.
 - **A census that reports zero proves nothing** until it has reported
-  non-zero on a planted positive. A byte-range search under the default
-  locale once exited with an error and read like a clean tree.
+  non-zero on a planted positive. A search that exits with an error can read
+  like a clean tree.
 - **No scope beyond the role's stated intent.** A new sweep is a change to
   the role file, never a run's initiative.
 - **Police roles take no payload.** A payload on a police fire is reported
@@ -55,8 +55,8 @@ restates it.
 - **The churn window is the last 90 days.** A role that ranks files by churn
   counts commits over it, on full history only. On a shallow clone the
   ranking is reported as truncated, never presented as a ranking.
-- **Re-measure every number at the analysed commit.** A worked example once
-  kept old call-site counts for days after the tree moved.
+- **Re-measure every number at the analysed commit.** A number carried over
+  from an older commit goes stale when the tree moves.
 - **A remedy is a proposal.** It names the verification that must run, never
   claims this run verified it.
 - **Strongest rejected** lists the candidates a recorded reason killed. That
@@ -74,7 +74,7 @@ means a misread, so aim strictly above it. The fence is
 `.agents/rules/verification.md`, "What the gate rejects".
 
 **The verifier brief carries the fence verbatim**, because the verifier never
-sees the role file. Without it, verifiers judged fenced items as findings.
+sees the role file. A verifier without it judges fenced items as findings.
 
 ## Name the rulebook
 

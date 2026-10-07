@@ -33,14 +33,15 @@ binds a person changing Slovo. In this file "the law" is the pipeline law.
 ## Preconditions
 
 - The law's preconditions. A shallow clone is a hard stop.
-- **The toolchain** `CONTRIBUTING.md`, "Development Setup", requires. Without
-  it you can verify nothing, so it is the shallow clone's case: one comment
-  on the item, a report line, no commit and no push, and the claim released.
 - **The discriminator** (the law, "Identity and the discriminator"), all
   three facts. Then the input test: `spec/approved` present, neither
   `pipeline/stuck` nor `pipeline/hold`.
 - **Claim** against `spec/approved` (the law, "Claims"). Release it at every
   exit.
+- **The toolchain** `CONTRIBUTING.md`, "Development Setup", requires. Without
+  it you can verify nothing. Record a stop with `kind=condition` and
+  `key_kind=tree-id` (the law, "Stops"), naming the missing toolchain. Commit
+  and push nothing, and release the claim.
 
 ## Classify the waking
 
@@ -88,8 +89,8 @@ overlaps the returns and the re-entry.
      it by id as out of scope.
 
   The same failure returned at an unmoved tree is a bound: stop.
-- **A re-entry of your own run**: the progress line and the checklist say
-  where to resume.
+- **A re-entry of your own run**: the progress line's `slice=` and the
+  checklist say where to resume.
 - **The owner's send-back**: the owner's review comments are the worklist.
 
 **After the final slice** has deleted the specification directory, in a
@@ -178,12 +179,12 @@ spec hash.
    3. Before every commit, check the staged paths against
       `.agents/rules/boundaries.md`, "Closed paths", and the fleet's own
       instructions (the law, "What no stage writes"). Exempt this item's
-      specification directory by its literal path, never by a pattern over
-      its parent: another item's directory is closed too. A pattern engine
-      without lookahead does not fail on a negative lookahead, it matches
-      nothing, so exempt with a second, literal filter. Check a closed key
-      inside an editable file, such as the version keys of
-      `Resources/Info.plist`, on the staged diff, by its line.
+      specification directory by its literal path, in a second filter of
+      its own, never by a pattern over its parent or a lookahead: another
+      item's directory is closed too, and a pattern engine may not support
+      lookahead. Check a closed key inside an editable file, such as the
+      version keys of `Resources/Info.plist`, on the staged diff, by its
+      line.
    4. Unstage a hit. A hit the plan asked for is a stop condition keyed on
       the tree id.
 5. **The exit criteria, in order:**
@@ -202,8 +203,9 @@ spec hash.
       - cancelled: read it again, and never count it as red;
       - no run on the head: neither pass nor fail. Say so in the progress
         checklist.
-6. **Progress**, in one body write: the progress line and the checklist above
-   the block.
+6. **Progress**, in one body write: the progress line, its `slice=` the
+   number of the plan step this slice finished, and the checklist above the
+   block.
 
    ```
    ## Progress
@@ -271,10 +273,10 @@ time anything acts.
 
 ## The acceptance trio
 
-Three fresh, mutually blind, clean-context sub-agents
-(`.agents/rules/evidence.md`; `.agents/rules/process.md`, "The three
-seats"). Three is the round's ceiling. They get `$RUN/diff.patch` and a case
-file rebuilt this fire from durable records, holding:
+Three sub-agents in the seats of `.agents/rules/process.md`, "The three
+seats", under `.agents/rules/evidence.md`. Three is the round's ceiling. They
+get `$RUN/diff.patch` and a case file rebuilt this fire from durable records,
+holding:
 
 - the pull-request body;
 - the narrowed sources that count, each with its close reason;
@@ -284,14 +286,9 @@ file rebuilt this fire from durable records, holding:
 Paths, never text. No reasoning, confidence or hint of yours. The trio does
 not judge a narrowed source's work: its outcome is already decided.
 
-- **Prosecutor**: prove this cannot be merged. Every assertion carries an
-  exhibit. It may compile, test and write reproductions under `$RUN`. Its
-  round is judged by what it read and tried, never by what it found.
-- **Advocate**: which objections are real defects, which are style dressed
-  as defects, and what the diff demonstrably does.
+- **Prosecutor**: may compile, test and write reproductions under `$RUN`.
 - **Judge**: reads the diff, the specification, the narrowed sources and both
-  reports only. It strikes assertions without an exhibit, re-runs the single
-  most decisive exhibit, and returns exactly, one line per entry:
+  reports only, and returns exactly, one line per entry:
 
   ```
   VERDICT: ACCEPTED
@@ -304,8 +301,7 @@ not judge a narrowed source's work: its outcome is already decided.
 
   The first line is `VERDICT: ACCEPTED` or `VERDICT: REJECTED` and carries
   nothing else. Ask again for any other shape, up to the bound on judge
-  output shape. Then treat it as rejected. Judge blocks once reached 13,000
-  characters, so one line per entry is a requirement.
+  output shape. Then treat it as rejected.
 - **Rejected**: no retitle and no body rewrite. A rejected item never wears a
   finished item's clothes.
   1. Post the verdict comment with `must_change` as the worklist, its last
@@ -378,19 +374,12 @@ deterministic gate").
 
 ## Never
 
-- Merge, or set the draft field.
-- Act on a held or stuck item.
-- Post a review.
-- Close an issue or a pull request.
-- Repair what the clerk's sweep repairs.
-- Touch a closed path or the fleet's own instructions, or move a version.
-- Rewrite history, force-push, or push to `main`.
-- Edit the specification. Disagreement is a bounce.
-- Push after the trio ran.
-- Post an `ACCEPTED` verdict line for a tree the judge did not accept.
-- Drop the fingerprint or the state block.
-- Pass the daily slice bound, take a second item, or pass the bound on CI-fix
-  attempts.
+The law holds in full, its "What no stage writes" and "Bounds" among it.
+Beyond it, never:
+
+- edit the specification: disagreement is a bounce;
+- push after the trio ran;
+- post an `ACCEPTED` verdict line for a tree the judge did not accept.
 
 ## The report
 

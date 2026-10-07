@@ -304,7 +304,7 @@ The seven parts of `.agents/rules/filing.md`, "The report", plus:
   blocked, with the reply.
 - **The caller line**, every fire: callers are not in the repository, so
   nothing here says whether a caller exists for a role, still points at a
-  role that exists, or has fired. Silence about callers was once read as
+  role that exists, or has fired. Silence about callers reads as
   coverage.
 
 The Filed line, when nothing was filed, takes one of these forms:

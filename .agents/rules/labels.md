@@ -32,10 +32,10 @@ one. A name a run needs and cannot find follows
 A run never applies `good first issue`, `help wanted`, or the build-trigger
 label `dev-build`.
 
-**One label, one meaning.** A court once mapped "out of scope" to the veto
-label. The tracker clerk skips every vetoed issue, so out-of-scope reports
-were never closed. The court applies no label for out of scope: its marker
-carries the verdict, and `wontfix` stays the owner's.
+**One label, one meaning.** The court applies no label for out of scope:
+its marker carries the verdict, and `wontfix` stays the owner's. The tracker
+clerk skips every vetoed issue, so an out-of-scope report under the veto
+label would never close.
 
 ## Reading the open list
 

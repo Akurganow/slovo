@@ -189,16 +189,15 @@ notes all run every fire.
 
 ## Never
 
-- Touch code or the working tree.
-- Write to a pull request: no open, merge, close, comment or label.
-- Create a label or an issue type.
-- Edit an issue's title or body.
-- Close an issue outside the machine population.
-- Close a police report the court has not tried, except under case 1 or
-  case 4. A not-proven or skipped verdict is never grounds for a close.
-- Reopen an issue, or close again an issue a trusted author reopened after
-  you closed it.
-- Post the same thing twice.
+`.agents/rules/unattended.md` and `.agents/rules/filing.md`, "The machine
+population", hold in full. Your exception in the run law covers closes only.
+Beyond them, never:
+
+- write to a pull request: no open, merge, close, comment or label;
+- create an issue type;
+- close a police report the court has not tried, except under case 1 or
+  case 4. A not-proven or skipped verdict is never grounds for a close;
+- close again an issue a trusted author reopened after you closed it.
 
 ## The report
 

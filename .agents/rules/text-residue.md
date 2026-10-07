@@ -41,8 +41,8 @@ the docs.
    that argue their design, the note beside a narrow lint suppression, and
    the reason required beside hand-rolled code. Other roles read these as
    evidence. The protection covers the reason. A claim of fact inside a
-   reason is still judged against the code. Protecting reasons wholesale
-   once let a recorded invariant the code no longer held escape the check
+   reason is still judged against the code: protecting reasons wholesale
+   would let a recorded invariant the code no longer holds escape the check
    built to catch it.
 2. **Test sensitivity notes**: the `Stated sensitivity: … → RED` lines a
    regression test carries under `AGENTS.md`, "Tests must be able to fail".
@@ -86,11 +86,9 @@ the docs.
 ## The fence
 
 - **No check keys on vocabulary.** Words have legitimate readings, and a
-  scan cannot draw the line judgement draws. A team once added eight
-  vocabulary rules and dropped them all. The rules covered hedges,
-  narration, banners, tool names, versioned names and vague error strings.
-  Almost every phrase had a legitimate use somewhere, and strict CI turned
-  each hit into a build failure.
+  scan cannot draw the line judgement draws. Almost every phrase has a
+  legitimate use somewhere, and strict CI turns each hit into a build
+  failure.
 - **What is fenced is constructs**, each with the harm it does. Here the two
   `custom_rules` in `.swiftlint.yml` fence two:
   - a print-family call under `Sources/`: the logger redacts, standard
@@ -103,9 +101,8 @@ the docs.
   - the construct does harm and has no legitimate reading;
   - it has zero hits on the whole tree;
   - a fixture holds positive cases and must-not-trip negatives;
-  - the legitimate cousin is carved out. A placeholder-trap rule that keyed
-    on the words a stub message began with was a vocabulary rule in
-    disguise.
+  - the legitimate cousin is carved out. A rule keyed on the words a stub
+    message begins with is a vocabulary rule in disguise.
 - A legitimate exception is silenced inline for the next line, with the
   reason on the line above.
 - Anything a fence names cannot exist on a green `main`. A report of it is a

@@ -62,19 +62,18 @@ staleness clause, naming what it describes.
    number.
 9. A role file follows the same rules as a rule file. It never carries
    environment facts or the clone sequence.
-10. Never write a rule that constrains tooling the run does not control. A
-    rule that forbade tool names in published text failed on every run,
-    because the harness appended its own footer after publication.
+10. Never write a rule that constrains tooling the run does not control,
+    such as a footer a harness appends after publication. The run cannot
+    keep such a rule, so it fails on every run.
 11. A guard that protects what a label or marker means is a repository rule.
-    It lives in the repository, never in one caller's setup. A guard deleted
-    together with the setup it sat in once left no way out of a state.
+    It lives in the repository, never in one caller's setup, where deleting
+    the setup deletes the guard with it.
 12. Prose in instructions is load-bearing. Tie each sentence to its
-    condition. A stop sentence that opened with "Then" read as a step after
-    every case instead of a stop for one.
+    condition: a stop sentence that opens with "Then" reads as a step after
+    every case, not as a stop for one.
 13. A document names a repository file by its path from the repository
-    root, never by a bare filename or a path relative to itself. Roles that
-    named a sibling rule file by bare filename pointed fires at paths they
-    could not resolve.
+    root, never by a bare filename or a path relative to itself. A bare
+    filename points a fire at a path it cannot resolve.
 14. A sentence about an outside system follows `.agents/rules/claims.md`:
     its source, the source's kind and its revision stand beside it.
 
@@ -108,6 +107,6 @@ staleness clause, naming what it describes.
   is a report line, and every check that depended on it is not run.
 - **No counts of roles or skills in prose.** Read the set from the tree. A
   written count is false the day a role is added.
-- **Personal preferences of the owner are not repository rules.** A section
-  on how the owner likes to be asked questions was once read literally. It
-  sent questions into two trackers while the owner was answering in chat.
+- **Personal preferences of the owner are not repository rules.** A role
+  reads every sentence as an instruction, so a preference written here acts
+  as a rule.

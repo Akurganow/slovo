@@ -66,10 +66,13 @@ comments on, labels or closes any other issue. Every issue listing names the
 provenance label. A payload naming an issue outside the population is out of
 scope, so it is refused unread (`.agents/rules/unattended.md`, "The subject
 of the run"). The repository is public, and under this rule no fire reads
-text a stranger wrote unprompted: a read that never happens cannot inject.
-The cost is that a person's report is no coverage, and the court never tries
-one. The rule is only as strong as the code host's rule that a stranger
-cannot label an issue.
+an issue a stranger opened: a read that never happens cannot inject. A
+stranger may still comment on a machine issue, so its comments are
+third-party text, and reach a sub-agent only as fenced data
+(`.agents/rules/unattended.md`, "Instructions and evidence"). The cost is
+that a person's report is no coverage, and the court never tries one. The
+rule is only as strong as the code host's rule that a stranger cannot label
+an issue.
 
 ## The do-not-report list
 
@@ -222,7 +225,7 @@ Immediately before each create:
   ```
 
   A role defines only its own vocabulary for `<kind>`, `<where>` and
-  `<what>`. A role with no title rule once filed under an invented prefix.
+  `<what>`.
 - **Body.** The role's template. It starts with the analysed commit, then
   the `Judged by:` line where the role names a rulebook
   (`.agents/rules/police.md`, "Name the rulebook"). It uses permalinks at that

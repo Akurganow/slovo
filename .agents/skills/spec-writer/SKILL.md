@@ -145,15 +145,11 @@ pipeline law.
 
 ## Never
 
-- Merge, or set the draft field.
-- Resolve a conflict.
-- Act on a held or stuck item.
-- Post a review.
-- Write implementation, tests, manifests or pipeline definitions.
-- Delete the specification directory.
-- Touch a closed path or the fleet's own instructions.
-- Create a branch, or open a pull request.
-- Take a second item.
+The law holds in full, its "What no stage writes" among it. Beyond it,
+never:
+
+- resolve a conflict: the law exempts your branch;
+- delete the specification directory: the implementer's final slice does.
 
 ## The report
 

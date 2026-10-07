@@ -49,8 +49,10 @@ branches your caller's sequence fetched.
 ## The sweep
 
 Apply the sweep to every open pull request that passes the discriminator
-(the law, "Identity and the discriminator"). **The draft state never
-excludes an item from a case.** Each item takes the **first case that
+(the law, "Identity and the discriminator"). A branch under `pipeline/` that
+heads no pull request in any state takes case 11 and no other. A closed pull
+request is over: the tracker clerk settles its sources. **The draft state
+never excludes an item from a case.** Each item takes the **first case that
 matches, and only that one**, unless the case says to continue. Where no case
 matches, leave the item exactly as it is, with one report line naming its
 labels and its claim. The cases are the whole of your authority over an item.
@@ -84,7 +86,7 @@ owner should read about it before the sweep writes more.
    - A stage label and `pipeline/queued` together: a promotion died between
      its writes. Remove `pipeline/queued`, then continue to the next cases.
    - Two or more stage labels, without `pipeline/stuck`: keep the one the
-     evidence implies (case 15's table), remove the rest, and re-enter the
+     evidence implies (case 14's table), remove the rest, and re-enter the
      one kept.
 4. **The head does not merge.**
 
@@ -124,7 +126,7 @@ owner should read about it before the sweep writes more.
    then re-enters the stage.
 
    1. Straighten the labels first. With no stage label, apply the one the
-      evidence implies (case 15's table). With two or more, keep only that
+      evidence implies (case 14's table). With two or more, keep only that
       one.
    2. Then run case 9.
 8. **Resume after the owner's release**: a stage label present, neither
@@ -150,7 +152,7 @@ owner should read about it before the sweep writes more.
     - the stage left no result at the key it is judged on.
       `spec/needs-work` and `spec/awaiting-review` read the spec hash.
       `spec/approved` reads the tree id;
-    - the item is not paused for the day. Case 13 takes a paused item.
+    - the item is not paused for the day. Case 12 takes a paused item.
 
     This is also the at-least-once path for an event never delivered. A
     repeat comment is one line linking the first.
@@ -159,18 +161,15 @@ owner should read about it before the sweep writes more.
 11. **An orphan branch**: a branch under `pipeline/` heading no pull request
     in any state. A clerk fire died between push and open. Adopt it, never
     recreate it, and finish it from step 3 of "The order of writes".
-12. **Closed unmerged**: over. Write one report line. The tracker clerk
-    settles its sources. A stage that retries what a person declined is a
-    stage that has to be switched off.
-13. **Paused for the day, and the day is over**: `slices` at the bound,
+12. **Paused for the day, and the day is over**: `slices` at the bound,
     `slices_day` before today. Re-enter `spec/approved`.
-14. **A missing flip**: still a draft under `pipeline/code-review` or
+13. **A missing flip**: still a draft under `pipeline/code-review` or
     `ready-for-human`.
     - Under `pipeline/code-review`: flip it, and read it back.
     - Under `ready-for-human`: flip it only where your own round comment
       records writing that label. Otherwise the owner applied it by hand:
       leave it, and report.
-15. **No stage label at all**, and none of the other pipeline labels: a fire
+14. **No stage label at all**, and none of the other pipeline labels: a fire
     died in the hand-off window. Reconstruct from evidence, never by judging
     the work.
 
@@ -244,17 +243,17 @@ names, as that line says. Its state is one line of the state block
   a line in this change's diff and asserts something checkable. A nit about
   taste, a compliment, a summary, or a finding about an untouched file is
   not.
-  - Actionable findings: write `outcome=returned`, then return the item
-    (step 6).
-  - None: write `outcome=clean`, then go on to step 4.
+  - Actionable findings: write `outcome=returned` with `findings=` their
+    count, then return the item (step 6).
+  - None: write `outcome=clean` with `findings=0`, then go on to step 4.
   - No answer in the fire that asked: leave the item, and report. Still none
     at a later fire: stop with `kind=condition` and `key_kind=head-sha`,
     naming the request. That head is never asked again.
 - **The same head after `returned`**: the implementer answered without a
-  commit. Where every actionable finding has its answer by id, write
-  `outcome=clean` and go on. Otherwise a return now would be the second at
-  one head: stop with `kind=condition` and `key_kind=head-sha`, naming the
-  unanswered findings.
+  commit. Where each of the line's `findings=` actionable findings has its
+  answer by id, write `outcome=clean` and go on. Otherwise a return now would
+  be the second at one head: stop with `kind=condition` and
+  `key_kind=head-sha`, naming the unanswered findings.
 - **The same head after `clean`**: go on to step 4.
 
 ## The pump
@@ -266,7 +265,7 @@ names, as that line says. Its state is one line of the state block
   it held would stop the whole queue on a decision nobody took. A resumed
   parked item may meet a conflict, which is the machine's own work.
 - An item **paused for the day** is not parked. It keeps its stage label and
-  its slot, and resumes on a later day (case 13).
+  its slot, and resumes on a later day (case 12).
 - A blocker that merged is cleared. One closed unmerged is cleared too, and
   narrows the item. An open blocker blocks.
 - With fewer items in flight than the bound, and at least one queued:
@@ -302,9 +301,9 @@ to `$RUN/fingerprints.md`, with its pull request and whether that is open,
 merged or closed unmerged. Search pull-request bodies in **all** states, and
 keep only those that pass the discriminator. Also list the remote branches
 under `pipeline/`. A fingerprint on a proven pull request is spent, whatever
-the branch list says. The search index lags behind writes, so the branch list
-overrules the search only where the search finds nothing. Re-read the file
-before each create.
+the branch list says. The search index may lag behind writes, so the branch
+list overrules the search only where the search finds nothing. Re-read the
+file before each create.
 
 ## Consolidation into skeleton items
 
@@ -347,9 +346,9 @@ before each create.
   request in any state (case 11). A fire that died after pushing chose its
   own number. Any hit: adopt it, and keep its number.
 - **The skeleton files**: `spec.md` and `plan.md` in the item's
-  specification directory. Each holds its title line, then every heading of
-  the law's "The specification shape" in order. Under each heading stands
-  exactly this one line:
+  specification directory. Each holds its title line, then its own headings
+  from the law's "The specification shape", in order. Under each heading
+  stands exactly this one line:
 
   ```
   [NEEDS CLARIFICATION: unfilled skeleton — the spec writer fills this section]
@@ -358,8 +357,8 @@ before each create.
   The gate refuses to start while any such line remains, so nobody can
   mistake a skeleton for content.
 - **After the push, read both files back from the pushed branch** and compare
-  their headings with the law's list. Not confirmed: fix and push again, up
-  to the bound on skeleton read-back. Still not: stop that item, and leave
+  each file's headings with its list in the law. Not confirmed: fix and push
+  again, up to the bound on skeleton read-back. Still not: stop that item, and leave
   the branch.
 
 ### The order of writes
