@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.36.0] - 2026-10-07
+
+### Added
+
+- Choose the microphone and capture multi-channel interfaces (#141)
+
 ## [0.35.0] - 2026-10-03
 
 ### Added
