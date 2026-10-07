@@ -20,8 +20,9 @@ trusted marker of one writer on one subject wins. Nobody edits an older one.
 
 ## Police fingerprints
 
-The last line of every issue a police role files, and of that role's stale
-note on its own issue:
+The last line of every issue a police role files, of that role's stale note
+on its own issue, and of every draft private security advisory the security
+police opens:
 
 ```
 <!-- <role-id>-fingerprint: <field>::<field>::<class>[ severity=<critical|high|medium|low>] -->

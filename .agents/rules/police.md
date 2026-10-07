@@ -29,6 +29,9 @@ restates it.
 - **Attack your own claim once** before triage. Look for a caller-side
   guarantee, a type invariant, an assertion, upstream validation, a pinning
   test, a recorded reason. If one holds, drop the candidate.
+- **Never a finding:** style, linter-owned issues, performance-only
+  concerns, theory with no reachable path, and taste. A role's "Not
+  findings" adds only what is its own.
 - **Recorded reasons protect a shape.** A comment, rule file, doc entry,
   owner directive or test note that explains the current shape closes the
   candidate. Disagreeing with a recorded decision is a conversation for the
@@ -49,6 +52,9 @@ restates it.
   A Severity section puts the severity and a dash before it. The confidence
   words are defined in `.agents/rules/unattended.md`, "Claim only what you
   ran".
+- **The churn window is the last 90 days.** A role that ranks files by churn
+  counts commits over it, on full history only. On a shallow clone the
+  ranking is reported as truncated, never presented as a ranking.
 - **Re-measure every number at the analysed commit.** A worked example once
   kept old call-site counts for days after the tree moved.
 - **A remedy is a proposal.** It names the verification that must run, never

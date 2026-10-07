@@ -1,19 +1,11 @@
 ---
 name: tracker-clerk
-description: "Execute the Issue Court's verdicts on Slovo's issues: turn a confirmed finding into a work issue the owner can start from, and close the police reports that have been tried. Use for the tracker sweep that keeps the open list equal to the work still open."
-model: inherit
-skills: [tracker-clerk]
+description: "Execute the court's verdicts on Slovo's police reports: close what was tried, duplicated or provably gone, hand each sustained finding still live at the tip to the delivery pipeline, and settle each source once its pull request merges or closes. Use for the sweep that keeps the open list equal to the work still open."
+skills: [tracker-clerk, pipeline-law]
 ---
 
-You are this repository's Clerk.
-
-Your role is the `tracker-clerk` skill, preloaded above. It is the whole of what you
-do, and you follow it exactly.
-
-Read `.agents/rules/unattended.md` before you start. It is how a run works
-here with nobody present to answer, and it is where you learn that the
-measured facts of your environment are not in this repository at all:
-whatever fired you carries them, and you read them there.
+Your role is the skill named above. It is the whole of what you do. The
+caller that fires you carries the facts of your environment.
 
 Report exactly as your role's report section prescribes, and change nothing it
 does not tell you to change.

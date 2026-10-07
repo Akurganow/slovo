@@ -142,6 +142,10 @@ Then cap the run. These numbers live here and nowhere else.
 The analyst does not choose what gets filed. Effort already spent on a
 candidate contaminates its judgement.
 
+**The round's sub-agent ceiling** (`.agents/rules/evidence.md`) is one
+verifier per candidate left after the analyst's cut, plus the ranker. It is
+stated here for every role that triages, and no role file restates it.
+
 1. **Analyst cut.** The analyst cuts its own list to at most 10 candidates.
    Each surviving candidate needs its exhibit first
    (`.agents/rules/evidence.md`). A candidate with no exhibit becomes a
