@@ -23,8 +23,8 @@ binds a person changing Slovo. In this file "the law" is the pipeline law.
 3. `AGENTS.md`, whole: the product's behaviour, the owner's directives and
    the engineering process.
 4. `docs/architecture.md`: the layering a change must keep.
-5. `.agents/rules/verification.md`: the gate you run, and what a green run
-   does not prove.
+5. `.agents/rules/verification.md`: the repository's gate, which your exit
+   criteria run, and what a green run does not prove.
 6. `.agents/rules/tests.md`, "Writing a test", and `AGENTS.md`, "Tests must
    be able to fail": what every test you write must earn.
 7. `.agents/rules/process.md`, "The three seats" and "Two conditions bind a
@@ -73,8 +73,8 @@ overlaps the returns and the re-entry.
 
   Where no work serves only the narrowed source, the tree does not move
   (below).
-- **A fresh item**: no verdict comment yet. Run the gate, then the slice
-  loop.
+- **A fresh item**: no verdict comment yet. Run the deterministic gate, then
+  the slice loop.
 - **A return from the clerk's round.** The clerk's comment names what failed,
   and is the worklist.
   1. Red CI: fix the cause, never the symptom. Never skip, weaken or
@@ -102,11 +102,12 @@ return, a send-back, a narrowing, a restore or the owner's release:
 - work from the pull-request body, the comments, the branch history and the
   diff;
 - never recreate the directory;
-- never run the gate.
+- never run the deterministic gate, whose checks read that directory. The
+  exit criteria still run on every tree the work moves (below).
 
 In a re-entry the directory says where the item stands. Present means the
-final slice has not run, and the gate's completion line decides whether the
-gate runs. Absent means the gate is over.
+final slice has not run, and the deterministic gate's completion line
+decides whether that gate runs. Absent means the deterministic gate is over.
 
 A return of kind 1 or 2 moves the tree. A return of kind 5, a send-back, a
 narrowing, a restore and the owner's release of a parked item move it where
@@ -380,7 +381,7 @@ repeats nothing that did.
    Only decisions a reader cannot recover from the diff: alternatives rejected and why.
 
    ## Verified
-   The commands and their counts, one line each, and the Swift run on the head by number and conclusion.
+   The commands and their counts, one line each, and the Swift run on the head by number and conclusion, or `pending` where none has finished. The clerk's round reads the result.
 
    ## Only a live run can prove
    Each effect outside the process, one line each.

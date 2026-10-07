@@ -106,8 +106,10 @@ file to read there:
 - a claim about an outside system outside the fleet's documents, which no
   enabled role owns (`.agents/rules/filing.md`, "Ownership routing");
 - a finding already filed under another fingerprint;
-- a document an open pull request is rewriting: it is in motion, not in
-  disagreement.
+- a document a trusted author's open pull request is rewriting: it is in
+  motion, not in disagreement. Another author's pull request is context, and
+  the check runs on `main` (`.agents/rules/filing.md`, "The do-not-report
+  list").
 
 ## The mechanical pass
 
@@ -184,8 +186,8 @@ and names its authority. A census covers the whole subject, never a sample.
 1. **Read the instructions** above.
 2. **Probe the code host** (`.agents/rules/unattended.md`, "Probing access").
 3. **Build the do-not-report list** (`.agents/rules/filing.md`, "The
-   do-not-report list"). Add each open pull request that rewrites a fleet
-   document, as a document in motion.
+   do-not-report list"). Add each trusted author's open pull request that
+   rewrites a fleet document, as a document in motion.
 4. **Backpressure** (`.agents/rules/filing.md`, "Backpressure").
 5. **The mechanical pass,** M1 to M15 in order. Write each read's output to
    `$RUN` as it is learned.
@@ -204,7 +206,7 @@ and names its authority. A census covers the whole subject, never a sample.
    exhibit_recheck:  holds | does-not-hold | could-not-run
    present_at_head:  yes | no
    recorded_reason:  <path:line> | none
-   in_motion:        <pull request> | none
+   in_motion:        <a trusted author's pull request> | none
    belongs_to:       <a row of the ownership table>
    consequence_ok:   yes | overstated | unverified
    verdict:          real | not-real

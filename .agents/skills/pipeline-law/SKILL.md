@@ -97,8 +97,8 @@ host").
 | `spec/needs-work` | Clerk at promotion. Reviewer. The implementer's gate. Clerk's sweep: re-entry, reconstruction, a narrowing while the specification exists | Writer, at the end of a revision. Clerk's sweep, inside a re-entry |
 | `spec/awaiting-review` | Writer. Clerk's sweep | Reviewer. Clerk's sweep |
 | `spec/approved` | Reviewer. Writer, on a revision that answered the gate only. Implementer, re-entering itself. Clerk, returning an item from its round or parking a stop met under `pipeline/code-review`. Clerk's sweep | Implementer, at re-entry and at hand-over. The gate, on a failure below its bound. Clerk's sweep |
-| `pipeline/code-review` | Implementer, on an accepted verdict. Clerk's reconstruction | Clerk, when its round ends either way, when it narrows, and when it parks a stop |
-| `ready-for-human` | Clerk only | The owner. The clerk only to narrow or restore |
+| `pipeline/code-review` | Implementer, on an accepted verdict. Clerk's reconstruction. Clerk's sweep, after a conflict merge into a `ready-for-human` item | Clerk, when its round ends either way, when it narrows, and when it parks a stop |
+| `ready-for-human` | Clerk only | The owner. The clerk only to narrow, to restore, or to send a conflict merge through its round |
 | `pipeline/stuck` | Clerk only, after a repair it could not make | The owner. The clerk, when a retried repair, a narrowing or a restore moves the item |
 | `pipeline/hold` | The owner | The owner |
 
@@ -131,6 +131,7 @@ host").
 | T23 | Any | Plus or minus `pipeline/hold` | The owner | |
 | T24 | Any | The narrowing label moves below | Clerk | A narrowing or a restore waits ("Narrowing, restore and the last read") |
 | T25 | `pipeline/code-review` with a stop | `pipeline/stuck`, then `spec/approved` | Clerk | No repair of its own moves the item. In the order of "Stops" |
+| T26 | `ready-for-human` | `pipeline/code-review` | Clerk's sweep | A conflict merge moved the head. The round checks it again |
 
 **The narrowing label moves (T24).**
 
@@ -155,7 +156,7 @@ host").
   stage answers to its input label. At the **end** of its work, never at
   pickup, it removes the input label and applies the successor's. A dead
   fire therefore leaves the baton visible. The claim and the completion
-  marker absorb a double fire on a label still hanging.
+  marker absorb a later fire on a label still hanging ("Claims").
 - **Remove the input first, apply the successor second.** Apply-first leaves
   both labels present, and a repeated hand-over may then emit no event,
   because the successor is already there. Remove-first leaves no stage label
@@ -358,6 +359,14 @@ earlier round: the item has come back since.
   - newer than your wake ("Where state lives").
 
   A released claim never blocks.
+- **Fires of one stage never overlap.** That is a requirement on whoever
+  sets up the callers (`.agents/rules/unattended.md`, "Environment facts and
+  blocked sources"). Every wake of a stage goes through its one caller,
+  which ends a new fire at once while the stage's previous fire is still
+  live. A claim is read and then written, never locked. Two overlapping
+  fires can both read no claim and both take one, and each read-back can
+  pass. The claim guards against a dead or stale fire, never a concurrent
+  one.
 - **The clerk holds no claim**, on purpose: it has no single item to anchor
   one to. A fact already on the code host guards each of its writes: a
   fingerprint search and a branch listing before creating, and a closed pull

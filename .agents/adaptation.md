@@ -308,3 +308,38 @@ was wrong, as each says.
   convenes the same triage round, so `.agents/rules/filing.md`, "Independent
   triage", states that ceiling once, and `.agents/rules/evidence.md` points
   at it.
+- **Only a trusted author's pull request holds a finding back.** The
+  specification put every open pull request fixing a finding on the
+  do-not-report list, and the agent police read any open pull request that
+  rewrites a fleet document as a document in motion. A stranger could keep a
+  finding from the tracker by leaving a pull request open.
+  `.agents/rules/filing.md`, "The do-not-report list", now applies the
+  trusted-author test, as its backpressure leave-out already did.
+- **The implementer names the deterministic gate where it means it.** The
+  specification calls CI's commands the gate, and also told the implementer,
+  after the final slice, never to run the gate, meaning its checks of the
+  deleted specification. The exit criteria, which run CI's commands, still
+  run on every tree the work moves.
+- **The court's audit leaves a `wontfix` issue alone.** The specification's
+  audit applied a missing verdict label to any issue dropped on the court's
+  own marker, one carrying the owner's veto label among them. Its run law
+  forbids touching such an issue.
+- **A re-trial's record is a marker newer than the one it lifts.** At an
+  unchanged trial commit the lifted marker carries the same key, so the run
+  law's recovery read it as the re-trial's own record, and the re-trial never
+  posted. Only a court marker on a newer comment now counts.
+- **A conflict merge into a finished item goes back through the round.** The
+  specification merged `main` into a `ready-for-human` item and re-ran the
+  round's checks once, before the carried-merge record they read existed. It
+  left the label standing, with no way back on a red or pending check. The
+  clerk now moves the item to `pipeline/code-review` (the pipeline law,
+  T26), and the round hands it over again only once it passes.
+- **A failed completion check returns the item at once.** The specification's
+  round asked the outside reviewer after a completion check had failed,
+  spending a request on a head already going back.
+- **Fires of one stage never overlap.** The specification wakes a stage by
+  label event, by schedule and by hand, and let a claim read and then
+  written, backed by the completion marker, guard two fires on one item. Two
+  overlapping fires both read no claim and both do the work. The pipeline
+  law now requires the caller to serialize a stage's fires, and says the
+  claim guards only against a dead or stale fire.

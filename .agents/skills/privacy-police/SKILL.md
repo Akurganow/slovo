@@ -200,7 +200,8 @@ The fingerprint line is the `privacy-police` row of
 the data leaves, stays or shows, or `docs/privacy.md` for `drift`.
 `<symbol>` is the function or type that moves the data. For `drift` it is the
 row's Data cell up to any parenthesis, or the section heading of a statement
-outside the table. `<kind>` is a kind from the table under "What counts".
+outside the table, trimmed and written as a token (`.agents/rules/markers.md`,
+"Fields"). `<kind>` is a kind from the table under "What counts".
 
 ## Report
 

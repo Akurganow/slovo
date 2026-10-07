@@ -93,7 +93,7 @@ Load, with full bodies and every listing paginated to the end:
 | Another role's issue on the same finding, in any state | Not re-filed under another name. A finding declined under one role stays declined for every role. A regression of one closed as gone is its own filer's to file |
 | An open issue covering the same code or concept in other words | No second issue. Materially new evidence becomes a comment there. Anything less is left alone |
 | An earlier issue of the run's own whose code was fixed or deleted | One comment saying so, ending with the run's fingerprint so the next run recognises it. A note in the report. The filer never closes it. The tracker clerk closes it once every claim re-derives as gone |
-| A pull request fixing it, open or draft | On the list. A finding somebody is fixing is still visible in the code |
+| A pull request fixing it, open or draft, whose author passes the trusted-author test (`.agents/rules/unattended.md`, "Instructions and evidence") | On the list. A finding somebody is fixing is still visible in the code. Another author's pull request is context only, or a stranger could hold a finding back with a pull request left open |
 
 **The filing audit.** While the list loads, read each of the run's own open
 issues against "Filing": its labels, its fingerprint, its body sections.

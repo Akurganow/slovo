@@ -96,8 +96,8 @@ check, from the listing already held, and spends nothing. Where its verdict
 maps to one state label ("Labels and re-trials"), that label must stand.
 Apply a missing one, unless the issue's label events show a person removed
 it. Events that cannot be read mean nothing is applied, and the report says
-so. An issue labelled `ready` gets no label from the audit. No comment is
-posted.
+so. An issue labelled `ready` or `wontfix` gets no label from the audit. No
+comment is posted.
 
 ## The payload
 
@@ -322,7 +322,12 @@ payload keeps its labels, and the comment is the record.
 
 **A re-trial.** A payload that lifts an earlier marker starts a new trial.
 Its comment is posted beside the old one, never over it. The newest trusted
-marker wins.
+marker wins. The lifted marker is the newest trusted court marker when the
+fire selects the issue. Under `.agents/rules/unattended.md`, "The order of
+exit writes", only a court marker on a comment newer than the lifted one is
+this trial's record. The lifted marker and every older one never are, even at
+the same trial commit. An interrupted re-trial resumes from its own newer
+comment.
 
 **The owner's way back**, stated here once and referenced by the tracker
 clerk:

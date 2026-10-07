@@ -95,13 +95,15 @@ owner should read about it before the sweep writes more.
 
    1. Resolve it (the law, "The branch stays mergeable").
    2. Push.
-   3. Under `pipeline/code-review` or `ready-for-human`, rerun the round's
-      checks against the new head.
-   4. Post one comment with the resolution and any results from step 3.
-   5. Under `pipeline/code-review` or `ready-for-human`, write a
+   3. Post one comment with the resolution.
+   4. Under `pipeline/code-review` or `ready-for-human`, write a
       carried-merge comment for this merge, ending with its line
       (`.agents/rules/markers.md`, "The pipeline clerk's records"). It is one
       comment per merge, never rewritten.
+   5. Under `ready-for-human`, remove it and apply `pipeline/code-review`
+      (T26 of the law, "Transitions"). The round checks the new head like
+      any other: it returns the item on a failed check, and applies
+      `ready-for-human` again only once every check passes.
    6. Continue to the next cases.
 5. **A narrowing waits** (the law, "Narrowing, restore and the last read").
 
@@ -204,6 +206,9 @@ For every open item carrying `pipeline/code-review` and neither
       now, or differs from it only by merge commits this item's carried-merge
       comments name. Any implementer commit after the verdict fails this
       check.
+
+   A failed check returns the item at once (step 6). Only an item that
+   passes all three goes on to the outside review.
 3. **The outside review** (below).
 4. **CI on that head**, read from the code host, the run of
    `.agents/rules/verification.md`, "Which run covers a commit":
