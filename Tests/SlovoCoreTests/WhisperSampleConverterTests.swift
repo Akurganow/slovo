@@ -53,6 +53,74 @@ struct WhisperSampleConverterTests {
                 "4×4800 stereo frames through ONE converter must total ~6213 (1365 + 3×1616), got \(total)")
     }
 
+    /// The pair clipped to the delivered buffer, else channels 1 and 2 clipped to it,
+    /// as zero-based indices. Never empty for a buffer with a channel.
+    /// Stated sensitivity: drop the `- 1`, drop the clip, return `[]` or nil for an
+    /// empty result, or fall back to all channels → RED.
+    @Test
+    func mixedChannelIndicesClipsThePairToTheBuffer() {
+        let rows: [(pair: [Int]?, channelCount: Int, indices: [Int])] = [
+            (nil, 4, [0, 1]),
+            ([1, 2], 4, [0, 1]),
+            ([1, 2], 1, [0]),
+            ([3, 4], 2, [0, 1]),
+            ([2, 3], 2, [1]),
+            ([0, 5], 4, [0, 1]),
+        ]
+        for row in rows {
+            #expect(
+                WhisperSampleConverter.mixedChannelIndices(preferredStereoChannels: row.pair, channelCount: row.channelCount)
+                    == row.indices,
+                "pair \(String(describing: row.pair)) over \(row.channelCount) channels"
+            )
+        }
+    }
+
+    /// A 4-channel interface whose channels 3–4 are a loopback pair: speech on
+    /// channel 2 of the preferred pair survives, and channel 3 stays out.
+    /// Stated sensitivity: today's converter (no mix) → the first case is silent → RED.
+    /// Sum every channel → the second case carries the loopback → RED. Take channel 1
+    /// only → the first case is silent → RED.
+    @Test
+    func fourChannelChunkMixesOnlyThePreferredPair() throws {
+        // The plain initializers return nil at 4 channels; a discrete layout builds it.
+        let layout = try #require(AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | 4))
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channelLayout: layout)
+        let speech = try WhisperSampleConverter().convert(Self.sineChunk(format: format, signalChannel: 2, pair: [1, 2]))
+        let loopback = try WhisperSampleConverter().convert(Self.sineChunk(format: format, signalChannel: 3, pair: [1, 2]))
+
+        #expect(Self.peak(speech) > 0.1, "speech on channel 2 must reach the mono output")
+        #expect(Self.peak(loopback) < 1e-6, "a signal outside the pair must stay out of the mono output")
+    }
+
+    /// Stated sensitivity: today's converter drops channel 2 → RED.
+    @Test
+    func stereoChunkKeepsChannelTwo() throws {
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
+        let samples = try WhisperSampleConverter().convert(Self.sineChunk(format: format, signalChannel: 2, pair: nil))
+
+        #expect(Self.peak(samples) > 0.1, "a signal on channel 2 alone must reach the mono output")
+    }
+
+    /// A 4800-frame chunk, silent on every channel except a 440 Hz sine of amplitude
+    /// 0.5 on the 1-based `signalChannel`.
+    private static func sineChunk(format: AVAudioFormat, signalChannel: Int, pair: [Int]?) -> AudioChunk {
+        let frames: AVAudioFrameCount = 4_800
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
+        buffer.frameLength = frames
+        for channel in 0..<Int(format.channelCount) {
+            let data = buffer.floatChannelData![channel]
+            for frame in 0..<Int(frames) {
+                data[frame] = channel == signalChannel - 1 ? 0.5 * sin(2 * .pi * 440 * Float(frame) / 48_000) : 0
+            }
+        }
+        return AudioChunk(buffer: buffer, preferredStereoChannels: pair)
+    }
+
+    private static func peak(_ samples: [Float]) -> Float {
+        samples.map(abs).max() ?? 0
+    }
+
     /// A non-silent 48 kHz stereo buffer of `frames` frames (both channels = 0.5).
     private static func stereoChunk(frames: AVAudioFrameCount) -> AudioChunk {
         let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!

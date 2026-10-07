@@ -98,9 +98,13 @@ public struct AudioBuffer: @unchecked Sendable {
 /// mutated after construction.
 public struct AudioChunk: @unchecked Sendable {
     public let buffer: AVAudioPCMBuffer
+    /// The capture device's preferred stereo pair, as 1-based channel numbers
+    /// (`kAudioDevicePropertyPreferredChannelsForStereo`). nil when unread.
+    public let preferredStereoChannels: [Int]?
 
-    public init(buffer: AVAudioPCMBuffer) {
+    public init(buffer: AVAudioPCMBuffer, preferredStereoChannels: [Int]? = nil) {
         self.buffer = buffer
+        self.preferredStereoChannels = preferredStereoChannels
     }
 }
 
