@@ -255,6 +255,7 @@ public enum ConfigStore {
         "openai/gpt-5.6-luna": "openai/gpt-6-luna",
         "deepseek/deepseek-v4-flash": "deepseek/deepseek-v4.1-flash",
         "qwen/qwen3.6-flash": "qwen/qwen3.8-flash",
+        "anthropic/claude-haiku-4.5": "anthropic/claude-haiku-5.5",
     ]
 
     /// A stored model id moved to its current successor, or to the default when

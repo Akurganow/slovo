@@ -407,7 +407,7 @@ struct DictationMenuTests {
     /// Stated sensitivity: hard-code or drop the id → the wrong row would be checked → RED.
     @Test
     func cleanupModelItemCarriesSelectedId() {
-        #expect(items(availability: .on, model: "anthropic/claude-haiku-4.5")
-            .contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-4.5", enabled: true)))
+        #expect(items(availability: .on, model: "anthropic/claude-haiku-5.5")
+            .contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-5.5", enabled: true)))
     }
 }

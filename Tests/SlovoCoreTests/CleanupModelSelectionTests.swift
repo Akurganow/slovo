@@ -5,7 +5,7 @@ import SlovoCore
 struct CleanupModelSelectionTests {
     private let catalog = CleanupModelCatalog.options
     private let defaultId = Config.defaultOpenRouterModel
-    private let haiku = "anthropic/claude-haiku-4.5"
+    private let haiku = "anthropic/claude-haiku-5.5"
     private let gemini = "google/gemini-3.1-flash-lite"
 
     private func derive(_ preference: String, _ scope: CleanupModelScope) -> CleanupModelSelection.Result {

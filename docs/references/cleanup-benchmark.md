@@ -132,11 +132,10 @@ short probe prompt). Every catalog model answered a probe with
 
 ## Latest Live Snapshot
 
-Live benchmark of the full curated shortlist, measured on 2026-09-27 with 10
+Live benchmark of the curated shortlist, measured on 2026-10-08 with 10
 repetitions over the 53-sample suite: temperature 0, the transcript in
-`<transcript>` tags, reasoning disabled via `reasoning: {effort: "none"}`. The
-prompt is the earlier wording of the 2026-09-27 prompt change below, which
-differs from the shipped plain prompt in two lines.
+`<transcript>` tags, reasoning disabled via `reasoning: {effort: "none"}`, and
+the shipped prompt.
 Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
@@ -145,20 +144,23 @@ gathered hint carries the active input locale. Compare runs by pass RATE
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `openrouter:openai/gpt-6-luna` | 530 | 484 | 0 | 936.0 ms | 1791.0 ms |
-| `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 452 | 0 | 259.1 ms | 424.6 ms |
-| `openrouter:minimax/minimax-m3` | 530 | 441 | 0 | 1133.8 ms | 3583.5 ms |
-| `openrouter:google/gemini-3.1-flash-lite` | 530 | 430 | 0 | 816.9 ms | 1357.2 ms |
-| `openrouter:qwen/qwen3.6-flash` (replaced) | 530 | 420 | 0 | 649.0 ms | 1036.2 ms |
-| `openrouter:anthropic/claude-haiku-4.5` | 530 | 410 | 0 | 1006.1 ms | 1997.6 ms |
-| `openrouter:mistralai/mistral-small-2603` | 530 | 5 | 524 | 446.8 ms | 479.3 ms |
+| `openrouter:openai/gpt-6-luna` | 530 | 480 | 0 | 931.4 ms | 2118.5 ms |
+| `openrouter:deepseek/deepseek-v4.1-flash` | 530 | 451 | 0 | 348.4 ms | 1380.2 ms |
+| `openrouter:anthropic/claude-haiku-5.5` | 530 | 446 | 0 | 546.8 ms | 1140.0 ms |
+| `openrouter:minimax/minimax-m3` | 530 | 434 | 0 | 1513.3 ms | 2915.8 ms |
+| `openrouter:google/gemini-3.1-flash-lite` | 530 | 400 | 45 | 5666.8 ms | 26726.5 ms |
+| `openrouter:mistralai/mistral-small-2603` | 530 | 313 | 154 | 430.9 ms | 1057.3 ms |
 | `passthrough:none` (raw mode) | 530 | 0 | 0 | 0.0 ms | 0.0 ms |
 
-The Mistral row measures its provider, not the model: 524 requests failed with
-HTTP 429, "temporarily rate-limited upstream", from Mistral, its only
-provider on OpenRouter. It passed 370 of 500 on 2026-07-25. Qwen3.8 Flash
-replaced Qwen3.6 Flash after this run; its only full run is in the catalog
-refresh below.
+- Claude Haiku 4.5, the model Haiku 5.5 replaced, passed 410 of 530 at
+  1006.1 ms p50 and 1997.6 ms p95 on 2026-09-27, under the earlier prompt
+  wording. Haiku 5.5 passes every
+  inverse-text-normalization and short-smoke run. Its weak spot is
+  russian-filler, 20 of 60: it keeps the fillers "ну", "вот" and "короче".
+- Qwen3.8 Flash was not measured in this run. Its only full run is in the
+  catalog refresh below.
+- The report records the Gemini and Mistral errors as provider errors,
+  without their HTTP status.
 
 ### Prompt change of 2026-09-27
 
@@ -299,7 +301,7 @@ models absent from the leaderboard.
 | Model | Price in/out, $/1M | Intelligence Index | Hallucination rate | Output speed | First-token latency |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `openai/gpt-6-luna` (default) | 0.10 / 0.50 | — | — | — | — |
-| `anthropic/claude-haiku-4.5` | 1.00 / 5.00 | 24 | n/a | 92.4 t/s | 0.93 s |
+| `anthropic/claude-haiku-5.5` | 0.10 / 0.50 | — | — | — | — |
 | `google/gemini-3.1-flash-lite` | 0.25 / 1.50 | 25 | 81.6% | 294 t/s | 5.2 s |
 | `qwen/qwen3.8-flash` | 0.15 / 0.47 | — | — | — | — |
 | `deepseek/deepseek-v4.1-flash` | 0.035 / 0.29 | — | — | — | — |
@@ -307,9 +309,9 @@ models absent from the leaderboard.
 | `minimax/minimax-m3` | 0.30 / 1.20 | n/a | n/a | n/a | n/a |
 
 `n/a` means the model is absent from that public leaderboard as of the retrieval
-date. `—` marks the rows added on 2026-09-27: their price comes from the
-OpenRouter catalog API that day, and their leaderboard columns were not
-retrieved. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU) do not cover
+date. `—` marks the rows added on 2026-09-27 and 2026-10-08: their price
+comes from the OpenRouter catalog API on the day each was added, and their
+leaderboard columns were not retrieved. Public multilingual leaderboards (Global-MMLU-Lite, MMMLU) do not cover
 Russian, so Russian-specific quality is not represented by any number above; the
 `slovo-cleanup-v1` suite is the project's own measurement on dictation-style
 samples.
@@ -322,10 +324,8 @@ samples.
 
 ## Verification
 
-PASS — refreshed on 2026-09-27 with live 10-repetition runs of the full
-curated shortlist over the 53-sample suite, using the current cleanup request.
-The Latest Live Snapshot rows for the seven catalog models come from the
-earlier-wording side of the side-by-side prompt run, Mistral included; Mistral
-is left out of the prompt table because 524 of its 530 requests failed with
-HTTP 429. The passthrough row, the no-cleanup (raw) baseline and the
-catalog-refresh table come from the same day's runs under the previous prompt.
+PASS — refreshed on 2026-10-08 with a live 10-repetition run of the curated
+shortlist over the 53-sample suite, using the current cleanup request and the
+shipped prompt. Qwen3.8 Flash was not measured in that run. The prompt-change
+and catalog-refresh tables and the no-cleanup (raw) baseline come from the
+2026-09-27 runs.

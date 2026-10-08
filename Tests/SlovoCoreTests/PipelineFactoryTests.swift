@@ -55,7 +55,7 @@ struct PipelineFactoryTests {
         dependencies.cleaner = cleaner
         dependencies.injector = injector
         let config = Config(
-            openRouterModel: "anthropic/claude-haiku-4.5"
+            openRouterModel: "anthropic/claude-haiku-5.5"
         )
         let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
 
@@ -63,6 +63,6 @@ struct PipelineFactoryTests {
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
 
-        #expect(cleaner.calls.last?.config.model == "anthropic/claude-haiku-4.5")
+        #expect(cleaner.calls.last?.config.model == "anthropic/claude-haiku-5.5")
     }
 }
