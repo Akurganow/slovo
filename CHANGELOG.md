@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.0] - 2026-10-08
+
+### Added
+
+- Replace Claude Haiku 4.5 with Claude Haiku 5.5 in the cleanup catalog (#147)
+
 ## [0.36.0] - 2026-10-07
 
 ### Added
