@@ -34,7 +34,7 @@ public extension MenuBarGlyph {
     // Color and template-ness are two facets of one per-tint decision — a template
     // image is re-tinted by the menu bar, discarding its color — so a new tint case
     // must revisit both; keep them in a single exhaustive switch.
-    static func renderingStyle(for tint: MenuBarGlyphTint) -> (color: NSColor, isTemplate: Bool) {
+    internal static func renderingStyle(for tint: MenuBarGlyphTint) -> (color: NSColor, isTemplate: Bool) {
         switch tint {
         case .normal:
             return (.black, true)
