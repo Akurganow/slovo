@@ -74,8 +74,9 @@ jobs:
           # anchor and classifies every commit after it.
           fetch-depth: 0
       - name: Install git-cliff
-        # The action checks the archive's SHA-256.
-        uses: taiki-e/install-action@v2
+        # The commit pin fixes the action's own code. The action checks the
+        # git-cliff archive's SHA-256.
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
           tool: ${{ env.GIT_CLIFF }}
       - name: Compute the next release version
@@ -237,6 +238,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Before the keyed checkout, so no action from outside GitHub runs with
+      # the deploy key on disk.
+      - name: Install git-cliff
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+        with:
+          tool: ${{ env.GIT_CLIFF }}
       - uses: actions/checkout@v7
         with:
           # Full history so the committed CFBundleVersion matches the packaged one
@@ -251,10 +258,6 @@ jobs:
         with:
           name: slovo-macos
           path: dist
-      - name: Install git-cliff
-        uses: taiki-e/install-action@v2
-        with:
-          tool: ${{ env.GIT_CLIFF }}
       - name: Stamp the release version and write its changelog section
         env:
           RELEASE_VERSION: ${{ needs.decide.outputs.version }}
