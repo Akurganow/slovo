@@ -74,7 +74,8 @@ jobs:
           # anchor and classifies every commit after it.
           fetch-depth: 0
       - name: Install git-cliff
-        # The action checks the archive's SHA-256.
+        # The commit pin fixes the action's own code. The action checks the
+        # git-cliff archive's SHA-256.
         uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
           tool: ${{ env.GIT_CLIFF }}
