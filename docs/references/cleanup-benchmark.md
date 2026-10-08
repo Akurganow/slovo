@@ -128,7 +128,7 @@ model whose `reasoning.mandatory` is `true` rejects the request with HTTP 400,
 its lowest allowed effort, `low`, GLM 5.3 Flash spent 1283–2288 reasoning
 tokens and 54–102 s on the suite's longest dictation (sample 51, under a
 short probe prompt). Every catalog model answered a probe with
-`reasoning: {effort: "none"}` using 0 reasoning tokens. Claude Haiku 5.5 did the same on 2026-10-08.
+`reasoning: {effort: "none"}` using 0 reasoning tokens.
 
 ## Latest Live Snapshot
 
@@ -152,15 +152,15 @@ gathered hint carries the active input locale. Compare runs by pass RATE
 | `openrouter:mistralai/mistral-small-2603` | 530 | 313 | 154 | 430.9 ms | 1057.3 ms |
 | `passthrough:none` (raw mode) | 530 | 0 | 0 | 0.0 ms | 0.0 ms |
 
-- Claude Haiku 5.5 replaced Claude Haiku 4.5 in this change. Under the
-  earlier prompt wording on 2026-09-27, Haiku 4.5 passed 410 of 530 at
-  1006.1 ms p50 and 1997.6 ms p95. Haiku 5.5 passes every
+- Claude Haiku 4.5, the model Haiku 5.5 replaced, passed 410 of 530 at
+  1006.1 ms p50 and 1997.6 ms p95 on 2026-09-27, under the earlier prompt
+  wording. Haiku 5.5 passes every
   inverse-text-normalization and short-smoke run. Its weak spot is
   russian-filler, 20 of 60: it keeps the fillers "ну", "вот" and "короче".
 - Qwen3.8 Flash was not measured in this run. Its only full run is in the
   catalog refresh below.
-- The Gemini and Mistral errors are provider errors. Mistral's 154 match the
-  HTTP 429 rate limiting its only provider returned on 2026-09-27.
+- The report records the Gemini and Mistral errors as provider errors,
+  without their HTTP status.
 
 ### Prompt change of 2026-09-27
 
