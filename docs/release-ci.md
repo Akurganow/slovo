@@ -187,10 +187,12 @@ request, docs and dependency updates included.
 The `decide` job installs one pinned `git-cliff` binary through
 [`taiki-e/install-action`](https://github.com/taiki-e/install-action). A full
 commit SHA pins the action's own code, and the action checks the git-cliff
-archive's SHA-256. The job then runs `git-cliff --bump --context`. The first entry of that JSON is the unreleased
-range when something bumps — carrying the next version and a `bump_type` of
-`major`, `minor` or `patch` — or the last tag itself with `bump_type` null. The job publishes both fields; `releasable` is
-"`bump_type` is one of `major`, `minor`, `patch`" and needs no second opinion.
+archive's SHA-256. The job then runs `git-cliff --bump --context`. The first
+entry of that JSON is the unreleased range when something bumps — carrying
+the next version and a `bump_type` of `major`, `minor` or `patch` — or the
+last tag itself with `bump_type` null. The job publishes both fields;
+`releasable` is "`bump_type` is one of `major`, `minor`, `patch`" and needs no
+second opinion.
 
 [`cliff.toml`](../cliff.toml) is the whole rule set:
 
