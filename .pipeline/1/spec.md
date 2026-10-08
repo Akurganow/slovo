@@ -2,7 +2,7 @@
 
 ## Work item
 
-This item's pull request, from `pipeline/1-decode-sub-second-hold`. It answers #83.
+#144, from `pipeline/1-decode-sub-second-hold`. It answers #83.
 
 ## Problem
 
@@ -50,12 +50,26 @@ The report's effort rating of `S` looks optimistic once the measurements and the
 
 Also rejected: padding the samples with trailing silence. It feeds the model the same input, because `padOrTrim` already zero-pads each window ([TranscribeTask.swift L126-L127](https://github.com/argmaxinc/argmax-oss-swift/blob/1e2a163736dfa5a198e637ae44c114e1c6d5cc2d/Sources/WhisperKit/Core/TranscribeTask.swift#L126-L127)). It still has the second-window problem, and it misstates the audio duration that the guard and the telemetry read.
 
+**Comments the change writes**, each in full:
+
+- Above the new gate in `plan`: `// The whole recording, not the tail: only a hold the live loop never reached has no confirmed prefix to protect, and its one window is the only decode it gets.`
+- The comment in `resolve` at `WhisperKitTailFinalization.swift:280-282` becomes: `// A short tail after a confirmed boundary opens zero windows and returns nothing; the live unconfirmed text is then the only record of the final words, so an empty decode must not erase them. A whole short hold opens its one window instead (singleWindowSampleCount).`
+- The comment at `WhisperKitLiveSession.swift:328-330` becomes: `// Mirrors TranscribeTask's window-loop bound: a tail at or below windowClipTime opens zero decode windows unless the plan opens its single window, so its empty decode is structural, not a verdict that nothing was spoken.`
+- The doc comment of `tailDecodingOptions` at `WhisperKitLiveSession.swift:415-420` gains, after its first sentence: `/// A non-nil singleWindowSampleCount lowers windowClipTime to one sample short of the recording, so the SDK opens exactly one window over a hold too short for its one-second clip.`
+
+**Documentation the change writes.**
+
+- `docs/references/asr-whisperkit.md:278-279`: the sentence "A sub-second dictation, which the native loop has not processed yet, is finalized from the beginning." is replaced by: "A dictation of one second or less never reaches the native loop, which waits for more than one second of new audio. Slovo decodes it at key-up from the beginning, in exactly one window. Only there does it lift the SDK's one-second end-of-window clip, which would otherwise open no window at all. The clip drops to one sample short of the recording, so no second window opens over the trailing silence."
+- `docs/architecture.md:84`, in the `WhisperKitTranscriber` bullet, after "so Whisper never gets the chance to hallucinate into silence.": "A voiced hold of one second or less, which the live transcriber never reaches, is decoded at key-up in exactly one window."
+
 **Layer.** Every change sits in `SlovoCore`'s WhisperKit tail finalization, the `WhisperKitTranscriber` bullet of `docs/architecture.md` ("finalizes only its unfinished tail at key-up"). The FSM, cue queue, cleaner and injector are untouched. The pure decision lives in `plan`; `tailDecodingOptions` is a projection of it.
 
 ## Acceptance criteria
 
-1. Measured first, on a Mac, and the numbers recorded on this issue: the delivered sample count for a deliberately short spoken hold (one word, key released immediately), with Sound Cues on and off. If no realistic hold lands at or below 16 000 samples, say so here and stop — the rest of this issue is then unreachable in practice.
+1. Measured first, on a Mac, and the numbers recorded on #83: the delivered sample count for a deliberately short spoken hold (one word, key released immediately), with Sound Cues on and off. If no realistic hold lands at or below 16 000 samples, say so here and stop — the rest of this issue is then unreachable in practice.
 2. Measured first, and recorded here: a decode of that same short recording with the end-of-window clip removed returns the spoken word. If it comes back empty anyway — `firstTokenLogProbThreshold` is the suspect — the proposed fix does not work and the issue needs a different one.
+
+   [NEEDS CLARIFICATION: Criteria 1 and 2 need a person at a Mac with a microphone and a loaded model, which no pipeline stage has. Does the implementation wait until the owner records both measurements on #83, or does it go ahead now and leave both to the owner's check of the dev build?]
 3. A spoken hold of one second or less inserts the word into the focused app. No red glyph, no Error cue.
 4. The gate that enables the new decode selects **only** the no-confirmed-prefix case. A long recording whose post-boundary tail is short and has no live text keeps today's behaviour exactly, including keeping its end-of-window clip.
 5. A silent hold of one second or less still flashes the red glyph with nothing inserted, and nothing reaches OpenRouter or the pasteboard.
@@ -63,6 +77,7 @@ Also rejected: padding the samples with trailing silence. It feeds the model the
 7. The tail-after-boundary case with live text is unchanged: it keeps the end clip and the live-text fallback, and `emptyTailDecodeFallsBackToTheLiveUnconfirmedText` stays green.
 8. Regression tests drive `plan`/`resolve` and assert the **composed transcript**, not an options field, each with the "Stated sensitivity: … → RED" note `AGENTS.md` requires, and each proven able to go red on the unfixed code. A test that asserts `DecodingOptions()` equals itself does not count.
 9. `docs/references/asr-whisperkit.md:277-279` says what the code actually does with a sub-second hold — corrected whether or not the fix lands, since the line is wrong today either way.
+10. The four comments and the two documentation passages under Proposed change stand in the tree, word for word.
 
 ## Out of scope
 
@@ -78,7 +93,3 @@ Everything above the tail-finalization seam: the state machine, the cue queue, t
 
 [seg140]: https://github.com/argmaxinc/argmax-oss-swift/blob/1e2a163736dfa5a198e637ae44c114e1c6d5cc2d/Sources/WhisperKit/Core/Text/SegmentSeeker.swift#L140-L148
 [seg142]: https://github.com/argmaxinc/argmax-oss-swift/blob/1e2a163736dfa5a198e637ae44c114e1c6d5cc2d/Sources/WhisperKit/Core/Text/SegmentSeeker.swift#L142-L145
-[lt119]: https://github.com/Akurganow/slovo/blob/1b6e90666293d2ce1222f73deeb70c26af1fa7aa/Tests/SlovoCoreTests/WhisperKitLiveTranscriptionTests.swift#L119-L132
-[lt492]: https://github.com/Akurganow/slovo/blob/1b6e90666293d2ce1222f73deeb70c26af1fa7aa/Tests/SlovoCoreTests/WhisperKitLiveTranscriptionTests.swift#L492-L505
-[bp210]: https://github.com/Akurganow/slovo/blob/1b6e90666293d2ce1222f73deeb70c26af1fa7aa/Tests/SlovoCoreTests/WhisperKitBiasPromptBuilderTests.swift#L210-L215
-[bp238]: https://github.com/Akurganow/slovo/blob/1b6e90666293d2ce1222f73deeb70c26af1fa7aa/Tests/SlovoCoreTests/WhisperKitBiasPromptBuilderTests.swift#L238-L240
