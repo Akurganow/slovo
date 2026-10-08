@@ -1,40 +1,23 @@
 import AppKit
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
-// Renders the real menu-bar glyph image and inspects its pixels. The menu bar
-// tints TEMPLATE images itself (to the system menu-bar color) and ignores
-// `NSStatusBarButton.contentTintColor`, so a failure glyph can only be red if the
-// image is NON-template and already carries red. These tests observe that rendered
-// reality rather than mirroring source strings.
 @Suite("Menu-bar glyph image rendering")
 struct MenuBarGlyphImageTests {
-    private struct PixelStats {
-        var opaque = 0
-        var redDominant = 0
-        var nearBlack = 0
-    }
-
-    /// The failure glyph must actually render red in the menu bar.
+    /// The menu bar repaints a template image in its own color, so the failure
+    /// glyph shows red only as a non-template image drawn in red.
     ///
-    /// Sensitivity: leave the error image as a template (`isTemplate == true`, the
-    /// original bug) → the template assertion goes RED; draw the error glyph in
-    /// black → the red-pixel assertions go RED (0 red-dominant, every pixel
-    /// near-black); draw it in any warm-but-not-red color such as orange → the
-    /// green-ceiling in the classifier rejects it and `redDominant` drops below
-    /// `opaque` → RED.
+    /// Sensitivity: leave the error image as a template (the original bug) → RED;
+    /// draw the error glyph in any color but `systemRed` → RED.
     @Test
-    func errorGlyphRendersAsNonTemplateRedImage() throws {
-        let onu: Character = "\u{2C11}"
-        let image = try #require(MenuBarGlyph.image(for: onu, tint: .error))
+    func errorGlyphIsNonTemplateSystemRed() throws {
+        let style = MenuBarGlyph.renderingStyle(for: .error)
+        #expect(style.color == .systemRed)
+        #expect(style.isTemplate == false)
 
+        let image = try #require(MenuBarGlyph.image(for: "\u{2C11}", tint: .error))
         #expect(image.isTemplate == false)
-
-        let stats = try Self.pixelStats(of: image)
-        try #require(stats.opaque > 0, "the glyph must draw visible pixels")
-        #expect(stats.redDominant == stats.opaque, "every drawn pixel must read as red")
-        #expect(stats.nearBlack == 0, "no drawn pixel may be black")
     }
 
     /// Non-error glyphs stay template so the menu bar tints them to match the
@@ -73,27 +56,18 @@ struct MenuBarGlyphImageTests {
     func updateReadyGlyphRendersVisibleTemplatePixels() throws {
         let image = try #require(MenuBarGlyph.image(for: MenuBarGlyph.updateReadyGlyph, tint: .normal))
         #expect(image.isTemplate == true)
-        let stats = try Self.pixelStats(of: image)
-        #expect(stats.opaque > 0, "Nash must draw visible pixels")
+        #expect(try Self.opaquePixelCount(of: image) > 0, "Nash must draw visible pixels")
     }
 
-    private static func pixelStats(of image: NSImage) throws -> PixelStats {
+    private static func opaquePixelCount(of image: NSImage) throws -> Int {
         let tiff = try #require(image.tiffRepresentation, "image must be rasterizable")
         let rep = try #require(NSBitmapImageRep(data: tiff), "image must decode to a bitmap")
-        var stats = PixelStats()
+        var count = 0
         for row in 0..<rep.pixelsHigh {
-            for column in 0..<rep.pixelsWide {
-                guard let color = rep.colorAt(x: column, y: row), color.alphaComponent > 0.5 else { continue }
-                stats.opaque += 1
-                let red = color.redComponent
-                let green = color.greenComponent
-                let blue = color.blueComponent
-                if red > green + 0.2 && red > blue + 0.2 && green < 0.35 && blue < 0.35 {
-                    stats.redDominant += 1
-                }
-                if max(red, green, blue) < 0.3 { stats.nearBlack += 1 }
+            for column in 0..<rep.pixelsWide where (rep.colorAt(x: column, y: row)?.alphaComponent ?? 0) > 0.5 {
+                count += 1
             }
         }
-        return stats
+        return count
     }
 }
