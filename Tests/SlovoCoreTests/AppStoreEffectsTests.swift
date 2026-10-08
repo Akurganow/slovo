@@ -88,7 +88,7 @@ struct AppStoreEffectsTests {
         let cleaner = FakeCleaner(outcome: .success("CLEANED"))
         let orchestrator = Self.makeOrchestrator(store: store, cleaner: cleaner)
         AppStoreEffects.wire(store, to: Self.targets(orchestrator: orchestrator))
-        let chosen = "anthropic/claude-haiku-4.5"
+        let chosen = "anthropic/claude-haiku-5.5"
         store.update { $0.config.openRouterModel = chosen }
         await settle(orchestrator)
         await Self.runDictation(on: orchestrator)
@@ -188,7 +188,7 @@ struct AppStoreEffectsTests {
     /// without the slice comparison, or write `config` in the fetch subscriber → RED.
     @Test
     func pendingFetchRunsOneFetchAndFoldsTheResult() async {
-        let ids: Set<String> = ["anthropic/claude-haiku-4.5"]
+        let ids: Set<String> = ["anthropic/claude-haiku-5.5"]
         let fetches = Mutex(0)
         let gate = FetchGate()
         let store = Self.makeStore()
@@ -214,7 +214,7 @@ struct AppStoreEffectsTests {
     /// Stated sensitivity: `listen` instead of `subscribe` for the fetch subscriber → RED.
     @Test
     func aFetchPendingAtWireTimeRunsOnce() async {
-        let ids: Set<String> = ["anthropic/claude-haiku-4.5"]
+        let ids: Set<String> = ["anthropic/claude-haiku-5.5"]
         let fetches = Mutex(0)
         let store = Self.makeStore()
         store.update { $0.applyScope(.pipelineStarted) }

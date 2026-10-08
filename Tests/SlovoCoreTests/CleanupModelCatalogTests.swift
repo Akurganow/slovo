@@ -23,7 +23,7 @@ struct CleanupModelCatalogTests {
 
         #expect(ids == [
             "openai/gpt-6-luna",
-            "anthropic/claude-haiku-4.5",
+            "anthropic/claude-haiku-5.5",
             "google/gemini-3.1-flash-lite",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
@@ -59,6 +59,6 @@ struct CleanupModelCatalogTests {
                     "\(id) must carry a curated display name in the existing style; got \(name)")
         }
         #expect(CleanupModelCatalog.displayName(for: "openai/gpt-6-luna") == "GPT-6 Luna")
-        #expect(CleanupModelCatalog.displayName(for: "anthropic/claude-haiku-4.5") == "Claude Haiku 4.5")
+        #expect(CleanupModelCatalog.displayName(for: "anthropic/claude-haiku-5.5") == "Claude Haiku 5.5")
     }
 }

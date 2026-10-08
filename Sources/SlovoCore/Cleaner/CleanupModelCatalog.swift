@@ -25,8 +25,8 @@ public enum CleanupModelCatalog {
             displayName: "GPT-6 Luna"
         ),
         CleanupModelOption(
-            id: "anthropic/claude-haiku-4.5",
-            displayName: "Claude Haiku 4.5"
+            id: "anthropic/claude-haiku-5.5",
+            displayName: "Claude Haiku 5.5"
         ),
         CleanupModelOption(
             id: "google/gemini-3.1-flash-lite",
