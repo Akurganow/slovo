@@ -26,7 +26,7 @@ Two thresholds coincide at exactly 1.000 s of 16 kHz audio, and a hold that fits
 - whether real capture on this hardware ever delivers ≤ 16 000 samples for a hold a person would actually make. The report's "roughly 1.3–1.4 s" figure has nothing behind it; capture callback size is a device fact.
 - whether a decode returns the word **once a window does open**. `firstTokenLogProbThreshold` (-1.5, active) can empty a window and keep it empty across retries, in which case removing the end clip changes nothing user-visible.
 
-Measure both before writing the fix: if the first is false the bug is unreachable in practice, and if the second is false the proposed fix does not fix it.
+If the first is false the bug is unreachable in practice, and if the second is false the proposed fix does not fix it. No pipeline stage can measure either: both need a person at a Mac with a microphone and a loaded model. The owner checks every deliverable on its dev build before the merge (`AGENTS.md`, "Standing owner directives", 3), and microphone capture is proven only there (`.agents/rules/verification.md`, "What a green run does not prove"). Acceptance criteria 1 and 2 are therefore checks of that dev-build run, not a precondition of the implementation.
 
 The report's effort rating of `S` looks optimistic once the measurements and the narrowed gate are done. The rest of its ratings were not assessed.
 
@@ -50,7 +50,7 @@ The report's effort rating of `S` looks optimistic once the measurements and the
 
 Also rejected: padding the samples with trailing silence. It feeds the model the same input, because `padOrTrim` already zero-pads each window ([TranscribeTask.swift L126-L127](https://github.com/argmaxinc/argmax-oss-swift/blob/1e2a163736dfa5a198e637ae44c114e1c6d5cc2d/Sources/WhisperKit/Core/TranscribeTask.swift#L126-L127)). It still has the second-window problem, and it misstates the audio duration that the guard and the telemetry read.
 
-**Comments the change writes**, each in full:
+**Comments the change writes**, each in full. Each wraps at spaces wherever its line would pass 160 columns (acceptance criterion 10):
 
 - Above the new gate in `plan`: `// The whole recording, not the tail: only a hold the live loop never reached has no confirmed prefix to protect, and its one window is the only decode it gets.`
 - The comment in `resolve` at `WhisperKitTailFinalization.swift:280-282` becomes: `// A short tail after a confirmed boundary opens zero windows and returns nothing; the live unconfirmed text is then the only record of the final words, so an empty decode must not erase them. A whole short hold opens its one window instead (singleWindowSampleCount).`
@@ -66,18 +66,16 @@ Also rejected: padding the samples with trailing silence. It feeds the model the
 
 ## Acceptance criteria
 
-1. Measured first, on a Mac, and the numbers recorded on #83: the delivered sample count for a deliberately short spoken hold (one word, key released immediately), with Sound Cues on and off. If no realistic hold lands at or below 16 000 samples, say so here and stop — the rest of this issue is then unreachable in practice.
-2. Measured first, and recorded here: a decode of that same short recording with the end-of-window clip removed returns the spoken word. If it comes back empty anyway — `firstTokenLogProbThreshold` is the suspect — the proposed fix does not work and the issue needs a different one.
-
-   [NEEDS CLARIFICATION: Criteria 1 and 2 need a person at a Mac with a microphone and a loaded model, which no pipeline stage has. Does the implementation wait until the owner records both measurements on #83, or does it go ahead now and leave both to the owner's check of the dev build?]
+1. On the owner's dev-build run: a deliberately short spoken hold (one word, key released immediately) delivers 16 000 samples or fewer, with Sound Cues on and with them off. The count is the `samples=` field of that dictation's `asr.tailFinalization` line in the `com.slovo.app` / `dictation` log. The owner records both counts on #83.
+2. On the same run, the hold of criterion 1 ends with its word inserted, not the red glyph. A red glyph there, with `plan=decode` in its log line, means the one opened window decoded to nothing (`firstTokenLogProbThreshold` is the suspect), and the fix does not work.
 3. A spoken hold of one second or less inserts the word into the focused app. No red glyph, no Error cue.
 4. The gate that enables the new decode selects **only** the no-confirmed-prefix case. A long recording whose post-boundary tail is short and has no live text keeps today's behaviour exactly, including keeping its end-of-window clip.
 5. A silent hold of one second or less still flashes the red glyph with nothing inserted, and nothing reaches OpenRouter or the pasteboard.
 6. A hold of about 1.5 s of speech still inserts, unchanged.
 7. The tail-after-boundary case with live text is unchanged: it keeps the end clip and the live-text fallback, and `emptyTailDecodeFallsBackToTheLiveUnconfirmedText` stays green.
-8. Regression tests drive `plan`/`resolve` and assert the **composed transcript**, not an options field, each with the "Stated sensitivity: … → RED" note `AGENTS.md` requires, and each proven able to go red on the unfixed code. A test that asserts `DecodingOptions()` equals itself does not count.
+8. Both tests under the plan's Tests first drive `plan`/`resolve` and assert the **composed transcript**, not an options field, each with the "Stated sensitivity: … → RED" note `AGENTS.md` requires. The regression test `subsecondHoldDecodesItsOneWindowIntoTheTranscript` is proven red on today's behaviour. The guard `shortTailAfterABoundaryWithoutLiveTextKeepsTheEndOfWindowClip` is green on the unfixed code by design, since today's clip opens no window there, and is proven red by each mutation its note names, applied to the fix. A test that asserts `DecodingOptions()` equals itself does not count.
 9. `docs/references/asr-whisperkit.md:277-279` says what the code actually does with a sub-second hold — corrected whether or not the fix lands, since the line is wrong today either way.
-10. The four comments and the two documentation passages under Proposed change stand in the tree, word for word.
+10. The four comments and the two documentation passages under Proposed change stand in the tree with their words in order. Each may wrap at any space, so the comments stay inside the 160-column `line_length` warning that strict lint fails on (`.swiftlint.yml`, `strict: true` and `line_length`).
 
 ## Out of scope
 
@@ -86,8 +84,8 @@ Everything above the tail-finalization seam: the state machine, the cue queue, t
 ## Risks
 
 - Nothing here was built, compiled or run, so every "turns RED" above is plausible, not confirmed.
-- Whether real capture on a Mac ever delivers ≤ 16 000 samples for a one-word hold (the issue's criterion 1).
-- Whether the opened window returns the word, or whether `firstTokenLogProbThreshold` empties it anyway (the issue's criterion 2). The first window under N−1 is identical to the one under a clip of 0, so that measurement applies unchanged.
+- Whether real capture on a Mac ever delivers ≤ 16 000 samples for a one-word hold. Criterion 1 tells us, on the owner's dev-build run. If no realistic hold does, the defect is unreachable in practice, and whether the change still lands is the owner's decision at the merge.
+- Whether the opened window returns the word, or whether `firstTokenLogProbThreshold` empties it anyway. Criterion 2 tells us on the same run. The first window under N−1 is identical to the one under a clip of 0, so the check covers the clip-removal question unchanged. If it fails, the owner sends the item back with the log line as the finding.
 - That Swift's float32 `Int(Float(n-1)/16000*16000)` matches the Python emulation for every n.
 - Whether the <|0.00|> seek stall is reachable in practice.
 
