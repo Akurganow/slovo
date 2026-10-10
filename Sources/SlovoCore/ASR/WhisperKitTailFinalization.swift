@@ -211,7 +211,7 @@ enum WhisperKitTailFinalization {
         case noAudio
         case silent
         case reuse(String)
-        case decode(confirmedPrefix: String, liveTail: String, fromSeconds: Float)
+        case decode(confirmedPrefix: String, liveTail: String, fromSeconds: Float, singleWindowSampleCount: Int?)
     }
 
     /// True when fewer than `minimumVoicedFrameCount` frames exceed `threshold`.
@@ -262,24 +262,29 @@ enum WhisperKitTailFinalization {
             liveTail: tailSampleCount <= minimumDecodableTailSampleCount
                 ? state.unconfirmedText
                 : "",
-            fromSeconds: state.confirmedEndSeconds
+            fromSeconds: state.confirmedEndSeconds,
+            // The whole recording, not the tail: only a hold the live loop never reached has no
+            // confirmed prefix to protect, and its one window is the only decode it gets.
+            singleWindowSampleCount: totalSampleCount <= minimumDecodableTailSampleCount
+                ? totalSampleCount
+                : nil
         )
     }
 
     nonisolated(nonsending) static func resolve(
         plan: Plan,
-        decode: (Float) async throws -> String
+        decode: (Float, Int?) async throws -> String
     ) async rethrows -> String {
         switch plan {
         case .noAudio, .silent:
             return ""
         case .reuse(let text):
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .decode(let confirmedPrefix, let liveTail, let fromSeconds):
-            let tail = try await decode(fromSeconds)
-            // WhisperKit decodes zero windows for a sub-second tail and returns
-            // nothing; the live unconfirmed text is then the only record of the
-            // final words, so an empty decode must not erase them.
+        case .decode(let confirmedPrefix, let liveTail, let fromSeconds, let singleWindowSampleCount):
+            let tail = try await decode(fromSeconds, singleWindowSampleCount)
+            // A short tail after a confirmed boundary opens zero windows and returns nothing; the live
+            // unconfirmed text is then the only record of the final words, so an empty decode must not
+            // erase them. A whole short hold opens its one window instead (singleWindowSampleCount).
             return WhisperKitTranscriptText.compose([
                 confirmedPrefix,
                 tail.isEmpty ? liveTail : tail,

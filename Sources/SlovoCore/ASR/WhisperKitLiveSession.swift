@@ -325,9 +325,9 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
         let plan = WhisperKitTailFinalization.plan(
             totalSampleCount: samples.count,
             tailSampleCount: tailSpan.sampleCount,
-            // Mirrors TranscribeTask's window-loop bound: a tail at or below
-            // windowClipTime opens zero decode windows, so its empty decode is
-            // structural, not a verdict that nothing was spoken.
+            // Mirrors TranscribeTask's window-loop bound: a tail at or below windowClipTime opens zero
+            // decode windows unless the plan opens its single window, so its empty decode is structural,
+            // not a verdict that nothing was spoken.
             minimumDecodableTailSampleCount: Int(decodingOptions.windowClipTime * Float(WhisperKit.sampleRate)),
             relativeEnergy: streamInput.relativeEnergy,
             state: streamState
@@ -345,7 +345,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
         var biasRetried = false
         var guardTrimmed = false
         let decodeStartUptime = ProcessInfo.processInfo.systemUptime
-        let finalText = try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds in
+        let finalText = try await WhisperKitTailFinalization.resolve(plan: plan) { fromSeconds, singleWindowSampleCount in
             let resolution = try await WhisperKitTailFinalization.finalizeTail(
                 isBiased: decodingOptions.promptTokens?.isEmpty == false,
                 shouldGuard: shouldGuardTerminalHallucination,
@@ -355,6 +355,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
                 try await self.decodeTail(
                     samples: samples,
                     fromSeconds: fromSeconds,
+                    singleWindowSampleCount: singleWindowSampleCount,
                     wordTimestamps: shouldGuardTerminalHallucination,
                     withBias: withBias
                 )
@@ -384,6 +385,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
     private func decodeTail(
         samples: [Float],
         fromSeconds: Float,
+        singleWindowSampleCount: Int?,
         wordTimestamps: Bool,
         withBias: Bool
     ) async throws -> WhisperKitTailDecode {
@@ -392,6 +394,7 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
             decodeOptions: Self.tailDecodingOptions(
                 base: decodingOptions,
                 fromSeconds: fromSeconds,
+                singleWindowSampleCount: singleWindowSampleCount,
                 wordTimestamps: wordTimestamps,
                 withBias: withBias
             )
@@ -415,17 +418,23 @@ actor WhisperKitLiveSession: SpeechStreamingSession {
     /// The per-attempt options for the final tail decode: the session's options
     /// with the clip boundary applied, word timings opted in only when the
     /// terminal-hallucination guard will run, and the bias prompt stripped for
-    /// the bias-free retry. Internal, not private, so a `@testable` test pins
+    /// the bias-free retry. A non-nil singleWindowSampleCount lowers windowClipTime
+    /// to one sample short of the recording, so the SDK opens exactly one window
+    /// over a hold too short for its one-second clip. Internal, not private, so a `@testable` test pins
     /// the derivation — including that the two attempts differ ONLY in bias —
     /// without loading a model.
     static func tailDecodingOptions(
         base: DecodingOptions,
         fromSeconds: Float,
+        singleWindowSampleCount: Int?,
         wordTimestamps: Bool,
         withBias: Bool
     ) -> DecodingOptions {
         var options = base
         options.clipTimestamps = [fromSeconds]
+        if let singleWindowSampleCount {
+            options.windowClipTime = Float(singleWindowSampleCount - 1) / Float(WhisperKit.sampleRate)
+        }
         if wordTimestamps {
             options.wordTimestamps = true
         }

@@ -208,10 +208,10 @@ struct WhisperKitBiasPromptBuilderTests {
         base.promptTokens = [7, 8, 9]
 
         let biased = WhisperKitLiveSession.tailDecodingOptions(
-            base: base, fromSeconds: 1.25, wordTimestamps: true, withBias: true
+            base: base, fromSeconds: 1.25, singleWindowSampleCount: nil, wordTimestamps: true, withBias: true
         )
         let unbiased = WhisperKitLiveSession.tailDecodingOptions(
-            base: base, fromSeconds: 1.25, wordTimestamps: true, withBias: false
+            base: base, fromSeconds: 1.25, singleWindowSampleCount: nil, wordTimestamps: true, withBias: false
         )
 
         #expect(biased.clipTimestamps == [1.25])
@@ -236,7 +236,7 @@ struct WhisperKitBiasPromptBuilderTests {
     @Test
     func tailOptionsLeaveWordTimestampsOffWhenTheGuardWillNotRun() {
         let options = WhisperKitLiveSession.tailDecodingOptions(
-            base: DecodingOptions(), fromSeconds: 0, wordTimestamps: false, withBias: true
+            base: DecodingOptions(), fromSeconds: 0, singleWindowSampleCount: nil, wordTimestamps: false, withBias: true
         )
 
         #expect(!options.wordTimestamps)
