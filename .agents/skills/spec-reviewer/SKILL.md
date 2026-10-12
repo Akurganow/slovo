@@ -71,8 +71,7 @@ you in full. In this file "the law" is the pipeline law.
    3. Then the narrowing check.
    4. Then your own checks:
       - **closed paths**: list every path Proposed change and Steps name. A
-        path under `.agents/rules/boundaries.md`, "Closed paths", or in the
-        fleet's own instructions (the law, "What no stage writes") blocks,
+        path under `.agents/rules/boundaries.md`, "Closed paths", blocks,
         whatever else is right. Quote the rule that closes it;
       - **the evidence still holds**: every `path:line` the specification
         quotes matches the head byte for byte;

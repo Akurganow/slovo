@@ -62,8 +62,7 @@ pipeline law.
    1. `main` already carries the fix. Judge this against `main`, never the
       head, which may carry this item's own slices;
    2. every change the sources ask for lies under a closed path
-      (`.agents/rules/boundaries.md`, "Closed paths") or in the fleet's own
-      instructions (the law, "What no stage writes");
+      (`.agents/rules/boundaries.md`, "Closed paths");
    3. what they ask for is not a file, such as a repository setting.
 
    On any of them, post one comment naming the case, ending with the stop

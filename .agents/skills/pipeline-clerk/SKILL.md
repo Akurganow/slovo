@@ -309,9 +309,7 @@ that test, and never route on its verdict.
 **Drop**, one report line each:
 
 - a source a spent fingerprint names (the guard below);
-- an issue carrying the owner's veto label `wontfix`;
-- a finding whose fix lies in the fleet's own instructions (the law, "What
-  no stage writes"). That is not pipeline work, and it waits for a person.
+- an issue carrying the owner's veto label `wontfix`.
 
 **The duplicate guard, before analysis.** Write every spent item fingerprint
 to `$RUN/fingerprints.md`, with its pull request and whether that is open,

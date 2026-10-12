@@ -551,10 +551,6 @@ instruction could switch off a release in silence.
   "Pushes". No CI pipeline dispatched or re-run.
 - Nothing under a closed path (`.agents/rules/boundaries.md`, "Closed
   paths"), and no version moved by hand.
-- Nothing in the fleet's own instructions: `.agents/`, `.claude/`, and
-  `AGENTS.md`, "This repository's own machinery". A specification that needs
-  such an edit is refused over it. A role that edits its own law is a role
-  nobody can audit.
 - Nothing under `.pipeline/` outside the item's own specification
   directory.
 - Nothing `.agents/rules/boundaries.md`, "What never appears in the tree or
@@ -567,6 +563,11 @@ instruction could switch off a release in silence.
   is the only repairer, because one writer of a repair is how a repair stays
   diagnosable. The one exception is a merge conflict, which "The branch
   stays mergeable" assigns to the committing role working the item.
+
+`.agents/`, `.claude/` and `AGENTS.md` are not closed. A change to a role or
+to this law reaches `main` the way every change does: through the owner's
+review and merge. The agent police files findings whose whole fix lies there,
+and only a stage can build one unattended.
 
 ## Preconditions, read-back and reporting
 

@@ -138,10 +138,10 @@ spec hash.
 - **Four checks:**
   1. the structure (the law, "The specification shape");
   2. no clarification marker anywhere in the specification directory;
-  3. no path under `.agents/rules/boundaries.md`, "Closed paths", or in the
-     fleet's own instructions (the law, "What no stage writes") in Proposed
-     change or Steps. The one exemption is this item's own specification
-     directory. No comment on the item waives this check;
+  3. no path under `.agents/rules/boundaries.md`, "Closed paths", and none
+     under `.pipeline/` outside this item's own specification directory (the
+     law, "What no stage writes"), in Proposed change or Steps. No comment
+     on the item waives this check;
   4. one clean-context sub-agent checking plan, specification and rules for
      consistency, under the reviewer's threshold
      (`.agents/skills/spec-reviewer/SKILL.md`, "Procedure", step 7). Its
@@ -199,8 +199,8 @@ spec hash.
    1. Stage named paths.
    2. List the index, and account for every line.
    3. Before every commit, check the staged paths against
-      `.agents/rules/boundaries.md`, "Closed paths", and the fleet's own
-      instructions (the law, "What no stage writes"). Exempt this item's
+      `.agents/rules/boundaries.md`, "Closed paths", and the law's
+      `.pipeline/` ban ("What no stage writes"). Exempt this item's
       specification directory by its literal path, in a second filter of
       its own, never by a pattern over its parent or a lookahead: another
       item's directory is closed too, and a pattern engine may not support

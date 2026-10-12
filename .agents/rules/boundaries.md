@@ -17,10 +17,6 @@ one key inside an ordinary file, lives only in this table.
 | `data/seed*.sql`, `data/*.db*` | Personal vocabulary and the local database. Never committed | `.gitignore`; `AGENTS.md`, "Before you open a pull request" |
 | `secrets/`, `.env*`, `*.key`, `*.pem`, `*.p12`, `*.p8`, `*.token`, `credentials*.json`, `id_rsa*` | Key material and credentials. Never committed | `.gitignore`; `AGENTS.md`, "Before you open a pull request" |
 
-The pipeline's stages are also kept out of the fleet's own instructions; the
-pipeline law, `.agents/skills/pipeline-law/SKILL.md`, "What no stage writes",
-owns that rule.
-
 ## What never appears in the tree or on a published page
 
 A published page is an issue, a comment, a pull request, a commit message or
