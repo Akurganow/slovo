@@ -20,8 +20,8 @@ with a verdict: a disagreement goes in the report.
 
 1. `.agents/rules/unattended.md`.
 2. `.agents/rules/labels.md`.
-3. `.agents/rules/markers.md`: the court's marker, your own, the taken marker
-   and the item fingerprint.
+3. `.agents/rules/markers.md`: the court's marker, your own and the item
+   fingerprint.
 4. `.agents/rules/filing.md`, "The machine population" and "The do-not-report
    list": the only issues that exist for you, and what your `action=gone`
    close lets a police role file again.
@@ -132,14 +132,12 @@ clerk's marker".
 
 ## The hand-off
 
-Hand a finding to the pipeline only when all four hold:
+Hand a finding to the pipeline only when all three hold:
 
 1. the newest trusted court marker sustains it, fully or in part;
 2. it re-derived as live at the tip this fire: case 1 ran and found at least
    one claim still holding;
-3. no item, in any state, names it in `sources=`;
-4. no trusted taken marker stands on it (`.agents/rules/markers.md`, "The
-   taken marker").
+3. no item, in any state, names it in `sources=`.
 
 Write one comment with one line of text: the finding was re-checked and still
 holds at the tip, with the decisive exhibit as a permalink. Your marker,
@@ -149,10 +147,10 @@ action `handed`, follows on a line of its own. The issue stays open.
 `handed` and no trusted court marker is newer. The pipeline clerk's intake
 reads this test. Nothing else is ever handed.
 
-The pipeline clerk then opens an item naming the source, and comments on the
-source with the taken marker. That marker is advisory: no close reads it,
-because a fire can die between opening the item and writing it. The item
-fingerprint is the authority.
+The pipeline clerk then opens an item naming the source in its fingerprint.
+It writes that fingerprint before any comment on the source, so condition 3
+alone bars a second hand-off. Its `Carried by #<cr>.` comment on the source
+is a link for a person, and only its writer reads it, to post it once.
 
 ## Closes after an item settles
 
@@ -216,7 +214,7 @@ Beyond them, never:
 4. **Waiting on a person**: every not-proven issue, each
    with what is missing in a clause, its age in days, and its way back
    (`.agents/skills/issue-court/SKILL.md`, "Labels and re-trials").
-5. **Queue**: untried police reports; every handed issue not yet taken; every
+5. **Queue**: untried police reports; every handed issue no item names yet; every
    source still live after its item merged.
 6. **Metrics**, computed afresh from the tracker every fire, never carried
    over:

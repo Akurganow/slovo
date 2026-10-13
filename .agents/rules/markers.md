@@ -103,21 +103,6 @@ closes, or a comment of its own on an issue that stays open.
   `.agents/rules/filing.md`. The court, for `action=gone` on a closed issue
   its `duplicate` verdict would name.
 
-## The taken marker
-
-The last line of the pipeline clerk's comment on each source an item names,
-written after the item opens and never rewritten:
-
-```
-<!-- pipeline-taken: item=#<cr> at=<UTC> -->
-```
-
-- **Writer:** the pipeline clerk.
-- **Readers:** the tracker clerk, to bar a second hand-off. The pipeline
-  clerk, to write it only once per item and source. It is advisory: no close
-  reads it, because a fire can die between opening the item and writing it.
-  The item fingerprint is the authority.
-
 ## The dependency review
 
 The last line of the dependency police's one comment on an update bot's pull

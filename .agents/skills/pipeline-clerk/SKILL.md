@@ -35,8 +35,8 @@ Repairs land before any stage looks, so the duties run in this order:
 3. the pump: promote the next queued item;
 4. intake: take handed findings into skeleton draft pull requests.
 
-You act on pull requests. Your only issue write is the taken marker on each
-source. You never close, reopen or edit an issue: every other issue act is
+You act on pull requests. Your only issue write is the `Carried by` comment on
+each source. You never close, reopen or edit an issue: every other issue act is
 the tracker clerk's.
 
 A missing label stops the one duty that needs it (the law, "Labels"). A clone
@@ -384,12 +384,11 @@ Chosen for a death mid-fire. Never rearrange it.
 5. Write the state block above the fingerprint, every counter at zero,
    `cr_rounds` among them, and `narrowed=none`. Read the body back.
 6. Apply `pipeline/queued`.
-7. **Then** comment on each source where no trusted taken marker on it names
-   this item. Open the comment with `Carried by #<cr>.`, put the taken marker
-   on a line of its own below it (`.agents/rules/markers.md`, "The taken
-   marker"), and read it back. **Leave the source open.** An issue closed
-   while its answer is still a draft reads as done or dropped, and it is
-   neither. The taken marker is advisory. The fingerprint, written at step 4,
+7. **Then** comment `Carried by #<cr>.` on each source, with no marker line.
+   Skip a source where a comment of your own already opens with that line.
+   Read each comment back. **Leave the source open.** An issue closed while
+   its answer is still a draft reads as done or dropped, and it is neither.
+   The comment is a link for a person. The fingerprint, written at step 4,
    is the authority, because a fire can die between the two writes.
 
 ### The skeleton body
@@ -429,7 +428,7 @@ In the law's order ("Preconditions, read-back and reporting"):
 2. **Actions taken**: resumes; repairs counted against the bound; stale
    closes, narrowings and restores; conflicts resolved and flips; the
    round's checks and outcome; the promotion or why none; items prepared and
-   taken markers written. Or `Executed nothing.`
+   Carried-by comments written. Or `Executed nothing.`
 3. **Audited**: what the audit checked and completed, or "none".
 4. **Clustering**: the proposed clusters, each verifier's return, and how
    each became items.

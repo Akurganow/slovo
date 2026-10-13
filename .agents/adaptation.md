@@ -262,9 +262,8 @@ was wrong, as each says.
   hand-on of a stage that act woke, so the writer's revision after the
   release earns the reviewer or the gate its one more round.
 - **The marker inventory is complete.** Each stage comment kind has its
-  step, the skeleton line lives in the pipeline law, the pipeline clerk is
-  a reader of the taken marker, and the fields no role branches on are
-  marked as a person's.
+  step, the skeleton line lives in the pipeline law, and the fields no role
+  branches on are marked as a person's.
 - **The CI wait is a bound.** It moves a counter, which the specification's
   own definition makes a bound, yet it stopped as a condition. The clerk
   writes no completion line, and the law now says so.
