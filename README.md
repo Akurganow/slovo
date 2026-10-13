@@ -397,9 +397,8 @@ The shipped app bundle redistributes several third-party components, all
 under permissive licenses compatible with the GPLv3: WhisperKit
 (argmax-oss-swift, MIT — with an Apache-2.0 portion, swift-transformers),
 GRDB.swift (MIT, taken from Zetetic's SQLCipher-enabled distribution),
-SQLCipher Community Edition (BSD-3-Clause), Settings (MIT),
-LaunchAtLogin-Modern (MIT), Sparkle
-(MIT, with four external notices for bsdiff, sais-lite, ed25519, and
+SQLCipher Community Edition (BSD-3-Clause), Settings (MIT), Sparkle (MIT,
+with four external notices for bsdiff, sais-lite, ed25519, and
 SUSignatureVerifier), and the modified AbdrTar Bank Elhaz “Lower & Soft”
 sound cues (CC0 1.0). Applicable copyright and permission notices, plus the
 audio sources and transformation recipe, are in

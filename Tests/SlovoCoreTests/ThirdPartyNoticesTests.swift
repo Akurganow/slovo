@@ -12,9 +12,7 @@ import Testing
 struct ThirdPartyNoticesTests {
     /// The notices artifact must credit EVERY component the shipped bundle links,
     /// each by a distinctive copyright line that only its verbatim notice carries,
-    /// plus the top-level project copyright. Settings and LaunchAtLogin share an
-    /// identical MIT body, so their independent presence is pinned by their section
-    /// headers and source URLs rather than the (shared) copyright line.
+    /// plus the top-level project copyright.
     /// Stated sensitivity: delete any component's block (or its Sparkle sub-notice)
     /// → its distinctive copyright line vanishes → the matching `#expect` goes RED.
     @Test
@@ -49,13 +47,10 @@ struct ThirdPartyNoticesTests {
         // of the summary table with no sign that SQLCipher ships at all.
         #expect(notices.contains("| SQLCipher Community Edition | BSD-3-Clause |"))
 
-        // Settings and LaunchAtLogin-Modern (identical sindresorhus MIT bodies):
-        // both credited independently by header and source.
+        // Settings, MIT: credited by copyright line, header and source.
         #expect(notices.contains("Copyright (c) Sindre Sorhus <sindresorhus@gmail.com>"))
         #expect(notices.contains("## Settings"))
         #expect(notices.contains("sindresorhus/Settings"))
-        #expect(notices.contains("## LaunchAtLogin-Modern"))
-        #expect(notices.contains("sindresorhus/LaunchAtLogin-Modern"))
 
         // Sparkle, MIT.
         #expect(notices.contains("Copyright (c) 2015-2017 Mayur Pawashe."))
@@ -136,7 +131,7 @@ struct ThirdPartyNoticesTests {
     /// manifest-style change that breaks parsing reddens loudly instead of
     /// silently exempting every future dependency.
     private static let shippedPackagesFloor: Set<String> = [
-        "GRDB.swift", "LaunchAtLogin-Modern", "Settings", "Sparkle", "argmax-oss-swift",
+        "GRDB.swift", "Settings", "Sparkle", "argmax-oss-swift",
     ]
 
     /// External packages linked into the shipped app: a walk of Package.swift's

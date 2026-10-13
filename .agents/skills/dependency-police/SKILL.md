@@ -57,9 +57,8 @@ take nothing routed to you: any other dependency matter is a report line.
   - the decisions the comments in `Package.swift` and `.github/dependabot.yml`
     record;
   - the app's floor in the `platforms:` of `Package.swift`;
-  - the target split, under which the core stays free of the app shell,
-    launch-at-login and the update engine (`docs/architecture.md`, "Build
-    Boundaries");
+  - the target split, under which the core stays free of the app shell and
+    the update engine (`docs/architecture.md`, "Build Boundaries");
   - the licence posture: a GPLv3-compatible licence, with
     `THIRD-PARTY-NOTICES.md` and the licence section of `README.md` kept
     current.

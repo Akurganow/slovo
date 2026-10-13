@@ -1,19 +1,28 @@
 import AppKit
-import LaunchAtLogin
+import ServiceManagement
 import Settings
 import SlovoCore
 
 extension AppDelegate: SettingsActions {
     func launchAtLoginEnabled() -> Bool {
         // A system-service (SMAppService) read: no pipeline rebuild, no ASR re-warm.
-        LaunchAtLogin.isEnabled
+        SMAppService.mainApp.status == .enabled
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
-        // Registers/unregisters the login item via SMAppService; a pure system-
-        // service write like saveOpenRouterKey() — no pipeline rebuild, no ASR
-        // re-warm.
-        LaunchAtLogin.isEnabled = enabled
+        // A pure system-service write like saveOpenRouterKey(): no pipeline rebuild,
+        // no ASR re-warm. An enabled item is unregistered first, because register()
+        // fails on a registered one (kSMErrorAlreadyRegistered).
+        do {
+            if enabled {
+                if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            logger.error("launch at login update failed")
+        }
     }
 
     func saveOpenRouterKey(_ key: String) {

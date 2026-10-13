@@ -23,9 +23,6 @@ let package = Package(
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
         .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
-        // Modern (SMAppService-based) launch-at-login, for macOS 13+. Consumed by
-        // the app target only — never SlovoCore, which must stay UI/login-free.
-        .package(url: "https://github.com/sindresorhus/LaunchAtLogin-Modern", from: "1.1.0"),
         // Sparkle 2 auto-update engine. App target only — SlovoCore stays
         // Sparkle-free, enforced by the SwiftPM target graph (an `import Sparkle`
         // in the core cannot compile).
@@ -85,7 +82,6 @@ let package = Package(
             dependencies: [
                 "SlovoCore",
                 .product(name: "Settings", package: "Settings"),
-                .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
                 // App-shell auto-update; never linked into SlovoCore so the core
                 // stays updater-free (target-graph enforced).
                 .product(name: "Sparkle", package: "Sparkle"),
