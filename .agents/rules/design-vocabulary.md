@@ -48,10 +48,10 @@ not filed. Every number a finding states about them is re-measured at the
 analysed commit.
 
 - **The target split is the design.** `SlovoCore` stays free of the app
-  shell, of launch-at-login and of the update engine, and the package's
-  target graph enforces it: an import of the update engine in the core
-  cannot compile. The reasons stand beside the dependencies and targets in
-  `Package.swift`, and in `docs/architecture.md`, "Build Boundaries".
+  shell and of the update engine, and the package's target graph enforces
+  it: an import of the update engine in the core cannot compile. The
+  reasons stand beside the dependencies and targets in `Package.swift`, and
+  in `docs/architecture.md`, "Build Boundaries".
 - **`SlovoObjC` is a one-purpose Objective-C bucket.** It wraps what Swift
   cannot express, an exception the audio framework raises, and it is exempt
   from the Swift settings and lint gates on purpose (`Package.swift`, the
