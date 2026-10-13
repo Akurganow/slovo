@@ -27,7 +27,7 @@ named in full.
 
 | Role | Woken by | Writes |
 | :-- | :-- | :-- |
-| Pipeline clerk | Its caller, with no event | Skeleton branches and draft pull requests, the flip out of draft, the code-review round, conflict merges, stale closes, narrowings and restores. On an issue, only the taken marker |
+| Pipeline clerk | Its caller, with no event | Skeleton branches and draft pull requests, the flip out of draft, the code-review round, conflict merges, stale closes, narrowings and restores. On an issue, only the `Carried by` comment on each source |
 | Spec writer | `spec/needs-work` applied | The specification files only |
 | Spec reviewer | `spec/awaiting-review` applied | Comments, labels and its own state lines. Never a commit |
 | Implementer | `spec/approved` applied | The implementation, on the item's branch |
@@ -296,7 +296,7 @@ block and is rewritten with it.
 | Stale | Last line of the stale comment | Clerk | The same |
 | Carried merge | One comment per merge | Clerk | The same |
 | Outside review | State block | Clerk | The same |
-| Taken | One comment on each source after the item opens, never rewritten. Advisory | Clerk | `.agents/rules/markers.md`, "The taken marker" |
+| Carried by | One comment on each source after the item opens, never rewritten. A link for a person | Clerk | Opens with `Carried by #<cr>.`, and carries no marker |
 | Branch | Remote | Clerk | `pipeline/<N>-<slug>` |
 
 A comment's `key` is the key that role's completion line uses. Its `kind`
@@ -558,7 +558,7 @@ instruction could switch off a release in silence.
 - The writer writes only the specification files. The reviewer writes no
   file.
 - No issue closed, reopened or edited. The clerk's only issue write is the
-  taken marker on each source.
+  `Carried by` comment on each source.
 - No stage repairs what the sweep finds: detect, report and skip. The clerk
   is the only repairer, because one writer of a repair is how a repair stays
   diagnosable. The one exception is a merge conflict, which "The branch
