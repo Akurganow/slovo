@@ -144,10 +144,10 @@ above the item fingerprint. The block is rewritten whole and read back line
 by line:
 
 ```
-<!-- pipeline-state: item=#<cr> review_rounds=<n> gate_bounces=<m> judge_rejects=<k> slices=<s> ci_waits=<w> ci_wait_head=<sha|none> cr_rounds=<c> narrowed=<#b,#c|none> -->
+<!-- pipeline-state: item=#<cr> review_rounds=<n> slices=<s> ci_waits=<w> ci_wait_head=<sha|none> cr_rounds=<c> narrowed=<#b,#c|none> -->
 <!-- pipeline-claim: role=<role> item=#<cr> state=held|released at=<UTC> -->
 <!-- pipeline-progress: item=#<cr> slice=<n> slices_day=<YYYY-MM-DD> predelete=<sha|none> -->
-<!-- pipeline-stop: item=#<cr> kind=bound|condition key_kind=spec-hash|tree-id|head-sha key=<12 hex> spent_at=<UTC|none> at=<UTC> -->
+<!-- pipeline-stop: item=#<cr> kind=no-progress|bound|condition key_kind=spec-hash|tree-id|head-sha key=<12 hex> at=<UTC> -->
 <!-- pipeline-done: role=<role> item=#<cr> hash=<12 hex> outcome=accepted|rejected at=<UTC> -->
 ```
 
