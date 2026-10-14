@@ -371,7 +371,11 @@ A fire that changes state writes in this order, and never rearranges it.
    - End it with a key line naming the subject and the content judged.
    - In a verdict's key line, name the outcome, accepted or rejected.
    - Read the comments back first.
-   - Post only where no comment of the fire's own role carries this key.
+   - Post only where no comment of the fire's own role carries this key for
+     this round. A comment carries it for this round only when it is newer
+     than the role's wake, the label event that started the round. One from
+     an earlier round at the same key neither blocks the post nor stands for
+     it. A role woken by no such event counts every comment at the key.
 2. **Write the state.** The marker and any counter it spends go in one
    write.
    - Move a counter only where no marker at this key records the spend yet.

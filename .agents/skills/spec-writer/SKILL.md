@@ -115,7 +115,9 @@ pipeline law.
     against the content as it now stands. In the same comment, quote every
     remaining clarification marker in full and say the gate will refuse it.
     End the comment with its key line (`.agents/rules/markers.md`, "Stage
-    comments").
+    comments"). A revision that returns to a hash an earlier round answered
+    posts its own answers comment: only one newer than your wake counts for
+    this round (the law, "Exit writes and the audit in the stages").
 16. **Write your completion line** in one body write: `role=spec-writer`, the
     spec hash, `outcome=accepted`, and `at=` the time of the last read.
 17. **Hand on, last.** Re-read the labels. Remove `spec/needs-work`. Apply:

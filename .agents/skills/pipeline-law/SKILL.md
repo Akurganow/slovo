@@ -734,7 +734,10 @@ Every stage writes its exit in the order of `.agents/rules/unattended.md`,
 1. **The evidence**: the findings, the objections, the answers, an approval,
    a summary, a stop or the verdict. It ends with its comment key. A stop
    comment ends with its stop line instead, which carries the key. A verdict
-   comment ends with its verdict line, for either outcome.
+   comment ends with its verdict line, for either outcome. Whether a comment
+   of the stage's own already carries this key is read on the stage's own
+   round (`.agents/rules/unattended.md`, "The order of exit writes"), with
+   the wake defined in "Where state lives".
 2. **The state block, in one body write**: the counter, the completion line
    and any stop line. Read the block back.
 3. **The labels, last**: the hand-on, or none where the stage stops.

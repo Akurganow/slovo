@@ -146,9 +146,10 @@ spec hash.
 - Completion lines: `role=gate` at the spec hash, `role=implementer` at the
   tree id, each written on a pass and on a failure.
 - A gate line `rejected` at the current hash, with a newer writer completion
-  line at the same hash, the writer's answers comment at this hash naming
-  each standing `G-n` as applied, and no live stop at this hash: the writer
-  claimed the work and the content did not move.
+  line at the same hash, a writer's answers comment at this hash newer than
+  the latest application of `spec/needs-work` (read from the label events)
+  naming each standing `G-n` as applied, and no live stop at this hash: the
+  writer claimed the work in this revision and the content did not move.
   1. Post one comment naming the hash and each standing `G-n`, ending with
      the stop line (`kind=no-progress`, `key_kind=spec-hash`).
   2. Write the stop line in one body write.
