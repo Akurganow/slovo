@@ -48,10 +48,14 @@ you in full. In this file "the law" is the pipeline law.
       2. remove `spec/awaiting-review` and apply `spec/needs-work`.
    3. Then the audit (the law, "Exit writes and the audit in the stages"):
       - your own `rejected` completion line at this hash, with a newer writer
-        completion line at the same hash and no live stop at this hash, means
-        the writer returned the content unchanged. Record a stop with
-        `kind=no-progress` and `key_kind=spec-hash`, leave
+        completion line at the same hash, the writer's answers comment at
+        this hash naming each standing `F-n` as applied, and no live stop at
+        this hash: the writer claimed the work and the content did not move.
+        Record a stop with `kind=no-progress` and `key_kind=spec-hash`, leave
         `spec/awaiting-review`, and spend no round;
+      - the same lines with no such answers comment: your hand-back never
+        reached the writer's work. Finish it: remove `spec/awaiting-review`,
+        apply `spec/needs-work`, and spend no round;
       - otherwise, your own result at this hash, or a keyed comment of yours
         there newer than your wake (the law, "Where state lives"): finish
         the hand-off that record names, and spend no round it already

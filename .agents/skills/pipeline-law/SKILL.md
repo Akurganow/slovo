@@ -455,9 +455,10 @@ bound.
 
 - Three kinds, recorded the same way:
   - **no progress** (`kind=no-progress`): an earlier finding returned
-    ("Findings"), the writer handed on a spec hash the reviewer or the gate
-    already rejected, or a return from the clerk's round came back at an
-    unmoved tree. One comment names each finding that stands, with its check and the
+    ("Findings"), the writer answered findings as applied at a spec hash
+    the reviewer or the gate already rejected, or a return from the clerk's
+    round came back at an unmoved tree after the implementer claimed to work
+    it. One comment names each finding that stands, with its check and the
     unchanged result, and the content key;
   - **a bound reached** (`kind=bound`): the counter and one comment naming
     the bound and the content key. The bound's row in "Bounds" says when it

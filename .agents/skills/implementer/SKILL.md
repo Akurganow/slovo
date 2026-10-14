@@ -146,15 +146,17 @@ spec hash.
 - Completion lines: `role=gate` at the spec hash, `role=implementer` at the
   tree id, each written on a pass and on a failure.
 - A gate line `rejected` at the current hash, with a newer writer completion
-  line at the same hash and no live stop at this hash: the writer returned
-  the content unchanged.
+  line at the same hash, the writer's answers comment at this hash naming
+  each standing `G-n` as applied, and no live stop at this hash: the writer
+  claimed the work and the content did not move.
   1. Post one comment naming the hash and each standing `G-n`, ending with
      the stop line (`kind=no-progress`, `key_kind=spec-hash`).
   2. Write the stop line in one body write.
   3. Leave `spec/approved`.
 - Otherwise, a gate line `rejected` at the current hash, with no live stop
-  at this hash and no release newer than that line, means a fire died
-  between the hand-back's writes. Finish the hand-back.
+  at this hash and no release newer than that line, means the hand-back
+  never landed: a fire died between its writes, or the writer's revision
+  answered none of it. Finish the hand-back.
 - **Four checks:**
   1. the structure (the law, "The specification shape");
   2. no clarification marker anywhere in the specification directory;

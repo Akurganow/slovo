@@ -272,11 +272,17 @@ names, as that line says. Its state is one line of the state block
   - No answer in the fire that asked: leave the item, and report. Still none
     at a later fire: stop with `kind=condition` and `key_kind=head-sha`,
     naming the request. That head is never asked again.
-- **The same head after `returned`**: the implementer answered without a
-  commit. Where each of the line's `findings=` actionable findings has its
-  answer by id, write `outcome=clean` and go on. Otherwise a return now would
-  be the second at one head: stop with `kind=no-progress` and
-  `key_kind=tree-id`, naming the unanswered findings.
+- **The same head after `returned`**:
+  - each of the line's `findings=` actionable findings has its answer by
+    id: write `outcome=clean` and go on;
+  - otherwise, where the implementer handed off since your return, with an
+    `ACCEPTED` verdict comment and a `role=implementer` completion line both
+    newer than the return comment: that hand-off claimed the work, and the
+    head did not move. Stop with `kind=no-progress` and `key_kind=tree-id`,
+    naming each unanswered finding with its id, what it asserts, and the
+    unchanged head;
+  - otherwise the round came back with no implementer hand-off since the
+    return: return the item again (step 6), naming the unanswered findings.
 - **The same head after `clean`**: go on to step 4.
 
 ## The pump
