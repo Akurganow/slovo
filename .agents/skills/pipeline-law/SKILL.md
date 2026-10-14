@@ -96,7 +96,7 @@ host").
 | `pipeline/queued` | Clerk, when it opens the item | Clerk at promotion. Clerk's sweep, where a promotion died between its two writes |
 | `spec/needs-work` | Clerk at promotion. Reviewer. The implementer's gate. Clerk's sweep: re-entry, reconstruction, a narrowing while the specification exists | Writer, at the end of a revision. Clerk's sweep, inside a re-entry |
 | `spec/awaiting-review` | Writer. Clerk's sweep | Reviewer. Clerk's sweep |
-| `spec/approved` | Reviewer. Writer, on a revision that answered the gate only. Implementer, re-entering itself. Clerk, returning an item from its round or parking a stop met under `pipeline/code-review`. Clerk's sweep | Implementer, at re-entry and at hand-over. The gate, on a failure below its bound. Clerk's sweep |
+| `spec/approved` | Reviewer. Writer, on a revision that answered the gate only. Implementer, re-entering itself. Clerk, returning an item from its round or parking a stop met under `pipeline/code-review`. Clerk's sweep | Implementer, at re-entry and at hand-over. The gate, on a failure it hands back. Clerk's sweep |
 | `pipeline/code-review` | Implementer, on an accepted verdict. Clerk's reconstruction. Clerk's sweep, after a conflict merge into a `ready-for-human` item | Clerk, when its round ends either way, when it narrows, and when it parks a stop |
 | `ready-for-human` | Clerk only | The owner. The clerk only to narrow, to restore, or to send a conflict merge through its round |
 | `pipeline/stuck` | Clerk only, after a repair it could not make | The owner. The clerk, when a retried repair, a narrowing or a restore moves the item |
@@ -110,15 +110,15 @@ host").
 | T2 | `pipeline/queued` | `spec/needs-work` | Clerk's pump | Fewer items in flight than the bound. The oldest queued item not held, stuck or blocked |
 | T3 | `spec/needs-work` | `spec/awaiting-review` | Writer | Round zero, or a finding other than the gate's was answered |
 | T4 | `spec/needs-work` | `spec/approved` | Writer | Round one or later, and the findings were the gate's only |
-| T5 | `spec/awaiting-review` | `spec/needs-work` | Reviewer | Round one found blocking findings |
-| T6 | `spec/awaiting-review` | `spec/approved` | Reviewer | Round one empty, or round two all resolved |
-| T7 | `spec/awaiting-review` | Unchanged, stop recorded | Reviewer | Round two unresolved, or the writer returned unchanged content |
-| T8 | `spec/approved` | `spec/needs-work` | Implementer's gate | A gate failure below the bound on gate bounces |
-| T9 | `spec/approved` | Unchanged, stop recorded | Implementer's gate | A gate failure at the bound on gate bounces |
+| T5 | `spec/awaiting-review` | `spec/needs-work` | Reviewer | Blocking findings, none of them returned |
+| T6 | `spec/awaiting-review` | `spec/approved` | Reviewer | Round one empty, or a later round found every earlier finding resolved |
+| T7 | `spec/awaiting-review` | Unchanged, stop recorded | Reviewer | An earlier finding returned, or the writer returned unchanged content |
+| T8 | `spec/approved` | `spec/needs-work` | Implementer's gate | A gate failure, no earlier `G-n` returned |
+| T9 | `spec/approved` | Unchanged, stop recorded | Implementer's gate | An earlier `G-n` returned, or the writer returned unchanged content |
 | T10 | `spec/approved` | `spec/approved`, re-entered | Implementer | A non-final slice, slices below the daily cap |
 | T11 | `spec/approved` | Unchanged, paused for the day | Implementer | The daily slice cap reached |
 | T12 | `spec/approved` | `pipeline/code-review` | Implementer | The final slice, judge accepted |
-| T13 | `spec/approved` | Unchanged, stop recorded | Implementer | Consecutive rejections at their bound, the same failure returned at an unmoved tree, or a stop condition |
+| T13 | `spec/approved` | Unchanged, stop recorded | Implementer | A `must_change` item returned, the same failure returned by the clerk's round at an unmoved tree, or a stop condition |
 | T14 | `pipeline/code-review`, draft | The same, out of draft | Clerk's round | Always, as the round's first act |
 | T15 | `pipeline/code-review` | `ready-for-human` | Clerk's round | The completion criterion and CI green, the head unmoved |
 | T16 | `pipeline/code-review` | `spec/approved` | Clerk's round | Any check failed, or CI red |
@@ -290,7 +290,7 @@ block and is rewritten with it.
 | Blocker line | Body, above the block | Clerk | `.agents/rules/markers.md`, "The pipeline clerk's records" |
 | Comment key | Last line of every stage comment except a stop comment, which ends with its stop line | Each stage | `.agents/rules/markers.md`, "Stage comments" |
 | Verdict | Last line of the verdict comment, in place of the key | Implementer, either outcome | `.agents/rules/markers.md`, "The verdict line" |
-| Findings | Comments | Reviewer (`F-n`), gate (`G-n`) | Headed blocks |
+| Findings | Comments | Reviewer (`F-n`), gate (`G-n`), acceptance judge (`must_change`, read as `M-n`) | Headed blocks. `must_change` stands in the verdict comment |
 | Answers | One numbered comment per revision | Writer | One line per finding id |
 | Narrowing, Restored | Comments opening with that word, one source or blocker each | Clerk | `.agents/rules/markers.md`, "The pipeline clerk's records" |
 | Stale | Last line of the stale comment | Clerk | The same |
@@ -310,10 +310,10 @@ the `verdict:` prefix alone. Every marker stands on a line of its own, and a
 comment that ends with a marker carries it as its last line.
 
 **Each counter has exactly one writer** once the clerk has seeded it.
-`review_rounds` is the reviewer's. `gate_bounces`, `judge_rejects` and
-`slices` are the implementer's. `ci_waits`, `ci_wait_head`, `cr_rounds` and
-`narrowed=` are the clerk's. Two writers on one counter make its bound fire
-early. The clerk seeds `cr_rounds` at 0 on every item.
+`review_rounds` is the reviewer's, and numbers its rounds. `slices` is the
+implementer's. `ci_waits`, `ci_wait_head`, `cr_rounds` and `narrowed=` are
+the clerk's. A second writer would count one event twice. The clerk seeds
+`cr_rounds` at 0 on every item.
 
 An item's **newest machine marker** is the latest `at=` among its state-block
 lines and the trusted markers that end its comments.
@@ -343,8 +343,8 @@ earlier round: the item has come back since.
 - **Nothing hashes a diff.** A diff moves whenever `main` takes an unrelated
   commit, so a diff key would re-run a judging round over unchanged work. A
   tree id depends on content alone.
-- A conflict merge moves the tree id and leaves the spec hash, so it spends
-  only a tree-keyed bound.
+- A conflict merge moves the tree id and the head sha and leaves the spec
+  hash, so only a stop inside the implementation sees its key move.
 
 ## Claims
 
@@ -376,29 +376,58 @@ earlier round: the item has come back since.
   satisfies it. A fire that dies before posting its claim is the commonest
   death.
 
+## Findings
+
+A judging stage hands work back as findings: the reviewer's `F-n`, the
+gate's `G-n`, and the acceptance judge's `must_change` items, read as `M-n`.
+
+- **Every finding carries its full context**: the check, the result
+  observed, and what would make the check pass. A stage that never saw the
+  round that raised a finding can work it from these three alone.
+- **Ids are derived labels, stored nowhere.** A judging stage numbers its
+  findings on across the item's rounds, in comment order, when it builds its
+  case: `F-n` across the reviewer's findings comments and stop comments,
+  `G-n` across the gate's objections and stop comments, and `M-n` across the
+  `must_change` items of every `REJECTED`
+  verdict since the newest `ACCEPTED`. An `ACCEPTED` verdict closes every
+  `M-n` before it. A finding's identity is its id and its check, never its
+  subject or its wording.
+- **A finding is applied.** The writer applies every `F-n` and `G-n` and
+  names each by id in its answers comment. The implementer applies every
+  `M-n` and names each with its commit in its hand-off summary.
+- **The owner's review comment settles a finding**, and is the one way a
+  finding closes unapplied. A review comment of the owner's ("What a fired
+  stage trusts") that names a finding's id settles that id for every judging
+  stage. The settlement takes effect in the fire that reads the comment, and
+  that fire records it: the writer under `## Out of scope` in `spec.md` and
+  in its answer line, the implementer in a comment of its own, each with a
+  link to the review comment. Every list of earlier findings is built from
+  those records, with the settled ids left out, so no judging stage reads
+  review comments.
+- **An earlier finding has returned** when its own check gives, at this
+  content, the result it gave when the finding was raised, after a stage
+  claimed to work it. That is content a stage claimed to change and did not,
+  and it is what a judging stage stops on ("Stops").
+- **A check whose result moved is a partial fix, and a partial fix is
+  work.** The judging stage restates the finding under its id against the new
+  content, with the new result, and hands the item back with every new
+  finding. Rounds go on until a pass or a returned finding.
+
+| Who checks | The check | Returned when |
+| :-- | :-- | :-- |
+| Spec reviewer, in a later round | The `F-n` quotes the specification and names what would resolve it | The quoted text stands unchanged at the new spec hash and the resolution is absent, after the writer's answer named the id |
+| Implementer's gate | Checks 1 to 3 run again as written. Check 4's brief carries every earlier `G-n` and `F-n`, so a revision that undoes a reviewer's finding is seen. An earlier `F-n` that fails here is a new `G-n` | An earlier `G-n` that the writer's answer named gives at the new spec hash the result it gave when raised |
+| Implementer, before the trio | The `Check:` of each earlier `M-n`, run at the head | Ticked as worked in the progress checklist, and the result its verdict quoted |
+| Acceptance judge | The `Check:` of each earlier `M-n`, which the prosecutor runs and quotes | The quoted output is the result the earlier verdict quoted. The judge lists the item under `returned:` |
+
 ## Bounds
 
-A bound blocks repetition on unchanged content. Every bound compares against
-**its own key**. A bound is reached when its counter is **at or above** the
-limit, never only when equal: a counter can arrive above its bound after an
-un-stick or a repair. Every number here lives here and nowhere else.
-
-**One fresh round per stop, and only one.** Changed content grants it when
-both hold:
-
-- the bound's own key moved since the stop;
-- the clerk's re-entry or the owner's release came after the stop's `at=`,
-  and after its `spent_at=` where that is set, and the stage's input label
-  was applied since: by that act, or by the hand-on of a stage it woke. A
-  stage's hand-on with no such act before it grants nothing.
-
-Whoever takes the fresh round writes `spent_at` on the stop it spends: a
-stage in the body write that records the round's outcome, the clerk in the
-`outcome=asking` write of its request. A re-entry takes no round, so the
-clerk's sweep writes none. Without `spent_at`, each new revision would differ
-from a key frozen at the first stop, and every one would earn a round. A
-worklist alone never lifts a bound. A narrowing or a restore is changed
-content only where it moves the bound's own key.
+A bound caps what a fire or an item may spend. A bound with a key compares
+against **its own key**. A bound is reached when its counter is **at or
+above** the limit, never only when equal: a counter can arrive above its
+bound after an un-stick or a repair. Every number here lives here and
+nowhere else. A judging stage's rounds are not a bound: they end on a pass
+or on a returned finding ("Findings").
 
 | Bound | Limit | Key | Counter | On exhaustion | Re-opened by |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -407,20 +436,16 @@ content only where it moves the bound's own key.
 | Repairs per clerk fire | 3 | | | Repair nothing more, report the rest | The next fire |
 | Units of work per stage fire | 1 item | | | | The next fire |
 | Queue depth | 6 items carrying `pipeline/queued` | | | Prepare no new skeleton. Repairs and closes still run | The queue draining |
-| Review rounds | 2 | Spec hash | `review_rounds` | Stop, both positions in one comment, `spec/awaiting-review` stays | The fresh round: one verify-only round |
-| Gate bounces | 2 | Spec hash | `gate_bounces` | Stop, `spec/approved` stays | The fresh round: one more gate run |
-| Consecutive judge rejections | 2 | Tree id | `judge_rejects`, reset on accept | Stop, `spec/approved` stays | The fresh round: one more acceptance round |
-| Same failure returned by the round | 1 repeat | Tree id | | Stop, quoting both returns | The tree moving |
 | Slices per item per day | 3 | The day in `slices_day` | `slices` | Pause for the day before any work, and say where to resume | A later day. The clerk re-enters the item |
 | CI-fix attempts per fire | 2 | | Per fire, in the progress checklist, never stored | Record red, end the slice | The next fire |
 | Marker read-back | 1 rewrite | | | Stop with `kind=condition` | The clerk decides |
 | Label stick at hand-over | 1 re-apply | | | One comment naming the label, the fire ends | The clerk's sweep |
-| Judge output shape | 1 re-ask | | | Treat as rejected, and say so | |
+| Judge output shape | 1 re-ask | | | Stop with `kind=condition` and `key_kind=tree-id`, quoting both answers | The clerk decides |
 | Skeleton read-back | 1 fix and push | | | Stop that item, leave the branch | The next clerk fire adopts it |
 | Writer's file read-back | 1 fix and push | | | Stop with `kind=condition` | The clerk decides |
 | Comment length | 15 lines | | | | |
 | CI wait in the code-review round | 3 clerk fires | Head sha | `ci_waits`, with `ci_wait_head` | Stop with `kind=bound` and `key_kind=head-sha`, naming the missing CI run | A new head resets both fields |
-| Outside review requests per item | 3, never more than one per head | Head sha | `cr_rounds`, over the item's whole life | Stop with `kind=bound` and `key_kind=head-sha` | The fresh round: one more request, at a new head |
+| Outside review requests per item | 3, never more than one per head | Head sha | `cr_rounds`, over the item's whole life | Ask no more: the round goes on to CI and the hand-over without an outside review, and says so in one comment | |
 
 A counter or a state block that is absent, or will not parse, is a stop
 condition. It is never read as zero: a bound that cannot be counted is not a
@@ -428,17 +453,40 @@ bound.
 
 ## Stops
 
-- Two kinds, recorded the same way:
-  - **a bound reached**: the completion line, the counter, and one comment
-    naming the bound and the content key;
-  - **a condition the stage cannot work around**: one comment naming the
-    condition and the content key. No counter moves.
+- Three kinds, recorded the same way:
+  - **no progress** (`kind=no-progress`): an earlier finding returned
+    ("Findings"), the writer handed on a spec hash the reviewer or the gate
+    already rejected, or a return from the clerk's round came back at an
+    unmoved tree. One comment names each finding that stands, with its check and the
+    unchanged result, and the content key;
+  - **a bound reached** (`kind=bound`): the counter and one comment naming
+    the bound and the content key. The bound's row in "Bounds" says when it
+    stops;
+  - **a condition the stage cannot work around** (`kind=condition`): one
+    comment naming the condition and the content key. No counter moves.
 
   Each role names its own conditions beside the check that meets them. The
   law keeps no closed list: a list kept apart from the checks goes stale when
   a check changes.
-- **The clerk writes no completion line.** Its two bound stops, the CI wait
-  and the outside review, record the counter, the stop line and one comment.
+- **A stop is live until released.** A release is an act newer than the
+  stop's `at=`: the owner's removal of `pipeline/stuck` or `pipeline/hold`,
+  the clerk's re-entry after a repair that moved the stop's key, or the
+  clerk's `Narrowing:` or `Restored:` comment ("Narrowing, restore and the
+  last read").
+  - A stage that finds a live stop at the key it works on ends its fire and
+    names the stop.
+  - A stage that finds a released stop at that key, and no result of its own
+    there newer than the release, takes the one run the release grants. At a
+    spec hash its own completion line names, the run hands the standing
+    findings to the writer, so the owner's ruling is applied there. Anywhere
+    else it judges the content as it judges changed content, with the
+    settled findings left out. A finding that returns in that run writes a
+    newer stop.
+  - A stage's audit rows for a fire that died read only where no live stop
+    stands at the key. A stage whose own result at the key is newer than the
+    release finishes that result's hand-off by its audit rows.
+- **The clerk writes no completion line.** Its bound stop, the CI wait,
+  records the counter, the stop line and one comment.
 - **Every stop writes the stop line twice**, in the exit order ("Exit writes
   and the audit in the stages"): as the last line of the stop comment, then
   as the state block's stop line. The comment survives when the body write
@@ -466,7 +514,7 @@ bound.
   `ready-for-human`**. A stopped pipeline is not a finished one.
 - The machine stops in exactly two places: `ready-for-human`, the finish,
   and `pipeline/stuck`, the pipeline itself stopping. A conflict, a red
-  check, a returned verdict, a marker that would not stay and a stage that
+  check, a rejected verdict, a marker that would not stay and a stage that
   died are all the machine's own to carry.
 
 ## The branch stays mergeable
@@ -530,8 +578,9 @@ instruction could switch off a release in silence.
   machine marker, and re-enters the stage label the item still carries.
 - **Un-sticking.** Remove `pipeline/stuck`. Where the clerk's comment names
   a stage label, first make it the item's only stage label. To answer a
-  bound, settle the question its stop comment names first. Changed content
-  then earns one more round.
+  stop, settle the decision its comment names first. A review comment that
+  rules a finding out settles that finding ("Findings"). The release grants
+  the stage one run on the content as it stands ("Stops").
 - **Sending a finished item back**: remove `ready-for-human` and apply
   `spec/approved`. The owner's review comments become the worklist.
 - `ready-for-human` means the machine's part is done. The merge, the live
@@ -615,9 +664,10 @@ naming the marker and the object, and leave the label in place.
 
 **Comments.** A comment carries what changed since the last one. A repeat of
 an unchanged situation is one line linking the first. The comment-length
-bound is the ceiling, except for a `must_change` worklist, the decisive lines
-of a failing log, and a table this law requires. No comment narrates which
-roles ran, how many rounds, or the reasoning behind a judgement already made.
+bound holds for every comment except a `must_change` worklist, the findings
+a stop names, the decisive lines of a failing log, and a table this law
+requires. No comment narrates which roles ran, how many rounds, or the
+reasoning behind a judgement already made.
 
 **The report**, every fire, in this order:
 
@@ -656,12 +706,12 @@ tildes, indented at most three spaces, and closes on a run of the same
 character at least as long.
 
 This is the one list. The writer checks it after writing, the reviewer in
-both rounds, and the gate first. **The writer's check is the gate's check,
+every round, and the gate first. **The writer's check is the gate's check,
 character for character.** A weaker self-check passes what the gate then
-bounces, and the bounce spends a round.
+refuses, and the refusal sends the item round the writer again.
 
 `[NEEDS CLARIFICATION: …]` is not a signal. It is legal in a draft, and the
-reviewer's round two and the gate refuse it. It is how the pipeline marks
+reviewer's later rounds and the gate refuse it. It is how the pipeline marks
 what is not yet known: a question a person can answer. It is never a guess,
 because a guess is indistinguishable from a decision three stages later.
 

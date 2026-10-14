@@ -38,15 +38,18 @@ pipeline law.
 3. **Claim** against `spec/needs-work` (the law, "Claims"). Release it at
    every exit. On a clone that stays shallow, record the law's condition
    stop on the spec hash, release the claim, and end.
-4. **Audit** (the law, "Exit writes and the audit in the stages"). Then
-   detect, report and skip any state the clerk's sweep repairs. Never repair
-   it yourself.
+4. **Audit** (the law, "Exit writes and the audit in the stages"), after
+   the law's rule for a stop at the spec hash ("Stops"). Then detect, report
+   and skip any state the clerk's sweep repairs. Never repair it yourself.
+   A rejection of your hash newer than your completion line is a revision
+   you owe, not a re-fire.
 5. **Adopt the item's branch, never create one.** Report unexpected content,
    and never overwrite it.
 6. **Collect every finding**:
    - the clarification markers that remain;
-   - the reviewer's `F-n`;
-   - the gate's `G-n`;
+   - the reviewer's `F-n` and the gate's `G-n` still open. An id that an
+     `## Out of scope` settlement line names is settled. An id that an
+     owner's review comment names is settled in this fire (step 10);
    - every narrowing and restore that counts (the law, "Narrowing, restore
      and the last read"). A newer `Restored:` cancels a `Narrowing:`;
    - the owner's review comments not yet answered (the law, "What a fired
@@ -82,11 +85,15 @@ pipeline law.
       - remove every step and check serving only it;
       - where the branch already carries work serving only it, add a step
         that removes that work, with its check.
-10. **Record every "not applied" decision in the specification itself**: one
-    line under Risks or Out of scope, naming the finding id. **A revision is
-    never byte-identical.** The reviewer and the gate skip content whose hash
-    matches their last completion line, so an unchanged revision would sit
-    forever with every label correct.
+10. **Apply every `F-n` and `G-n`** (the law, "Findings"): make the change
+    its "What would resolve it" names, or the change its check needs to
+    pass. For an id an owner's review comment names, record the settlement
+    instead: one line under `## Out of scope` in `spec.md`,
+    `- <id>: settled by the owner's review comment <link>.`, where `<id>` is
+    the finding's own id, `F-<n>` or `G-<n>`. That line also moves the hash. **A revision is never
+    byte-identical.** The reviewer and the gate
+    skip content whose hash matches their last completion line, so an
+    unchanged revision would sit forever with every label correct.
 11. **Run the structural check** (the law, "The specification shape"),
     identical to the gate's. Quote its output. Search both files for the
     law's skeleton line: none may survive. On a failure, fix and check
@@ -102,10 +109,13 @@ pipeline law.
 14. **Take the last read** (the law, "Narrowing, restore and the last read").
     A narrowing or a restore you did not see voids the fire.
 15. **Answer every finding by id in one numbered comment.** Each answer gives
-    the id, where it was, what changed, and the commit. In the same comment,
-    quote every remaining clarification marker in full and say the gate will
-    refuse it. End the comment with its key line (`.agents/rules/markers.md`,
-    "Stage comments").
+    the id, where it was, what changed, and the commit. A settled id is
+    answered with the link its `## Out of scope` line carries. A revision
+    after a narrowing or a restore answers every open `F-n` and `G-n`
+    against the content as it now stands. In the same comment, quote every
+    remaining clarification marker in full and say the gate will refuse it.
+    End the comment with its key line (`.agents/rules/markers.md`, "Stage
+    comments").
 16. **Write your completion line** in one body write: `role=spec-writer`, the
     spec hash, `outcome=accepted`, and `at=` the time of the last read.
 17. **Hand on, last.** Re-read the labels. Remove `spec/needs-work`. Apply:

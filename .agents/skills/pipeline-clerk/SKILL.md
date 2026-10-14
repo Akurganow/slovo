@@ -138,22 +138,27 @@ owner should read about it before the sweep writes more.
    either newer than the newest machine marker (the law, "Where state
    lives"). Re-enter the stage label, with a one-line comment naming the
    removal acted on.
-9. **A stop recorded at unchanged content**, checked before the dead run. A
-   worklist alone never lifts a stop.
+9. **A live stop at unchanged content** (the law, "Stops"), checked before
+   the dead run. A worklist alone never releases a stop.
    1. Read the stop only from its line (the law, "Stops").
-   2. Compute the key its `key_kind` names.
-   3. Compare it with the stop's key.
-   4. Try your own repairs first, and name each. A repair that moves the key
-      lifts the stop: re-enter the stage, which takes the fresh round and
-      writes `spent_at` (the law, "Bounds"). You write none. A conflict
-      resolved this fire moves the tree id and the head.
-   5. Only where nothing moves the item: apply `pipeline/stuck` beside the
+   2. Compare the stop's `at=` with the newest release (the law, "Stops"). A
+      stop that a release newer than its `at=` freed is not live, and this
+      case does not match. Nor does it match while the stage holds a fresh
+      claim.
+   3. Compute the key its `key_kind` names.
+   4. Compare it with the stop's key.
+   5. Try your own repairs first, and name each. A repair that moves the key
+      releases the stop: re-enter the stage. A conflict resolved this fire
+      moves the tree id and the head.
+   6. Only where nothing moves the item: apply `pipeline/stuck` beside the
       stage label, or under `pipeline/code-review` in the law's order
-      ("Stops"). Then post a comment giving the bound, the key, every repair
+      ("Stops"). Then post a comment giving the stop's kind, the key, each
+      finding that stands with its check and unchanged result, every repair
       tried, **the decision needed from the owner**, and the stage label that
       resumes the item once it is made (the law, "The owner's control
       surface"): `spec/needs-work` where the specification must change, as
-      after a review or gate bound, and otherwise the stage label standing.
+      after a stop at the reviewer or the gate, and otherwise the stage label
+      standing.
 10. **A confirmed dead run.** All of these hold:
     - a stage label is present;
     - no claim of that role is both held and fresh;
@@ -228,10 +233,12 @@ For every open item carrying `pipeline/code-review` and neither
    2. apply `spec/approved`;
    3. post one comment naming what failed.
 7. **Hand over.** Once these writes land, the item is the owner's.
-   1. Remove `pipeline/code-review`.
-   2. Apply `ready-for-human`.
-   3. Read the label set back.
-   4. Read the draft field back as false.
+   1. Where the outside review was not asked at this head because
+      `cr_rounds` stood at its bound, post one comment saying so.
+   2. Remove `pipeline/code-review`.
+   3. Apply `ready-for-human`.
+   4. Read the label set back.
+   5. Read the draft field back as false.
 
 **The outside review.** It asks the reviewer the law's outside-reviewer line
 names, as that line says. Its state is one line of the state block
@@ -241,11 +248,10 @@ names, as that line says. Its state is one line of the state block
 - **One request per head, never two.** A new request needs a new head.
 - **Ask, intent first** (`.agents/rules/unattended.md`, "The order of exit
   writes"), at a head the line does not name:
-  1. Check `cr_rounds` against its bound. At or above it, stop as the bound's
-     row says, unless the fresh round grants one more request.
+  1. Check `cr_rounds` against its bound. At or above it, ask nothing and go
+     on to the round's step 4 (CI on that head), as the bound's row says.
   2. Otherwise write `outcome=asking`, with `cr_rounds` raised by one, in
-     one body write. On a fresh round, the same write sets `spent_at` on the
-     stop it spends.
+     one body write.
   3. Post the request.
   4. Rewrite the line to `outcome=asked`.
 - **Recover from `asking`.** The request carries no key line, because its
@@ -269,8 +275,8 @@ names, as that line says. Its state is one line of the state block
 - **The same head after `returned`**: the implementer answered without a
   commit. Where each of the line's `findings=` actionable findings has its
   answer by id, write `outcome=clean` and go on. Otherwise a return now would
-  be the second at one head: stop with `kind=condition` and
-  `key_kind=head-sha`, naming the unanswered findings.
+  be the second at one head: stop with `kind=no-progress` and
+  `key_kind=tree-id`, naming the unanswered findings.
 - **The same head after `clean`**: go on to step 4.
 
 ## The pump

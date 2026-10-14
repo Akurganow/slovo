@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: "Review one Slovo pipeline item's specification against the repository's rules in bounded rounds, post its blocking findings or an approval, and hand the item on, never committing. Use when a pipeline pull request carries spec/awaiting-review."
+description: "Review one Slovo pipeline item's specification against the repository's rules in rounds that end on a pass or a returned finding, post its blocking findings or an approval, and hand the item on, never committing. Use when a pipeline pull request carries spec/awaiting-review."
 ---
 
 # The spec reviewer
@@ -39,22 +39,26 @@ you in full. In this file "the law" is the pipeline law.
    unrelated commit then costs nothing.
    1. Compute the spec hash in the scratch checkout, with both files present
       (the law, "Where state lives").
-   2. Then the audit (the law, "Exit writes and the audit in the stages"):
+   2. A stop at this hash takes the law's rule first ("Stops"): a live one
+      ends the fire. A released one, at a hash your own completion line
+      names, hands the standing findings to the writer, and spends no round:
+      1. where no comment of yours at this hash is newer than the release,
+         post one comment naming each standing `F-n` with its quote and what
+         would resolve it, ending with its key line;
+      2. remove `spec/awaiting-review` and apply `spec/needs-work`.
+   3. Then the audit (the law, "Exit writes and the audit in the stages"):
       - your own `rejected` completion line at this hash, with a newer writer
-        completion line at the same hash, means the writer returned the
-        content unchanged. Record a stop with `kind=bound` and
-        `key_kind=spec-hash`, leave `spec/awaiting-review`, and spend no
-        round;
+        completion line at the same hash and no live stop at this hash, means
+        the writer returned the content unchanged. Record a stop with
+        `kind=no-progress` and `key_kind=spec-hash`, leave
+        `spec/awaiting-review`, and spend no round;
       - otherwise, your own result at this hash, or a keyed comment of yours
         there newer than your wake (the law, "Where state lives"): finish
         the hand-off that record names, and spend no round it already
         records.
-5. **Which round**, from `review_rounds`: 0 means round one, 1 means round
-   two. Rounds come from the counter, never from a sense that another look
-   would help. At or above the bound on review rounds (the law, "Bounds"), a
-   changed spec hash earns one verify-only round under the law's fresh-round
-   test, and that round's body write sets `spent_at` on the stop it spends.
-   Otherwise the item goes straight to the bound path.
+5. **Which round**, from `review_rounds`: 0 means round one, and any higher
+   value a later round. Rounds come from the counter, never from a sense
+   that another look would help.
 6. **The narrowing check, in every round** where a narrowing or a restore
    counts (the law, "Narrowing, restore and the last read"). It is the
    writer's edit list for a narrowed source
@@ -109,7 +113,10 @@ you in full. In this file "the law" is the pipeline law.
       against the head. A finding that cannot carry its exhibit is dropped,
       unmentioned.
    8. Post the findings in one plain comment, ending with its key line
-      (`.agents/rules/markers.md`, "Stage comments"):
+      (`.agents/rules/markers.md`, "Stage comments"). `F-n` numbers run on
+      across the item's rounds (the law, "Findings"). The quote is the
+      result observed, and "What would resolve it" is what makes the check
+      pass:
 
       ```
       ## Blocking findings
@@ -124,30 +131,40 @@ you in full. In this file "the law" is the pipeline law.
       checked and that it held, ending with its key line.
    10. Then set `review_rounds=1` and your completion line in one body write.
    11. Hand on: `spec/needs-work` with findings, `spec/approved` with none.
-8. **Round two, verification only.** Dispatch nothing. **New observations do
-   not block**: they go in one comment headed "Parking lot — not blocking",
-   addressed to the owner. A second round of new findings is how a
-   specification loop never ends. Check exactly four things:
+8. **A later round, verification only.** Dispatch nothing. **New
+   observations do not block**: they go in one comment headed "Parking lot —
+   not blocking", addressed to the owner. A later round of new findings is
+   how a specification loop never ends. Check exactly four things:
    - the structure again;
-   - every round-one `F-n` resolved, by the change being present or by a
-     reply giving a reason you accept;
+   - every earlier `F-n`, by id, except those the writer's answers record as
+     settled by the owner (the law, "Findings"): resolved when the change it
+     names is present;
    - no clarification marker left;
    - the narrowing check.
 
-   All clean: post one approval line, write `review_rounds=2` and your
-   completion line, and hand on to `spec/approved`.
-
-   Anything unresolved takes the **bound path**. **Leave
-   `spec/awaiting-review` in place**: applying `spec/needs-work` would wake
-   the writer for the third revision the bound exists to stop.
-   1. Post one comment with both positions, the finding and the writer's
-      reply, each quoted, and the narrowest question a person could answer.
-   2. End it with the stop line: `kind=bound`, `key_kind=spec-hash` and the
-      spec hash.
-   3. Write `review_rounds=2`, your completion line and the stop line in one
-      body write.
-9. **Findings comments are never edited.** The writer must still read round
-   one after round two.
+   Each write below raises `review_rounds` by one and writes your completion
+   line, `outcome=accepted` when all is clean and `outcome=rejected`
+   otherwise, in one body write.
+   - **All clean**: post one approval line, write, and hand on to
+     `spec/approved`.
+   - **An earlier `F-n` returned**: its quoted text stands unchanged at this
+     hash and its resolution is absent, after the writer's answer named its
+     id. **Leave `spec/awaiting-review` in place**: the writer already
+     claimed this change.
+     1. Post one comment naming each returned `F-n` with its quote and what
+        would resolve it, and every other unresolved check of this round:
+        restate each unresolved `F-n` under its id, and number each new
+        failure on.
+     2. End it with the stop line: `kind=no-progress`, `key_kind=spec-hash`
+        and the spec hash.
+     3. Write the stop line with the counter and your completion line.
+   - **Anything else unresolved** is work: an `F-n` whose quoted text moved,
+     a structural failure, a clarification marker or a narrowing miss.
+     Restate each unresolved `F-n` under its id against the new text,
+     quoted. Number each new failure on. Post them as round one does, write,
+     and hand on to `spec/needs-work`.
+9. **Findings comments are never edited.** The writer reads every earlier
+   round's comment beside the newest one.
 10. **No trace of machinery in a comment**: no callers, sub-agents or
     rounds.
 

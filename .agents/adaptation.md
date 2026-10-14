@@ -243,10 +243,14 @@ was wrong, as each says.
   earlier round. The pipeline clerk could not see the dead fire, and the
   implementer's audit handed a returned item on without working it. The
   implementer also gains the path for answers that change no work.
-- **Whoever takes a fresh round writes `spent_at`.** The specification's law
-  requires it, and no role's steps wrote it. The reviewer, the gate, the
-  trio and the clerk's outside review now write it in their round's body
-  write.
+- **A returned finding stops an item, and a count of rounds does not**
+  (`.agents/skills/pipeline-law/SKILL.md`, "Findings" and "Stops"). The
+  specification's law stops an item at a count of review rounds, of gate
+  failures and of judge rejections, and a count stops converging work, where
+  each round closed what the one before asked. Here every finding carries
+  its check, a finding is applied unless the owner rules it out, a judging
+  stage stops only where a finding it handed back returns unchanged, and a
+  stop holds until a release.
 - **A stop on a clone that stays shallow, or without the toolchain, is
   recorded.** The specification stopped such a committing stage before its
   claim and left no record, so the pipeline clerk read the fire as dead and
@@ -255,12 +259,9 @@ was wrong, as each says.
 - **Un-sticking names one stage label.** The specification let the owner
   either remove `pipeline/stuck` or apply a stage, and the clerk's comment
   named no stage. A stage applied beside `pipeline/stuck` resumes nothing,
-  and a reviewer bound needs the writer. The comment now names the label,
-  and the owner makes it the only stage label, then removes
-  `pipeline/stuck`. The fresh-round test named only the clerk's re-entry
-  or the owner's release as the label's application. It now also counts the
-  hand-on of a stage that act woke, so the writer's revision after the
-  release earns the reviewer or the gate its one more round.
+  and a stop at the reviewer needs the writer. The comment now names the
+  label, and the owner makes it the only stage label, then removes
+  `pipeline/stuck`.
 - **The marker inventory is complete.** Each stage comment kind has its
   step, the skeleton line lives in the pipeline law, and the fields no role
   branches on are marked as a person's.
