@@ -384,8 +384,12 @@ stop line in one body write, leave `spec/approved`, and end.
 
   The first line is `VERDICT: ACCEPTED` or `VERDICT: REJECTED` and carries
   nothing else. `returned:` on an `ACCEPTED` verdict is another shape. Ask
-  again for any other shape, up to the bound on judge output shape. Then
-  treat it as rejected.
+  again for any other shape, up to the bound on judge output shape. A
+  second answer in another shape is a condition stop (the law, "Stops"):
+  one comment quoting both answers' first lines, ending with the stop line
+  (`kind=condition`, `key_kind=tree-id`, the tree id); the `rejected`
+  completion line; `spec/approved` left in place; the fire ends. It carries
+  no `returned:` and no `must_change`, so neither path below applies.
 - **Rejected**: no retitle and no body rewrite. A rejected item never wears a
   finished item's clothes.
   1. Post the verdict comment with `must_change` as the worklist, its last

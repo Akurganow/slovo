@@ -440,7 +440,7 @@ or on a returned finding ("Findings").
 | CI-fix attempts per fire | 2 | | Per fire, in the progress checklist, never stored | Record red, end the slice | The next fire |
 | Marker read-back | 1 rewrite | | | Stop with `kind=condition` | The clerk decides |
 | Label stick at hand-over | 1 re-apply | | | One comment naming the label, the fire ends | The clerk's sweep |
-| Judge output shape | 1 re-ask | | | Treat as rejected, and say so | |
+| Judge output shape | 1 re-ask | | | Stop with `kind=condition` and `key_kind=tree-id`, quoting both answers | The clerk decides |
 | Skeleton read-back | 1 fix and push | | | Stop that item, leave the branch | The next clerk fire adopts it |
 | Writer's file read-back | 1 fix and push | | | Stop with `kind=condition` | The clerk decides |
 | Comment length | 15 lines | | | | |
