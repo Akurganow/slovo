@@ -665,7 +665,7 @@ naming the marker and the object, and leave the label in place.
 
 **Comments.** A comment carries what changed since the last one. A repeat of
 an unchanged situation is one line linking the first. The comment-length
-bound holds for every comment except a `must_change` worklist, the findings
+bound holds for every comment except a `must_change` list, the findings
 a stop names, the decisive lines of a failing log, and a table this law
 requires. No comment narrates which roles ran, how many rounds, or the
 reasoning behind a judgement already made.

@@ -384,7 +384,7 @@ end.
   confidence: 1-5
   established: facts the record proves, each with its exhibit
   struck: assertions rejected for lack of evidence
-  must_change: the worklist, if REJECTED; each item with its Check:, the result observed, and what would make the check pass
+  must_change: if REJECTED, what must change; each item with its Check:, the result observed, and what would make the check pass
   returned: on a REJECTED only, each earlier M-n whose quoted output is the result its verdict quoted, citing that exhibit
   not_verified: what nothing in the record establishes
   ```
@@ -399,12 +399,16 @@ end.
   no `returned:` and no `must_change`, so neither path below applies.
 - **Rejected**: no retitle and no body rewrite. A rejected item never wears a
   finished item's clothes.
-  1. Post the verdict comment with `must_change` as the worklist, its last
-     line the `REJECTED` verdict line at the tree id
-     (`.agents/rules/markers.md`, "The verdict line").
+  1. Post the verdict comment with `must_change` in full, its last line the
+     `REJECTED` verdict line at the tree id (`.agents/rules/markers.md`,
+     "The verdict line"). Where `returned:` is empty, `must_change` is the
+     round's worklist. Where `returned:` names an item, it is the verdict's
+     record, and after a release "The worklist before the trio" rebuilds the
+     worklist from the `M-n` whose checks fail.
   2. Where `returned:` names an item, post one stop comment naming each
-     returned `M-n` with its check and the unchanged result, ending with the
-     stop line (`kind=no-progress`, `key_kind=tree-id`).
+     returned `M-n` with its check and the unchanged result, and carrying
+     the verdict's `must_change` as its record, ending with the stop line
+     (`kind=no-progress`, `key_kind=tree-id`).
   3. Write the `rejected` completion line, with the stop line where step 2
      posted one, in one body write.
   4. With a stop, leave `spec/approved` and end. Otherwise go on through the
