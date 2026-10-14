@@ -455,9 +455,10 @@ bound.
 
 - Three kinds, recorded the same way:
   - **no progress** (`kind=no-progress`): an earlier finding returned
-    ("Findings"), the writer handed on a spec hash the reviewer or the gate
-    already rejected, or a return from the clerk's round came back at an
-    unmoved tree. One comment names each finding that stands, with its check and the
+    ("Findings"), the writer answered findings as applied at a spec hash
+    the reviewer or the gate already rejected, or a return from the clerk's
+    round came back at an unmoved tree after the implementer claimed to work
+    it. One comment names each finding that stands, with its check and the
     unchanged result, and the content key;
   - **a bound reached** (`kind=bound`): the counter and one comment naming
     the bound and the content key. The bound's row in "Bounds" says when it
@@ -664,7 +665,7 @@ naming the marker and the object, and leave the label in place.
 
 **Comments.** A comment carries what changed since the last one. A repeat of
 an unchanged situation is one line linking the first. The comment-length
-bound holds for every comment except a `must_change` worklist, the findings
+bound holds for every comment except a `must_change` list, the findings
 a stop names, the decisive lines of a failing log, and a table this law
 requires. No comment narrates which roles ran, how many rounds, or the
 reasoning behind a judgement already made.
@@ -733,7 +734,10 @@ Every stage writes its exit in the order of `.agents/rules/unattended.md`,
 1. **The evidence**: the findings, the objections, the answers, an approval,
    a summary, a stop or the verdict. It ends with its comment key. A stop
    comment ends with its stop line instead, which carries the key. A verdict
-   comment ends with its verdict line, for either outcome.
+   comment ends with its verdict line, for either outcome. Whether a comment
+   of the stage's own already carries this key is read on the stage's own
+   round (`.agents/rules/unattended.md`, "The order of exit writes"), with
+   the wake defined in "Where state lives".
 2. **The state block, in one body write**: the counter, the completion line
    and any stop line. Read the block back.
 3. **The labels, last**: the hand-on, or none where the stage stops.
