@@ -89,8 +89,8 @@ pipeline law.
     its "What would resolve it" names, or the change its check needs to
     pass. For an id an owner's review comment names, record the settlement
     instead: one line under `## Out of scope` in `spec.md`,
-    `- F-<n>: settled by the owner's review comment <link>.`, with the
-    finding's own id. That line also moves the hash. **A revision is never
+    `- <id>: settled by the owner's review comment <link>.`, where `<id>` is
+    the finding's own id, `F-<n>` or `G-<n>`. That line also moves the hash. **A revision is never
     byte-identical.** The reviewer and the gate
     skip content whose hash matches their last completion line, so an
     unchanged revision would sit forever with every label correct.
