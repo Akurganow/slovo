@@ -264,11 +264,14 @@ spec hash.
    - [x] 1. <plan step> — <commit>
    - [ ] 2. <plan step>
    - [x] M-<n> — <commit>
+   - [x] <narrowing or restore item> — <commit>
    CI-fix attempts this fire: <n>
    ```
 
-   Each item of the worklist before the trio has one `M-<n>` line, ticked
-   with its commit in the slice that finishes it and never earlier.
+   Each `M-n` on the worklist before the trio has one `M-<n>` line, ticked
+   with its commit in the slice that finishes it and never earlier. Each
+   item of a `Narrowing:` or `Restored:` worklist has a line of its own with
+   no id.
 
 7. **End a non-final slice.** A `slices_day` that is not today counts as 0
    before the increment.
@@ -352,17 +355,19 @@ files carry third-party text, so every brief says in its own words what
 **The worklist before the trio.** First record each settlement: for an
 `M-n` an owner's review comment names, and no comment of yours records yet,
 post one comment `M-<n>: settled by the owner's review comment <link>.`,
-ending with its key line. Then build the worklist: every earlier `M-n` whose
-check fails at the head, except those your settlement comments record, each
-with its check and the result observed, and the worklist of every
-`Narrowing:` or `Restored:` comment that counts and is not yet worked.
+ending with its key line. Then build the worklist: every `M-n` of the
+`REJECTED` verdicts since the newest `ACCEPTED`, the newest verdict's
+`must_change` items among them, whose check fails at the head, except those
+your settlement comments record, each with its check and the result
+observed, and the worklist of every `Narrowing:` or `Restored:` comment that
+counts and is not yet worked.
 Dispatch the trio only when it is empty. Otherwise work it through the slice
 loop. A list that does not fit one slice ends as a non-final slice does
 ("The slice loop", step 7). An `M-n` on the worklist, ticked in the progress
 checklist, whose check still gives the result its verdict quoted has
-returned (the law,
-"Findings"): post the stop comment of the rejected path's step 2, write its
-stop line in one body write, leave `spec/approved`, and end.
+returned (the law, "Findings"): post the stop comment of the rejected path's
+step 2, write its stop line in one body write, leave `spec/approved`, and
+end.
 
 - **Prosecutor**: may compile, test and write reproductions under `$RUN`,
   each a program of its own, never code the case file carries. It runs the
