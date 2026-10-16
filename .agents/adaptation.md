@@ -15,9 +15,6 @@ the value: the place is the authority.
   "The machine population").
 - **A gone finding closes as completed.** The tracker clerk closes a report
   once every claim re-derives as gone at the tip, tried or not.
-- **The published-surface police and the record police are off.** The
-  repository has no recurring operation that publishes a record. The rule
-  files those roles would read are built all the same.
 - **No role ever pushes to `main`** (`.agents/rules/unattended.md`, "No role
   pushes to `main`"). The rule does not depend on what the code host
   enforces.
@@ -70,7 +67,7 @@ the value: the place is the authority.
 | `CLOSED_PATHS` | `.agents/rules/boundaries.md`, "Closed paths" | The release pipeline writes them, or they are never committed |
 | `LICENCE_POLICY` | GPLv3, with `THIRD-PARTY-NOTICES.md` and the README licence section kept current (`AGENTS.md`, "License compliance is part of every change") | A new dependency stays a person's decision |
 | `DELIBERATE_LANGUAGE_EXCEPTIONS` | `.agents/rules/text-residue.md`, "Protected: never a finding", item 5 | Recognising mixed Russian and English speech is the product |
-| `PREDECESSOR_QUIRKS` | The comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`, carried into `.agents/rules/logic.md`, "Behaviour kept on purpose", and `.agents/skills/issue-court/SKILL.md`, "What you read first" | Behaviour kept on purpose, with no migration |
+| `PREDECESSOR_QUIRKS` | The comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`, carried into `.agents/skills/issue-court/SKILL.md`, "What you read first" | Behaviour kept on purpose, with no migration |
 | `ARCHITECTURE_BANS` | Empty | The recorded bans, the core free of the app shell and the update engine and the import direction of role-tagged modules, are all enforced by the gate (`.agents/rules/verification.md`, "What the gate rejects") |
 | `PUBLICATION_RULES` | `.agents/rules/boundaries.md`, "What never appears in the tree or on a published page" | `AGENTS.md`, `SECURITY.md` and the owner's decisions bar them |
 
@@ -97,28 +94,11 @@ the value: the place is the authority.
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `ESCAPE_HATCH_MARKERS` | `.agents/rules/logic.md`, "Swift constructs that bypass the checks" | Swift's constructs that bypass its checks |
-| `HIDDEN_CALLER_MECHANISMS` | `.agents/rules/design-vocabulary.md`, "What hides a Swift caller from text search" | What hides a Swift caller from text search |
+| `HIDDEN_CALLER_MECHANISMS` | `.agents/rules/design-vocabulary.md`, "Rules of judgement" | What hides a Swift caller from text search |
 | `CALLER_RULE` | `.agents/rules/design-vocabulary.md`, "Rules of judgement" and "Recorded answers in this tree" | The default, with the recorded answer on `SlovoTestSupport` |
-| `HIGH_CONSEQUENCE_PATHS` | `.agents/rules/logic.md`, "Code with real consequences" | Where `AGENTS.md`, "Product intent — how the app must work", puts the cost of a defect |
-| `ENTRY_POINTS` | `.agents/rules/logic.md`, "Entry points" | Where a reachability trace starts |
 | `NAME_CENSUS_CONCEPTS` | `.agents/rules/text-residue.md`, "What the text covers here" | The owner's decision: the concepts `AGENTS.md`, "Product intent — how the app must work", names. No glossary exists |
 | `EXPERT_KINDS` | `.agents/skills/issue-court/SKILL.md`, "The trial" | The owner's decision: the kinds the specification lists for a court with the toolchain present |
 | `BUG_TEMPLATE_FIELDS` | The field labels of `.github/ISSUE_TEMPLATE/bug_report.yml` | The bug template's own field names |
-
-### Security and dependencies
-
-| Slot | Value | Reason |
-| :-- | :-- | :-- |
-| `THREAT_MODEL` | `.agents/rules/threat-model.md`, "The model" | What every security finding is argued against |
-| `SECRET_INVENTORY` | `.agents/rules/threat-model.md`, "Surfaces", secrets | The secrets the project holds (`docs/release-ci.md`, "One-time owner setup"; `docs/privacy.md`, "Keychain") |
-| `PRIVILEGED_PIPELINES` | `.agents/rules/threat-model.md`, "Surfaces", workflows | They sign, notarize, publish or push |
-| `UPDATE_CHANNEL` | `.agents/rules/threat-model.md`, "Surfaces", the update channel | How installed copies receive updates |
-| `RENDERED_OUTPUT` | `.agents/rules/threat-model.md`, "Surfaces", rendered output | The owner's decision: `CHANGELOG.md` and the release notes, both rendered from merged pull-request titles |
-| `UPDATE_BOT` | `.agents/rules/dependencies.md` | `.github/dependabot.yml` |
-| `DEPENDENCY_PROMISES` | `.agents/rules/dependencies.md`, "Promises an update must not break" | Recorded decisions a bump must not break |
-| `QUALITY_GATED_DEPENDENCIES` | `.agents/rules/dependencies.md`, "A quality-gated dependency" | `.github/dependabot.yml` |
-| `ADVISORY_SOURCES` | `.agents/rules/dependencies.md`, "Advisories" | The two ecosystems the update bot watches |
 
 ### Tracker vocabulary and bounds
 
@@ -130,11 +110,9 @@ the value: the place is the authority.
 | `VETO_LABEL` | `wontfix` | The default |
 | `NO_TRIAL_LABEL` | `no-trial` | The default. The owner creates it |
 | `DEPENDENCY_LABEL` | `dependencies` | The default, applied by the update bot |
-| `CAP_TABLE` | `.agents/rules/filing.md`, "Backpressure" | The default column |
 | `WORK_ISSUES_PER_RUN` | Not used | No role cuts work issues |
 | `MARKER_NS` | `slovo` | The repository's name |
 | `TRUSTED_AUTHOR_TEST` | `.agents/rules/unattended.md`, "Instructions and evidence" | Write-level membership, as the code host reports it on a repository owned by a personal account |
-| `POLICE_SKIP_COURT` | Off | The default. Every police report is tried |
 | `COMMIT_CONVENTION` | What releases: `cliff.toml`. The kind mapping: `.agents/skills/implementer/SKILL.md`, "The hand-off on an accepted verdict", step 2 | The owner's decision for `tech-debt` and `documentation`. Any header outside `feat:`, `fix:` and `perf:` merges without a release (`AGENTS.md`, "Before you open a pull request") |
 
 ### The delivery pipeline
@@ -160,8 +138,6 @@ the value: the place is the authority.
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `OPERATION`, `RECORD_WINDOW` | Not used | The record police is off |
-| `PUBLISHED_SURFACE`, `SUPPORTED_SURFACES`, `REFERENCE_SOURCES`, `CONFORMANCE_CHECK`, `HYGIENE_SET` | Not used | The published-surface police is off |
 | The pipeline law's skill id | `pipeline-law` | The specification names no id for the shared law. A rename is one search and replace |
 
 ## What the code host must support
@@ -172,9 +148,6 @@ measured facts of the environment. The owner decided that the callers carry
 them (`.agents/rules/context.md`, "The context standard"). The repository
 decides only these:
 
-- **Closing references** count only for the backpressure leave-out
-  (`.agents/rules/filing.md`, "Backpressure"), since `CLOSE_ON_MERGE` is
-  off.
 - **A protected default branch** is not relied on. The run law forbids a
   role's push to `main` whatever the code host enforces
   (`.agents/rules/unattended.md`, "No role pushes to `main`").
@@ -269,12 +242,6 @@ was wrong, as each says.
   specification's standard for a `ready` work issue. No role cuts one: a
   sustained finding goes to the delivery pipeline. The label keeps its
   meaning for the owner, and the court still drops an issue that carries it.
-- **Only a trusted author's pull request holds a finding back.** The
-  specification put every open pull request fixing a finding on the
-  do-not-report list. A stranger could keep a finding from the tracker by
-  leaving a pull request open.
-  `.agents/rules/filing.md`, "The do-not-report list", now applies the
-  trusted-author test, as its backpressure leave-out already did.
 - **The implementer names the deterministic gate where it means it.** The
   specification calls CI's commands the gate, and also told the implementer,
   after the final slice, never to run the gate, meaning its checks of the

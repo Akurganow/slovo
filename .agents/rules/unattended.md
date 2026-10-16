@@ -118,9 +118,8 @@ or the pipeline law cites. "No role pushes to `main`" has no exception.
   "Permission levels for a personal account repository", `github/docs` at
   `8794b3c`). The association values are the code host's own (REST API
   description, schema `author-association`, `github/rest-api-description`
-  at `734bc9c`). The same test applies to a closing reference that lifts a
-  backpressure count and to a review comment a pipeline stage reads as the
-  owner's. Without it a stranger on a public tracker could forge a court
+  at `734bc9c`). The same test applies to a review comment a pipeline stage
+  reads as the owner's. Without it a stranger on a public tracker could forge a court
   marker, have work cut from text the court never wrote, or keep an issue
   from trial.
 - **The role identity, the one roles write under, must pass that test.**

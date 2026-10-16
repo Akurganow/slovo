@@ -26,29 +26,11 @@ the docs.
 
 ## What the text covers here
 
-- Swift comments under `Sources/`, `Tools/` and `Tests/`, shell comments
-  under `Scripts/`, and comments in `.github/workflows/`.
-- Names. The concepts to count names for are every domain concept
-  `AGENTS.md`, "Product intent — how the app must work", names. That section
-  is the list's one home, so the list grows with it. A name that disagrees
-  with the section's own word is stronger evidence than one that merely
-  varies.
-- Tests. An asserted value that is a fake's own configured return, such as a
-  fake from `SlovoTestSupport`, or a fixture's own content, is `ceremony`. A
-  test name that repeats another test's body is `residue`.
-- Scripts and pipeline definitions under `Scripts/` and `.github/workflows/`:
-  comments and step names against what each step does. A step for a path
-  that moved is a shape, not text.
-- Docs, all kinds: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`,
-  `CODE_OF_CONDUCT.md`, and the documents directly under `docs/`, except
-  `docs/architecture.md`.
-- Docs, `lying` only: task specifications under `docs/tasks/`, platform
-  references under `docs/references/`, the templates under `.github/`, and
-  the benchmark cases under `Benchmarks/cleanup/`. A task specification
-  describes work on purpose, a template is boilerplate on purpose, and a
-  reference describes the platform rather than this code.
-- `CHANGELOG.md` is excluded: an entry describes the code at its release, so
-  disagreeing with today's code is history, not a lie.
+- Name-census concepts come from `AGENTS.md`, "Product intent — how the app
+  must work".
+- `docs/architecture.md` is excluded.
+- `docs/tasks/`, `docs/references/` and the templates under `.github/` are
+  judged for `lying` only.
 
 ## The kinds
 
@@ -137,12 +119,6 @@ the docs.
   misread. Residue is judged strictly above the fence.
 - A tell that recurs and could be matched by a pattern is a proposal in a
   report, never a check added on the spot.
-
-## Neighbours
-
-A shape is judged as its own class of defect, not as residue. Residue names
-the text.
-`ceremony` is only the test or gate check that cannot fail.
 
 This file describes the fence in `.swiftlint.yml` and the files the release
 pipeline and the package manager write. Where those disagree with it, they

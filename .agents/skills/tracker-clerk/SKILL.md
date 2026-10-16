@@ -218,12 +218,7 @@ Beyond them, never:
    source still live after its item merged.
 6. **Metrics**, computed afresh from the tracker every fire, never carried
    over:
-   - **precision by fingerprint prefix**: filed; tried;
-     counts by latest verdict; fixed, meaning closed as gone after a
-     sustaining verdict; fixed before trial, meaning closed as gone before
-     any sustaining verdict, which is neither a hit nor a miss; the median
-     days from filing to first trial, and from filing to the fixed close;
-   - **backpressure**: each fingerprint prefix's open issues, counted as
-     `.agents/rules/filing.md`, "Backpressure", counts them. State the
-     number, never the cap.
+   - **counts by fingerprint prefix**: filed; tried; by latest verdict;
+     closed as gone; the median days from filing to first trial, and from
+     filing to the gone close.
 7. **Blockers**, and the working-tree status at the end, against the start.

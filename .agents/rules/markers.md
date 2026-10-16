@@ -35,23 +35,9 @@ note on its own issue:
 - `severity=` follows the last field after one space, only from a role that
   grades severity. It is no part of the identity: fingerprints are compared
   without it. The court orders its queue by it.
-- How a fingerprint is compared, and which fields are volatile, is
-  `.agents/rules/filing.md`, "Identity: the fingerprint".
 
-The ids below are the prefixes of the issues the retired police roles filed.
-Those issues stay in the machine population, and nothing writes a new one.
-
-| Role id | Fields | `severity=` |
-| :-- | :-- | :-- |
-| `logic-police` | `<path>::<symbol>::<defect-class>` | Always |
-| `abstraction-police` | `<path>::<symbol>::<kind>` | Never |
-| `proportion-police` | `<path>::<symbol>::<kind>` | Never |
-| `privacy-police` | `<path>::<symbol>::<kind>` | Never |
-| `security-police` | `<surface>::<path>::<defect-class>` | Always |
-| `dependency-police` | `<dependency>::<advisory-id>::advisory` | Never |
-| `text-residue-police` | `<path>::<symbol-or-concept>::<kind>` | Never |
-| `test-police` | `<path>::<test-or-cluster>::<kind>` | Never |
-| `agent-police` | `<path>::<subject>::<kind>` | Never |
+Older issues carry `<role>-police-fingerprint:` prefixes. Nothing writes new
+ones.
 
 - **Readers:** the court, for its queue and for the rulebook an issue body
   names. The tracker clerk, to tell a police report.
@@ -98,9 +84,7 @@ closes, or a comment of its own on an issue that stays open.
 
 - **Writer:** the tracker clerk.
 - **Readers:** the tracker clerk, for its skip test and for a close marker on
-  an open issue. The pipeline clerk at intake, for `action=handed`. Whatever
-  files automated issues, for `action=gone` under the regression rule of
-  `.agents/rules/filing.md`. The court, for `action=gone` on a closed issue
+  an open issue. The pipeline clerk at intake, for `action=handed`. The court, for `action=gone` on a closed issue
   its `duplicate` verdict would name.
 
 ## The item fingerprint
@@ -118,8 +102,7 @@ it is never removed and never rewritten:
 - **Writer:** the pipeline clerk, when it opens the item. Every later body
   write keeps it.
 - **Readers:** every pipeline role. The tracker clerk, for the closes after
-  an item settles. Whatever files automated issues, for its backpressure
-  count and its regression rule.
+  an item settles.
 
 ## The state block
 

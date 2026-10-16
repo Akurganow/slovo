@@ -345,16 +345,13 @@ What the roles share is in `.agents/rules/`, one file per job:
 - `.agents/rules/process.md`: acceptance rounds and the cycle for
   implementing work;
 - `.agents/rules/filing.md`: how an automated issue is identified, which
-  issues are in the machine population, and what is not reported twice;
+  issues are in the machine population, and when a closed finding may be
+  filed again;
 - `.agents/rules/labels.md`: the label axes and what each label means;
 - `.agents/rules/markers.md`: every marker the roles write and read;
 - `.agents/rules/text-residue.md`, `.agents/rules/tests.md`,
   `.agents/rules/design-vocabulary.md` and `.agents/rules/claims.md`: the
   catalogues findings are measured by;
-- `.agents/rules/logic.md`, `.agents/rules/privacy.md`,
-  `.agents/rules/dependencies.md` and `.agents/rules/threat-model.md`: the
-  facts of this repository that a review of correctness, data paths,
-  dependency updates or security argues from;
 - `.agents/rules/context.md`: precedence between documents, and the
   standard every fleet document is written to;
 - `.agents/rules/verification.md`: the gate CI runs, and what a green run

@@ -32,6 +32,9 @@ would do". An objection with no symptom is withdrawn.
   that exist, and say in one line who they are. A widened surface whose
   reason names a future caller is worth waiting on: the written reason is
   what ends the wait at the right moment.
+- **Hidden Swift callers.** `@objc` selectors, SwiftUI property wrappers,
+  `#Preview` blocks and Swift Testing macros reach a symbol without naming
+  it.
 - **Prefer the specific mechanism** until a second caller exists. Say what a
   general one buys before proposing it.
 - **Errors defined out of existence.** A closed set read leniently and
@@ -67,19 +70,6 @@ analysed commit.
   its release deadline, the per-dictation cue queue and the withhold
   boundary around the Start cue are recorded as earning their keep
   (`AGENTS.md`, "Product intent — how the app must work", "Sound cues").
-
-## What hides a Swift caller from text search
-
-A reference count that finds no caller is not enough. These reach a symbol
-without naming it:
-
-- protocol witnesses called only through the protocol;
-- `@objc` selectors;
-- string-based class lookup;
-- SwiftUI property wrappers and result builders;
-- `#Preview` blocks;
-- Swift Testing macros;
-- code a build-tool plugin or the manifest reaches.
 
 This file describes shapes in the tree. Where the tree and this file
 disagree, the tree wins and this file is stale.
