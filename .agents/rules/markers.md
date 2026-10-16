@@ -31,14 +31,27 @@ note on its own issue:
 - Every prefix ends in `-fingerprint:`, so one search for that string finds
   every automated issue.
 - There are two or more positional fields. The last is the filer's class: a
-  token from the closed vocabulary its role file defines.
+  token from the closed vocabulary its role file defined. The role files are
+  retired. Their vocabularies stay readable at commit `0ca81bf`, in
+  `.agents/skills/<role-id>/SKILL.md`.
 - `severity=` follows the last field after one space, only from a role that
   grades severity. It is no part of the identity: fingerprints are compared
   without it. The court orders its queue by it.
 
-Older issues carry `<role>-police-fingerprint:` prefixes. Nothing writes new
-ones.
+| Role id | Fields | `severity=` |
+| :-- | :-- | :-- |
+| `logic-police` | `<path>::<symbol>::<defect-class>` | Always |
+| `abstraction-police` | `<path>::<symbol>::<kind>` | Never |
+| `proportion-police` | `<path>::<symbol>::<kind>` | Never |
+| `privacy-police` | `<path>::<symbol>::<kind>` | Never |
+| `security-police` | `<surface>::<path>::<defect-class>` | Always |
+| `dependency-police` | `<dependency>::<advisory-id>::advisory` | Never |
+| `text-residue-police` | `<path>::<symbol-or-concept>::<kind>` | Never |
+| `test-police` | `<path>::<test-or-cluster>::<kind>` | Never |
+| `agent-police` | `<path>::<subject>::<kind>` | Never |
 
+- **Writer:** the retired police role the prefix names. Nothing writes new
+  ones. Lawman's leads carry their own marker, not this one.
 - **Readers:** the court, for its queue and for the rulebook an issue body
   names. The tracker clerk, to tell a police report.
 
