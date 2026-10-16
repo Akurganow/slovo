@@ -21,9 +21,8 @@ trusted marker of one writer on one subject wins. Nobody edits an older one.
 
 ## Police fingerprints
 
-The last line of every issue a police role files, of that role's stale note
-on its own issue, and of every draft private security advisory the security
-police opens:
+The last line of every issue a police role filed, and of that role's stale
+note on its own issue:
 
 ```
 <!-- <role-id>-fingerprint: <field>::<field>::<class>[ severity=<critical|high|medium|low>] -->
@@ -39,6 +38,9 @@ police opens:
 - How a fingerprint is compared, and which fields are volatile, is
   `.agents/rules/filing.md`, "Identity: the fingerprint".
 
+The ids below are the prefixes of the issues the retired police roles filed.
+Those issues stay in the machine population, and nothing writes a new one.
+
 | Role id | Fields | `severity=` |
 | :-- | :-- | :-- |
 | `logic-police` | `<path>::<symbol>::<defect-class>` | Always |
@@ -51,10 +53,8 @@ police opens:
 | `test-police` | `<path>::<test-or-cluster>::<kind>` | Never |
 | `agent-police` | `<path>::<subject>::<kind>` | Never |
 
-- **Writer:** the role the prefix names.
-- **Readers:** every police role, for its do-not-report list, its cap, its
-  stale note and its regression rule. The court, for its queue and for the
-  filer's rulebook. The tracker clerk, to tell a police report.
+- **Readers:** the court, for its queue and for the rulebook an issue body
+  names. The tracker clerk, to tell a police report.
 
 ## The court's marker
 
@@ -98,26 +98,10 @@ closes, or a comment of its own on an issue that stays open.
 
 - **Writer:** the tracker clerk.
 - **Readers:** the tracker clerk, for its skip test and for a close marker on
-  an open issue. The pipeline clerk at intake, for `action=handed`. Every
-  police role, for `action=gone` under the regression rule of
+  an open issue. The pipeline clerk at intake, for `action=handed`. Whatever
+  files automated issues, for `action=gone` under the regression rule of
   `.agents/rules/filing.md`. The court, for `action=gone` on a closed issue
   its `duplicate` verdict would name.
-
-## The dependency review
-
-The last line of the dependency police's one comment on an update bot's pull
-request, one per head:
-
-```
-<!-- dependency-review: head=<head commit> verdict=<safe|attention|condition|reject> -->
-```
-
-- Each token stands for the opening phrase of the comment, in the order the
-  dependency police's role file lists the phrases. A phrase never stands in
-  the marker, because its spaces and punctuation break the `key=value`
-  reading.
-- **Writer and reader:** the dependency police, by `head=`. `verdict=` is
-  for a person reading the record: no role branches on it.
 
 ## The item fingerprint
 
@@ -134,8 +118,8 @@ it is never removed and never rewritten:
 - **Writer:** the pipeline clerk, when it opens the item. Every later body
   write keeps it.
 - **Readers:** every pipeline role. The tracker clerk, for the closes after
-  an item settles. Every police role, for its backpressure count and its
-  regression rule.
+  an item settles. Whatever files automated issues, for its backpressure
+  count and its regression rule.
 
 ## The state block
 

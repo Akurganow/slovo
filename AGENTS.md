@@ -37,7 +37,7 @@ have to be repeated. Every agent and contributor follows them without being aske
 7. **Nobody checks their own work.** Implementing, reviewing and declaring
    done are three different agents or people.
 8. **Prefer a mature dependency over hand-rolled code.** Hand-rolled code
-   carries a comment saying why no dependency fits. A police role never
+   carries a comment saying why no dependency fits. No automated finding
    proposes a new dependency: vetting one is a person's decision.
 9. **Strict about our own data, never strict at the agent.** Enforce in code,
    not in instructions to a model. Where reliability matters, the agent
@@ -320,30 +320,22 @@ Roles run over this repository unattended. Each role is a skill under
 `.agents/skills/`, with one thin binding under `.claude/agents/` that names
 its skill and holds no instruction of its own. A skill with no binding is a
 shared skill: the pipeline law, `.agents/skills/pipeline-law/SKILL.md`,
-governs the delivery pipeline's roles. They read it whole, and so does the
-agent police, which patrols it. The tracker clerk reads its discriminator,
-and so does every police role, through `.agents/rules/filing.md`,
-"Backpressure". The security police also reads its trust and push rules as
-part of its subject. The bindings of the pipeline's roles, the agent police
-and the tracker clerk preload it. Read the set of roles from the tree, never
-from a count written here.
+governs the delivery pipeline's roles. They read it whole. The tracker clerk
+reads its discriminator. The bindings of the pipeline's roles and the tracker
+clerk preload it. Read the set of roles from the tree, never from a count
+written here.
 
 The chain runs from a finding to a pull request a person merges:
 
-- the police roles each sweep one subject of the code, its tests, its text,
-  its dependencies or its security, and the privacy police sweeps the code
-  against `docs/privacy.md`. Each files the few findings that survive
-  independent triage;
+- findings arrive as issues in the machine population
+  (`.agents/rules/filing.md`, "The machine population");
 - the court tries one filed finding per fire and records a verdict on it;
 - the tracker clerk executes the verdicts: it closes what was tried or is
   provably gone, and hands each sustained finding to the delivery pipeline;
 - the pipeline clerk turns a handed finding into a draft pull request. The
   spec writer specifies the change, the spec reviewer reviews the
   specification, and the implementer writes and tests it on that branch,
-  until the pipeline clerk marks the pull request `ready-for-human`;
-- the agent police patrols the fleet's own documents, itself included, for
-  documents that have begun to describe two machines instead of one, and
-  checks `docs/architecture.md` against the code.
+  until the pipeline clerk marks the pull request `ready-for-human`.
 
 What the roles share is in `.agents/rules/`, one file per job:
 
@@ -352,14 +344,17 @@ What the roles share is in `.agents/rules/`, one file per job:
 - `.agents/rules/evidence.md`: how a claim is proved in a judged round;
 - `.agents/rules/process.md`: acceptance rounds and the cycle for
   implementing work;
-- `.agents/rules/filing.md`: how an automated run files an issue, within
-  which bounds, and which role owns a finding;
+- `.agents/rules/filing.md`: how an automated issue is identified, which
+  issues are in the machine population, and what is not reported twice;
 - `.agents/rules/labels.md`: the label axes and what each label means;
-- `.agents/rules/police.md`: what every police role shares;
 - `.agents/rules/markers.md`: every marker the roles write and read;
 - `.agents/rules/text-residue.md`, `.agents/rules/tests.md`,
   `.agents/rules/design-vocabulary.md` and `.agents/rules/claims.md`: the
   catalogues findings are measured by;
+- `.agents/rules/logic.md`, `.agents/rules/privacy.md`,
+  `.agents/rules/dependencies.md` and `.agents/rules/threat-model.md`: the
+  facts of this repository that a review of correctness, data paths,
+  dependency updates or security argues from;
 - `.agents/rules/context.md`: precedence between documents, and the
   standard every fleet document is written to;
 - `.agents/rules/verification.md`: the gate CI runs, and what a green run

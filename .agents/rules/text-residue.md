@@ -3,9 +3,9 @@
 What a code generator leaves behind and a person would not have written on
 purpose. Where agents write much of the code, residue is expected. This file
 makes it a defect with a measurement instead of a matter of taste. Its
-readers are the text-residue police, the court trying its findings, and any
-reviewer of this repository's text. Everything a linter decides belongs to
-the gate (`.agents/rules/verification.md`), not here.
+readers are the text-residue department, the court trying its findings, and
+any reviewer of this repository's text. Everything a linter decides belongs
+to the gate (`.agents/rules/verification.md`), not here.
 
 ## The one test
 
@@ -23,6 +23,32 @@ the docs.
 - One excerpt can hold several findings. Each finding has exactly one kind.
 - When two kinds fit, the later one in the list wins, because its
   measurement is stronger evidence.
+
+## What the text covers here
+
+- Swift comments under `Sources/`, `Tools/` and `Tests/`, shell comments
+  under `Scripts/`, and comments in `.github/workflows/`.
+- Names. The concepts to count names for are every domain concept
+  `AGENTS.md`, "Product intent — how the app must work", names. That section
+  is the list's one home, so the list grows with it. A name that disagrees
+  with the section's own word is stronger evidence than one that merely
+  varies.
+- Tests. An asserted value that is a fake's own configured return, such as a
+  fake from `SlovoTestSupport`, or a fixture's own content, is `ceremony`. A
+  test name that repeats another test's body is `residue`.
+- Scripts and pipeline definitions under `Scripts/` and `.github/workflows/`:
+  comments and step names against what each step does. A step for a path
+  that moved is a shape, not text.
+- Docs, all kinds: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`,
+  `CODE_OF_CONDUCT.md`, and the documents directly under `docs/`, except
+  `docs/architecture.md`.
+- Docs, `lying` only: task specifications under `docs/tasks/`, platform
+  references under `docs/references/`, the templates under `.github/`, and
+  the benchmark cases under `Benchmarks/cleanup/`. A task specification
+  describes work on purpose, a template is boilerplate on purpose, and a
+  reference describes the platform rather than this code.
+- `CHANGELOG.md` is excluded: an entry describes the code at its release, so
+  disagreeing with today's code is history, not a lie.
 
 ## The kinds
 
@@ -74,8 +100,8 @@ the docs.
 10. **The instructions:** `AGENTS.md`, everything under `.agents/`, the
     bindings under `.claude/agents/`, and `docs/architecture.md`. Read, never
     judged as text. Whether they agree with each other, and whether
-    `docs/architecture.md`'s claims still hold, is the agent police's subject
-    alone. Instruction text the product ships, such as the cleanup prompt it
+    `docs/architecture.md`'s claims still hold, is not a question of this
+    file. Instruction text the product ships, such as the cleanup prompt it
     sends to a model, is product text and is judged.
 11. **A cited source beside a claim**: its kind, its pinned revision, and its
     clause number for a specification. To an outside eye these read as
@@ -114,8 +140,8 @@ the docs.
 
 ## Neighbours
 
-A shape is judged as its own class of defect, not as residue: see
-`.agents/rules/filing.md`, "Ownership routing". Residue names the text.
+A shape is judged as its own class of defect, not as residue. Residue names
+the text.
 `ceremony` is only the test or gate check that cannot fail.
 
 This file describes the fence in `.swiftlint.yml` and the files the release

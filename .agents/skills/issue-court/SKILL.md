@@ -54,21 +54,20 @@ verdicts come from. An issue asking to undo one gets "works as intended",
 with the citation. The comment may relay it as a design question for the
 owner.
 
-**The filer's rulebook.** The fingerprint's role id names the filer. Its
-role file, `.agents/skills/<role-id>/SKILL.md`, names the rulebook that
-judges its findings (`.agents/rules/police.md`, "Name the rulebook"). The
-issue body's `Judged by:` line names one too. Check it against the role file.
-Where they disagree, the role file wins, and the comment says which document
-applied. A finding judged by a catalogue, a rulebook with kinds, must meet
-all three of these, and one that fails any is dismissed on that alone:
+**The filer's rulebook.** The issue body's `Judged by:` line names the
+document the court tries the finding by. Where the line is absent, the
+court's own inputs suffice. The comment says which document applied. A
+finding judged by a catalogue, a rulebook with kinds, must meet all three of
+these, and one that fails any is dismissed on that alone:
 
 - it is one of the rulebook's kinds;
 - it is measured as that kind prescribes;
 - it is outside the rulebook's protected list.
 
-An agent-police finding names the authority it rests on. One naming none
-fails on that alone. A privacy-police finding quotes the row or statement of
-`docs/privacy.md` it differs from. One quoting none fails on that alone.
+A finding about the fleet's own documents names the authority it rests on.
+One naming none fails on that alone. A finding that a data path differs from
+the privacy promises quotes the row or statement of `docs/privacy.md` it
+differs from. One quoting none fails on that alone.
 
 ## The queue
 

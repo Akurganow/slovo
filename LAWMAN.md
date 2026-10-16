@@ -14,6 +14,10 @@ contract_version: 1
 ## Departments
 
 - abstractions: judged by .agents/rules/design-vocabulary.md
+- proportion: judged by .agents/rules/design-vocabulary.md
+- text-residue: judged by .agents/rules/text-residue.md
+- tests: judged by .agents/rules/tests.md
+- privacy: judged by docs/privacy.md
 
 ## Fence
 
@@ -46,7 +50,6 @@ contract_version: 1
 - Tests/SlovoCoreTests/Fixtures
 - Sources/SlovoCore/Resources
 - Resources/Slovo.icon
-- .claude
 
 ## Execution
 

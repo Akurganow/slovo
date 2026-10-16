@@ -8,8 +8,7 @@ fires act on the ones in the fleet's own documents.
 
 Its readers:
 
-- the agent police judges the fleet's own documents by it, and the court
-  tries those findings by it;
+- the court tries a finding about the fleet's own documents by it;
 - `.agents/rules/text-residue.md` protects the citations it requires.
 
 ## The one test
@@ -63,8 +62,3 @@ hardest to catch in review. It reads exactly like the sourced kind.
 - **A caution that names no system.** A hazard stated as a possibility, such
   as "some routes replace the set", claims nothing about one system. The run
   law's hazards are written this way on purpose.
-
-## Neighbours
-
-Which role owns a claim follows `.agents/rules/filing.md`, "Ownership
-routing".

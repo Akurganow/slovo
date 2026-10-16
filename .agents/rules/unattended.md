@@ -23,7 +23,7 @@ decision.
 
 | Class | Who | Governed by |
 | :-- | :-- | :-- |
-| Analysis run | Every police role, the court, the tracker clerk, the agent police | This file in full |
+| Analysis run | The court, the tracker clerk | This file in full |
 | Caretaker | The pipeline clerk | The pipeline law, `.agents/skills/pipeline-law/SKILL.md`. Of this file, "No role pushes to `main`", "Instructions and evidence", "Probing access", "What a run publishes" and "Reporting" still apply, and so does `.agents/rules/evidence.md` |
 | Read-only stage | The spec reviewer. It writes no file | The pipeline law. Of this file, "No role pushes to `main`", "Instructions and evidence", "Probing access", "Leave no trace", "What a run never does", "What a run publishes" and "Reporting" still apply, and so does `.agents/rules/evidence.md` |
 | Implementing session | The spec writer, the implementer, and people | The pipeline law and `AGENTS.md`. Of this file, "No role pushes to `main`", "Instructions and evidence", "Probing access", "What a run publishes" and "Reporting" still apply, and so does `.agents/rules/evidence.md` |
@@ -359,8 +359,8 @@ An unattended run never:
 - **A time in a marker is when the run observed the state it records.**
   Compare it against observation times, never against when the marker was
   written.
-- **A found secret is never written in full.** It appears only in the form
-  the security police's role file allows.
+- **A found secret is never written in full.** A report names the file, the
+  line and the kind of credential, never the value.
 
 ### The order of exit writes
 

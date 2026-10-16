@@ -114,14 +114,12 @@ only to catch a named mutation can pin the implementation and become a
    tests left apart because merging would hurt readability (§2.5).
 7. A distinct regression input. A test feeding a case no other test feeds is
    not redundant because another test runs the same lines (§2.3).
-8. A shape with a recorded reason, for as long as the reason is true. Only
-   the test police's seam challenge argues that a reason no longer holds.
+8. A shape with a recorded reason, for as long as the reason is true.
 9. Sensitivity notes, as prose (`.agents/rules/text-residue.md` protects
    them too).
 
 ## Neighbours
 
-Which role owns a finding is `.agents/rules/filing.md`, "Ownership routing".
 A test that cannot fail is `ceremony`, and a scenario duplicated under a
 second name is `residue`. Both are kinds of `.agents/rules/text-residue.md`,
 not of this file.

@@ -3,8 +3,8 @@
 The standard is "do not complicate the code", and cognitive load is the
 measure (`AGENTS.md`, "Standing owner directives", 1). This file gives
 reviewers words they can point at, and the places in this repository's tree
-that already answer each question. The abstraction police and the
-proportion police judge by it, and the court tries their findings by it.
+that already answer each question. It is the judging document for the
+abstractions and proportion departments.
 
 ## Name the symptom
 
@@ -67,6 +67,19 @@ analysed commit.
   its release deadline, the per-dictation cue queue and the withhold
   boundary around the Start cue are recorded as earning their keep
   (`AGENTS.md`, "Product intent — how the app must work", "Sound cues").
+
+## What hides a Swift caller from text search
+
+A reference count that finds no caller is not enough. These reach a symbol
+without naming it:
+
+- protocol witnesses called only through the protocol;
+- `@objc` selectors;
+- string-based class lookup;
+- SwiftUI property wrappers and result builders;
+- `#Preview` blocks;
+- Swift Testing macros;
+- code a build-tool plugin or the manifest reaches.
 
 This file describes shapes in the tree. Where the tree and this file
 disagree, the tree wins and this file is stale.

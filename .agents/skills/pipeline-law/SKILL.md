@@ -84,7 +84,7 @@ host").
   item carrying either is **parked**.
 - A stuck item carries exactly one stage label beside `pipeline/stuck`, with
   one exception ("Stops").
-- Labels the pipeline does not own, the court's and the police's among them,
+- Labels the pipeline does not own, the court's among them,
   are conventions, never guards. Every skip test is positive, built from the
   pipeline's own markers. The owner may add or remove any label at any time,
   and every stage reads that as an override.
@@ -199,9 +199,9 @@ host").
   stage acting on a label alone would take instructions from whoever applied
   it.
 - **Every read of a fingerprint applies the three facts first**: the clerk's
-  sweep, its duplicate guard, its stale and narrowing cases, the tracker
-  clerk's closes, and every police role's backpressure count. Roles close
-  issues and pull requests on this test, so a forged item must fail it.
+  sweep, its duplicate guard, its stale and narrowing cases, and the tracker
+  clerk's closes. Roles close issues and pull requests on this test, so a
+  forged item must fail it.
 - A stage treats a **closed** pull request as no item. A late or duplicate
   event then cannot restart what the owner or the clerk closed.
 - **A fire with no event finds its own item.** List the open pull requests
@@ -616,8 +616,7 @@ instruction could switch off a release in silence.
 
 `.agents/`, `.claude/` and `AGENTS.md` are not closed. A change to a role or
 to this law reaches `main` the way every change does: through the owner's
-review and merge. The agent police files findings whose whole fix lies there,
-and only a stage can build one unattended.
+review and merge. Only a stage can build such a change unattended.
 
 ## Preconditions, read-back and reporting
 
