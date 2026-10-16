@@ -3,7 +3,7 @@
 Which text wins when two disagree, and the standard every fleet document is
 written to: `AGENTS.md`, every rule file under `.agents/rules/`, every role
 file and shared skill under `.agents/skills/`, every binding under
-`.claude/agents/`, and `.agents/adaptation.md`. The agent police enforces it.
+`.claude/agents/`, and `.agents/adaptation.md`.
 
 ## Precedence
 
@@ -22,9 +22,8 @@ When two texts disagree, this order decides.
    wins, and the rule file is fixed.
 7. A rule file MAY name, in its first paragraph, the rule files it yields
    to. Two rule files that contradict each other, where neither yields, have
-   no automatic winner. The contradiction is an agent-police finding, and
-   the owner decides. An order fixed in advance would settle a contradiction
-   nobody has read.
+   no automatic winner. The owner decides. An order fixed in advance would
+   settle a contradiction nobody has read.
 
 Every rule file that describes something outside itself ends with that
 staleness clause, naming what it describes.

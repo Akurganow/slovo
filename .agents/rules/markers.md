@@ -21,9 +21,8 @@ trusted marker of one writer on one subject wins. Nobody edits an older one.
 
 ## Police fingerprints
 
-The last line of every issue a police role files, of that role's stale note
-on its own issue, and of every draft private security advisory the security
-police opens:
+The last line of every issue a police role filed, and of that role's stale
+note on its own issue:
 
 ```
 <!-- <role-id>-fingerprint: <field>::<field>::<class>[ severity=<critical|high|medium|low>] -->
@@ -32,12 +31,12 @@ police opens:
 - Every prefix ends in `-fingerprint:`, so one search for that string finds
   every automated issue.
 - There are two or more positional fields. The last is the filer's class: a
-  token from the closed vocabulary its role file defines.
+  token from the closed vocabulary its role file defined. The role files are
+  retired. Their vocabularies stay readable at commit `0ca81bf`, in
+  `.agents/skills/<role-id>/SKILL.md`.
 - `severity=` follows the last field after one space, only from a role that
   grades severity. It is no part of the identity: fingerprints are compared
   without it. The court orders its queue by it.
-- How a fingerprint is compared, and which fields are volatile, is
-  `.agents/rules/filing.md`, "Identity: the fingerprint".
 
 | Role id | Fields | `severity=` |
 | :-- | :-- | :-- |
@@ -51,10 +50,10 @@ police opens:
 | `test-police` | `<path>::<test-or-cluster>::<kind>` | Never |
 | `agent-police` | `<path>::<subject>::<kind>` | Never |
 
-- **Writer:** the role the prefix names.
-- **Readers:** every police role, for its do-not-report list, its cap, its
-  stale note and its regression rule. The court, for its queue and for the
-  filer's rulebook. The tracker clerk, to tell a police report.
+- **Writer:** the retired police role the prefix names. Nothing writes new
+  ones. Lawman's leads carry their own marker, not this one.
+- **Readers:** the court, for its queue and for the rulebook an issue body
+  names. The tracker clerk, to tell a police report.
 
 ## The court's marker
 
@@ -98,26 +97,8 @@ closes, or a comment of its own on an issue that stays open.
 
 - **Writer:** the tracker clerk.
 - **Readers:** the tracker clerk, for its skip test and for a close marker on
-  an open issue. The pipeline clerk at intake, for `action=handed`. Every
-  police role, for `action=gone` under the regression rule of
-  `.agents/rules/filing.md`. The court, for `action=gone` on a closed issue
+  an open issue. The pipeline clerk at intake, for `action=handed`. The court, for `action=gone` on a closed issue
   its `duplicate` verdict would name.
-
-## The dependency review
-
-The last line of the dependency police's one comment on an update bot's pull
-request, one per head:
-
-```
-<!-- dependency-review: head=<head commit> verdict=<safe|attention|condition|reject> -->
-```
-
-- Each token stands for the opening phrase of the comment, in the order the
-  dependency police's role file lists the phrases. A phrase never stands in
-  the marker, because its spaces and punctuation break the `key=value`
-  reading.
-- **Writer and reader:** the dependency police, by `head=`. `verdict=` is
-  for a person reading the record: no role branches on it.
 
 ## The item fingerprint
 
@@ -134,8 +115,7 @@ it is never removed and never rewritten:
 - **Writer:** the pipeline clerk, when it opens the item. Every later body
   write keeps it.
 - **Readers:** every pipeline role. The tracker clerk, for the closes after
-  an item settles. Every police role, for its backpressure count and its
-  regression rule.
+  an item settles.
 
 ## The state block
 

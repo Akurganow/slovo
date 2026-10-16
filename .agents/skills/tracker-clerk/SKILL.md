@@ -24,7 +24,7 @@ with a verdict: a disagreement goes in the report.
    fingerprint.
 4. `.agents/rules/filing.md`, "The machine population" and "The do-not-report
    list": the only issues that exist for you, and what your `action=gone`
-   close lets a police role file again.
+   close lets a filer file again.
 5. `.agents/skills/pipeline-law/SKILL.md`, "Identity and the discriminator":
    which pull requests are pipeline items.
 
@@ -218,12 +218,7 @@ Beyond them, never:
    source still live after its item merged.
 6. **Metrics**, computed afresh from the tracker every fire, never carried
    over:
-   - **precision by police role**, keyed by fingerprint prefix: filed; tried;
-     counts by latest verdict; fixed, meaning closed as gone after a
-     sustaining verdict; fixed before trial, meaning closed as gone before
-     any sustaining verdict, which is neither a hit nor a miss; the median
-     days from filing to first trial, and from filing to the fixed close;
-   - **backpressure**: each police role's open issues, counted as
-     `.agents/rules/filing.md`, "Backpressure", counts them. State the
-     number, never the cap.
+   - **counts by fingerprint prefix**: filed; tried; by latest verdict;
+     closed as gone; the median days from filing to first trial, and from
+     filing to the gone close.
 7. **Blockers**, and the working-tree status at the end, against the start.

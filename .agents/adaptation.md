@@ -2,10 +2,9 @@
 
 How this repository fills the slots of the fleet's build specification, what
 it decides about the code host's capabilities, and where a value differs
-from the specification's default. The agent police
-reads this file like any other fleet document. Where a value lives in a rule
-file, a role file or the pipeline law, this record names that place and does
-not restate the value: the place is the authority.
+from the specification's default. Where a value lives in a rule file, a role
+file or the pipeline law, this record names that place and does not restate
+the value: the place is the authority.
 
 ## The owner's decisions
 
@@ -16,9 +15,6 @@ not restate the value: the place is the authority.
   "The machine population").
 - **A gone finding closes as completed.** The tracker clerk closes a report
   once every claim re-derives as gone at the tip, tried or not.
-- **The published-surface police and the record police are off.** The
-  repository has no recurring operation that publishes a record. The rule
-  files those roles would read are built all the same.
 - **No role ever pushes to `main`** (`.agents/rules/unattended.md`, "No role
   pushes to `main`"). The rule does not depend on what the code host
   enforces.
@@ -34,8 +30,7 @@ not restate the value: the place is the authority.
   (`.agents/rules/boundaries.md`, "What never appears in the tree or on a
   published page").
 - **Names are the specification's defaults**: the role ids and the rule-file
-  names. The privacy police, which the specification does not name, takes
-  the id `privacy-police` ("Departures").
+  names.
 - **Directives adopted** from the specification's list of owner directives:
   documentation first; nobody checks their own work; prefer a mature
   dependency over hand-rolled code; strict about our own data, never strict
@@ -72,10 +67,9 @@ not restate the value: the place is the authority.
 | `CLOSED_PATHS` | `.agents/rules/boundaries.md`, "Closed paths" | The release pipeline writes them, or they are never committed |
 | `LICENCE_POLICY` | GPLv3, with `THIRD-PARTY-NOTICES.md` and the README licence section kept current (`AGENTS.md`, "License compliance is part of every change") | A new dependency stays a person's decision |
 | `DELIBERATE_LANGUAGE_EXCEPTIONS` | `.agents/rules/text-residue.md`, "Protected: never a finding", item 5 | Recognising mixed Russian and English speech is the product |
-| `PREDECESSOR_QUIRKS` | The comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`, carried into `.agents/skills/logic-police/SKILL.md`, "Not findings", and `.agents/skills/issue-court/SKILL.md`, "What you read first" | Behaviour kept on purpose, with no migration |
+| `PREDECESSOR_QUIRKS` | The comments in `Sources/SlovoCore/Config/Config.swift` and `Sources/SlovoCore/Config/ConfigStore.swift`, carried into `.agents/skills/issue-court/SKILL.md`, "What you read first" | Behaviour kept on purpose, with no migration |
 | `ARCHITECTURE_BANS` | Empty | The recorded bans, the core free of the app shell and the update engine and the import direction of role-tagged modules, are all enforced by the gate (`.agents/rules/verification.md`, "What the gate rejects") |
 | `PUBLICATION_RULES` | `.agents/rules/boundaries.md`, "What never appears in the tree or on a published page" | `AGENTS.md`, `SECURITY.md` and the owner's decisions bar them |
-| `FLEET_SOURCES` | `.agents/skills/agent-police/SKILL.md`, "Subject" | The owner's decision: the four kinds the specification lists. The kind for a manifest specification names none, because no manifest is adopted |
 
 ### Build, gate and toolchain
 
@@ -84,7 +78,7 @@ not restate the value: the place is the authority.
 | `GATE_COMMANDS` | `.agents/rules/verification.md`, "The gate" | What `.github/workflows/swift.yml` runs |
 | `GATE_DESCRIPTION` | `.agents/rules/verification.md`, "Which run covers a commit" | A commit on `main` and a pull-request head are covered by different runs |
 | `GATE_BLIND_SPOTS` | `.agents/rules/verification.md`, "What a green run does not prove" | |
-| `FENCE` | `.agents/rules/verification.md`, "What the gate rejects" | One list, carried verbatim into every verifier brief |
+| `FENCE` | `.agents/rules/verification.md`, "What the gate rejects" | One list |
 | `TOOLCHAIN_FREE_CHECKS` | `bash -n` over each script; `plutil -lint` needs macOS but not the toolchain (`.agents/rules/verification.md`) | Every other stage needs Xcode |
 | `TOOLCHAIN_REFRESH` | None: the local toolchain is never refreshed (`.agents/skills/implementer/SKILL.md`, "The slice loop", step 5) | The owner's decision, with its reason, in "The owner's decisions" above. It replaces the specification's default, a refresh before any verification that must match CI |
 | `CONDITIONAL_GUARDS` | `.agents/skills/implementer/SKILL.md`, "The slice loop", the guards a change's content triggers | Recorded rules tied to what a change touches |
@@ -96,35 +90,15 @@ not restate the value: the place is the authority.
 | `ACCEPTANCE_PLATFORM` | A Mac with Apple Silicon, on the app's supported macOS | `README.md` and `CONTRIBUTING.md` |
 | `MODULE_LIST_SOURCE` | `Package.swift` | The package manifest lists every target |
 
-### Language specifics for the police
+### Language specifics
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `ESCAPE_HATCH_MARKERS` | `.agents/skills/logic-police/SKILL.md`, "Where to look" | Swift's constructs that bypass its checks |
-| `HIDDEN_CALLER_MECHANISMS` | `.agents/skills/abstraction-police/SKILL.md`, "Proof" | What hides a Swift caller from text search |
+| `HIDDEN_CALLER_MECHANISMS` | `.agents/rules/design-vocabulary.md`, "Rules of judgement" | What hides a Swift caller from text search |
 | `CALLER_RULE` | `.agents/rules/design-vocabulary.md`, "Rules of judgement" and "Recorded answers in this tree" | The default, with the recorded answer on `SlovoTestSupport` |
-| `HIGH_CONSEQUENCE_PATHS` | `.agents/skills/logic-police/SKILL.md`, "Where to look" | Where `AGENTS.md`, "Product intent — how the app must work", puts the cost of a defect |
-| `ENTRY_POINTS` | `.agents/skills/logic-police/SKILL.md`, "Proof" | Where a reachability trace starts |
-| `NAME_CENSUS_CONCEPTS` | `.agents/skills/text-residue-police/SKILL.md`, "Where to look" | The owner's decision: the concepts `AGENTS.md`, "Product intent — how the app must work", names. No glossary exists |
-| `CHURN_WINDOW` | `.agents/rules/police.md`, "Shared rules" | The default |
+| `NAME_CENSUS_CONCEPTS` | `.agents/rules/text-residue.md`, "What the text covers here" | The owner's decision: the concepts `AGENTS.md`, "Product intent — how the app must work", names. No glossary exists |
 | `EXPERT_KINDS` | `.agents/skills/issue-court/SKILL.md`, "The trial" | The owner's decision: the kinds the specification lists for a court with the toolchain present |
 | `BUG_TEMPLATE_FIELDS` | The field labels of `.github/ISSUE_TEMPLATE/bug_report.yml` | The bug template's own field names |
-
-### Security and dependencies
-
-| Slot | Value | Reason |
-| :-- | :-- | :-- |
-| `THREAT_MODEL` | `.agents/skills/security-police/SKILL.md`, "Threat model" | What every security finding is argued against |
-| `SECRET_INVENTORY` | `.agents/skills/security-police/SKILL.md`, "Where to look", the secrets sweep | The secrets the project holds (`docs/release-ci.md`, "One-time owner setup"; `docs/privacy.md`, "Keychain") |
-| `PRIVILEGED_PIPELINES` | `.agents/skills/security-police/SKILL.md`, "Where to look", the workflow sweep | They sign, notarize, publish or push |
-| `UPDATE_CHANNEL` | `.agents/skills/security-police/SKILL.md`, "Where to look", the update-channel sweep | How installed copies receive updates |
-| `RENDERED_OUTPUT` | `.agents/skills/security-police/SKILL.md`, "Where to look", the rendered-output sweep | The owner's decision: `CHANGELOG.md` and the release notes, both rendered from merged pull-request titles |
-| `UPDATE_BOT` | `.agents/skills/dependency-police/SKILL.md`, "Dependency Police" | `.github/dependabot.yml` |
-| `DEPENDENCY_PROMISES` | `.agents/skills/dependency-police/SKILL.md`, "What every verification checks" | Recorded decisions a bump must not break |
-| `QUALITY_GATED_DEPENDENCIES` | `.agents/skills/dependency-police/SKILL.md`, "What every verification checks" | `.github/dependabot.yml` |
-| `ADVISORY_SOURCES` | `.agents/skills/dependency-police/SKILL.md`, "Advisories" | The two ecosystems the update bot watches |
-| `DEPENDENCY_PRS_PER_RUN` | `.agents/skills/dependency-police/SKILL.md`, "The review queue" | The default |
-| `FOLLOW_THROUGH_WINDOW` | `.agents/skills/dependency-police/SKILL.md`, "The review queue" | The default |
 
 ### Tracker vocabulary and bounds
 
@@ -136,12 +110,9 @@ not restate the value: the place is the authority.
 | `VETO_LABEL` | `wontfix` | The default |
 | `NO_TRIAL_LABEL` | `no-trial` | The default. The owner creates it |
 | `DEPENDENCY_LABEL` | `dependencies` | The default, applied by the update bot |
-| `CAP_TABLE` | `.agents/rules/filing.md`, "Backpressure" | The default columns of the enabled roles |
-| `TRIAGE_CEILING` | `.agents/rules/filing.md`, "Independent triage" | The default |
 | `WORK_ISSUES_PER_RUN` | Not used | No role cuts work issues |
 | `MARKER_NS` | `slovo` | The repository's name |
 | `TRUSTED_AUTHOR_TEST` | `.agents/rules/unattended.md`, "Instructions and evidence" | Write-level membership, as the code host reports it on a repository owned by a personal account |
-| `POLICE_SKIP_COURT` | Off | The default. Every police report is tried |
 | `COMMIT_CONVENTION` | What releases: `cliff.toml`. The kind mapping: `.agents/skills/implementer/SKILL.md`, "The hand-off on an accepted verdict", step 2 | The owner's decision for `tech-debt` and `documentation`. Any header outside `feat:`, `fix:` and `perf:` merges without a release (`AGENTS.md`, "Before you open a pull request") |
 
 ### The delivery pipeline
@@ -167,8 +138,6 @@ not restate the value: the place is the authority.
 
 | Slot | Value | Reason |
 | :-- | :-- | :-- |
-| `OPERATION`, `RECORD_WINDOW` | Not used | The record police is off |
-| `PUBLISHED_SURFACE`, `SUPPORTED_SURFACES`, `REFERENCE_SOURCES`, `CONFORMANCE_CHECK`, `HYGIENE_SET` | Not used | The published-surface police is off |
 | The pipeline law's skill id | `pipeline-law` | The specification names no id for the shared law. A rename is one search and replace |
 
 ## What the code host must support
@@ -179,9 +148,6 @@ measured facts of the environment. The owner decided that the callers carry
 them (`.agents/rules/context.md`, "The context standard"). The repository
 decides only these:
 
-- **Closing references** count only for the backpressure leave-out
-  (`.agents/rules/filing.md`, "Backpressure"), since `CLOSE_ON_MERGE` is
-  off.
 - **A protected default branch** is not relied on. The run law forbids a
   role's push to `main` whatever the code host enforces
   (`.agents/rules/unattended.md`, "No role pushes to `main`").
@@ -195,25 +161,12 @@ Each value below differs from the specification's default. A fact of this
 repository forced it, the owner chose it, or the specification's own text
 was wrong, as each says.
 
-- **The owner added a privacy police**,
-  `.agents/skills/privacy-police/SKILL.md`. Slovo's identity is privacy:
-  `docs/privacy.md` holds the data-path table, and `AGENTS.md` and
-  `README.md` state the promises it keeps. A leak with no adversary would
-  otherwise have no owner: the logic police meets one only in passing, and
-  the security police owns only the attacker's path. The role extends the
-  specification on the police skeleton every police role shares
-  (`.agents/rules/police.md`). It owns its row of `.agents/rules/filing.md`,
-  "Ownership routing", which the logic police's row and severity table give
-  up, and it holds no bound, table or vocabulary another file already holds.
-  Its guard goes in the issue body, as `.agents/rules/police.md`, "Shared
-  rules", allows a role whose remedy names one.
 - **The test kinds keep the testing reference's wording.**
   `.agents/rules/tests.md` takes its kind definitions and measurements word
   for word from `docs/references/testing-swift.md`, "5. The criteria a review
   applies", which records the sources behind each and names
   `.agents/rules/tests.md` the authority. The specification's shorter
-  wording says the same. The agent police's subject takes that section, so
-  the two texts cannot drift apart unread.
+  wording says the same.
 - **No run-log diagnosis rule.** The run law leaves out the rule for a paid
   run that writes its own job log: no fleet role runs or owns a CI job here.
 - **A release bookkeeping commit has no gate run.** CI skips the commit the
@@ -225,16 +178,11 @@ was wrong, as each says.
   Both contradict its run law, under which an issue body is evidence. Both
   roles now write their own check from the claim.
 - **Every brief that carries third-party text says so.** The specification
-  states the data boundary in its run law, and leaves it out of the triage,
-  spec-review, gate and acceptance briefs. Each now states it. The police's
-  "fence" is named as the gate's rejection list, so it cannot be read as
-  that boundary.
+  states the data boundary in its run law, and leaves it out of the
+  spec-review, gate and acceptance briefs. Each now states it.
 - **The role identity must pass the trusted-author test.** The specification
   lets roles write under a bot identity and never says that an identity
   failing the test makes every marker it writes count for nothing.
-- **The security police reads the issue templates.** A template that applied
-  `police-report` would let a stranger's issue into the machine population,
-  and no role's subject took the templates.
 - **A stage's result is a completion line newer than its wake**
   (`.agents/skills/pipeline-law/SKILL.md`, "Where state lives"). The
   specification read a dead run, and a stage's audit, from any completion
@@ -272,15 +220,6 @@ was wrong, as each says.
   specification stated, with no source, that applying a label already
   present emits no event. Removing the label first wakes the stage either
   way, so the law no longer rests on the claim.
-- **The agent police reads `.agents/rules/police.md`.** The specification
-  gave it no reader of the shared police rules, so it restated the payload
-  rule, had no cost line, and could not carry the fence into a verifier
-  brief as `.agents/rules/filing.md` requires.
-- **The agent police checks cited headings and the label list.** The
-  specification's M11 checked paths alone, so a renamed heading passed every
-  read, and nothing compared `.agents/rules/labels.md` with the label list
-  that file yields to. M11 now reads each cited heading, and M15 compares
-  the label names both ways.
 - **A re-trial's way back removes the old state label.** The specification's
   re-trial applies a new label and removes none, so `question` outlived a
   sustained re-trial, and a dismissed one left `invalid` beside it. The
@@ -303,18 +242,6 @@ was wrong, as each says.
   specification's standard for a `ready` work issue. No role cuts one: a
   sustained finding goes to the delivery pipeline. The label keeps its
   meaning for the owner, and the court still drops an issue that carries it.
-- **The police triage ceiling has one home.** The specification has the role
-  that convenes a round state its sub-agent ceiling. Every police role
-  convenes the same triage round, so `.agents/rules/filing.md`, "Independent
-  triage", states that ceiling once, and `.agents/rules/evidence.md` points
-  at it.
-- **Only a trusted author's pull request holds a finding back.** The
-  specification put every open pull request fixing a finding on the
-  do-not-report list, and the agent police read any open pull request that
-  rewrites a fleet document as a document in motion. A stranger could keep a
-  finding from the tracker by leaving a pull request open.
-  `.agents/rules/filing.md`, "The do-not-report list", now applies the
-  trusted-author test, as its backpressure leave-out already did.
 - **The implementer names the deterministic gate where it means it.** The
   specification calls CI's commands the gate, and also told the implementer,
   after the final slice, never to run the gate, meaning its checks of the

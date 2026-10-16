@@ -3,8 +3,8 @@
 The standard is "do not complicate the code", and cognitive load is the
 measure (`AGENTS.md`, "Standing owner directives", 1). This file gives
 reviewers words they can point at, and the places in this repository's tree
-that already answer each question. The abstraction police and the
-proportion police judge by it, and the court tries their findings by it.
+that already answer each question. It is the judging document for the
+abstractions and proportion departments.
 
 ## Name the symptom
 
@@ -32,6 +32,9 @@ would do". An objection with no symptom is withdrawn.
   that exist, and say in one line who they are. A widened surface whose
   reason names a future caller is worth waiting on: the written reason is
   what ends the wait at the right moment.
+- **Hidden Swift callers.** `@objc` selectors, SwiftUI property wrappers,
+  `#Preview` blocks and Swift Testing macros reach a symbol without naming
+  it.
 - **Prefer the specific mechanism** until a second caller exists. Say what a
   general one buys before proposing it.
 - **Errors defined out of existence.** A closed set read leniently and

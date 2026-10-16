@@ -77,7 +77,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 
 - **CodeQL**, `.github/workflows/codeql.yml`, builds the package for analysis
   and scans it, on every pull request into `main` and every push to `main`.
-  It is not the gate. Its open alerts are input to the security police.
+  It is not the gate. Its open alerts are a lead for a security review.
 - **Packaging.** The Release run's `package` job and
   `.github/workflows/dev-build.yml` build, sign and verify the app after the
   gate passes. They are not the gate, and no fleet role starts them.

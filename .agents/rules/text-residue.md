@@ -3,9 +3,9 @@
 What a code generator leaves behind and a person would not have written on
 purpose. Where agents write much of the code, residue is expected. This file
 makes it a defect with a measurement instead of a matter of taste. Its
-readers are the text-residue police, the court trying its findings, and any
-reviewer of this repository's text. Everything a linter decides belongs to
-the gate (`.agents/rules/verification.md`), not here.
+readers are the text-residue department, the court trying its findings, and
+any reviewer of this repository's text. Everything a linter decides belongs
+to the gate (`.agents/rules/verification.md`), not here.
 
 ## The one test
 
@@ -23,6 +23,14 @@ the docs.
 - One excerpt can hold several findings. Each finding has exactly one kind.
 - When two kinds fit, the later one in the list wins, because its
   measurement is stronger evidence.
+
+## What the text covers here
+
+- Name-census concepts come from `AGENTS.md`, "Product intent — how the app
+  must work".
+- `docs/architecture.md` is excluded.
+- `docs/tasks/`, `docs/references/` and the templates under `.github/` are
+  judged for `lying` only.
 
 ## The kinds
 
@@ -74,8 +82,8 @@ the docs.
 10. **The instructions:** `AGENTS.md`, everything under `.agents/`, the
     bindings under `.claude/agents/`, and `docs/architecture.md`. Read, never
     judged as text. Whether they agree with each other, and whether
-    `docs/architecture.md`'s claims still hold, is the agent police's subject
-    alone. Instruction text the product ships, such as the cleanup prompt it
+    `docs/architecture.md`'s claims still hold, is not a question of this
+    file. Instruction text the product ships, such as the cleanup prompt it
     sends to a model, is product text and is judged.
 11. **A cited source beside a claim**: its kind, its pinned revision, and its
     clause number for a specification. To an outside eye these read as
@@ -111,12 +119,6 @@ the docs.
   misread. Residue is judged strictly above the fence.
 - A tell that recurs and could be matched by a pattern is a proposal in a
   report, never a check added on the spot.
-
-## Neighbours
-
-A shape is judged as its own class of defect, not as residue: see
-`.agents/rules/filing.md`, "Ownership routing". Residue names the text.
-`ceremony` is only the test or gate check that cannot fail.
 
 This file describes the fence in `.swiftlint.yml` and the files the release
 pipeline and the package manager write. Where those disagree with it, they

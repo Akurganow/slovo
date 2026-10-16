@@ -888,8 +888,7 @@ unchanged between them). The quotes held: `lockFocus()` (`deprecatedAt: 27.0`
 and its message), `systemRed`, HIG Color, the AppKit Thread Safety Summary,
 Parallelization, swift-mutants' README at `5594d5c`, and Muter's tag `16`
 outcome rules, read from a clone. §5's exhibit column matches
-`.agents/rules/tests.md` word for word, and every § that file and the Test
-Police cite exists.
+`.agents/rules/tests.md` word for word, and every § that file cites exists.
 
 Corrections (before → after):
 
