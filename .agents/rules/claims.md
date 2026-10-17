@@ -4,11 +4,11 @@ What a sentence about a system this repository does not control may rest on.
 Such a system may be the operating system, a framework, a client, a
 service, the code host, the harness, a dependency's behaviour or a published
 specification. People install, configure and choose on these sentences, and
-fires act on the ones in the fleet's own documents.
+agents act on the ones in this repository's own documents.
 
 Its readers:
 
-- the court tries a finding about the fleet's own documents by it;
+- a reviewer of a sentence about an outside system judges it by this file;
 - `.agents/rules/text-residue.md` protects the citations it requires.
 
 ## The one test
@@ -24,8 +24,9 @@ hardest to catch in review. It reads exactly like the sourced kind.
 1. **A claim names its source where it stands.** Never only in a commit
    message or a review thread. Per fact, it names the source's kind:
    documentation, source code, or a run of the system's own code.
-2. **The sourcing order is the run law's** (`.agents/rules/unattended.md`,
-   "Environment facts and blocked sources"). This file adds nothing to it.
+2. **The sourcing order is documentation first**, source code only where the
+   documentation does not answer (`AGENTS.md`, "Standing owner directives",
+   6). This file adds nothing to it.
 3. **A claim names the revision it was true at**: a commit permalink, a tag
    or a version. A link into a moving branch dates nothing. A calendar date
    never stands in for the revision.
@@ -57,8 +58,7 @@ hardest to catch in review. It reads exactly like the sourced kind.
 - **A value a release writes** (`.agents/rules/boundaries.md`, "Closed
   paths"). A wrong one is judged at the release job, never in the text.
 - **A claim whose source is blocked.** The check is reported as not run
-  (`.agents/rules/unattended.md`, "Environment facts and blocked sources"),
-  never as a finding.
+  (`.agents/rules/verification.md`, "What a result may claim"), never as a
+  finding.
 - **A caution that names no system.** A hazard stated as a possibility, such
-  as "some routes replace the set", claims nothing about one system. The run
-  law's hazards are written this way on purpose.
+  as "some routes replace the set", claims nothing about one system.

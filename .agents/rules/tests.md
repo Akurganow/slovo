@@ -82,8 +82,8 @@ Cross-kind rules:
   that never failed may still guard a contract. Where its cost matters, run
   it less often instead of deleting it.
 - Without the toolchain, "this mutation turns it red" and "the replacement
-  compiles" are `plausible` (`.agents/rules/unattended.md`, "Claim only what
-  you ran").
+  compiles" are `plausible` (`.agents/rules/verification.md`, "What a result
+  may claim").
 
 ## No protection lost silently
 

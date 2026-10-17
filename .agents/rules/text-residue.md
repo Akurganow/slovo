@@ -3,8 +3,8 @@
 What a code generator leaves behind and a person would not have written on
 purpose. Where agents write much of the code, residue is expected. This file
 makes it a defect with a measurement instead of a matter of taste. Its
-readers are the text-residue department, the court trying its findings, and
-any reviewer of this repository's text. Everything a linter decides belongs
+readers are the text-residue department and any reviewer of this
+repository's text. Everything a linter decides belongs
 to the gate (`.agents/rules/verification.md`), not here.
 
 ## The one test
@@ -39,8 +39,8 @@ the docs.
 | 1 | `noise` | Text with no fact: a doc comment that rephrases the name, narration ("now we clear the buffer"), process commentary ("updated to", "as requested"), hedges ("should work"), reassurance words ("robust", "gracefully", "properly") standing in for a fact. In prose: a paragraph restating the one above, a sentence that exists to make a section look complete, or a package description repeating its name. **The forced-text seam:** where a lint forces a doc comment to exist, noise breeds there. The lint decides that a sentence exists, not that it says anything. The fix is the fact, never deletion: what the value means, which invariant holds, or when it is absent | The content words against the text and code beside them, with nothing left over. A restated paragraph: both paragraphs quoted. For a cluster: N comments across M files |
 | 2 | `lying` | Text that contradicts the code: a name false since a rename, a comment for a branch that no longer exists. It also covers a doc comment promising what the body does not keep, a test name claiming more than the body checks, a step name the step does not perform, and a number nobody re-measured after the tree moved. A false claim about an outside system or a released artifact is not this kind. It is judged under `.agents/rules/claims.md`, and it is the graver of the two | The two quotes side by side, with the commit that wrote the text and the commit that changed the code under it |
 | 3 | `naming` | A name that says nothing about the job: generic (`data`, `tmp`, `helper`, `result` where the value has a name), filler suffixes (`Manager`, `Helper`, `Utils`, `Impl`). It also covers the type's name stuttered into every member, and one concept under three names. A name fixed by a stored key, a serialization field, a published specification or an outside system's documentation is quoted, not chosen. It is not a finding | The census: every name for the concept with its file and line. For a generic name: its job in one sentence beside it, and the count of declarations with the same pattern across 3 or more files |
-| 4 | `ceremony` | A test that cannot fail: an assertion on a fake's own configured return, a fixture asserted equal to itself, a tautology. It also covers a test that re-implements what it checks, and an assertion the type system already refuses. A frozen-answer test that any arithmetic change reddens is not ceremony. **A gate check or pipeline step** that could never fail on any tree it will see, with no reason beside it, is ceremony too. A check that duplicates a published schema or an upstream validator states which of two reasons keeps it: it enforces what the schema cannot express, or it turns a rejection into a message someone can act on. A duplicate with neither reason is ceremony | The mutation of the production code that leaves the test green, written out in full. For a check: a planted violation it ought to refuse, run through it in a copy under `$RUN`, with what it printed. Or the reason it can never fire, written out |
-| 5 | `residue` | What the process left behind: changelog in comments ("now also", "no longer", "as before" with nothing after it), attribution of a tool, debug output, a compatibility alias nothing calls. It also covers `_v2` beside `_v1`, a scenario duplicated under a second name, and a test that guards a decision the repository no longer holds. In prose: a paragraph describing the change that introduced it instead of the thing, a section kept for a component or supported surface that is gone, and a reference file nothing links. In the fleet's own text, a date | The version-control search for the commit that brought it and the commit that made it moot. For what was moot on arrival: the introducing commit and the statement that nothing ever used it |
+| 4 | `ceremony` | A test that cannot fail: an assertion on a fake's own configured return, a fixture asserted equal to itself, a tautology. It also covers a test that re-implements what it checks, and an assertion the type system already refuses. A frozen-answer test that any arithmetic change reddens is not ceremony. **A gate check or pipeline step** that could never fail on any tree it will see, with no reason beside it, is ceremony too. A check that duplicates a published schema or an upstream validator states which of two reasons keeps it: it enforces what the schema cannot express, or it turns a rejection into a message someone can act on. A duplicate with neither reason is ceremony | The mutation of the production code that leaves the test green, written out in full. For a check: a planted violation it ought to refuse, run through it in a copy, with what it printed. Or the reason it can never fire, written out |
+| 5 | `residue` | What the process left behind: changelog in comments ("now also", "no longer", "as before" with nothing after it), attribution of a tool, debug output, a compatibility alias nothing calls. It also covers `_v2` beside `_v1`, a scenario duplicated under a second name, and a test that guards a decision the repository no longer holds. In prose: a paragraph describing the change that introduced it instead of the thing, a section kept for a component or supported surface that is gone, and a reference file nothing links. In text that instructs an agent, a date | The version-control search for the commit that brought it and the commit that made it moot. For what was moot on arrival: the introducing commit and the statement that nothing ever used it |
 
 ## Protected: never a finding
 
@@ -79,12 +79,12 @@ the docs.
    wording is an audit question.
 9. **A test name that reads as a sentence**, and a number quoted with its
    measurement beside it.
-10. **The instructions:** `AGENTS.md`, everything under `.agents/`, the
-    bindings under `.claude/agents/`, and `docs/architecture.md`. Read, never
-    judged as text. Whether they agree with each other, and whether
-    `docs/architecture.md`'s claims still hold, is not a question of this
-    file. Instruction text the product ships, such as the cleanup prompt it
-    sends to a model, is product text and is judged.
+10. **The instructions:** `AGENTS.md`, everything under `.agents/` and
+    `docs/architecture.md`. Read, never judged as text. Whether they agree
+    with each other, and whether `docs/architecture.md`'s claims still hold,
+    is not a question of this file. Instruction text the product ships, such
+    as the cleanup prompt it sends to a model, is product text and is
+    judged.
 11. **A cited source beside a claim**: its kind, its pinned revision, and its
     clause number for a specification. To an outside eye these read as
     hedging. Each is a fact `.agents/rules/claims.md` requires.
