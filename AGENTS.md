@@ -314,9 +314,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
 
 ## This repository's own machinery
 
-`LAWMAN.md` is the constitution Lawman's agents read over this repository.
-It lists what they read first, the departments, the fence, the proof
-commands and the rule files they load before they change code.
+`LAWMAN.md` is the constitution Lawman's agents read over this repository,
+and it names the rule files they load before they change code.
 
 What agents share is in `.agents/rules/`, one file per job:
 
@@ -334,11 +333,8 @@ What agents share is in `.agents/rules/`, one file per job:
 `.claude/rules` is a link into `.agents/rules/`, so there is one text rather
 than two that drift apart.
 
-**Nothing here says what fires an agent, or how often.** The caller carries
-the facts of the environment it runs in: what the network refuses, what is
-installed, how a clone is made, how often it fires. The agent reads them
-there. That is what lets another person run the same agent in an environment
-of their own, so a document here states the action and never the instrument.
+What fires an agent, and how often, belongs to its caller: see
+`.agents/rules/context.md`, "The context standard".
 
 A person always makes these writes, and no role makes them:
 
@@ -346,11 +342,3 @@ A person always makes these writes, and no role makes them:
   `main`, and which starts every release;
 - creating, renaming or deleting a label;
 - creating, changing or deleting a caller.
-
-The prohibitions easiest to breach, each owned by the file and heading
-named:
-
-- no role ever pushes to `main` (`.agents/rules/boundaries.md`, "Decisions
-  that need a person");
-- nothing under a closed path is edited by hand
-  (`.agents/rules/boundaries.md`, "Closed paths").

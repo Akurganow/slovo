@@ -37,14 +37,10 @@ The writes a person always makes are listed in `AGENTS.md`, "This
 repository's own machinery".
 
 **No role ever pushes to `main`.** Not a commit, a merge, a tag, a branch
-update or a force-push, by any route, for any reason. This is the owner's
-decision.
+update or a force-push, by any route, for any reason.
 
 - A change a role makes reaches `main` only through a person's merge of a
   pull request.
-- The rule holds whether or not the code host would accept the push. A
-  refused push is never the reason a role did not push. A push the host
-  would accept is never permission.
 - A role whose work needs a commit on `main` stops, writes nothing more, and
   says so in its report.
 

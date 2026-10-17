@@ -93,8 +93,6 @@ staleness clause, naming what it describes.
 
   A role that needs one reads it from the caller. A caller that carries none
   is a report line, and every check that depended on it is not run.
-- **No counts of roles or skills in prose.** Read the set from the tree. A
-  written count is false the day a role is added.
 - **Personal preferences of the owner are not repository rules.** A role
   reads every sentence as an instruction, so a preference written here acts
   as a rule.

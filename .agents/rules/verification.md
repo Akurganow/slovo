@@ -88,9 +88,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   | `demonstrated` | Nothing could run, and every step of the path is shown in quoted code with nothing resting on an unverified assumption |
   | `plausible` | Reasoned, not shown in full |
 
-  Never present one as another. Without a toolchain the standard is
-  stricter, not looser: the reading must carry the whole claim, and the
-  report says so.
+  Never present one as another.
 - **A check not run is reported as not run**, with what substituted for it.
   An absent toolchain is a standing condition, stated where the report says
   what its evidence rests on. It is never a blocker.
@@ -98,11 +96,9 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   conclusion. A claim that rests on a stage needing the toolchain, at a
   commit no run covers, stays `plausible`.
 - **CI's run is the gate of record. A local gate run is a pre-check.** The
-  owner decided this, because the toolchain where a role runs can differ
-  from the one CI's runner image carries. A local green proves the local
-  toolchain only, and a local red that CI does not reproduce is reported as
-  a local result. Neither stands in for the CI run on the pull request's
-  merge result.
+  owner decided this, because a role's toolchain can differ from CI's runner
+  image. A local red that CI does not reproduce is reported as a local
+  result.
 
 ## Other checks CI runs
 

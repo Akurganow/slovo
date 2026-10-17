@@ -4,12 +4,9 @@ What a sentence about a system this repository does not control may rest on.
 Such a system may be the operating system, a framework, a client, a
 service, the code host, the harness, a dependency's behaviour or a published
 specification. People install, configure and choose on these sentences, and
-agents act on the ones in this repository's own documents.
-
-Its readers:
-
-- a reviewer of a sentence about an outside system judges it by this file;
-- `.agents/rules/text-residue.md` protects the citations it requires.
+agents act on the ones in this repository's own documents. A reviewer judges
+such a sentence by this file, and `.agents/rules/text-residue.md` protects
+the citations it requires.
 
 ## The one test
 
@@ -24,29 +21,26 @@ hardest to catch in review. It reads exactly like the sourced kind.
 1. **A claim names its source where it stands.** Never only in a commit
    message or a review thread. Per fact, it names the source's kind:
    documentation, source code, or a run of the system's own code.
-2. **The sourcing order is documentation first**, source code only where the
-   documentation does not answer (`AGENTS.md`, "Standing owner directives",
-   6). This file adds nothing to it.
-3. **A claim names the revision it was true at**: a commit permalink, a tag
+2. **A claim names the revision it was true at**: a commit permalink, a tag
    or a version. A link into a moving branch dates nothing. A calendar date
    never stands in for the revision.
-4. **A claim with no source beside it is treated as not yet written**,
+3. **A claim with no source beside it is treated as not yet written**,
    whoever wrote it.
-5. **Never invent a command.** Never write a command, flag, endpoint or field
+4. **Never invent a command.** Never write a command, flag, endpoint or field
    that was neither run nor found in the system's documentation. Where it
    could not be verified, write none and say why. A gap is visible. A
    plausible command that does not exist is not.
-6. **Keep "the standard says" apart from "this system does".** Quote the
+5. **Keep "the standard says" apart from "this system does".** Quote the
    first from the specification, with its clause number. Attribute the
    second to the system's own documentation or source, at its revision.
-7. **A supported-surface list is a list of obligations.** A row is added
+6. **A supported-surface list is a list of obligations.** A row is added
    when a source backs it. It is removed when the source stops backing it.
-8. **A value a machine writes is cited, never restated.** A claim about a
+7. **A value a machine writes is cited, never restated.** A claim about a
    released artifact points at the machine-written record, the artifact's
    own output, or the tag it was measured against. Prose never restates a
    version, digest or size that a release writes. Nothing in the release path
    corrects such prose, so the next release falsifies it in silence.
-9. **A run names what it ran**: the system and its revision. A sentence that
+8. **A run names what it ran**: the system and its revision. A sentence that
    only reports what someone ran on one machine is not a claim to keep. It
    belongs in a report, a pull request or a caller.
 
