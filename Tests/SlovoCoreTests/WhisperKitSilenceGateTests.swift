@@ -140,7 +140,7 @@ struct WhisperKitSilenceGateTests {
     @Test
     func silentPlanResolvesEmptyWithoutDecoding() async {
         var decodeCount = 0
-        let result = await WhisperKitTailFinalization.resolve(plan: .silent) { _ in
+        let result = await WhisperKitTailFinalization.resolve(plan: .silent) { _, _ in
             decodeCount += 1
             return "unexpected"
         }

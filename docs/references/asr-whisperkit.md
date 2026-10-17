@@ -275,8 +275,12 @@ featureExtractor, segmentSeeker, textDecoder, tokenizer, audioProcessor) plus
 lock-protected `AudioProcessing` bridge so its hardened `AVAudioEngineRecorder`
 remains the only microphone owner. The callback tracks confirmed segments and
 the changeable tail. At key-up, Slovo stops the native loop and decodes only
-audio after the last confirmed segment. A sub-second dictation, which the native
-loop has not processed yet, is finalized from the beginning.
+audio after the last confirmed segment. A dictation of one second or less never
+reaches the native loop, which waits for more than one second of new audio.
+Slovo decodes it at key-up from the beginning, in exactly one window. Only there
+does it lift the SDK's one-second end-of-window clip, which would otherwise open
+no window at all. The clip drops to one sample short of the recording, so no
+second window opens over the trailing silence.
 
 For a short final pass with a non-empty live result and no confirmed prefix
 (`confirmedEndSeconds == 0`), Slovo enables word timestamps and applies the

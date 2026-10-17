@@ -81,7 +81,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   When a bias-prompted final decode composes to empty, Slovo decodes once more
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
-  so Whisper never gets the chance to hallucinate into silence. The model remains resident
+  so Whisper never gets the chance to hallucinate into silence. A voiced hold of
+  one second or less, which the live transcriber never reaches, is decoded at
+  key-up in exactly one window. The model remains resident
   between dictations, and the recognition language reaches the decoder per session
   rather than the model load, so changing it costs no reload.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223

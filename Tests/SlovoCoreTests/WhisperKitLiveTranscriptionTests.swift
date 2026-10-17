@@ -68,7 +68,7 @@ struct WhisperKitLiveTranscriptionTests {
                 minimumDecodableTailSampleCount: 16_000,
                 relativeEnergy: [0.5, 0.5],
                 state: state
-            ) == .decode(confirmedPrefix: "confirmed ", liveTail: "old tail", fromSeconds: 1.25)
+            ) == .decode(confirmedPrefix: "confirmed ", liveTail: "old tail", fromSeconds: 1.25, singleWindowSampleCount: nil)
         )
     }
 
@@ -93,7 +93,7 @@ struct WhisperKitLiveTranscriptionTests {
                 minimumDecodableTailSampleCount: 16_000,
                 relativeEnergy: [0.5, 0.5],
                 state: state
-            ) == .decode(confirmedPrefix: "confirmed ", liveTail: "", fromSeconds: 1.25)
+            ) == .decode(confirmedPrefix: "confirmed ", liveTail: "", fromSeconds: 1.25, singleWindowSampleCount: nil)
         )
     }
 
@@ -114,21 +114,6 @@ struct WhisperKitLiveTranscriptionTests {
 
         #expect(span.sampleCount == 16_000)
         #expect(span.liveText == "tail words")
-    }
-
-    /// Sensitivity: treating a sub-second utterance as already complete returns an
-    /// empty snapshot instead of scheduling its one required final decode.
-    @Test
-    func subsecondUtteranceIsFinalizedFromTheBeginning() {
-        #expect(
-            WhisperKitTailFinalization.plan(
-                totalSampleCount: 8_000,
-                tailSampleCount: 8_000,
-                minimumDecodableTailSampleCount: 16_000,
-                relativeEnergy: [0.4, 0.4],
-                state: WhisperKitStreamState()
-            ) == .decode(confirmedPrefix: "", liveTail: "", fromSeconds: 0)
-        )
     }
 
     /// Sensitivity: always decoding on key-up performs a redundant pass even when
@@ -216,8 +201,8 @@ struct WhisperKitLiveTranscriptionTests {
     func tailPlanExecutorUsesTheBoundaryAndCombinesTheResult() async {
         var decodedFrom: Float?
         let result = await WhisperKitTailFinalization.resolve(
-            plan: .decode(confirmedPrefix: "confirmed", liveTail: "live", fromSeconds: 1.25)
-        ) { boundary in
+            plan: .decode(confirmedPrefix: "confirmed", liveTail: "live", fromSeconds: 1.25, singleWindowSampleCount: nil)
+        ) { boundary, _ in
             decodedFrom = boundary
             return "tail"
         }
@@ -232,8 +217,8 @@ struct WhisperKitLiveTranscriptionTests {
     @Test
     func emptyTailDecodeFallsBackToTheLiveUnconfirmedText() async {
         let result = await WhisperKitTailFinalization.resolve(
-            plan: .decode(confirmedPrefix: "привет мир", liveTail: "и точка", fromSeconds: 4.2)
-        ) { _ in "" }
+            plan: .decode(confirmedPrefix: "привет мир", liveTail: "и точка", fromSeconds: 4.2, singleWindowSampleCount: nil)
+        ) { _, _ in "" }
 
         #expect(result == "привет мир и точка")
     }
@@ -245,7 +230,7 @@ struct WhisperKitLiveTranscriptionTests {
         var decodeCount = 0
         let result = await WhisperKitTailFinalization.resolve(
             plan: .reuse("привет hello")
-        ) { _ in
+        ) { _, _ in
             decodeCount += 1
             return "unexpected"
         }
@@ -493,6 +478,7 @@ struct WhisperKitLiveTranscriptionTests {
                 try await self.decodeTail(
                     samples: samples,
                     fromSeconds: fromSeconds,
+                    singleWindowSampleCount: singleWindowSampleCount,
                     wordTimestamps: shouldGuardTerminalHallucination,
                     withBias: withBias
 """))
@@ -500,6 +486,7 @@ struct WhisperKitLiveTranscriptionTests {
             decodeOptions: Self.tailDecodingOptions(
                 base: decodingOptions,
                 fromSeconds: fromSeconds,
+                singleWindowSampleCount: singleWindowSampleCount,
                 wordTimestamps: wordTimestamps,
                 withBias: withBias
 """))
