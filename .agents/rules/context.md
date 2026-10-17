@@ -1,26 +1,21 @@
 # Context: precedence and the writing standard
 
-Which text wins when two disagree, and the standard every fleet document is
-written to: `AGENTS.md`, every rule file under `.agents/rules/`, every role
-file and shared skill under `.agents/skills/`, every binding under
-`.claude/agents/`, and `.agents/adaptation.md`.
+Which text wins when two disagree, and the standard every document that
+instructs an agent is written to: `AGENTS.md` and every rule file under
+`.agents/rules/`.
 
 ## Precedence
 
 When two texts disagree, this order decides.
 
 1. The owner's recorded decisions, quoted in `AGENTS.md` or a rule file.
-2. The pipeline law, `.agents/skills/pipeline-law/SKILL.md`, over the
-   pipeline roles it governs.
-3. A rule file over a role file.
-4. A role file over a binding.
-5. The repository is right about the work. The caller is right about the
+2. The repository is right about the work. The caller is right about the
    machine it runs on.
-6. A rule file that describes something else is stale when the thing it
+3. A rule file that describes something else is stale when the thing it
    describes disagrees. Something else is a CI pipeline, a configuration
    file, the label list or an outside specification. The described thing
    wins, and the rule file is fixed.
-7. A rule file MAY name, in its first paragraph, the rule files it yields
+4. A rule file MAY name, in its first paragraph, the rule files it yields
    to. Two rule files that contradict each other, where neither yields, have
    no automatic winner. The owner decides. An order fixed in advance would
    settle a contradiction nobody has read.
@@ -39,11 +34,8 @@ staleness clause, naming what it describes.
    test: if no consumer ever loads it, nothing breaks.
 4. A rule references only these:
    - other rule files;
-   - role files and shared skills, by path and section heading;
    - `AGENTS.md`;
-   - stable documents a slot names in `.agents/adaptation.md`, such as
-     `docs/architecture.md`;
-   - per-run paths under `$RUN`.
+   - stable documents, such as `docs/architecture.md`.
 
    A rule never references a requirements document, a pull request, an
    issue, another temporary file or a code location. They move, and the
@@ -56,24 +48,18 @@ staleness clause, naming what it describes.
    one.
 7. Every mechanical check states beside itself the clause or failure mode it
    enforces. A check with neither is ceremony and is deleted.
-8. Shared bounds, vocabularies and grammars live once, in the shared rule
-   file every role that applies them reads. Roles name them and restate no
-   number.
-9. A role file follows the same rules as a rule file. It never carries
-   environment facts or the clone sequence.
-10. Never write a rule that constrains tooling the run does not control,
-    such as a footer a harness appends after publication. The run cannot
-    keep such a rule, so it fails on every run.
-11. A guard that protects what a label or marker means is a repository rule.
-    It lives in the repository, never in one caller's setup, where deleting
-    the setup deletes the guard with it.
-12. Prose in instructions is load-bearing. Tie each sentence to its
+8. Shared bounds, vocabularies and grammars live once, in the rule file that
+   owns them. Other documents name them and restate no number.
+9. Never write a rule that constrains tooling the run does not control,
+   such as a footer a harness appends after publication. The run cannot
+   keep such a rule, so it fails on every run.
+10. Prose in instructions is load-bearing. Tie each sentence to its
     condition: a stop sentence that opens with "Then" reads as a step after
     every case, not as a stop for one.
-13. A document names a repository file by its path from the repository
+11. A document names a repository file by its path from the repository
     root, never by a bare filename or a path relative to itself. A bare
     filename points a fire at a path it cannot resolve.
-14. A sentence about an outside system follows `.agents/rules/claims.md`:
+12. A sentence about an outside system follows `.agents/rules/claims.md`:
     its source, the source's kind and its revision stand beside it.
 
 ## The context standard
@@ -81,10 +67,10 @@ staleness clause, naming what it describes.
 - **No neutral information.** Text that does not help a reader act costs
   attention and hides the useful parts. Ask of every line: does a reader
   who acts on this need it?
-- **No dates in the fleet's own text.** An owner's decision is attributed as
-  the owner's, with no day. A date format is written as a format
-  (`YYYY-MM-DD`), never as an example. Quoted data and machine-written trees
-  keep their dates.
+- **No dates in text that instructs an agent.** An owner's decision is
+  attributed as the owner's, with no day. A date format is written as a
+  format (`YYYY-MM-DD`), never as an example. Quoted data and
+  machine-written trees keep their dates.
 - **The action, never the instrument.** A sentence that tells a role what
   to do states the action, never which client, tool, harness or route does
   it. The same action may be done through a command-line client, a harness
@@ -107,8 +93,6 @@ staleness clause, naming what it describes.
 
   A role that needs one reads it from the caller. A caller that carries none
   is a report line, and every check that depended on it is not run.
-- **No counts of roles or skills in prose.** Read the set from the tree. A
-  written count is false the day a role is added.
 - **Personal preferences of the owner are not repository rules.** A role
   reads every sentence as an instruction, so a preference written here acts
   as a rule.

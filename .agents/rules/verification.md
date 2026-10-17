@@ -1,9 +1,10 @@
 # Verification: the gate and what it does not prove
 
 The commands CI runs as the gate, what each proves, which CI run covers a
-commit, what the gate rejects, and what a green run leaves unproven. CI's own
-invocation is recorded in `.github/workflows/swift.yml`. Every other
-environment's invocation lives in its caller.
+commit, what a result may claim, what the gate rejects, and what a green run
+leaves unproven. CI's own invocation is recorded in
+`.github/workflows/swift.yml`. Every other environment's invocation lives in
+its caller.
 
 ## The gate
 
@@ -53,8 +54,8 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 - Every other stage writes. Builds, tests and plugins write under `.build/`,
   which version control ignores. `Scripts/check-cleanup-benchmark-cli.sh`
   writes to the temporary directory. `swiftlint-compiler-log` touches the
-  modification time of every Swift file under `Sources` and `Tools`. An
-  analysis run therefore runs them in a copy under `$RUN`.
+  modification time of every Swift file under `Sources` and `Tools`. Run
+  them in a copy, never in the clone.
 
 ## Which run covers a commit
 
@@ -73,6 +74,32 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   push to the same ref superseded it proves nothing. The newer run covers the
   newer head.
 
+## What a result may claim
+
+- **Prove the toolchain is present** before claiming any build, test or lint
+  result. The toolchain is the one `CONTRIBUTING.md`, "Development Setup",
+  requires. Without it, evidence is reading code, reading history and
+  reading CI.
+- **The confidence ladder.** Every conclusion carries one of three words.
+
+  | Word | Meaning |
+  | :-- | :-- |
+  | `confirmed` | Something was actually run, and its output is quoted |
+  | `demonstrated` | Nothing could run, and every step of the path is shown in quoted code with nothing resting on an unverified assumption |
+  | `plausible` | Reasoned, not shown in full |
+
+  Never present one as another.
+- **A check not run is reported as not run**, with what substituted for it.
+  An absent toolchain is a standing condition, stated where the report says
+  what its evidence rests on. It is never a blocker.
+- **A real CI run substitutes for a local one.** Cite that run by number and
+  conclusion. A claim that rests on a stage needing the toolchain, at a
+  commit no run covers, stays `plausible`.
+- **CI's run is the gate of record. A local gate run is a pre-check.** The
+  owner decided this, because a role's toolchain can differ from CI's runner
+  image. A local red that CI does not reproduce is reported as a local
+  result.
+
 ## Other checks CI runs
 
 - **CodeQL**, `.github/workflows/codeql.yml`, builds the package for analysis
@@ -80,7 +107,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   It is not the gate. Its open alerts are a lead for a security review.
 - **Packaging.** The Release run's `package` job and
   `.github/workflows/dev-build.yml` build, sign and verify the app after the
-  gate passes. They are not the gate, and no fleet role starts them.
+  gate passes. They are not the gate.
 
 ## What the gate rejects
 
@@ -137,8 +164,7 @@ cannot exist on a green `main`.
 - **Signing and packaging.** The gate builds no app bundle. Signing,
   notarization and stapling are proven only by the packaging jobs.
 - **Another toolchain.** CI's runner image chooses its Xcode. A green there
-  proves that toolchain only (`.agents/rules/unattended.md`, "Claim only what
-  you ran").
+  proves that toolchain only ("What a result may claim").
 
 This file describes `.github/workflows/swift.yml`, `Scripts/diagnose.sh`,
 `Scripts/lint.sh` and the workflows they serve. Where CI and this file

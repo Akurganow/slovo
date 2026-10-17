@@ -19,8 +19,8 @@ have to be repeated. Every agent and contributor follows them without being aske
    superseded code "on disk pending deletion approval" — no build-excluded
    corpses, no "delete later" comments. The change that makes something legacy
    deletes it.
-3. **The owner manually verifies every deliverable.** Any work, the delivery
-   pipeline's or an interactive session's, is done when the owner merges its
+3. **The owner manually verifies every deliverable.** Any work, an unattended
+   role's or an interactive session's, is done when the owner merges its
    pull request on GitHub after checking its dev build (see "Dev builds: one
    approved path" and "The path to done" below).
 4. **Design attractor: data-driven.** Prefer directions that centralize state as
@@ -251,15 +251,13 @@ breakage each regression test catches. The rest of what a test must earn is in
 
 ### The path to done
 
-Implementer branches → independent audit (correctness, complexity, design,
+Work on a branch → independent audit (correctness, complexity, design,
 test sensitivity) → a pull request whose merge result passes the full gate
 (CI's Swift `test` run — `Scripts/diagnose.sh` on a macOS runner) → the
 owner's check of its dev build → the owner's merge on GitHub ("Standing
 owner directives", 3). Parked branches are not a deliverable. An interactive
-session pushes a branch only when the owner asks. The delivery pipeline
-pushes only to its own branches (`.agents/skills/pipeline-law/SKILL.md`,
-"Pushes"), and no role ever pushes to `main` (`.agents/rules/unattended.md`,
-"No role pushes to `main`").
+session pushes a branch only when the owner asks. No role ever pushes to
+`main` (`.agents/rules/boundaries.md`, "Decisions that need a person").
 
 ### License compliance is part of every change
 
@@ -316,79 +314,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist and commands.
 
 ## This repository's own machinery
 
-Roles run over this repository unattended. Each role is a skill under
-`.agents/skills/`, with one thin binding under `.claude/agents/` that names
-its skill and holds no instruction of its own. A skill with no binding is a
-shared skill: the pipeline law, `.agents/skills/pipeline-law/SKILL.md`,
-governs the delivery pipeline's roles. They read it whole. The tracker clerk
-reads its discriminator. The bindings of the pipeline's roles and the tracker
-clerk preload it. Read the set of roles from the tree, never from a count
-written here.
+`LAWMAN.md` is the constitution Lawman's agents read over this repository,
+and it names the rule files they load before they change code.
 
-The chain runs from a finding to a pull request a person merges:
+What agents share is in `.agents/rules/`, one file per job:
 
-- findings arrive as issues in the machine population
-  (`.agents/rules/filing.md`, "The machine population");
-- the court tries one filed finding per fire and records a verdict on it;
-- the tracker clerk executes the verdicts: it closes what was tried or is
-  provably gone, and hands each sustained finding to the delivery pipeline;
-- the pipeline clerk turns a handed finding into a draft pull request. The
-  spec writer specifies the change, the spec reviewer reviews the
-  specification, and the implementer writes and tests it on that branch,
-  until the pipeline clerk marks the pull request `ready-for-human`.
-
-What the roles share is in `.agents/rules/`, one file per job:
-
-- `.agents/rules/unattended.md`: how any run behaves alone, what it
-  publishes, and what it never does;
-- `.agents/rules/evidence.md`: how a claim is proved in a judged round;
-- `.agents/rules/process.md`: acceptance rounds and the cycle for
-  implementing work;
-- `.agents/rules/filing.md`: how an automated issue is identified, which
-  issues are in the machine population, and when a closed finding may be
-  filed again;
-- `.agents/rules/labels.md`: the label axes and what each label means;
-- `.agents/rules/markers.md`: every marker the roles write and read;
 - `.agents/rules/text-residue.md`, `.agents/rules/tests.md`,
   `.agents/rules/design-vocabulary.md` and `.agents/rules/claims.md`: the
   catalogues findings are measured by;
 - `.agents/rules/context.md`: precedence between documents, and the
-  standard every fleet document is written to;
-- `.agents/rules/verification.md`: the gate CI runs, and what a green run
-  does not prove;
-- `.agents/rules/boundaries.md`: paths closed to hand edits, and what never
-  enters the tree or a published page.
+  standard every document that instructs an agent is written to;
+- `.agents/rules/verification.md`: the gate CI runs, what a green run does
+  not prove, and what a result may claim;
+- `.agents/rules/boundaries.md`: paths closed to hand edits, what never
+  enters the tree or a published page, and the decisions only a person
+  makes.
 
-`.agents/adaptation.md` records how the fleet's build specification is filled
-in this repository. `.claude/rules` and every entry under `.claude/skills/`
-are links into `.agents/`, so there is one text rather than two that drift
-apart.
+`.claude/rules` is a link into `.agents/rules/`, so there is one text rather
+than two that drift apart.
 
-A role lives here rather than in whatever fires it, its caller, so that
-changing one is a pull request with a review and a history. **Nothing here
-says what fires a role, or how often.** The caller carries the facts of the
-environment it runs in: what the network refuses, what is installed, how a
-clone is made, how often it fires. The role reads them there. That is what
-lets another person run the same role in an environment of their own, so a
-document here states the action and never the instrument.
+What fires an agent, and how often, belongs to its caller: see
+`.agents/rules/context.md`, "The context standard".
 
-**Where the chain ends.** The machine stops at a pull request marked
-`ready-for-human`. A person always makes these writes, and no role makes
-them:
+A person always makes these writes, and no role makes them:
 
 - merging a pull request, which every change a role makes needs to reach
   `main`, and which starts every release;
 - creating, renaming or deleting a label;
-- applying or removing the owner's veto label `wontfix` and the freeze label
-  `pipeline/hold`;
 - creating, changing or deleting a caller.
-
-The prohibitions easiest to breach, each owned by the file and heading
-named:
-
-- no role ever pushes to `main` (`.agents/rules/unattended.md`, "No role
-  pushes to `main`");
-- no run starts or re-runs a CI pipeline beyond the pushes the pipeline law
-  names (`.agents/rules/unattended.md`, "What a run never does");
-- nothing under a closed path is edited by hand
-  (`.agents/rules/boundaries.md`, "Closed paths").

@@ -65,6 +65,8 @@ contract_version: 1
 - .agents/rules/tests.md
 - .agents/rules/text-residue.md
 - .agents/rules/design-vocabulary.md
+- .agents/rules/claims.md
+- .agents/rules/context.md
 - .agents/rules/boundaries.md
 - .agents/rules/verification.md
 

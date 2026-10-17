@@ -34,9 +34,15 @@ a release.
 ## Decisions that need a person
 
 The writes a person always makes are listed in `AGENTS.md`, "This
-repository's own machinery". The prohibitions that keep roles from them are
-`.agents/rules/unattended.md`, "No role pushes to `main`" and "What a run
-never does".
+repository's own machinery".
+
+**No role ever pushes to `main`.** Not a commit, a merge, a tag, a branch
+update or a force-push, by any route, for any reason.
+
+- A change a role makes reaches `main` only through a person's merge of a
+  pull request.
+- A role whose work needs a commit on `main` stops, writes nothing more, and
+  says so in its report.
 
 This file describes `.gitignore` and the release pipeline of
 `.github/workflows/release.yml`. Where they disagree with it, they win and
