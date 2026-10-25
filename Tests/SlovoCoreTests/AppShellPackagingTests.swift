@@ -212,7 +212,7 @@ struct AppShellPackagingTests {
         )
 
         #expect(devLauncher.contains("ditto \"$bin_path/slovo_SlovoCore.bundle\" \"$APP_CONTENTS/Resources/slovo_SlovoCore.bundle\""))
-        #expect(devLauncher.contains("Resources/slovo_SlovoCore.bundle/PromptExamples.xml"),
+        #expect(devLauncher.contains("$core_resources/PromptExamples.xml"),
                 "--verify must assert the staged resource bundle")
         #expect(releaseScript.contains("slovo_SlovoCore.bundle\" \"$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle\""))
     }

@@ -130,6 +130,17 @@ sqlcipher_framework_path() {
     fi
 }
 
+# SwiftPM's resource bundle is flat under the native build system and a macOS
+# bundle with Contents/Resources under Swift Build, its default from
+# swift-6.4.0-RELEASE (swift-package-manager, Sources/CoreCommands/Options.swift).
+bundle_resource_dir() {
+    if [[ -d "$1/Contents/Resources" ]]; then
+        printf '%s\n' "$1/Contents/Resources"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
 build_app() {
     if [[ -e "$APP_PATH" ]]; then
         echo "$APP_PATH already exists; move it aside before packaging to avoid stale signed artifacts" >&2
@@ -157,9 +168,10 @@ build_app() {
     # degrades every prompt to example-free, so staging it is part of the
     # product. Staged before signing so the seal covers it.
     run ditto "$ROOT/.build/$CONFIGURATION/slovo_SlovoCore.bundle" "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle"
-    local cue_resource
+    local core_resources cue_resource
+    core_resources="$(bundle_resource_dir "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle")"
     for cue_resource in start.wav end.wav error.wav; do
-        run test -f "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle/AudioCues/$cue_resource"
+        run test -f "$core_resources/AudioCues/$cue_resource"
     done
 
     # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).
