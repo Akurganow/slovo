@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.2] - 2026-10-25
+
+### Fixed
+
+- Stop withholding captured audio across the Start cue and log every cue in clear text (#196)
+
 ## [0.37.1] - 2026-10-08
 
 ### Fixed
