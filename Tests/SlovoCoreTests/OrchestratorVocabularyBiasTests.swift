@@ -50,12 +50,9 @@ struct OrchestratorVocabularyBiasTests {
         )
     }
 
-    /// One dictation from key-down to injection. The readiness cue is awaited so the
-    /// recorder reopens delivery and a chunk reaches the session — otherwise
-    /// finalization yields "" and cleanup is (correctly) never called.
+    /// One dictation from key-down to injection.
     private static func runDictation(on orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }
@@ -263,14 +260,6 @@ private final class StartGateRecorder: AudioRecorder, Sendable {
         let interleaved = duringStart.withLock { $0 }
         await interleaved?()
         return try await base.start()
-    }
-
-    func suspendDelivery() {
-        base.suspendDelivery()
-    }
-
-    func resumeDelivery() {
-        base.resumeDelivery()
     }
 
     func stop() async {

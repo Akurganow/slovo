@@ -191,18 +191,21 @@ enum GateChecks {
     /// logged `.public` — never payload text — matched EXACTLY as captured, so
     /// any new `.public` payload (even a lookalike name) must be added here, a
     /// deliberate review step, before the gate passes it.
-    /// Entries: `decodeMs`/`drainMs`/`failureMs`/`loadMs`/`requestMs` are millisecond
-    /// durations; `failureKind` and `failureStatus` are a fixed cleanup-failure token
+    /// Entries: `decodeMs`/`drainMs`/`elapsedMs`/`failureMs`/`loadMs`/`requestMs` are
+    /// millisecond durations; `failureKind` and `failureStatus` are a fixed cleanup-failure token
     /// and an HTTP status code, never a response body; `status.logToken` is a
     /// `StatusMessage` case name, an enum with no associated values;
     /// `planCase` is a decode-plan case NAME (associated values dropped at the
     /// call site); `confirmedEndSeconds` is a stream-position offset in seconds;
     /// `biasRetried ? 1 : 0` is a 0/1 flag for whether the tail decode was
-    /// retried without the bias prompt — a decision bit, never transcript.
+    /// retried without the bias prompt — a decision bit, never transcript;
+    /// `cue.resourceName` is a bundled cue's file name from a closed three-case switch.
     private static let allowedMetricPayloads: Set<String> = [
         "biasRetried ? 1 : 0",
+        "cue.resourceName",
         "decodeMs",
         "drainMs",
+        "elapsedMs",
         "failureKind",
         "failureMs",
         "failureStatus",

@@ -161,12 +161,8 @@ struct OrchestratorFeedFailureTests {
     }
 
     /// Runs a full Start→Stop session through the orchestrator.
-    /// A hold that outlasts the readiness cue, which is when the fake recorder starts
-    /// delivering audio — without it there is no feed at all, and the total-feed-failure
-    /// path under test is never reached.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }

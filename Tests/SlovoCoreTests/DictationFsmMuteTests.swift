@@ -22,28 +22,24 @@ struct DictationFsmMuteTests {
         #expect(effects == [.beginCapture], "must emit only beginCapture before readiness, got \(effects)")
     }
 
-    /// Readiness withholds delivery BEFORE starting the cue, so the cue's own opening
-    /// frames cannot re-enter through the microphone.
-    /// Sensitivity: swap the pair, drop the suspend, or mute here → RED.
+    /// Readiness only starts the cue, and never waits on it. Muting here would silence
+    /// the cue itself.
+    /// Sensitivity: add `.muteSystemOutput` or any other effect, or drop `.playStartCue` → RED.
     @Test
-    func captureReadySuspendsDeliveryBeforeStartingTheCue() {
+    func captureReadyOnlyStartsTheCue() {
         let (state, effects) = DictationFsm.transition(.recording, on: .captureReady)
         #expect(state == .recording, "capture readiness keeps the session recording, got \(state)")
-        #expect(effects == [.suspendDelivery, .playStartCue],
-                "must withhold delivery before the cue starts, and never wait on it; got \(effects)")
-        #expect(!effects.contains(.muteSystemOutput),
-                "muting here would silence the cue itself; got \(effects)")
+        #expect(effects == [.playStartCue],
+                "must start the cue and nothing else (muting would silence the cue itself); got \(effects)")
     }
 
-    /// The cue's completion mutes first, then reopens delivery — reopening first would
-    /// admit the very playback this mute silences.
-    /// Sensitivity: swap or drop either effect → RED.
+    /// The cue's completion mutes output, once and with nothing else.
+    /// Sensitivity: drop the mute or add any other effect → RED.
     @Test
-    func startCueFinishedMutesBeforeResumingDelivery() {
+    func startCueFinishedOnlyMutesOutput() {
         let (state, effects) = DictationFsm.transition(.recording, on: .startCueFinished)
         #expect(state == .recording, "the cue completion keeps the session recording, got \(state)")
-        #expect(effects == [.muteSystemOutput, .resumeDelivery],
-                "must mute before reopening delivery, exactly once each; got \(effects)")
+        #expect(effects == [.muteSystemOutput], "must mute exactly once and do nothing else; got \(effects)")
     }
 
     // MARK: - A late cue completion can never mute (the safety property)

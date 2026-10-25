@@ -343,14 +343,6 @@ public actor Orchestrator {
             deps.cueController.enqueue(cue)
             return nil
 
-        case .suspendDelivery:
-            deps.recorder.suspendDelivery()
-            return nil
-
-        case .resumeDelivery:
-            deps.recorder.resumeDelivery()
-            return nil
-
         case .muteSystemOutput:
             // MUTE is flag-gated but RESTORE stays stash-gated, so a mid-session toggle can't leave audio muted (skipped mute → nothing to restore).
             guard mutesSystemAudioWhileDictating else { return nil }

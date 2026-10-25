@@ -18,8 +18,8 @@ struct OrchestratorSoundCueCancelRaceTests {
 
     /// Suspended at the readiness cue's completion, after A's slot claim outlived A.
     ///
-    /// Sensitivity: dropping the identity check in `finishReadinessCue` mutes and
-    /// resumes B; the cue sequence also pins the silent cancel and B's single End.
+    /// Sensitivity: dropping the identity check in `finishReadinessCue` mutes B; the cue
+    /// sequence also pins the silent cancel and B's single End.
     @Test
     func readinessCueOutlivingItsSessionCannotAffectReplacement() async {
         let cues = BlockingStartCueController(startCueCount: 2)
@@ -52,8 +52,6 @@ struct OrchestratorSoundCueCancelRaceTests {
         await orchestrator.handle(.startRequested)
         await cues.waitUntilStartCueEntered(1)
         #expect(await orchestrator.currentState() == .recording)
-        #expect(recorder.deliverySuspendCount == 2, "each session suspends its own capture")
-        #expect(recorder.deliveryResumeCount == 0)
         #expect(audio.muteCount == 0)
 
         await cues.releaseStartCue(0)
@@ -61,7 +59,6 @@ struct OrchestratorSoundCueCancelRaceTests {
 
         #expect(await orchestrator.currentState() == .recording)
         #expect(audio.muteCount == 0, "A's finished cue must not mute for B")
-        #expect(recorder.deliveryResumeCount == 0, "A's finished cue must not resume B's capture")
         #expect(recorder.stopCount == 1, "A's finished cue must not stop B's microphone")
         #expect(cues.observedCues == [.start, .start], "A's finished cue must queue nothing for B")
 
@@ -69,7 +66,6 @@ struct OrchestratorSoundCueCancelRaceTests {
         await orchestrator.awaitReadinessCue()
 
         #expect(audio.muteCount == 1, "only B's own cue may mute")
-        #expect(recorder.deliveryResumeCount == 1, "only B's own cue may resume delivery")
 
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
@@ -120,8 +116,6 @@ struct OrchestratorSoundCueCancelRaceTests {
         await orchestrator.awaitReadinessCue()
         #expect(await orchestrator.currentState() == .recording)
         #expect(audio.muteCount == 1)
-        #expect(recorder.deliverySuspendCount == 1)
-        #expect(recorder.deliveryResumeCount == 1)
 
         await recorder.releaseFirstStart()
         await startA.value
@@ -131,8 +125,6 @@ struct OrchestratorSoundCueCancelRaceTests {
         #expect(recorder.stopCount == 1, "A must not stop B's microphone")
         #expect(transcriber.cancelCount == 1, "A must not tear down B's recognition session")
         #expect(audio.muteCount == 1, "A must not mute through B's state")
-        #expect(recorder.deliverySuspendCount == 1, "A must not re-suspend B's capture")
-        #expect(recorder.deliveryResumeCount == 1, "A must not re-resume B's capture")
         #expect(cues.playedCues == [.start], "A must not replay B's Start cue")
 
         await orchestrator.handle(.stopRequested(.plain))
@@ -224,9 +216,6 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
     private struct State {
         var startCount = 0
         var stopCount = 0
-        var suspendCount = 0
-        var resumeCount = 0
-        var isSuspended = false
         var openContinuations: [AsyncStream<AudioChunk>.Continuation] = []
         var liveContinuation: AsyncStream<AudioChunk>.Continuation?
     }
@@ -235,8 +224,6 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
     private let firstStartGate = AsyncGate()
 
     var stopCount: Int { state.withLock { $0.stopCount } }
-    var deliverySuspendCount: Int { state.withLock { $0.suspendCount } }
-    var deliveryResumeCount: Int { state.withLock { $0.resumeCount } }
 
     func start() async throws -> AsyncStream<AudioChunk> {
         let index = state.withLock { current -> Int in
@@ -249,32 +236,14 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
         state.withLock { current in
             current.openContinuations.append(continuation)
             current.liveContinuation = continuation
-            current.isSuspended = false
         }
+        continuation.yield(AudioChunk(buffer: Self.chunkBuffer()))
         return stream
-    }
-
-    func suspendDelivery() {
-        state.withLock { current in
-            guard !current.isSuspended else { return }
-            current.isSuspended = true
-            current.suspendCount += 1
-        }
-    }
-
-    func resumeDelivery() {
-        let continuation = state.withLock { current -> AsyncStream<AudioChunk>.Continuation? in
-            current.resumeCount += 1
-            current.isSuspended = false
-            return current.liveContinuation
-        }
-        continuation?.yield(AudioChunk(buffer: Self.chunkBuffer()))
     }
 
     func stop() async {
         let continuations = state.withLock { current -> [AsyncStream<AudioChunk>.Continuation] in
             current.stopCount += 1
-            current.isSuspended = false
             defer {
                 current.openContinuations = []
                 current.liveContinuation = nil

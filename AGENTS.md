@@ -124,17 +124,21 @@ Clarifications:
   - **Cues are fire-and-forget: no dictation step ever waits on audio.** A cue that
     plays late, fails, or never reports completion must never delay the microphone,
     the key-up, or the text pipeline — while still playing reliably itself.
-  - Once capture and recognition are ready, Start plays and captured audio is
-    withheld across it, so the cue is not transcribed. This is a software boundary,
-    not echo cancellation: the cue's acoustic tail in the room is not removed.
-  - Speech from before the cue — including while the speech model loads — still
-    reaches recognition, minus up to one capture callback around the cue. With cues
-    off that callback is the whole cost, and it is accepted rather than engineered
-    away.
+  - Once capture and recognition are ready, Start plays. Recognition receives
+    every captured sample from the first callback, including speech before the cue
+    and while the speech model loads. Nothing is withheld, blanked or cut for a
+    cue.
+  - A cue the microphone hears can reach recognition. The accepted cost: in a quiet
+    room, a press with no speech can insert a stray phrase. Turning
+    Sound Cues off avoids it.
   - Output is muted once Start is done; a hold that ended first drops that mute
     instead of silencing audio after the fact. A cue that never reports completion
-    is released by a deadline, at the price of audio staying withheld until it
-    elapses — the deliberate trade for never stranding the pipeline.
+    is released by a deadline, and the mute lands then — the deliberate trade for
+    never stranding the pipeline.
+  - Until the mute lands, other speaker sound can reach recognition: until Start
+    finishes, and until the deadline when the alert service is stuck. With
+    mute-while-dictating off no mute lands, so it can reach recognition for the
+    whole hold.
   - **End marks the end of AUDIO RECORDING, not a successful transcription.** At
     key-up Slovo stops capture, restores output, and queues End right there, so the
     sound lands with the glyph change instead of trailing the transcript. It is
@@ -153,7 +157,8 @@ Clarifications:
   red failure glyph "Ⱁ" (U+2C11), nothing is inserted, and cleanup is never
   called — an empty or whitespace-only transcript must reach neither OpenRouter
   nor the pasteboard. There is no alert dialog or persistent notice; when Sound
-  Cues is on, the non-focus-stealing Error cue accompanies the glyph.
+  Cues is on, the non-focus-stealing Error cue accompanies the glyph. The one
+  exception is the accepted quiet-room stray phrase of "Sound cues".
 - **Errors surface through the menu-bar icon/status and the optional Error audio
   cue** — never an alert dialog or focus-stealing notification. Slovo types into
   the user's current app; stealing focus destroys the workflow it exists to serve.

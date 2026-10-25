@@ -2,14 +2,17 @@ import AVFoundation
 import Foundation
 import Testing
 
-import SlovoCore
+// `@testable` only for `AVAudioEngineRecorder.detachedChunk`, the one recorder step that
+// can run without a microphone.
+@testable import SlovoCore
 import SlovoTestSupport
 
-// Two kinds of coverage, neither a substitute for the other. The first suite executes
+// Three kinds of coverage, none a substitute for another. The first suite executes
 // `FakeAudioRecorder` — the seam's SHAPE, not the hardware. The second reads
 // `AVAudioEngineRecorder`'s source text, the only check available for a class CI never
-// runs: it proves the wiring is present and ordered, never that it behaves. The timing
-// arithmetic behind it is verified for real in `AudioCaptureBoundaryTests`.
+// runs: it proves the wiring is present and ordered, never that it behaves. The third
+// executes the helper that detaches each chunk from the tap's buffer; a `yield` that
+// bypasses it, or hands it another pair than the session's, is caught only on hardware.
 @Suite("AudioRecorder seam (FakeAudioRecorder)")
 struct AudioRecorderSeamTests {
 
@@ -32,94 +35,10 @@ struct AudioRecorderSeamTests {
         #expect(recorder.engineStartCount == 0,
                 "the engine must NEVER be started when the mic is denied, got \(recorder.engineStartCount) starts")
     }
-
-    /// Speech captured before the cue still reaches recognition — the model may still be
-    /// loading — while the suspended interval is discarded and `stop()` ends the stream.
-    /// Sensitivity: start suspended → one chunk; no-op suspend → three; unfinished
-    /// stream → nil. All RED.
-    @Test
-    func deliversFromTheFirstCallbackAndWithholdsOnlyTheSuspendedInterval() async throws {
-        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
-        let stream = try await recorder.start()
-        recorder.emitCallback()
-        recorder.suspendDelivery()
-        recorder.emitCallback()
-        recorder.resumeDelivery()
-        await recorder.stop()
-
-        let delivered = await Self.drainedFrameLengths(of: stream)
-        #expect(delivered == [3, 3],
-                "exactly the pre-cue and post-resume callbacks must arrive, both whole; got \(String(describing: delivered))")
-        #expect(recorder.droppedCallbackCount == 1, "only the suspended callback may be discarded")
-        #expect(recorder.yieldedCallbackCount == 2, "both unsuspended callbacks must be yielded")
-        #expect(recorder.deliverySuspendCount == 1, "delivery suspends exactly once")
-        #expect(recorder.deliveryResumeCount == 1, "delivery resumes exactly once")
-        #expect(recorder.stopCount == 1, "stop() must be observed once")
-    }
-
-    /// Frame lengths an already-stopped stream still holds, or nil if it never ends. The
-    /// bound keeps a stream that never finishes a FAILING test rather than a wedged suite.
-    private static func drainedFrameLengths(of stream: AsyncStream<AudioChunk>) async -> [AVAudioFrameCount]? {
-        await withTaskGroup(of: [AVAudioFrameCount]?.self) { group in
-            group.addTask {
-                var lengths: [AVAudioFrameCount] = []
-                for await chunk in stream { lengths.append(chunk.buffer.frameLength) }
-                return lengths
-            }
-            group.addTask {
-                try? await Task.sleep(for: .seconds(2))
-                return nil
-            }
-            for await firstFinished in group {
-                group.cancelAll()
-                return firstFinished
-            }
-            return nil
-        }
-    }
 }
 
 @Suite("AVAudioEngineRecorder source guards")
 struct AVAudioEngineRecorderSourceGuardTests {
-
-    /// Both delivery edges carry a host-clock stamp and the tap hands its own timestamp
-    /// to the boundary, so the cue's interval is cut where it falls rather than at the
-    /// next callback — the sub-callback precision the seam fake cannot represent.
-    /// Sensitivity: drop either stamp, gate on a bare Boolean, discard the tap's `when`,
-    /// or yield before trimming → RED.
-    @Test
-    func recorderSourceTimestampsBothDeliveryEdges() throws {
-        let seam = try Self.code("Sources/SlovoCore/Audio/AudioRecorder.swift")
-        let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
-        let startBody = try Self.functionBody(named: "start", in: recorder)
-        let suspendBody = try Self.functionBody(named: "suspendDelivery", in: recorder)
-        let resumeBody = try Self.functionBody(named: "resumeDelivery", in: recorder)
-        let yieldBody = try Self.functionBody(named: "yield", in: recorder)
-
-        #expect(seam.contains("func suspendDelivery()") && seam.contains("func resumeDelivery()"),
-                "the production seam must expose the suspend/resume pair, not a one-shot gate opening")
-        #expect(startBody.contains("AudioCaptureBoundary()"),
-                "each capture session must own a fresh capture boundary")
-        #expect(Self.containsInOrder([
-            "buffer, when in",
-            "yield(buffer, capturedAt: when, sessionToken: sessionToken)",
-        ], in: startBody), "the tap must pass its AVAudioTime timestamp into delivery gating")
-
-        for (edge, body) in [("suspendDelivery", suspendBody), ("resumeDelivery", resumeBody)] {
-            #expect(body.contains("lock.withLock"), "\(edge) must reach the session under the tap's lock")
-            #expect(body.contains("AudioGetCurrentHostTime()") || body.contains("mach_absolute_time()"),
-                    "\(edge) must stamp its edge with the host clock")
-        }
-        #expect(suspendBody.contains("suspend(atHostTime:"),
-                "suspendDelivery must publish its host-time edge to the boundary")
-        #expect(resumeBody.contains("resume(atHostTime:"),
-                "resumeDelivery must publish its host-time edge to the boundary")
-        #expect(Self.containsInOrder([
-            "capturedAt",
-            "takeDeliverableBuffer",
-            "continuation?.yield",
-        ], in: yieldBody), "the callback must be trimmed against the capture boundary before it is yielded")
-    }
 
     /// Tap callbacks outlive `stop()` transiently, so each carries a session token
     /// and rejects a newer session under the lock.
@@ -135,8 +54,7 @@ struct AVAudioEngineRecorderSourceGuardTests {
         #expect(recorder.contains("final class SessionToken"), "recorder sessions need a stable callback identity")
         #expect(Self.containsInOrder([
             "let sessionToken = SessionToken()",
-            "buffer, when in",
-            "yield(buffer, capturedAt: when, sessionToken: sessionToken)",
+            "sessionToken: sessionToken)",
             "token: sessionToken",
         ], in: startBody), "the tap callback must capture the token published with its session")
         #expect(yieldFunction.contains("sessionToken: SessionToken"))
@@ -194,24 +112,20 @@ struct AVAudioEngineRecorderSourceGuardTests {
         "start() must assign the chosen device, then read the node's input format and validate it before installTap")
     }
 
-    /// Each chunk carries the stereo pair of the device the capture uses, read once
-    /// per start. On the default path that device comes from the default-input read:
-    /// there the audio unit's current device names no input device.
-    /// Stated sensitivity: read the pair from the audio unit instead of the
-    /// default-input id → RED. Drop the pair read, or build `AudioChunk(buffer: copy)`
-    /// without the pair → RED. `WhisperSampleConverterTests` cannot catch any of these.
+    /// The stereo pair is read once per start, from the device the capture uses. On the
+    /// default path that device comes from the default-input read: there the audio unit's
+    /// current device names no input device.
+    /// Stated sensitivity: read the pair from the audio unit instead of the default-input
+    /// id, or drop the pair read → RED. `WhisperSampleConverterTests` cannot catch either.
     @Test
-    func recorderSourceCarriesTheCapturedDevicesPair() throws {
+    func recorderSourceReadsThePairOfTheDefaultInputDevice() throws {
         let recorder = try Self.code("Sources/SlovoCore/Audio/AVAudioEngineRecorder.swift")
         let startBody = try Self.functionBody(named: "start", in: recorder)
-        let yieldBody = try Self.functionBody(named: "yield", in: recorder)
 
         #expect(Self.containsInOrder([
             "defaultInputDeviceID(",
             "preferredStereoChannels(of:",
         ], in: startBody), "start() must read the pair of the default input device")
-        #expect(yieldBody.contains("AudioChunk(buffer: copy, preferredStereoChannels:"),
-                "each yielded chunk must carry the session's pair")
     }
 
     private static func code(_ relativePath: String) throws -> String {
@@ -333,5 +247,49 @@ struct AVAudioEngineRecorderSourceGuardTests {
     private static var packageRoot: URL {
         let testFile = URL(fileURLWithPath: "\(#filePath)")
         return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+}
+
+@Suite("AVAudioEngineRecorder chunk detachment")
+struct AVAudioEngineRecorderChunkTests {
+
+    /// The tap's buffer is the engine's: the chunk must keep its samples, in every
+    /// channel, after the tap's buffer is overwritten, and carry the session's pair.
+    /// Stated sensitivity: handing out the tap's own buffer → RED. Dropping or nulling
+    /// the pair → RED.
+    @Test
+    func detachedChunkKeepsEveryChannelAfterTheTapBufferIsOverwritten() throws {
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
+        let tapBuffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 3))
+        tapBuffer.frameLength = 3
+        let tapChannels = try #require(tapBuffer.floatChannelData)
+        let left: [Float] = [0.1, 0.2, 0.3]
+        let right: [Float] = [-0.1, -0.2, -0.3]
+        for frame in 0..<3 {
+            tapChannels[0][frame] = left[frame]
+            tapChannels[1][frame] = right[frame]
+        }
+
+        let chunk = try #require(AVAudioEngineRecorder.detachedChunk(of: tapBuffer, preferredStereoChannels: [2, 1]))
+        for frame in 0..<3 {
+            tapChannels[0][frame] = 9
+            tapChannels[1][frame] = 9
+        }
+
+        let kept = try #require(chunk.buffer.floatChannelData)
+        #expect(Array(UnsafeBufferPointer(start: kept[0], count: 3)) == left, "channel 0 must keep the captured samples")
+        #expect(Array(UnsafeBufferPointer(start: kept[1], count: 3)) == right, "channel 1 must keep the captured samples")
+        #expect(chunk.preferredStereoChannels == [2, 1], "the chunk must carry the pair it was given")
+    }
+
+    /// An empty tap callback carries no audio, so it must not reach recognition.
+    /// Stated sensitivity: dropping the empty-buffer guard → RED.
+    @Test
+    func zeroFrameBufferYieldsNoChunk() throws {
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let emptyBuffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 3))
+        emptyBuffer.frameLength = 0
+
+        #expect(AVAudioEngineRecorder.detachedChunk(of: emptyBuffer, preferredStereoChannels: nil) == nil)
     }
 }

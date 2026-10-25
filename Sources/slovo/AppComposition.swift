@@ -51,8 +51,7 @@ enum AppComposition {
             keystroke: CGEventPasteKeystroke()
         )
         let cueController = AudioServicesDictationCueController(
-            isEnabled: config.playsDictationSoundCues,
-            log: log
+            isEnabled: config.playsDictationSoundCues
         )
         let recorder = AVAudioEngineRecorder(authorizer: permissionPreflighter, preferredInputDevice: config.preferredInputDevice)
         var dependencies = Dependencies(

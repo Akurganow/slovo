@@ -9,7 +9,7 @@ import SlovoTestSupport
 // handle cannot be built otherwise.
 @testable import SlovoCore
 
-// One shared timeline keeps the readiness, cue, delivery, mute, and key-up boundaries
+// One shared timeline keeps the readiness, cue, mute, and key-up boundaries
 // order-sensitive through the real Orchestrator.
 @Suite("Orchestrator sound cues")
 struct OrchestratorSoundCueTests {
@@ -23,10 +23,10 @@ struct OrchestratorSoundCueTests {
         #expect(cues.events.isEmpty, "only AppComposition may set the controller's initial preference; got \(cues.events)")
     }
 
-    /// Sensitivity: mute or resume moved onto the readiness transition,
-    /// `.suspendDelivery` dropped, or mute and resume swapped.
+    /// Sensitivity: the mute moved onto the readiness transition, or the cue not started
+    /// at readiness.
     @Test
-    func readinessSuspendsDeliveryAndDefersMuteUntilTheStartCueEnds() async {
+    func readinessStartsTheStartCueAndDefersMuteUntilItEnds() async {
         let timeline = CueTimeline()
         let transcriber = ControllableTranscriber(timeline: timeline, blocksBegin: true)
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
@@ -35,21 +35,21 @@ struct OrchestratorSoundCueTests {
         let keyDown = Task { await orchestrator.handle(.startRequested); return await cues.startCueLatch.hasBeenReleased }
         await transcriber.beginLatch.waitUntilArrived()
         #expect(timeline.events == [.sessionBegan, .recorderStarted, .asrBeginEntered],
-                "no cue, suspension, or mute may precede ASR readiness")
+                "no cue or mute may precede ASR readiness")
 
         await transcriber.beginLatch.release()
         await cues.startCueLatch.waitUntilArrived()
         let throughStartCue: [CueTimelineEvent] = [
-            .sessionBegan, .recorderStarted, .asrBeginEntered, .asrBecameReady, .deliverySuspended, .cuePlaybackStarted(.start),
+            .sessionBegan, .recorderStarted, .asrBeginEntered, .asrBecameReady, .cuePlaybackStarted(.start),
         ]
         #expect(timeline.events == throughStartCue,
-                "readiness suspends delivery and starts the cue, and key-down returns while it is still playing")
+                "readiness starts the cue, and key-down returns while it is still playing")
 
         await cues.startCueLatch.release()
         #expect(await keyDown.value == false, "key-down must return while the Start cue is still playing")
         await orchestrator.awaitReadinessCue()
-        #expect(timeline.events == throughStartCue + [.cuePlaybackFinished(.start), .systemMuted, .deliveryResumed],
-                "only the finished cue may mute output, and delivery reopens only after that mute")
+        #expect(timeline.events == throughStartCue + [.cuePlaybackFinished(.start), .systemMuted],
+                "only the finished cue may mute output")
 
         await orchestrator.handle(.cancelRequested)
     }
@@ -83,9 +83,10 @@ struct OrchestratorSoundCueTests {
     }
 
     /// The deferred mute must not outlive its hold: key-up already restored output.
-    /// Sensitivity: the inert `(.processing, .startCueFinished)` arm acting instead.
+    /// Sensitivity: the inert `(.processing, .startCueFinished)` arm acting instead, or
+    /// `finishReadinessCue` muting without handling `startCueFinished` through the FSM.
     @Test
-    func aStartCueFinishingAfterKeyUpNeitherMutesNorReopensDelivery() async {
+    func aStartCueFinishingAfterKeyUpNeverMutes() async {
         let timeline = CueTimeline()
         let transcriber = ControllableTranscriber(timeline: timeline, blocksFinish: true, finishText: "spoken")
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
@@ -103,40 +104,41 @@ struct OrchestratorSoundCueTests {
 
         #expect(stateWhenTheCueEnds == .processing, "the hold must already be over when the cue finishes")
         #expect(timeline.events.contains(.cuePlaybackFinished(.start)),
-                "the cue must really have finished after key-up, or the absences below are vacuous")
+                "the cue must really have finished after key-up, or the absence below is vacuous")
         #expect(!timeline.events.contains(.systemMuted),
                 "a cue finishing after the key-up restore must never mute system output")
-        #expect(!timeline.events.contains(.deliveryResumed), "a cue finishing after key-up must not reopen delivery either")
 
         await transcriber.finishLatch.release()
         await orchestrator.awaitPipelineDrain()
     }
 
-    /// Delivery is open from the first frame, not from the Start boundary.
-    /// Sensitivity: `suspendDelivery()` in `beginCapture` right after `recorder.start()`.
+    /// Recognition hears what the microphone captures from the first frame, through
+    /// the model load and while the Start cue plays.
+    /// Stated sensitivity: starting the pump only on `startCueFinished`, or a gate on
+    /// delivery during the cue → RED.
     @Test
-    func speechCapturedWhileTheModelLoadsReachesRecognition() async {
+    func speechCapturedBeforeAndDuringTheStartCueReachesRecognition() async {
         let timeline = CueTimeline()
-        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true), chunkCount: 0)
         let transcriber = ControllableTranscriber(timeline: timeline, blocksBegin: true)
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
         let orchestrator = Self.makeOrchestrator(timeline: timeline, transcriber: transcriber, cues: cues, recorder: recorder)
 
-        let keyDown = Task { await orchestrator.handle(.startRequested); return await cues.startCueLatch.hasBeenReleased }
+        let keyDown = Task { await orchestrator.handle(.startRequested) }
         await transcriber.beginLatch.waitUntilArrived()
         recorder.emitCallback()
-        #expect(recorder.droppedCallbackCount == 0,
-                "capture delivers from its first frame; nothing may withhold it while the model loads")
 
         await transcriber.beginLatch.release()
-        let didFeed = await becomesTrue { timeline.events.contains(.feedEntered) }
+        await cues.startCueLatch.waitUntilArrived()
+        recorder.emitCallback()
+        let didFeedBoth = await becomesTrue { transcriber.fedChunkCount == 2 }
 
-        #expect(didFeed, "the frame captured before readiness must reach recognition")
-        #expect(transcriber.fedChunkCount == 1, "exactly that pre-readiness frame; the playing cue resumes no delivery")
+        #expect(didFeedBoth, "the frames captured before and during the Start cue must both reach recognition")
 
-        await orchestrator.handle(.cancelRequested)
         await cues.startCueLatch.release()
-        #expect(await keyDown.value == false, "key-down must return while the Start cue is still playing")
+        await keyDown.value
+        await orchestrator.awaitReadinessCue()
+        await orchestrator.handle(.cancelRequested)
     }
 
     /// No recording ever ended, so a start failure gets Error alone.
@@ -149,8 +151,6 @@ struct OrchestratorSoundCueTests {
         )
         #expect(recorderFailure.cues.playedCues == [.error])
         #expect(recorderFailure.audio.muteCount == 0)
-        #expect(recorderFailure.recorder.deliverySuspendCount == 0)
-        #expect(recorderFailure.recorder.deliveryResumeCount == 0)
         #expect(recorderFailure.state == .idle)
 
         let asrFailure = await Self.runStartFailure(
@@ -159,8 +159,6 @@ struct OrchestratorSoundCueTests {
         )
         #expect(asrFailure.cues.playedCues == [.error])
         #expect(asrFailure.audio.muteCount == 0)
-        #expect(asrFailure.recorder.deliverySuspendCount == 0)
-        #expect(asrFailure.recorder.deliveryResumeCount == 0)
         #expect(asrFailure.recorder.stopCount == 1, "an ASR start failure must close the already-started recorder")
         #expect(asrFailure.state == .idle)
     }
@@ -311,7 +309,7 @@ private func becomesTrue(within maxYields: Int = 20_000, _ isSatisfied: @Sendabl
 
 private enum CueTimelineEvent: Equatable, Sendable {
     case sessionBegan, recorderStarted, asrBeginEntered, asrBecameReady
-    case deliverySuspended, deliveryResumed, feedEntered, recorderStopped
+    case feedEntered, recorderStopped
     case systemMuted, systemRestored
     case cuePlaybackStarted(DictationCue), cuePlaybackFinished(DictationCue), cueEnqueued(DictationCue)
 }
@@ -406,7 +404,7 @@ private final class ControllableCueController: DictationCueController {
     func endSession() { isSessionActive.withLock { $0 = false } }
 }
 
-/// Records every delivery boundary; `emitsOnStart` puts a frame in the stream before
+/// Records the capture start and stop; `emitsOnStart` puts a frame in the stream before
 /// ASR is ready.
 private final class TimelineRecorder: AudioRecorder {
     private let timeline: CueTimeline
@@ -425,10 +423,6 @@ private final class TimelineRecorder: AudioRecorder {
         if emitsOnStart { continuation.yield(AudioChunk(buffer: Self.buffer())) }
         return stream
     }
-
-    func suspendDelivery() { timeline.record(.deliverySuspended) }
-
-    func resumeDelivery() { timeline.record(.deliveryResumed) }
 
     func stop() async {
         timeline.record(.recorderStopped)

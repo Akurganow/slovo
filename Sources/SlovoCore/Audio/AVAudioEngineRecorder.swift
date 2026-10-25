@@ -16,20 +16,13 @@ import SlovoObjC
 /// `AudioCaptureError`, never a `SIGABRT`). A device assignment makes the engine
 /// post its configuration change notification at start while it keeps running.
 /// The orchestrator finalizes at key-up whether or not the stream ended early, so
-/// the recorder does not observe that notification. Capture delivers from its
-/// first frame; `suspendDelivery()`/`resumeDelivery()` withhold the readiness
-/// cue's interval. `stop()` closes capture and finishes the stream.
+/// the recorder does not observe that notification. Capture delivers every callback
+/// from its first frame. `stop()` closes capture and finishes the stream.
 public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     private let authorizer: MicrophoneAuthorizer
     private let log: RedactionSafeLog
 
     private final class SessionToken: @unchecked Sendable {}
-
-    private typealias Delivery = (
-        boundary: AudioCaptureBoundary,
-        continuation: AsyncStream<AudioChunk>.Continuation,
-        preferredStereoChannels: [Int]?
-    )
 
     /// A live capture session: the engine and the stream continuation the
     /// audio-thread tap yields into. Bundling them lets `start()` publish and
@@ -39,7 +32,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         let token: SessionToken
         let engine: AVAudioEngine
         let continuation: AsyncStream<AudioChunk>.Continuation
-        let captureBoundary: AudioCaptureBoundary
         let preferredStereoChannels: [Int]?
     }
 
@@ -120,17 +112,14 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         let sessionToken = SessionToken()
 
         // The documented minimum of `installTap`'s supported [100, 400] ms range.
-        // While a cue plays it is narrower than the cue, so it cannot span both
-        // boundaries; with cues off both land in one callback and its pre-suspend
-        // frames are dropped — an accepted loss.
         let tapBufferSize = AVAudioFrameCount((inputFormat.sampleRate * 0.1).rounded())
 
         // `installTap` raises an Obj-C `NSException` (uncatchable in Swift) when the
         // format still does not match the hardware; convert it to a recoverable
         // error instead of aborting the process.
         if let tapError = SlovoRunCatchingNSException({
-            inputNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: inputFormat) { [weak self] buffer, when in
-                self?.yield(buffer, capturedAt: when, sessionToken: sessionToken)
+            inputNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: inputFormat) { [weak self] buffer, _ in
+                self?.yield(buffer, sessionToken: sessionToken)
             }
         }) {
             // The reason is an AVFoundation assertion string (hardware metadata, no
@@ -147,7 +136,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
                 token: sessionToken,
                 engine: engine,
                 continuation: continuation,
-                captureBoundary: AudioCaptureBoundary(),
                 preferredStereoChannels: preferredStereoChannels
             )
         }
@@ -161,18 +149,6 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             throw AudioCaptureError.engineStartFailed
         }
         return stream
-    }
-
-    public func suspendDelivery() {
-        lock.withLock {
-            session?.captureBoundary.suspend(atHostTime: AudioGetCurrentHostTime())
-        }
-    }
-
-    public func resumeDelivery() {
-        lock.withLock {
-            session?.captureBoundary.resume(atHostTime: AudioGetCurrentHostTime())
-        }
     }
 
     public func stop() async {
@@ -196,27 +172,21 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         session.continuation.finish()
     }
 
-    /// Applies the timestamp boundary outside the session lock so teardown never
-    /// waits for buffer copying.
-    private func yield(
-        _ buffer: AVAudioPCMBuffer,
-        capturedAt: AVAudioTime,
-        sessionToken: SessionToken
-    ) {
-        let delivery: Delivery? = lock.withLock {
+    /// Copies outside the session lock so teardown never waits for the copy.
+    private func yield(_ buffer: AVAudioPCMBuffer, sessionToken: SessionToken) {
+        let target = lock.withLock { () -> (continuation: AsyncStream<AudioChunk>.Continuation, pair: [Int]?)? in
             guard let session, session.token === sessionToken else { return nil }
-            return (
-                boundary: session.captureBoundary,
-                continuation: session.continuation,
-                preferredStereoChannels: session.preferredStereoChannels
-            )
+            return (session.continuation, session.preferredStereoChannels)
         }
-        let callbackTime = capturedAt
-        let continuation = delivery?.continuation
-        let boundary = delivery?.boundary
-        guard let copy = boundary?.takeDeliverableBuffer(buffer, capturedAt: callbackTime) else {
-            return
-        }
-        continuation?.yield(AudioChunk(buffer: copy, preferredStereoChannels: delivery?.preferredStereoChannels))
+        guard let target,
+              let chunk = Self.detachedChunk(of: buffer, preferredStereoChannels: target.pair) else { return }
+        target.continuation.yield(chunk)
+    }
+
+    /// The chunk outlives the tap callback and `installTap` documents no buffer
+    /// lifetime, so it carries a copy. A zero-frame buffer yields no chunk.
+    static func detachedChunk(of buffer: AVAudioPCMBuffer, preferredStereoChannels: [Int]?) -> AudioChunk? {
+        guard buffer.frameLength > 0, let copy = buffer.copy() as? AVAudioPCMBuffer else { return nil }
+        return AudioChunk(buffer: copy, preferredStereoChannels: preferredStereoChannels)
     }
 }

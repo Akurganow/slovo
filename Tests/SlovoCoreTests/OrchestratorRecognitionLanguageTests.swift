@@ -29,11 +29,9 @@ struct OrchestratorRecognitionLanguageTests {
         )
     }
 
-    /// One dictation from key-down to injection (the `OrchestratorVocabularyBiasTests`
-    /// shape: the readiness cue is awaited so a chunk reaches the session).
+    /// One dictation from key-down to injection.
     private static func runDictation(on orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }
