@@ -127,7 +127,7 @@ struct SoundCueWiringSourceGuardTests {
 
         #expect(manifest.contains(#".copy("Resources/AudioCues")"#))
         for name in ["start.wav", "end.wav", "error.wav"] {
-            #expect(launcher.contains("Resources/slovo_SlovoCore.bundle/AudioCues/\(name)"),
+            #expect(launcher.contains("$core_resources/AudioCues/\(name)"),
                     "dev --verify must assert packaged \(name)")
         }
         for required in ["AbdrTar", "CC0 1.0", "519985", "519986", "558121", "asetrate=44160", "lowpass=f=2400"] {

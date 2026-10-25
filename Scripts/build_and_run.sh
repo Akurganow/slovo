@@ -171,18 +171,31 @@ open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
 
+# SwiftPM's resource bundle is flat under the native build system and a macOS
+# bundle with Contents/Resources under Swift Build, its default from
+# swift-6.4.0-RELEASE (swift-package-manager, Sources/CoreCommands/Options.swift).
+bundle_resource_dir() {
+  if [[ -d "$1/Contents/Resources" ]]; then
+    printf '%s\n' "$1/Contents/Resources"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
 verify_app() {
+  local core_resources
+  core_resources="$(bundle_resource_dir "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle")"
   # A missing resource bundle degrades every prompt to example-free at runtime
   # (PromptExampleCatalog logs but keeps working), so staging is asserted here.
-  if [[ ! -f "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/PromptExamples.xml" ]]; then
+  if [[ ! -f "$core_resources/PromptExamples.xml" ]]; then
     echo "prompt examples resource bundle is not staged in $APP_CONTENTS/Resources" >&2
     return 1
   fi
   local cue_resource
   for cue_resource in \
-    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/start.wav" \
-    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/end.wav" \
-    "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle/AudioCues/error.wav"
+    "$core_resources/AudioCues/start.wav" \
+    "$core_resources/AudioCues/end.wav" \
+    "$core_resources/AudioCues/error.wav"
   do
     if [[ ! -f "$cue_resource" ]]; then
       echo "dictation sound cue is not staged: $cue_resource" >&2
