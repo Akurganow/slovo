@@ -119,6 +119,30 @@ baseline and does not read network credentials.
 See [cleanup-benchmark.md](references/cleanup-benchmark.md) for sample-file
 format and benchmark reporting notes.
 
+## Speech Test Corpus
+
+A corpus of synthetic speech is published for recognition checks: dictation-style
+phrases in several languages, many of them mixed with English inside one
+utterance. It lives outside Git, as the OCI artifact
+`ghcr.io/akurganow/slovo-corpus`, and anyone can download it without signing in.
+Install [ORAS](https://oras.land/docs/installation) (docs version 1.3), then
+download the corpus into the ignored `tmp/` folder, check it and unpack it:
+
+```sh
+oras pull ghcr.io/akurganow/slovo-corpus:1 -o tmp/speech-corpus
+(cd tmp/speech-corpus && shasum -a 256 -c SHA256SUMS && for t in *.tar; do tar -xf "$t"; done)
+```
+
+`meta.tar` holds the corpus `README.md`, which lists the languages, voices and
+manifest fields, the license and how to credit the corpus. It also says which
+clips have unreliable onsets (`split_method` `aligned`). Keep them out of onset
+or timing tests. Each other tar holds one provider's clips, so unpack only the
+ones you need.
+
+A tag can be moved, so record the `Digest:` line `oras pull` prints and pull by
+digest (`ghcr.io/akurganow/slovo-corpus@sha256:<digest>`) to get the exact
+corpus you tested against. Never commit the audio.
+
 ## Packaging
 
 Published releases are fully automated (see [release-ci.md](release-ci.md)); this
