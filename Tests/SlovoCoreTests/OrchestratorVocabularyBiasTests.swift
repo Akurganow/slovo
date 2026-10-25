@@ -50,11 +50,9 @@ struct OrchestratorVocabularyBiasTests {
         )
     }
 
-    /// One dictation from key-down to injection. The readiness cue is awaited so the
-    /// session is ready before key-up.
+    /// One dictation from key-down to injection.
     private static func runDictation(on orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }

@@ -129,14 +129,16 @@ Clarifications:
     and while the speech model loads. Nothing is withheld, blanked or cut for a
     cue.
   - A cue the microphone hears can reach recognition. The accepted cost: in a quiet
-    room, a press with no speech was observed to insert a stray phrase. Turning
+    room, a press with no speech can insert a stray phrase. Turning
     Sound Cues off avoids it.
   - Output is muted once Start is done; a hold that ended first drops that mute
     instead of silencing audio after the fact. A cue that never reports completion
     is released by a deadline, and the mute lands then — the deliberate trade for
     never stranding the pipeline.
   - Until the mute lands, other speaker sound can reach recognition: until Start
-    finishes, and until the deadline when the alert service is stuck.
+    finishes, and until the deadline when the alert service is stuck. With
+    mute-while-dictating off no mute lands, so it can reach recognition for the
+    whole hold.
   - **End marks the end of AUDIO RECORDING, not a successful transcription.** At
     key-up Slovo stops capture, restores output, and queues End right there, so the
     sound lands with the glyph change instead of trailing the transcript. It is

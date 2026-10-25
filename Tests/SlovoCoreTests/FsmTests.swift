@@ -8,7 +8,7 @@ import SlovoCore
 @Suite("FSM transition")
 struct FsmTests {
 
-    /// Key-down begins capture and nothing else; delivery is open from the first frame.
+    /// Key-down begins capture and nothing else.
     /// Sensitivity: a wrong next state or any extra effect → RED.
     @Test
     func idleStartRequestedBeginsCapture() {

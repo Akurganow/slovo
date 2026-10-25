@@ -84,9 +84,9 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   When a bias-prompted final decode composes to empty, Slovo decodes once more
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
-  so Whisper never gets the chance to hallucinate into silence. A cue the microphone
-  hears can reach recognition, so in a quiet room a press with no speech can insert
-  a stray phrase. This is accepted, and Sound Cues off avoids it. The model
+  so Whisper does not decode a hold with no voice energy. A cue the microphone hears
+  can supply that energy, so in a quiet room a press with no speech can insert a
+  stray phrase. This is accepted, and Sound Cues off avoids it. The model
   remains resident between dictations, and the recognition language reaches the
   decoder per session rather than the model load, so changing it costs no reload.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223

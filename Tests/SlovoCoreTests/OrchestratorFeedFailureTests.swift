@@ -160,11 +160,9 @@ struct OrchestratorFeedFailureTests {
         )
     }
 
-    /// Runs a full Start→Stop session through the orchestrator. The readiness cue is
-    /// awaited so the session is ready before key-up.
+    /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
         await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
         await orchestrator.handle(.stopRequested(.plain))
         await orchestrator.awaitPipelineDrain()
     }

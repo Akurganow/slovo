@@ -61,7 +61,7 @@ tuned.
   never hold up dictation: the microphone opens without waiting for a cue, and
   releasing the key stops recording immediately. Nothing is cut from the recording
   for a cue, so you can speak at the press. In a quiet room, a press with no
-  speech was observed to insert a stray phrase as text. Turning Sound Cues off
+  speech can insert a stray phrase as text. Turning Sound Cues off
   avoids it. End marks the end of recording rather than a successful
   transcription: it plays at key-up, together with the glyph change, and never
   delays cleanup. Error accompanies the red failure glyph. Intentional

@@ -68,8 +68,8 @@ analysed commit.
   information leakage, never a convenience.
 - **Reliability mechanisms `AGENTS.md` argues for.** The sound-cue FIFO and
   its release deadline and the per-dictation cue queue are recorded as
-  earning their keep
-  (`AGENTS.md`, "Product intent — how the app must work", "Sound cues").
+  earning their keep (`AGENTS.md`, "Product intent — how the app must work",
+  "Sound cues").
 
 This file describes shapes in the tree. Where the tree and this file
 disagree, the tree wins and this file is stale.
