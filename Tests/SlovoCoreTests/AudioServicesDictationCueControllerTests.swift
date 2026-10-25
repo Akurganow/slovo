@@ -27,7 +27,7 @@ struct AudioServicesDictationCueControllerTests {
         }
     }
 
-    /// Stated sensitivity: scheduling a cue outside a session plays it, or a handle that
+    /// Sensitivity: scheduling a cue outside a session plays it, or a handle that
     /// never resolves hangs the awaiting caller, → RED; reporting `requested` before the
     /// session guard adds an End event → RED; a normal completion that reports `late`
     /// instead of `completed` → RED.
@@ -131,12 +131,13 @@ struct AudioServicesDictationCueControllerTests {
         #expect(await playback.releaseNext())
     }
 
-    /// Stated sensitivity: without the deadline race a cue that never completes holds the
+    /// Sensitivity: without the deadline race a cue that never completes holds the
     /// FIFO and its caller forever → RED; dropping `deadlineElapsed` → RED; dropping
     /// `late` → RED (the bounded wait expires); swapping `completed` and `late` on the
-    /// one-shot result → RED. End's own events are not asserted beyond `requested`: its
-    /// deadline can land before the read on a slow runner, and `late` has no order
-    /// against any later line.
+    /// one-shot result → RED.
+    ///
+    /// End's own events are not asserted beyond `requested`: its deadline can land
+    /// before the read on a slow runner, and `late` has no order against any later line.
     @Test
     func playbackThatNeverCompletesIsReleasedAtTheDeadline() async {
         let playback = PlaybackProbe(blocksSuccessfulCalls: true)
@@ -241,7 +242,7 @@ struct AudioServicesDictationCueControllerTests {
                 "the current session keeps its enabled snapshot; the next session sees the update")
     }
 
-    /// Stated sensitivity: ignoring the session snapshot records the cue → RED; reporting
+    /// Sensitivity: ignoring the session snapshot records the cue → RED; reporting
     /// `requested` before the combined session and enabled guard → RED.
     @Test
     func disabledStartPerformsNoPlayback() async {
@@ -256,7 +257,7 @@ struct AudioServicesDictationCueControllerTests {
         #expect(events.untimed.isEmpty, "disabled cues must write no cue line")
     }
 
-    /// Stated sensitivity: propagating the error breaks the nonthrowing contract;
+    /// Sensitivity: propagating the error breaks the nonthrowing contract;
     /// terminating the queue drops the following cue; dropping `failed`, or a failed cue
     /// that also reports completion or `late`, changes the event list → RED.
     @Test

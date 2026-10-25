@@ -48,9 +48,12 @@ public protocol DictationCueController: AnyObject, Sendable {
 /// One fact in a cue's playback history. The set is closed and holds no text, so a
 /// log line built from it cannot carry user data.
 ///
-/// `elapsedMs` counts from the moment `play` hands the cue to the system, so it
-/// excludes the wait behind earlier cues. It is whole milliseconds on `ContinuousClock`
-/// and a diagnostic only: no rule or test depends on its value.
+/// `late` means the completion arrived after the deadline had already released the cue.
+/// Its order against `deadlineElapsed` is not defined.
+///
+/// `elapsedMs`, printed as `ms=` in the log, counts from the moment `play` hands the cue
+/// to the system, so it excludes the wait behind earlier cues. It is whole milliseconds
+/// on `ContinuousClock` and a diagnostic only: no rule or test depends on its value.
 internal enum CuePlaybackEvent: Equatable, Sendable {
     case requested(DictationCue)
     case completed(DictationCue, elapsedMs: Int)

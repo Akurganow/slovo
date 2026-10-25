@@ -65,11 +65,12 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   continuation, and only its value is handed on. It can be raced directly from many
   callers released by a spin barrier — pinning that the guard is ATOMIC, which
   racing playback against the deadline never could: that pair's timing is bounded
-  by wake-up precision. Every requested cue reports a closed set of five playback
-  events through one injected function, and one writer logs them as public fixed
+  by wake-up precision. Each cue's playback history is a closed set of five events
+  reported through one injected function, and one writer logs them as public fixed
   text in category `dictation`. The events hold a cue name and a number, never user
-  text, and the doc comment of `CuePlaybackEvent` defines `ms`. Inside one
-  dictation's queue, a cue's terminal event precedes the next cue's `cue.requested`.
+  text, and the doc comment of `CuePlaybackEvent` defines `elapsedMs`, the `ms=` of
+  the log lines. Inside one dictation's queue, a cue's terminal event precedes the
+  next cue's request.
   The orchestrator's `cue.error reason=` line is separate: info level, and not one
   of the five events.
   Ending a session detaches the FIFO tail, so one dictation's remaining audio never
