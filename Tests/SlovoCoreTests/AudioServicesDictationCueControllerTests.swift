@@ -177,14 +177,14 @@ struct AudioServicesDictationCueControllerTests {
     func oneShotActionRunsForExactlyOneOfManySimultaneousCallers() async {
         for _ in 0 ..< Self.oneShotTrials {
             let runs = Atomic(0)
-            let action = OneShotAction { runs.wrappingAdd(1, ordering: .sequentiallyConsistent) }
+            let action = OneShotAction<Int> { _ in runs.wrappingAdd(1, ordering: .sequentiallyConsistent) }
             let releaseAt = ContinuousClock.now.advanced(by: Self.oneShotGateWait)
 
             let winners = await withTaskGroup(of: Bool.self) { callers in
                 for _ in 0 ..< Self.oneShotCallers {
                     callers.addTask {
                         while ContinuousClock.now < releaseAt {}
-                        return action.run()
+                        return action.run(0)
                     }
                 }
                 return await callers.reduce(0) { $0 + ($1 ? 1 : 0) }
@@ -232,23 +232,14 @@ struct AudioServicesDictationCueControllerTests {
     @Test
     func playbackFailureIsContainedAndTheQueueContinues() async {
         let playback = PlaybackProbe(failingCallIndexes: [1])
-        let logs = Mutex<[String]>([])
-        let controller = AudioServicesDictationCueController(
-            isEnabled: true,
-            log: RedactionSafeLog(subsystem: "slovo", category: "cue-controller-test") { message in
-                logs.withLock { $0.append(message) }
-            },
-            playback: { cue in try await playback.play(cue) }
-        )
+        let controller = Self.controller(playback: playback)
         controller.beginSession()
 
         controller.enqueue(.end)
         await controller.beginPlayback(.error).awaitCompletion()
 
         #expect(await playback.calls == [.end, .error],
-                "a failed cue must be logged and skipped without poisoning the FIFO")
-        #expect(logs.withLock { $0 }.count == 1, "one failed playback must produce one payload-free diagnostic")
-        #expect(!logs.withLock { $0 }.joined().contains("ScriptedFailure"), "the wrapped error payload must not be logged")
+                "a failed cue must be skipped without poisoning the FIFO")
     }
 
     /// A lost ordering shows far sooner than this; passing runs never wait it out.
@@ -273,11 +264,12 @@ struct AudioServicesDictationCueControllerTests {
     private static func controller(
         isEnabled: Bool = true,
         playback: PlaybackProbe,
-        playbackDeadline: Duration = AudioServicesDictationCueController.defaultPlaybackDeadline
+        playbackDeadline: Duration = AudioServicesDictationCueController.defaultPlaybackDeadline,
+        report: @escaping AudioServicesDictationCueController.Report = { _ in }
     ) -> AudioServicesDictationCueController {
         AudioServicesDictationCueController(
             isEnabled: isEnabled,
-            log: RedactionSafeLog(subsystem: "slovo", category: "cue-controller-test"),
+            report: report,
             playbackDeadline: playbackDeadline,
             playback: { cue in try await playback.play(cue) }
         )

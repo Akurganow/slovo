@@ -11,7 +11,7 @@ struct SoundCueResourceResolutionTests {
     /// name drops that one cue.
     @Test
     func everyDictationCueResolvesFromTheBundleAtRuntime() {
-        let player = AudioServicesAlertCuePlayer(log: Self.log)
+        let player = AudioServicesAlertCuePlayer()
 
         #expect(player.resolvedCues == [.start, .end, .error],
                 "every dictation cue must resolve from the packaged SlovoCore bundle at runtime")
@@ -23,6 +23,4 @@ struct SoundCueResourceResolutionTests {
         #expect(SlovoCoreResourceBundle.resolve() != nil,
                 "the SlovoCore resource bundle must resolve outside a packaged app too")
     }
-
-    private static let log = RedactionSafeLog(subsystem: "slovo", category: "cue-resource-test")
 }

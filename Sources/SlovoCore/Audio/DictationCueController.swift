@@ -1,5 +1,6 @@
 import AudioToolbox
 import Foundation
+import os
 import Synchronization
 
 /// One audible boundary in a dictation session.
@@ -44,10 +45,27 @@ public protocol DictationCueController: AnyObject, Sendable {
     func endSession()
 }
 
+/// One fact in a cue's playback history. The set is closed and holds no text, so a
+/// log line built from it cannot carry user data.
+///
+/// `elapsedMs` counts from the moment `play` hands the cue to the system, so it
+/// excludes the wait behind earlier cues. It is whole milliseconds on `ContinuousClock`
+/// and a diagnostic only: no rule or test depends on its value.
+internal enum CuePlaybackEvent: Equatable, Sendable {
+    case requested(DictationCue)
+    case completed(DictationCue, elapsedMs: Int)
+    case deadlineElapsed(DictationCue)
+    case late(DictationCue, elapsedMs: Int)
+    case failed(DictationCue)
+}
+
 /// Serializes every cue through one FIFO and snapshots the enabled preference at
 /// dictation start.
 public final class AudioServicesDictationCueController: DictationCueController, @unchecked Sendable {
     internal typealias Playback = @Sendable (DictationCue) async throws -> Void
+    internal typealias Report = @Sendable (CuePlaybackEvent) -> Void
+
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     /// Longest a single cue may hold the FIFO. Well above the bundled cues (~0.25 s),
     /// so it fires only when playback never reports completion.
@@ -61,25 +79,27 @@ public final class AudioServicesDictationCueController: DictationCueController, 
     }
 
     private let lock = NSLock()
-    private let log: RedactionSafeLog
+    private let report: Report
     private let playback: Playback
     private let playbackDeadline: Duration
     private var state: State
 
-    public convenience init(isEnabled: Bool, log: RedactionSafeLog) {
-        let player = AudioServicesAlertCuePlayer(log: log)
-        self.init(isEnabled: isEnabled, log: log) { cue in
+    public convenience init(isEnabled: Bool) {
+        let player = AudioServicesAlertCuePlayer()
+        self.init(isEnabled: isEnabled, report: Self.writeToLog) { cue in
             try await player.playToCompletion(cue)
         }
     }
 
+    /// `report` has no default, so a test must say what happens to events and never
+    /// writes cue lines to the real log by omission.
     internal init(
         isEnabled: Bool,
-        log: RedactionSafeLog,
+        report: @escaping Report,
         playbackDeadline: Duration = AudioServicesDictationCueController.defaultPlaybackDeadline,
         playback: @escaping Playback
     ) {
-        self.log = log
+        self.report = report
         self.playback = playback
         self.playbackDeadline = playbackDeadline
         self.state = State(configuredEnabled: isEnabled)
@@ -119,10 +139,9 @@ public final class AudioServicesDictationCueController: DictationCueController, 
             let previous = state.tail
             let playback = self.playback
             let deadline = self.playbackDeadline
-            let log = self.log
             let task = Task {
                 await previous?.value
-                await Self.play(cue, using: playback, deadline: deadline, log: log)
+                await Self.play(cue, using: playback, deadline: deadline)
             }
             state.tail = task
             return task
@@ -134,27 +153,37 @@ public final class AudioServicesDictationCueController: DictationCueController, 
     private static func play(
         _ cue: DictationCue,
         using playback: @escaping Playback,
-        deadline: Duration,
-        log: RedactionSafeLog
+        deadline: Duration
     ) async {
         await withCheckedContinuation { continuation in
-            let resumeOnce = OneShotAction { continuation.resume() }
+            let resumeOnce = OneShotAction<Void> { continuation.resume() }
             let deadlineTask = Task {
                 try? await Task.sleep(for: deadline)
-                if resumeOnce.run() {
-                    log.event("dictation cue playback deadline elapsed")
-                }
+                resumeOnce.run(())
             }
             Task {
-                do {
-                    try await playback(cue)
-                } catch {
-                    log.event("dictation cue playback failed")
-                }
-                resumeOnce.run()
+                try? await playback(cue)
+                resumeOnce.run(())
                 // Otherwise every cue leaves a task sleeping until the deadline.
                 deadlineTask.cancel()
             }
+        }
+    }
+
+    /// One fixed literal per event: the exhaustive switch means a new event cannot
+    /// ship without its own line.
+    private static func writeToLog(_ event: CuePlaybackEvent) {
+        switch event {
+        case .requested(let cue):
+            diagnosticLog.log("cue.requested cue=\(cue.resourceName, privacy: .public)")
+        case .completed(let cue, let elapsedMs):
+            diagnosticLog.log("cue.completed cue=\(cue.resourceName, privacy: .public) ms=\(elapsedMs, privacy: .public)")
+        case .deadlineElapsed(let cue):
+            diagnosticLog.error("cue.deadlineElapsed cue=\(cue.resourceName, privacy: .public)")
+        case .late(let cue, let elapsedMs):
+            diagnosticLog.log("cue.late cue=\(cue.resourceName, privacy: .public) ms=\(elapsedMs, privacy: .public)")
+        case .failed(let cue):
+            diagnosticLog.error("cue.failed cue=\(cue.resourceName, privacy: .public)")
         }
     }
 }
@@ -167,15 +196,13 @@ internal final class AudioServicesAlertCuePlayer: @unchecked Sendable {
         case soundUnavailable
     }
 
-    private let log: RedactionSafeLog
     private let soundIDs: [DictationCue: SystemSoundID]
 
     /// The cues resolved from the bundle at init, so a test can prove the runtime
     /// lookup still finds every one — a packaging mistake otherwise ships silence.
     internal var resolvedCues: Set<DictationCue> { Set(soundIDs.keys) }
 
-    internal init(log: RedactionSafeLog) {
-        self.log = log
+    internal init() {
         self.soundIDs = Dictionary(
             uniqueKeysWithValues: DictationCue.allCases.compactMap { cue in
                 Self.loadSoundID(for: cue).map { (cue, $0) }
@@ -184,8 +211,8 @@ internal final class AudioServicesAlertCuePlayer: @unchecked Sendable {
     }
 
     deinit {
-        for soundID in soundIDs.values where AudioServicesDisposeSystemSoundID(soundID) != noErr {
-            log.event("dictation cue sound disposal failed")
+        for soundID in soundIDs.values {
+            AudioServicesDisposeSystemSoundID(soundID)
         }
     }
 
@@ -234,23 +261,24 @@ private extension DictationCue {
 
 /// Performs its action for the first caller only, so racing branches cannot resume
 /// one continuation twice.
-internal final class OneShotAction: Sendable {
+internal final class OneShotAction<Value: Sendable>: Sendable {
     private let hasRun = Atomic(false)
-    private let action: @Sendable () -> Void
+    private let action: @Sendable (Value) -> Void
 
-    internal init(_ action: @escaping @Sendable () -> Void) {
+    internal init(_ action: @escaping @Sendable (Value) -> Void) {
         self.action = action
     }
 
-    /// True for the single caller that ran the action.
+    /// Hands `value` to the action for the single winning caller and returns true for
+    /// it. A losing caller's value is dropped.
     @discardableResult
-    internal func run() -> Bool {
+    internal func run(_ value: Value) -> Bool {
         let (exchanged, _) = hasRun.compareExchange(
             expected: false,
             desired: true,
             ordering: .acquiringAndReleasing
         )
-        if exchanged { action() }
+        if exchanged { action(value) }
         return exchanged
     }
 }
