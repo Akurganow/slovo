@@ -132,10 +132,6 @@ public enum DictationEffect: Equatable, Sendable {
     /// `startCueFinished`.
     case playStartCue
     case enqueueCue(DictationCue)
-    /// Withholds captured frames across the readiness cue, so it is not transcribed.
-    /// Emitted whether or not the cue will actually be heard.
-    case suspendDelivery
-    case resumeDelivery
     case endCaptureAndFinalizeTranscript
     /// Silent cancel: release the mic and tear down the ASR session WITHOUT a
     /// result. Distinct from `endCaptureAndFinalizeTranscript`, which finalizes the
@@ -177,11 +173,10 @@ public enum DictationFsm {
             return (.recording, [.beginCapture])
 
         case (.recording, .captureReady):
-            return (.recording, [.suspendDelivery, .playStartCue])
+            return (.recording, [.playStartCue])
 
-        // Mute before reopening delivery, which would otherwise admit this playback.
         case (.recording, .startCueFinished):
-            return (.recording, [.muteSystemOutput, .resumeDelivery])
+            return (.recording, [.muteSystemOutput])
 
         // Ordinary on a hold shorter than the cue — logging it would make
         // `unexpectedEvent` fire on the most common short dictation.

@@ -37,7 +37,6 @@ struct OrchestratorBeginCaptureSessionRaceTests {
         #expect(await transcriber.cancelCount == 1)
         #expect(cues.playedCues == [.start])
         #expect(audio.muteCount == 1)
-        #expect(recorder.deliveryResumeCount == 1)
 
         await transcriber.releaseFirstBegin()
         await startA.value
@@ -48,8 +47,6 @@ struct OrchestratorBeginCaptureSessionRaceTests {
         #expect(await transcriber.cancelCount == 1, "A must not cancel B after stale begin returns")
         #expect(cues.playedCues == [.start], "A must not replay B's Start")
         #expect(audio.muteCount == 1, "A must not mute a second time through B's state")
-        #expect(recorder.deliverySuspendCount == 1, "A must not re-suspend B's capture")
-        #expect(recorder.deliveryResumeCount == 1, "A must not re-resume B's delivery")
 
         let stopB = Task {
             await orchestrator.handle(.stopRequested(.plain))
@@ -399,9 +396,6 @@ private final class BeginRaceRecorder: AudioRecorder {
     private struct State {
         var startCount = 0
         var stopCount = 0
-        var suspendCount = 0
-        var resumeCount = 0
-        var isSuspended = false
         var openContinuations: [AsyncStream<AudioChunk>.Continuation] = []
         var liveContinuation: AsyncStream<AudioChunk>.Continuation?
     }
@@ -418,8 +412,6 @@ private final class BeginRaceRecorder: AudioRecorder {
     }
 
     var stopCount: Int { state.withLock { $0.stopCount } }
-    var deliverySuspendCount: Int { state.withLock { $0.suspendCount } }
-    var deliveryResumeCount: Int { state.withLock { $0.resumeCount } }
 
     func start() async throws -> AsyncStream<AudioChunk> {
         let index = state.withLock { current -> Int in
@@ -435,33 +427,14 @@ private final class BeginRaceRecorder: AudioRecorder {
         state.withLock { current in
             current.openContinuations.append(continuation)
             current.liveContinuation = continuation
-            current.isSuspended = false
         }
         continuation.yield(AudioChunk(buffer: chunkBuffer()))
         return stream
     }
 
-    func suspendDelivery() {
-        state.withLock { current in
-            guard !current.isSuspended else { return }
-            current.isSuspended = true
-            current.suspendCount += 1
-        }
-    }
-
-    func resumeDelivery() {
-        state.withLock { current in
-            current.resumeCount += 1
-            current.isSuspended = false
-        }
-    }
-
-    /// One live audio-tap callback; suspended or released delivery reaches nobody.
+    /// One live audio-tap callback; a released stream reaches nobody.
     func emitCallback() {
-        let continuation = state.withLock { current -> AsyncStream<AudioChunk>.Continuation? in
-            guard !current.isSuspended else { return nil }
-            return current.liveContinuation
-        }
+        let continuation = state.withLock { $0.liveContinuation }
         continuation?.yield(AudioChunk(buffer: chunkBuffer()))
     }
 
@@ -469,7 +442,6 @@ private final class BeginRaceRecorder: AudioRecorder {
     /// it was called — a later session's microphone is not its to close.
     func stop() async {
         let (continuations, callIndex) = state.withLock { current -> ([AsyncStream<AudioChunk>.Continuation], Int) in
-            current.isSuspended = false
             defer {
                 current.stopCount += 1
                 current.openContinuations = []
