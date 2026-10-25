@@ -1,5 +1,5 @@
 ---
-contract_version: 1
+contract_version: 2
 ---
 
 # Constitution of Akurganow/slovo
@@ -69,6 +69,29 @@ contract_version: 1
 - .agents/rules/context.md
 - .agents/rules/boundaries.md
 - .agents/rules/verification.md
+
+## Labels
+
+- `needs-human` (owner attention): Lawman sent this feature request out of its funnel. A person decides on it.
+- `cleanup`: The text cleanup step: prompts, model selection, output quality
+- `ux`: Interface behaviour
+- `asr`: Speech recognition
+- `i18n`: Language detection, multilingual support
+- `tech-debt`: Code that works but costs more to keep than it should
+- `ready`: Specified so a person can start from the issue alone; the court's queue skips it
+- `dependencies`: Pull requests that update a dependency file
+- `github_actions`: Pull requests that update GitHub Actions code
+- `swift_package_manager`: Pull requests that update swift_package_manager code
+- `dev-build`: Builds a signed dev DMG of this PR; a comment links it and the label removes itself when done
+- `bug`: Misbehaviour
+- `documentation`: The docs
+- `duplicate`: Duplicate of the issue the review names
+- `enhancement`: New behaviour
+- `good first issue`: Good for newcomers
+- `help wanted`: Extra attention is needed
+- `invalid`: Reviewed and found wrong
+- `question`: A decision is needed from the owner
+- `wontfix`: Out of scope. The owner's veto, final; no role touches the issue
 
 ## Precedents
 
