@@ -251,6 +251,7 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
             current.liveContinuation = continuation
             current.isSuspended = false
         }
+        continuation.yield(AudioChunk(buffer: Self.chunkBuffer()))
         return stream
     }
 
@@ -263,12 +264,10 @@ private final class BlockingCaptureStartRecorder: AudioRecorder {
     }
 
     func resumeDelivery() {
-        let continuation = state.withLock { current -> AsyncStream<AudioChunk>.Continuation? in
+        state.withLock { current in
             current.resumeCount += 1
             current.isSuspended = false
-            return current.liveContinuation
         }
-        continuation?.yield(AudioChunk(buffer: Self.chunkBuffer()))
     }
 
     func stop() async {

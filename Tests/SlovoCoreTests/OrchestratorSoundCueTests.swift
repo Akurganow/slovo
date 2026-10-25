@@ -117,7 +117,7 @@ struct OrchestratorSoundCueTests {
     @Test
     func speechCapturedWhileTheModelLoadsReachesRecognition() async {
         let timeline = CueTimeline()
-        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true), chunkCount: 0)
         let transcriber = ControllableTranscriber(timeline: timeline, blocksBegin: true)
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
         let orchestrator = Self.makeOrchestrator(timeline: timeline, transcriber: transcriber, cues: cues, recorder: recorder)

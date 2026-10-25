@@ -5,9 +5,9 @@ import Synchronization
 /// A spy streaming `AudioRecorder` fake: it checks microphone authorization before
 /// any (simulated) engine start, records how often the engine would have started,
 /// and returns an `AsyncStream<AudioChunk>` delivering from its first frame.
-/// `suspendDelivery()` withholds callbacks, `resumeDelivery()` admits them again and
-/// emits `chunkCount` whole native-format callbacks (default one), and `stop()`
-/// finishes the stream.
+/// `start()` emits `chunkCount` whole native-format callbacks (default one) into the
+/// stream. `suspendDelivery()` withholds later callbacks, `resumeDelivery()` admits
+/// them again, and `stop()` finishes the stream.
 ///
 /// The counters are `Mutex`-guarded so the fake is genuinely race-free under the
 /// `actor Orchestrator`.
@@ -70,6 +70,7 @@ public final class FakeAudioRecorder: AudioRecorder {
 
         let (stream, continuation) = AsyncStream<AudioChunk>.makeStream()
         state.withLock { $0.continuation = continuation }
+        for _ in 0..<chunkCount { emitCallback() }
         return stream
     }
 
@@ -82,14 +83,11 @@ public final class FakeAudioRecorder: AudioRecorder {
     }
 
     public func resumeDelivery() {
-        let shouldEmit = state.withLock { current -> Bool in
-            guard current.continuation != nil else { return false }
+        state.withLock { current in
+            guard current.continuation != nil else { return }
             current.isDeliverySuspended = false
             current.deliveryResumeCount += 1
-            return true
         }
-        guard shouldEmit else { return }
-        for _ in 0..<chunkCount { emitCallback() }
     }
 
     /// Simulates one whole native audio-tap callback. Callbacks arriving while

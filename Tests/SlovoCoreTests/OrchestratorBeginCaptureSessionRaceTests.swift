@@ -437,6 +437,7 @@ private final class BeginRaceRecorder: AudioRecorder {
             current.liveContinuation = continuation
             current.isSuspended = false
         }
+        continuation.yield(AudioChunk(buffer: chunkBuffer()))
         return stream
     }
 
@@ -453,7 +454,6 @@ private final class BeginRaceRecorder: AudioRecorder {
             current.resumeCount += 1
             current.isSuspended = false
         }
-        emitCallback()
     }
 
     /// One live audio-tap callback; suspended or released delivery reaches nobody.
