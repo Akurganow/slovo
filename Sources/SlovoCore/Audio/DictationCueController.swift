@@ -139,9 +139,10 @@ public final class AudioServicesDictationCueController: DictationCueController, 
             let previous = state.tail
             let playback = self.playback
             let deadline = self.playbackDeadline
+            let report = self.report
             let task = Task {
                 await previous?.value
-                await Self.play(cue, using: playback, deadline: deadline)
+                await Self.play(cue, using: playback, deadline: deadline, report: report)
             }
             state.tail = task
             return task
@@ -150,24 +151,38 @@ public final class AudioServicesDictationCueController: DictationCueController, 
 
     /// Returns on playback or the deadline, whichever lands first, so a cue that never
     /// completes strands neither the FIFO nor its caller.
+    ///
+    /// The winner's event is the continuation's value and is reported here, before the
+    /// FIFO moves on, so a cue's terminal event always precedes the next cue's request.
     private static func play(
         _ cue: DictationCue,
         using playback: @escaping Playback,
-        deadline: Duration
+        deadline: Duration,
+        report: @escaping Report
     ) async {
-        await withCheckedContinuation { continuation in
-            let resumeOnce = OneShotAction<Void> { continuation.resume() }
+        let startedAt = ContinuousClock.now
+        report(.requested(cue))
+        let terminal = await withCheckedContinuation { (continuation: CheckedContinuation<CuePlaybackEvent, Never>) in
+            let resumeOnce = OneShotAction<CuePlaybackEvent> { continuation.resume(returning: $0) }
             let deadlineTask = Task {
                 try? await Task.sleep(for: deadline)
-                resumeOnce.run(())
+                resumeOnce.run(.deadlineElapsed(cue))
             }
             Task {
-                try? await playback(cue)
-                resumeOnce.run(())
+                do {
+                    try await playback(cue)
+                    let elapsedMs = Int(startedAt.duration(to: .now) / .milliseconds(1))
+                    if !resumeOnce.run(.completed(cue, elapsedMs: elapsedMs)) {
+                        report(.late(cue, elapsedMs: elapsedMs))
+                    }
+                } catch {
+                    resumeOnce.run(.failed(cue))
+                }
                 // Otherwise every cue leaves a task sleeping until the deadline.
                 deadlineTask.cancel()
             }
         }
+        report(terminal)
     }
 
     /// One fixed literal per event: the exhaustive switch means a new event cannot

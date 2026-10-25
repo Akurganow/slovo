@@ -27,12 +27,15 @@ struct AudioServicesDictationCueControllerTests {
         }
     }
 
-    /// Sensitivity: scheduling a cue outside a session plays it; a handle that never
-    /// resolves hangs the awaiting caller.
+    /// Stated sensitivity: scheduling a cue outside a session plays it, or a handle that
+    /// never resolves hangs the awaiting caller, → RED; reporting `requested` before the
+    /// session guard adds an End event → RED; a normal completion that reports `late`
+    /// instead of `completed` → RED.
     @Test
     func cuesClaimedOutsideASessionNeverReachPlayback() async {
         let playback = PlaybackProbe()
-        let controller = Self.controller(playback: playback)
+        let events = EventProbe()
+        let controller = Self.controller(playback: playback, report: { events.record($0) })
 
         controller.beginSession()
         await controller.beginPlayback(.start).awaitCompletion()
@@ -41,6 +44,8 @@ struct AudioServicesDictationCueControllerTests {
         await controller.beginPlayback(.end).awaitCompletion()
 
         #expect(await playback.calls == [.start], "only the in-session cue may reach playback")
+        #expect(events.untimed == [.requested(.start), .completed(.start, elapsedMs: 0)],
+                "only the in-session cue may report, and a normal completion never shows the deadline event")
     }
 
     /// Sensitivity: independent dispatch lets Error overtake a blocked End.
@@ -126,12 +131,21 @@ struct AudioServicesDictationCueControllerTests {
         #expect(await playback.releaseNext())
     }
 
-    /// Sensitivity: without the deadline race a cue that never completes holds the FIFO
-    /// and its caller forever.
+    /// Stated sensitivity: without the deadline race a cue that never completes holds the
+    /// FIFO and its caller forever → RED; dropping `deadlineElapsed` → RED; dropping
+    /// `late` → RED (the bounded wait expires); swapping `completed` and `late` on the
+    /// one-shot result → RED. End's own events are not asserted beyond `requested`: its
+    /// deadline can land before the read on a slow runner, and `late` has no order
+    /// against any later line.
     @Test
     func playbackThatNeverCompletesIsReleasedAtTheDeadline() async {
         let playback = PlaybackProbe(blocksSuccessfulCalls: true)
-        let controller = Self.controller(playback: playback, playbackDeadline: .milliseconds(20))
+        let events = EventProbe()
+        let controller = Self.controller(
+            playback: playback,
+            playbackDeadline: .milliseconds(20),
+            report: { events.record($0) }
+        )
         controller.beginSession()
 
         let start = controller.beginPlayback(.start)
@@ -147,7 +161,19 @@ struct AudioServicesDictationCueControllerTests {
         #expect(await playback.waitForCallCount(2), "the deadline must free the FIFO for the following cue")
         #expect(await playback.calls == [.start, .end])
 
+        let reported = events.untimed
+        #expect(reported.filter { $0.cue == .start } == [.requested(.start), .deadlineElapsed(.start)])
+        #expect(reported.contains(.requested(.end)))
+        if let deadline = reported.firstIndex(of: .deadlineElapsed(.start)),
+           let endRequested = reported.firstIndex(of: .requested(.end)) {
+            #expect(deadline < endRequested, "a cue's terminal event must precede the next cue's request")
+        }
+
         #expect(await playback.releaseNext())
+        #expect(await events.wait { $0.map(\.untimed).contains(.late(.start, elapsedMs: 0)) },
+                "a cue that finishes after the deadline must report how late it was")
+        #expect(!events.untimed.contains(.completed(.start, elapsedMs: 0)),
+                "a cue released by the deadline must never also report completion")
         #expect(await playback.releaseNext())
     }
 
@@ -215,24 +241,29 @@ struct AudioServicesDictationCueControllerTests {
                 "the current session keeps its enabled snapshot; the next session sees the update")
     }
 
-    /// Sensitivity: ignoring the session snapshot records the cue.
+    /// Stated sensitivity: ignoring the session snapshot records the cue → RED; reporting
+    /// `requested` before the combined session and enabled guard → RED.
     @Test
     func disabledStartPerformsNoPlayback() async {
         let playback = PlaybackProbe()
-        let controller = Self.controller(isEnabled: false, playback: playback)
+        let events = EventProbe()
+        let controller = Self.controller(isEnabled: false, playback: playback, report: { events.record($0) })
         controller.beginSession()
 
         await controller.beginPlayback(.start).awaitCompletion()
 
         #expect(await playback.calls.isEmpty, "disabled cues must not enter the playback queue")
+        #expect(events.untimed.isEmpty, "disabled cues must write no cue line")
     }
 
-    /// Sensitivity: propagating the error breaks the nonthrowing contract; terminating
-    /// the queue drops the following cue.
+    /// Stated sensitivity: propagating the error breaks the nonthrowing contract;
+    /// terminating the queue drops the following cue; dropping `failed`, or a failed cue
+    /// that also reports completion or `late`, changes the event list → RED.
     @Test
     func playbackFailureIsContainedAndTheQueueContinues() async {
         let playback = PlaybackProbe(failingCallIndexes: [1])
-        let controller = Self.controller(playback: playback)
+        let events = EventProbe()
+        let controller = Self.controller(playback: playback, report: { events.record($0) })
         controller.beginSession()
 
         controller.enqueue(.end)
@@ -240,6 +271,9 @@ struct AudioServicesDictationCueControllerTests {
 
         #expect(await playback.calls == [.end, .error],
                 "a failed cue must be skipped without poisoning the FIFO")
+        #expect(events.untimed == [
+            .requested(.end), .failed(.end), .requested(.error), .completed(.error, elapsedMs: 0),
+        ], "each requested cue reports exactly one terminal event")
     }
 
     /// A lost ordering shows far sooner than this; passing runs never wait it out.
@@ -383,5 +417,87 @@ private actor CallReturnProbe {
     private func expire() {
         waiter?.resume()
         waiter = nil
+    }
+}
+
+/// Collects the controller's events. The report function is synchronous, so the probe
+/// is a lock and not an actor. Waiters are bounded, so a missing event fails the test
+/// and the passing path waits on no clock.
+private final class EventProbe: Sendable {
+    typealias Condition = @Sendable ([CuePlaybackEvent]) -> Bool
+
+    private struct Waiter {
+        let id: Int
+        let condition: Condition
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private struct State {
+        var events: [CuePlaybackEvent] = []
+        var waiters: [Waiter] = []
+        var nextWaiterID = 0
+    }
+
+    private let state = Mutex(State())
+
+    var events: [CuePlaybackEvent] { state.withLock { $0.events } }
+
+    /// The events with every duration zeroed: the duration is a diagnostic that no test compares.
+    var untimed: [CuePlaybackEvent] { events.map(\.untimed) }
+
+    func record(_ event: CuePlaybackEvent) {
+        let ready = state.withLock { state -> [Waiter] in
+            state.events.append(event)
+            let ready = state.waiters.filter { $0.condition(state.events) }
+            state.waiters.removeAll { waiter in ready.contains { $0.id == waiter.id } }
+            return ready
+        }
+        ready.forEach { $0.continuation.resume() }
+    }
+
+    func wait(within timeout: Duration = .seconds(2), until condition: @escaping Condition) async -> Bool {
+        let id = state.withLock { state -> Int in
+            state.nextWaiterID += 1
+            return state.nextWaiterID
+        }
+        let expiry = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            self?.expire(id)
+        }
+        await withCheckedContinuation { continuation in
+            let satisfied = state.withLock { state -> Bool in
+                if condition(state.events) { return true }
+                state.waiters.append(Waiter(id: id, condition: condition, continuation: continuation))
+                return false
+            }
+            if satisfied { continuation.resume() }
+        }
+        expiry.cancel()
+        return condition(events)
+    }
+
+    private func expire(_ id: Int) {
+        let waiter = state.withLock { state -> Waiter? in
+            guard let index = state.waiters.firstIndex(where: { $0.id == id }) else { return nil }
+            return state.waiters.remove(at: index)
+        }
+        waiter?.continuation.resume()
+    }
+}
+
+private extension CuePlaybackEvent {
+    var cue: DictationCue {
+        switch self {
+        case .requested(let cue), .completed(let cue, _), .deadlineElapsed(let cue), .late(let cue, _), .failed(let cue):
+            cue
+        }
+    }
+
+    var untimed: CuePlaybackEvent {
+        switch self {
+        case .completed(let cue, _): .completed(cue, elapsedMs: 0)
+        case .late(let cue, _): .late(cue, elapsedMs: 0)
+        default: self
+        }
     }
 }
