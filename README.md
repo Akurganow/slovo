@@ -59,12 +59,14 @@ tuned.
 - **Sound Cues** for recording readiness, key-up, and failures (on by default),
   switchable in Settings → General or beside Mute in the menu-bar dropdown. Cues
   never hold up dictation: the microphone opens without waiting for a cue, and
-  releasing the key stops recording immediately. Only the moment Start is audible
-  is kept out of the recording, so the cue cannot be transcribed back. End marks
-  the end of recording rather than a successful transcription: it plays at key-up,
-  together with the glyph change, and never delays cleanup. Error accompanies the
-  red failure glyph. Intentional cancellation stays silent. Cue loudness follows
-  the macOS system alert volume, and Slovo has no separate volume control.
+  releasing the key stops recording immediately. Nothing is cut from the recording
+  for a cue, so you can speak at the press. In a quiet room, a press with no
+  speech was observed to insert a stray phrase as text. Turning Sound Cues off
+  avoids it. End marks the end of recording rather than a successful
+  transcription: it plays at key-up, together with the glyph change, and never
+  delays cleanup. Error accompanies the red failure glyph. Intentional
+  cancellation stays silent. Cue loudness follows the macOS system alert volume,
+  and Slovo has no separate volume control.
 - Cleanup hints: your active keyboard language and the system spell and grammar
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
   then sends them to OpenRouter with the transcript as advisory context. Grammar
@@ -132,9 +134,9 @@ after that, transcription runs fully on-device.
 ## Usage
 
 1. Hold `fn` / Globe. Microphone capture and on-device transcription start
-   immediately. With **Sound Cues** on, Start plays once both are ready; the brief
-   moment it sounds is kept out of the recording, so speak after it. If
-   mute-while-dictating is on, playback is muted once Start is done.
+   immediately. With **Sound Cues** on, Start plays once both are ready. You need
+   not wait for it. If mute-while-dictating is on, playback is muted once Start
+   is done.
 2. Speak. While the key is held, transcription keeps up with your speech,
    so the transcript is already ready (or nearly ready) the moment you
    release.

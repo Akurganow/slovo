@@ -12,8 +12,8 @@ The dictation flow is:
 
 ```text
 key down -> start microphone + recognition; audio delivers from the first frame
-ready    -> suspend delivery -> start Start cue (nothing waits on it)
-cue done -> mute output (when enabled) -> resume delivery; dropped if the hold ended
+ready    -> start Start cue (nothing waits on it)
+cue done -> mute output (when enabled); dropped if the hold ended
 key held -> convert each delivered audio chunk -> update live recognition
 key up   -> stop capture -> restore output -> queue End -> finalize -> clean -> inject
 ```
@@ -40,27 +40,22 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   nothing left to restore from — and cues queued afterwards, including Error, go
   into that silence. Pre-existing and accepted for now; fixing it means deciding
   what a failed restore should surface.
-- `AudioRecorder` captures native microphone buffers and delivers them from the
-  first frame. `suspendDelivery()`/`resumeDelivery()` bracket the readiness cue:
-  each records the current host time, and the straddling callback is trimmed. A cue
-  that ends almost immediately — cues off, or an asset that fails to load — still
-  costs up to one callback, which is accepted rather than engineered away. Closing
-  that gap does not need a reordering (which would let playback start before
-  suppression is armed): it needs the boundary to CANCEL suppression back to `open`
-  when the cue turns out to be inaudible, instead of ending it with a second edge.
-  This excludes the cue's directly captured sound, not later acoustic echo from the
-  speakers or room. The recorder tags each chunk with the capture device's
-  preferred stereo pair, read once per capture start. The converter mixes that pair
-  to mono before resampling; a mono device passes through unchanged. With a
-  chosen microphone present, the recorder assigns it to the fresh engine's input
-  node. A chosen device that is absent falls back to the system default. On both
-  paths the tap takes the node's input format, read after any assignment, since
-  the node's output format can still be the previous device's.
+- `AudioRecorder` captures native microphone buffers and delivers every callback,
+  whole and unaltered, from the first frame. Each chunk is a detached copy, because
+  it outlives the tap callback. Nothing is withheld for a cue. The recorder tags
+  each chunk with the capture device's preferred stereo pair, read once per
+  capture start. The converter mixes that pair to mono before resampling; a mono
+  device passes through unchanged. With a chosen microphone present, the recorder
+  assigns it to the fresh engine's input node. A chosen device that is absent falls
+  back to the system default. On both paths the tap takes the node's input format,
+  read after any assignment, since the node's output format can still be the
+  previous device's.
 - `DictationCueController` snapshots the on-by-default Sound Cues preference per
   session and serializes Start, End, and Error through the public macOS alert-sound
   channel. Playback is never awaited by a dictation step: the readiness cue's
-  completion returns as an ordinary `startCueFinished` event, and a playback
-  deadline keeps a cue that never reports completion from stranding the queue.
+  completion returns as an ordinary `startCueFinished` event that mutes output,
+  and a playback deadline keeps a cue that never reports completion from
+  stranding the queue and the mute.
   `OneShotAction` names the invariant that only the first caller resumes the
   continuation, and only its value is handed on. It can be raced directly from many
   callers released by a spin barrier — pinning that the guard is ATOMIC, which
@@ -89,9 +84,11 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   When a bias-prompted final decode composes to empty, Slovo decodes once more
   without the prompt and uses the winning attempt. A hold with fewer than two
   frames of above-threshold voice energy finishes empty without a final decode,
-  so Whisper never gets the chance to hallucinate into silence. The model remains resident
-  between dictations, and the recognition language reaches the decoder per session
-  rather than the model load, so changing it costs no reload.
+  so Whisper never gets the chance to hallucinate into silence. A cue the microphone
+  hears can reach recognition, so in a quiet room a press with no speech can insert
+  a stray phrase. This is accepted, and Sound Cues off avoids it. The model
+  remains resident between dictations, and the recognition language reaches the
+  decoder per session rather than the model load, so changing it costs no reload.
   Known constraint: WhisperKit's decode loop caps every 30 s window at 223
   iterations shared between prefill and sampled output, leaving ~219 sampled
   tokens even with no prompt, while fast Russian speech (~180 wpm at the

@@ -67,8 +67,8 @@ analysed commit.
   (`docs/architecture.md`, "App State"). A second path to the same state is
   information leakage, never a convenience.
 - **Reliability mechanisms `AGENTS.md` argues for.** The sound-cue FIFO and
-  its release deadline, the per-dictation cue queue and the withhold
-  boundary around the Start cue are recorded as earning their keep
+  its release deadline and the per-dictation cue queue are recorded as
+  earning their keep
   (`AGENTS.md`, "Product intent — how the app must work", "Sound cues").
 
 This file describes shapes in the tree. Where the tree and this file
