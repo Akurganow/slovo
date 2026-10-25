@@ -129,6 +129,8 @@ xcrun stapler validate .build/dist/Slovo.dmg
   that dictation recognises in the new language.
 - With Sound Cues on, Start plays once capture and recognition are ready, and does
   not appear in the transcript. Output is muted after it, not before.
+- With Sound Cues on, the first-run log stream shows `cue.requested` then
+  `cue.completed` for Start and for End, as plain text and not `<private>`.
 - End is queued at key-up — it marks the end of AUDIO RECORDING, not a successful
   transcription — and lands with the glyph change rather than trailing the text.
   It never delays cleanup or translation.

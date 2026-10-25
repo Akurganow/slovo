@@ -178,6 +178,36 @@ Failures surface through the menu-bar icon and, while **Sound Cues** is on, the
 Error cue — never a dialog or focus-stealing notification, since Slovo types
 into whichever app you're already using. Intentional cancellation is silent.
 
+### When sound cues stop playing
+
+If Start, End and Error are all silent while dictation still works, read the cue
+log. With **Sound Cues** off there are no `cue.` lines, by design. If
+`cue.completed` lines appear while you hear nothing, macOS reported the cue
+finished. Check the alert volume and the output device. The recovery below does
+not apply then.
+
+Slovo writes each cue to the log as plain text. Run this in Terminal:
+
+```sh
+/usr/bin/log show --last 1h --style compact --predicate 'subsystem == "com.slovo.app" AND eventMessage BEGINSWITH "cue."'
+```
+
+On macOS 27.0, `/usr/bin/log help show` lists the options. It also says output
+holds default-level messages only, so the info-level `cue.error reason=` line
+does not appear.
+
+What Slovo observed: a healthy cue shows `cue.requested`, then `cue.completed`
+with its time in `ms`. A `cue.deadlineElapsed` line press after press means macOS
+did not report the cue finished. A `cue.late` line for the same cue carries in
+`ms` how long macOS took. No order is promised between a cue's `cue.late` and its
+`cue.deadlineElapsed`. Lines of different dictations may interleave, so read them
+per cue name. A `cue.failed` line means a cue sound did not load. The recovery
+below does not apply to it.
+
+Running `sudo killall systemsoundserverd` in Terminal with an administrator
+account made cue sounds play again. It was checked on macOS 27.0 and macOS 26,
+and not on other versions.
+
 ## Privacy Model
 
 Slovo has two different data paths:

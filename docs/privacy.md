@@ -126,9 +126,10 @@ Logs must not contain:
 
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
 In the clear it carries elapsed times in milliseconds, the model-load state token,
-and the Error cue's reason token. A cleanup failure adds its kind and the
-provider's HTTP status. Error text is logged privately; transcripts, cleaned text
-and keys never reach the log.
+and the Error cue's reason token. Five cue lines carry the cue's name (one of
+three) and its elapsed milliseconds. They carry dictation timing and no user text.
+A cleanup failure adds its kind and the provider's HTTP status. Error text is
+logged privately; transcripts, cleaned text and keys never reach the log.
 
 ## Clipboard
 

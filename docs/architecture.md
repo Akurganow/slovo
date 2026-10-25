@@ -62,9 +62,16 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   completion returns as an ordinary `startCueFinished` event, and a playback
   deadline keeps a cue that never reports completion from stranding the queue.
   `OneShotAction` names the invariant that only the first caller resumes the
-  continuation, so it can be raced directly from many callers released by a spin
-  barrier — pinning that the guard is ATOMIC, which racing playback against the
-  deadline never could: that pair's timing is bounded by wake-up precision.
+  continuation, and only its value is handed on. It can be raced directly from many
+  callers released by a spin barrier — pinning that the guard is ATOMIC, which
+  racing playback against the deadline never could: that pair's timing is bounded
+  by wake-up precision. Every requested cue reports a closed set of five playback
+  events through one injected function, and one writer logs them as public fixed
+  text in category `dictation`. The events hold a cue name and a number, never user
+  text, and the doc comment of `CuePlaybackEvent` defines `ms`. Inside one
+  dictation's queue, a cue's terminal event precedes the next cue's `cue.requested`.
+  The orchestrator's `cue.error reason=` line is separate: info level, and not one
+  of the five events.
   Ending a session detaches the FIFO tail, so one dictation's remaining audio never
   delays the next one's cue. End marks the end of audio recording rather than a
   successful transcription, so key-up queues it directly — after the restore, since
