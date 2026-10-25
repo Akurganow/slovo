@@ -62,13 +62,6 @@ struct PackageDependencyTests {
         // --disable-automatic-resolution already enforce it), so bots bump it
         // without touching this test.
         #expect(compactPackageCode.contains(#".package(url:"https://github.com/SimplyDanny/SwiftLintPlugins",exact:""#))
-        #expect(compactPackageCode.contains(#".plugin(name:"SwiftLintBuildToolPlugin",package:"SwiftLintPlugins")"#))
-        let targetBlocks = Self.swiftTargetBlocks(in: packageCode)
-        #expect(!targetBlocks.isEmpty)
-        for targetBlock in targetBlocks {
-            #expect(targetBlock.contains("plugins: swiftLintPlugins"),
-                    "every Swift SwiftPM target must use the SwiftLint build tool plugin")
-        }
 
         let lintCode = Self.strippingShellComments(from: lintSource)
         let lintMain = Self.shellTopLevelLines(from: lintCode)

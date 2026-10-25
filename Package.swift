@@ -9,10 +9,6 @@ let strictSwiftSettings: [SwiftSetting] = [
     ]),
 ]
 
-let swiftLintPlugins: [Target.PluginUsage] = [
-    .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
-]
-
 let package = Package(
     name: "slovo",
     platforms: [.macOS(.v15)],
@@ -21,6 +17,12 @@ let package = Package(
         // mirror groue/GRDB.swift): the personalization DB is encrypted at rest.
         .package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.11.1"),
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
+        // Command plugin only (Scripts/lint.sh). No target uses the build-tool
+        // plugin: it hands its prebuild command the whole process environment
+        // (SwiftLintPlugins 0.65.1 source, SwiftLintBuildToolPlugin.swift:87),
+        // and on a lint failure SwiftPM prints that command with its environment,
+        // API keys included (swift-package-manager swift-6.4.0-RELEASE source,
+        // Sources/Build/BuildPlan/BuildPlan.swift:907; reproduced on 6.4.0).
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
         .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
         // Sparkle 2 auto-update engine. App target only — SlovoCore stays
@@ -51,30 +53,26 @@ let package = Package(
                 .copy("Resources/PromptExamples.xml"),
                 .copy("Resources/AudioCues"),
             ],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         // Test-only fakes for the seam protocols. A separate library target so the
         // shipped `slovo` executable never links it; only test targets depend on it.
         .target(
             name: "SlovoTestSupport",
             dependencies: ["SlovoCore"],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         .target(
             name: "CleanupBenchmark",
             dependencies: ["SlovoCore"],
             path: "Tools/cleanup-benchmark",
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         .executableTarget(
             name: "slovo-cleanup-benchmark",
             dependencies: ["CleanupBenchmark"],
             path: "Tools/cleanup-benchmark-cli",
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         // Application entrypoint and AppKit composition owner.
         .executableTarget(
@@ -90,22 +88,19 @@ let package = Package(
             // The staged bundle carries Sparkle.framework in Contents/Frameworks;
             // this rpath lets the launched executable resolve it, declared here
             // instead of mutating the binary in the packaging scripts.
-            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])],
-            plugins: swiftLintPlugins
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         // Unit/behavioral tests for the core library.
         .testTarget(
             name: "SlovoCoreTests",
             dependencies: ["SlovoCore", "SlovoTestSupport", "SlovoObjC"],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         // Unit tests for the non-product cleanup benchmark harness.
         .testTarget(
             name: "CleanupBenchmarkTests",
             dependencies: ["CleanupBenchmark", "SlovoCore"],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
         // The L1 prevention gates, implemented as source-tree-scanning tests. The
         // scanner (`GateChecks`) lives in this target — it is a build-time gate,
@@ -115,8 +110,7 @@ let package = Package(
         .testTarget(
             name: "GateChecksTests",
             exclude: ["Fixtures"],
-            swiftSettings: strictSwiftSettings,
-            plugins: swiftLintPlugins
+            swiftSettings: strictSwiftSettings
         ),
     ]
 )

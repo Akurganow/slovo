@@ -27,7 +27,7 @@ commands, and both must hold.
 
 | Stage | Run by, and passes when | What it proves |
 | :-- | :-- | :-- |
-| `swift-build` | `swift build --disable-automatic-resolution`, with cache, configuration and security paths under `.build/`; exits 0 | Every target compiles against the checked-in `Package.resolved`. Every Swift target compiles with warnings as errors, complete strict concurrency checking and actor data-race checks (`Package.swift`), and the SwiftLint build-tool plugin lints it during the build |
+| `swift-build` | `swift build --disable-automatic-resolution`, with cache, configuration and security paths under `.build/`; exits 0 | Every target compiles against the checked-in `Package.resolved`. Every Swift target compiles with warnings as errors, complete strict concurrency checking and actor data-race checks (`Package.swift`). It lints nothing: lint is the `strict-lint` stage |
 | `swift-test` | `swift test --disable-automatic-resolution`, same paths; exits 0 | The test targets build, and every test runs and passes except those gated off when the `CI` variable is set |
 | `cleanup-benchmark-cli` | `Scripts/check-cleanup-benchmark-cli.sh`; exits 0 | The benchmark executable runs one sample through its pass-through provider and prints its CSV header and one passing row. It runs the built binary, which `swift-build` never does |
 | `strict-lint` | `Scripts/lint.sh`; exits 0 | Every stage of the next table passed |
@@ -41,7 +41,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 | `explicit-target-imports` | Every module imports only the targets it declares as dependencies. The build of `swift-build` does not check this |
 | `bash-syntax:<script>` | `bash -n` parses each script under `Scripts/` |
 | `plist-lint` | `plutil -lint` parses `Resources/Info.plist` and `slovo.entitlements` |
-| `swiftlint-strict` | SwiftLint's command plugin lints the configuration's whole `included:` set in strict mode, `Package.swift` among it, so a warning fails. The build-tool plugin of `swift-build` lints target by target during the build |
+| `swiftlint-strict` | SwiftLint's command plugin lints the configuration's whole `included:` set in strict mode, `Package.swift` among it, so a warning fails |
 | `swiftlint-compiler-log` | After every Swift file under `Sources` and `Tools` is touched, a verbose build exits 0, writes its log to `.build/swiftlint-compiler.log`, and prints the modules with a compiler invocation in it. That every analyzed file has one is checked by `swiftlint-analyze` |
 | `swiftlint-analyze` | SwiftLint's analyzer rules pass in strict mode on every Swift file under `Sources` and `Tools`, and the analyzer read as many files as it was given |
 

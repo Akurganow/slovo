@@ -21,7 +21,7 @@ contract_version: 1
 
 ## Fence
 
-- The gate is the `test` job of .github/workflows/swift.yml. It runs `Scripts/diagnose.sh` on a macOS 26 runner for every pull request into main. The stages are the build with warnings as errors and strict concurrency, the SwiftLint build plugin, the test suite, the cleanup benchmark CLI smoke check and `Scripts/lint.sh`.
+- The gate is the `test` job of .github/workflows/swift.yml. It runs `Scripts/diagnose.sh` on a macOS 26 runner for every pull request into main. The stages are the build with warnings as errors and strict concurrency, the test suite, the cleanup benchmark CLI smoke check and `Scripts/lint.sh`.
 - The same job then arms the gate self-test and requires the armed run to fail: .github/workflows/swift.yml
 - Every push to main runs the same gate through the `test` job of .github/workflows/release.yml, which calls .github/workflows/swift.yml.
 - CodeQL for Swift scans every pull request into main and every push to main: .github/workflows/codeql.yml. It is not the gate.
