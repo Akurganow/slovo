@@ -1,5 +1,5 @@
 ---
-contract_version: 2
+contract_version: 3
 ---
 
 # Constitution of Akurganow/slovo
@@ -72,7 +72,7 @@ contract_version: 2
 
 ## Labels
 
-- `needs-human` (owner attention): Lawman sent this feature request out of its funnel. A person decides on it.
+- `needs-human` (owner attention): Lawman cannot decide this issue alone. A person decides on it.
 - `cleanup`: The text cleanup step: prompts, model selection, output quality
 - `ux`: Interface behaviour
 - `asr`: Speech recognition
