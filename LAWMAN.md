@@ -95,4 +95,4 @@ contract_version: 3
 
 ## Precedents
 
-none
+- 2026-10-27 #1: An idle-repaint decision written at several sites with differing guards is one concept kept in step by hand, even when callers already imply some of the guards. (https://github.com/Akurganow/slovo/issues/99#issuecomment-6431293487)
