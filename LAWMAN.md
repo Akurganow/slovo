@@ -95,4 +95,4 @@ contract_version: 3
 
 ## Precedents
 
-none
+- 2026-10-27 #1: A public type in `SlovoCore` that only its own tests reach is dead, unless a written reason names its future caller; a possible future use with no named caller is no such reason. (https://github.com/Akurganow/slovo/issues/120#issuecomment-6431712115)
