@@ -76,7 +76,7 @@ jobs:
       - name: Install git-cliff
         # The commit pin fixes the action's own code. The action checks the
         # git-cliff archive's SHA-256.
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ env.GIT_CLIFF }}
       - name: Compute the next release version
@@ -241,7 +241,7 @@ jobs:
       # Before the keyed checkout, so no action from outside GitHub runs with
       # the deploy key on disk.
       - name: Install git-cliff
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ env.GIT_CLIFF }}
       - uses: actions/checkout@v7
