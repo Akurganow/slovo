@@ -96,3 +96,9 @@ contract_version: 3
 ## Precedents
 
 none
+
+## Licenses
+
+reaches copies
+use non-commercial
+sources revision-file,software-heritage,clearly-defined
