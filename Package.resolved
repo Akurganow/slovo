@@ -1,5 +1,5 @@
 {
-  "originHash" : "a7f136706b12d5b663e5eaceb680658b84d0879e836326b05e40225489968800",
+  "originHash" : "1c80882874a2f128862ce199df5e64ec0280df9bdbca1db96467359bc18ab166",
   "pins" : [
     {
       "identity" : "argmax-oss-swift",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sqlcipher/GRDB.swift.git",
       "state" : {
-        "revision" : "a285e4ca87ec6b3584c97b0ec25fc61fec02de60",
-        "version" : "7.11.1"
+        "revision" : "a7bf50c615d256ddbbcba98eb038ee3673c24311",
+        "version" : "7.12.0"
       }
     },
     {
