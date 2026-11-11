@@ -409,7 +409,7 @@ the code doc comments, not in this vendor reference.
 - SQLite conflict resolution (upstream): https://www.sqlite.org/lang_conflict.html
 - SQLite WAL mode (upstream): https://www.sqlite.org/wal.html
 - SQLCipher distribution slovo depends on: https://github.com/sqlcipher/GRDB.swift
-  (manifest: `Package.swift` at the tag the `grdb.swift` pin in `Package.resolved` names)
+  (manifest: `Package.swift` at the version the `grdb.swift` pin in `Package.resolved` records)
 - SQLCipher Community Edition (the binary XCFramework that distribution pulls in):
   https://github.com/sqlcipher/SQLCipher.swift
 - SQLCipher README — plaintext→encrypted via `ATTACH` + `sqlcipher_export()`,

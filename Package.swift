@@ -92,7 +92,9 @@ let package = Package(
         ),
         // Unit/behavioral tests for the core library. The database fixture is
         // read from disk via `#filePath`, not loaded as a SwiftPM resource, so
-        // it is excluded from the build graph.
+        // it is excluded from the build graph. The exclusion names the file, not
+        // the directory as `GateChecksTests` does, because `Fixtures/` also
+        // holds Swift sources.
         .testTarget(
             name: "SlovoCoreTests",
             dependencies: ["SlovoCore", "SlovoTestSupport", "SlovoObjC"],
