@@ -51,7 +51,7 @@ URLs, residual SDK/device-only gaps) is in its own `## Verification` section.
 | Doc | Verdict | Notable correction by the verifier |
 |---|---|---|
 | cleanup-benchmark.md | PASS | OpenRouter-only benchmark path updated; `passthrough` kept as local baseline |
-| asr-whisperkit.md | PASS | Runtime ASR engine reference, verified at `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
+| asr-whisperkit.md | PASS | Package is `argmax-oss-swift` (product `WhisperKit`), verified at v1.0.0; model names/sizes resolved from HF |
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |
 | menubar-status-ui.md | PASS | Glagolitic status glyphs render through bundled Noto Sans Glagolitic when pinned explicitly |

@@ -20,8 +20,8 @@ key up   -> stop capture -> restore output -> queue End -> finalize -> clean -> 
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
 (Whisper large-v3 turbo; the speech engine of the Argmax OSS SDK, formerly the
-standalone WhisperKit package). What leaves the Mac, and when, is listed in
-`docs/privacy.md`, "Data Paths".
+standalone WhisperKit package). What leaves the Mac is listed in
+[docs/privacy.md](privacy.md), "Data Paths".
 
 ## Core Components
 
@@ -139,18 +139,17 @@ model id. `KeychainAPIKeyProvider` reads the key's value from Keychain on the
 first request that needs it and keeps it in memory; a successful save replaces
 the copy, and a failed save or a successful removal drops it. The key-scope
 request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
-decides when it is sent. Every occasion but one goes through `fetchIfReady`,
+decides when it is sent: every occasion but one goes through `fetchIfReady`,
 which needs cleanup effectively on, the pipeline started, the scope unknown and
-no fetch in flight. A cleanup call that fails with HTTP status 404 starts a fetch
-directly, with cleanup on and the pipeline started. It keeps the old scope until
-the answer replaces it; a failed fetch resets the scope to unknown. The occasions
-are listed in `docs/privacy.md`, "Cloud Cleanup".
+no fetch in flight. A cleanup call that fails with HTTP status 404 starts a
+fetch directly, with cleanup on and the pipeline started. The occasions are
+listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
 
 Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
 active keyboard language and, when enabled, system spell and grammar findings —
-which the model may use but never must. The prompt also lists the whole
-vocabulary. What the request carries is listed in `docs/privacy.md`, "Cloud
-Cleanup".
+which the model may use but never must. The prompt also lists every vocabulary
+term. What the request carries is listed in [docs/privacy.md](privacy.md), "Data
+Paths".
 
 Both prompts (cleanup and translate) are built by `PromptBuilder` around a bundled
 few-shot example catalog: `PromptExampleCatalog` loads
@@ -170,8 +169,9 @@ Slovo uses SQLite through GRDB for local personalization data:
 - `vocabulary` stores spelling anchors and term weights.
 - `term_misses` records which vocabulary term a plain (not translated) cleanup
   corrected, and when: the folded term and a timestamp, no transcript or
-  cleaned text. `GRDBTermMissStore` prunes rows older than 90 days on each write
-  and ignores them on read.
+  cleaned text. The rows are encrypted with the rest of the store, never sent,
+  and kept 90 days ([docs/privacy.md](privacy.md), "Data Paths").
+  `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
 

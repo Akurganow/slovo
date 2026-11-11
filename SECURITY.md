@@ -1,19 +1,13 @@
 # Security Policy
 
 Slovo is an early-stage local dictation app. The security model is intentionally
-simple: raw audio stays on the Mac. While cleanup is on, each dictation's
-transcript, your vocabulary and on-device language hints are sent to OpenRouter.
-[docs/privacy.md](docs/privacy.md) lists everything that leaves the Mac.
+simple: raw audio stays on the Mac.
 
 ## Supported Versions
 
-| Version | Supported |
-|---|---|
-| The latest release | Yes |
-| Every earlier release | No |
-
-Fixes ship only in a new release. With **Automatically install updates** on (the
-default), Slovo downloads it and offers **Restart** in the menu to install it.
+Only the latest release is supported; fixes ship only in a new release. With
+**Automatically install updates** on (the default), Slovo downloads it and
+offers **Restart** in the menu to install it.
 
 ## Reporting A Vulnerability
 
@@ -41,8 +35,8 @@ Do not share:
 
 - API keys are stored in macOS Keychain.
 - Raw audio is intended to stay local.
-- While cleanup is on, each dictation's transcript, the whole vocabulary and
-  on-device language hints go to OpenRouter. Everything that leaves the Mac is
-  listed in [docs/privacy.md](docs/privacy.md).
+- While cleanup is on, each dictation's transcript goes to OpenRouter;
+  [docs/privacy.md](docs/privacy.md), "Data Paths", lists the rest of what
+  leaves the Mac.
 - The app is not sandboxed because it needs Accessibility/Input Monitoring
   behavior for the global push-to-talk workflow.

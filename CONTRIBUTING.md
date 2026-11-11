@@ -56,13 +56,12 @@ Scripts/diagnose.sh
 
 ## Packaging
 
-Published releases are automated from `main`: nobody runs a release command,
-edits a version, or pushes a tag by hand. See [docs/release-ci.md](docs/release-ci.md).
-To package and notarize a build locally before merge, follow
+Releases are automated from `main`; see [docs/release-ci.md](docs/release-ci.md).
+Nobody edits a version by hand; the release pipeline stamps it
+([docs/release-ci.md](docs/release-ci.md), "Versioning"). Local packaging,
+ad-hoc signing included, is in
 [docs/release-checklist.md](docs/release-checklist.md), "Verify packaging before
-merge (optional, local)". The signing script refuses ad-hoc signing unless
-`ALLOW_AD_HOC_SIGNING=1` is set, because ad-hoc builds cannot prove stable macOS
-privacy or Keychain trust behavior.
+merge (optional, local)".
 
 For manual testing on a Mac that cannot build or sign locally, the owner can
 dispatch the on-demand [Dev Build workflow](.github/workflows/dev-build.yml) —

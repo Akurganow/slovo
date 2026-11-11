@@ -1,13 +1,12 @@
 # Spec 2026-08-26 rev 3 — key-scoped cleanup models
 
-Status: **implemented; kept as the design record.** The tree has moved since
-this was written. `docs/architecture.md`, "App State", supersedes K11's command
-list: the reducer returns state only, and the fetch is the `pendingFetch`
-selector with a subscriber. `setCleanupModel`, `pushEffectiveCleanupConfig`,
-`installStatusMenu` and `CleanupAvailabilityModel` no longer exist. The current
-occasions of the key-scope request are in `docs/privacy.md`, "Cloud Cleanup".
-Part B (the market refresh of the catalog itself) landed as a separate,
-benchmark-driven change — see §8.
+Status: **implemented; kept as the design record.** `docs/architecture.md`, "App
+State", supersedes K11's command list: the reducer returns state only, and the
+fetch is the `pendingFetch` selector with a subscriber. `setCleanupModel`,
+`pushEffectiveCleanupConfig`, `installStatusMenu` and `CleanupAvailabilityModel`
+no longer exist. The current occasions of the key-scope request are in
+`docs/privacy.md`, "Cloud Cleanup". Part B (the market refresh of the catalog
+itself) landed as a separate, benchmark-driven change — see §8.
 
 ## 1. Problem
 
