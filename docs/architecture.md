@@ -142,8 +142,9 @@ request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
 decides when it is sent: every occasion but one goes through `fetchIfReady`,
 which needs cleanup effectively on, the pipeline started, the scope unknown and
 no fetch in flight. A cleanup call that fails with HTTP status 404 starts a
-fetch directly, with cleanup on and the pipeline started. The occasions are
-listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
+fetch directly, with cleanup on and the pipeline started. It keeps the old scope
+until the answer replaces it; a failed fetch resets the scope to unknown. The
+occasions are listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
 
 Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
 active keyboard language and, when enabled, system spell and grammar findings —

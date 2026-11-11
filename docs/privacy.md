@@ -10,7 +10,7 @@ everything Slovo sends off the Mac.
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
 | Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Checked with Hugging Face at each model load, and downloaded where missing or changed — see Speech Model |
-| Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation with a non-empty transcript while cleanup is on — see Cloud Cleanup |
+| Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, while cleanup is on — see Cloud Cleanup |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Only in the cleanup request; never logged |
 | Key-scope request: `GET /api/v1/models/user`, carrying the API key and no dictated content | — | Sent to OpenRouter on each occasion listed under Cloud Cleanup |
 | Cleaned text | Local process memory and target app field | Not logged |
@@ -114,8 +114,9 @@ rebuild after a permission is granted. Every load asks Hugging Face
 (`huggingface.co`) for the model repository's file list twice, then for the
 metadata of each model file, before it loads the cached copy. The first load
 downloads the model files and a tokenizer; a later load downloads only the files
-that changed. The requests name the model's repository and files and carry no
-dictated content.
+that changed. A later load reads the cached tokenizer from disk, and asks Hugging
+Face for it again only when that file is missing or cannot be loaded. The
+requests name the model's repository and files and carry no dictated content.
 
 Source: `argmax-oss-swift` 1.1.1 at commit `1bbc57cb`, read, not run. The first
 file list and the call to `snapshot`:
@@ -125,7 +126,7 @@ The second file list:
 The metadata request for each file, and the return without a download when the
 file is unchanged:
 [`HubFileDownloader.download`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/ArgmaxCore/External/Hub/HubApi.swift#L486-L515).
-The tokenizer, read from disk when it is cached and downloaded otherwise:
+The tokenizer, read from disk when cached and requested again when the file is missing or its load fails:
 [`ModelUtilities.loadTokenizer`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Utilities/ModelUtilities.swift#L17-L77).
 
 ## Permissions

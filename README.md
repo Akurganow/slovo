@@ -77,8 +77,8 @@ tuned.
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
   then sends them to OpenRouter with the transcript as advisory context. Turn
   off **Use system spell and grammar hints** in **Settings → Cleanup** (on by
-  default) to stop the spell and grammar hints. The keyboard language is sent
-  whenever cleanup runs and macOS reports one. Grammar hints are English-only.
+  default) to stop the spell and grammar hints. Grammar hints are English-only.
+  [docs/privacy.md](docs/privacy.md), "Data Paths", lists what is sent.
 - OpenRouter API key stored in macOS Keychain. Add it through the menu-bar
   **Add OpenRouter Key…** window or **Settings → Cleanup**. A **Remove Key…**
   button in **Settings → Cleanup** deletes it, and cleanup then turns off until
@@ -100,7 +100,8 @@ tuned.
   opens on the pane you last viewed, never on **About**, and on **General**
   after a launch.
   - **General**: hotkeys, language, microphone, mute, cues, bias, login, updates.
-  - **Cleanup**: the switch, model, **Writing style**, target, key, hints.
+  - **Cleanup**: the switch, model, **Writing style** (**Formal**, **Casual** or
+    **Very casual**; Casual by default), target, key, hints.
   - **Vocabulary**: your terms.
   - **About**: the quick guide and version, described below.
 - **Vocabulary bias (experimental)**, off by default, also passes the

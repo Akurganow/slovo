@@ -182,10 +182,11 @@ xcrun stapler validate .build/dist/Slovo.dmg
   safety are decided by the gate below, not by this plumbing check.
 - cleanup substitutes NOTHING into a phrase of ordinary words that collide with
   short vocabulary entries (dictate plain-English sentences using words like
-  "rooms", "cop", "ads" in their everyday sense). The cleanup prompt now lists
-  EVERY vocabulary term, and its "never introduce a term the speaker did not say" guard
-  was written when that list was a quarter of today's size; nothing automated
-  measures spurious substitution, so this is the only place it is checked.
+  "rooms", "cop", "ads" in their everyday sense). The cleanup prompt lists EVERY
+  vocabulary term, and its "never introduce a term the speaker did not say" guard
+  was written when that list was a quarter as long as it was when this check was
+  added; nothing automated measures spurious substitution, so this is the only
+  place it is checked.
 - privacy holds: raw audio stays local, nothing leaves the Mac that
   [docs/privacy.md](privacy.md) does not list, secrets are never logged, cleanup
   is always attempted through OpenRouter while it is on, and fallback inserts the
