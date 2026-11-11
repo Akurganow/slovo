@@ -90,10 +90,15 @@ let package = Package(
             // instead of mutating the binary in the packaging scripts.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
-        // Unit/behavioral tests for the core library.
+        // Unit/behavioral tests for the core library. The database fixture is
+        // read from disk via `#filePath`, not loaded as a SwiftPM resource, so
+        // it is excluded from the build graph. The exclusion names the file, not
+        // the directory as `GateChecksTests` does, because `Fixtures/` also
+        // holds Swift sources.
         .testTarget(
             name: "SlovoCoreTests",
             dependencies: ["SlovoCore", "SlovoTestSupport", "SlovoObjC"],
+            exclude: ["Fixtures/personalization-sqlcipher-4.17.0.sqlite"],
             swiftSettings: strictSwiftSettings
         ),
         // Unit tests for the non-product cleanup benchmark harness.
