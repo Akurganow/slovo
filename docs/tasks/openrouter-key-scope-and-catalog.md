@@ -1,15 +1,13 @@
 # Spec 2026-08-26 rev 3 — key-scoped cleanup models
 
-Status: **spec, approved directions; implementation not started.** Rev 2
-incorporated the first independent adversarial review (verdict REWORK on
-rev 1); the two judgment calls it introduced were decided by the owner (§9).
-Rev 3 incorporates a second independent review of rev 2 (verdict APPROVE WITH
-CHANGES): fetch generations replace the ambiguous coalescing rule (K4), the
-transition logic moves into a testable SlovoCore reducer (K11), and the K2/K3
-edge cases it caught are closed. No owner decision is reopened. The research phase is done (live
-verification 2026-08-26 with an unrestricted key and an org-restricted key).
-Part B (the market refresh of the catalog
-itself) landed as a separate, benchmark-driven change — see §8.
+Status: **implemented; kept as the design record.** The tree has moved since
+this was written. `docs/architecture.md`, "App State", supersedes K11's command
+list: the reducer returns state only, and the fetch is the `pendingFetch`
+selector with a subscriber. `setCleanupModel`, `pushEffectiveCleanupConfig`,
+`installStatusMenu` and `CleanupAvailabilityModel` no longer exist. The current
+occasions of the key-scope request are in `docs/privacy.md`, "Cloud Cleanup".
+Part B (the market refresh of the catalog itself) landed as a separate,
+benchmark-driven change — see §8.
 
 ## 1. Problem
 

@@ -2,11 +2,9 @@
 
 ## Requirements
 
-- Apple Silicon Mac.
-- Xcode 26.4 or newer, the first release carrying the Swift 6.3 toolchain, which
-  needs macOS 26.2 or newer on the build machine. The shipped app runs on
-  macOS 15 (Sequoia) or newer.
-- Swift Package Manager.
+The toolchain and build-machine requirements are in
+[CONTRIBUTING.md](../CONTRIBUTING.md), "Development Setup". The shipped app runs on
+macOS 15 (Sequoia) or newer.
 
 ## Build
 
@@ -145,18 +143,11 @@ corpus you tested against. Never commit the audio.
 
 ## Packaging
 
-Published releases are fully automated (see [release-ci.md](release-ci.md)); this
-local packaging is only for verifying a build before it is merged.
-
-Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
-
-```sh
-SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" Scripts/sign-and-notarize.sh app
-```
-
-The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See
-[release-checklist.md](release-checklist.md) for the full flow; stapling the
-notarization ticket is the only manual step.
+Releases are automated from `main`; see [docs/release-ci.md](release-ci.md).
+To package and notarize a build locally before merge, follow
+[docs/release-checklist.md](release-checklist.md), "Verify packaging before
+merge (optional, local)". The signing script refuses ad-hoc signing unless
+`ALLOW_AD_HOC_SIGNING=1` is set.
 
 ## Repository Hygiene
 

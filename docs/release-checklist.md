@@ -9,11 +9,11 @@ merged to `main`, so that the automated release it may trigger is sound.
 
 ## Automated gate
 
-[swift.yml](../.github/workflows/swift.yml) runs the whole gate on a macOS
-runner for every pull request into `main`: build, tests, the cleanup-benchmark
-CLI smoke check, and strict lint (including analyzer checks), followed by a
-`SLOVO_GATE_SELFTEST=red` run that proves the gate can still fail. Check that
-the Swift `test` run on your pull request's merge result is green before merging.
+What the gate runs, and how CI uses it, is in
+[docs/development.md](development.md), "Full Gate"; the run that proves the gate
+can fail is in "Gate Self-Test". Check that the Swift `test` run of
+[.github/workflows/swift.yml](../.github/workflows/swift.yml) on your pull
+request's merge result is green before merging.
 
 ## Conventional commits drive the release
 
@@ -166,14 +166,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
   transcript was used. The same stream names the cause:
   `cleanup.failure kind=… status=… ms=…`, then
   `cue.error reason=cleanupUnavailableInsertedAsSpoken`.
-- Whichever consumer asks for the OpenRouter key first reads its value from
-  Keychain. That read happens at most once per run of the app. Ordinarily the
-  asker is the key-scope metadata request, sent shortly after the hotkey is
-  ready and before any dictation. It goes out only while Clean Up Dictation is
-  on. Cleanup asks later and reuses that value. The scope request is not tied
-  to a dictation. Slovo also sends it when cleanup becomes available, through a
-  key save or Clean Up Dictation switched back on, and when a cleanup call
-  reports the model is outside the key's scope.
+- The key-scope request and the Keychain read follow [docs/privacy.md](privacy.md),
+  "Keychain" and "Cloud Cleanup": check that the request goes out once the
+  hotkey is ready, before any dictation, and only while Clean Up Dictation is
+  on.
 - `biasTerms` reach the transcriber path on a real on-device run. The switch ships
   OFF, so this needs Settings → General → "Vocabulary bias (experimental)" turned
   ON first; otherwise the pass exercises only the unbiased path. Efficacy and
@@ -184,9 +180,10 @@ xcrun stapler validate .build/dist/Slovo.dmg
   WHOLE vocabulary, and its "never introduce a term the speaker did not say" guard
   was written when that list was a quarter of today's size; nothing automated
   measures spurious substitution, so this is the only place it is checked.
-- privacy holds: raw audio stays local, secrets are never logged, cleanup is
-  always attempted through OpenRouter, and fallback inserts the direct transcript
-  only when cleanup is unavailable, refused, or misconfigured.
+- privacy holds: raw audio stays local, nothing leaves the Mac that
+  [docs/privacy.md](privacy.md) does not list, secrets are never logged, cleanup
+  is always attempted through OpenRouter while it is on, and fallback inserts the
+  direct transcript only when cleanup is unavailable, refused, or misconfigured.
 
 ## Vocabulary bias — on-device gate (experimental toggle)
 
