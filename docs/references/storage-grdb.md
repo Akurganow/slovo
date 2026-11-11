@@ -409,7 +409,7 @@ the code doc comments, not in this vendor reference.
 - SQLite conflict resolution (upstream): https://www.sqlite.org/lang_conflict.html
 - SQLite WAL mode (upstream): https://www.sqlite.org/wal.html
 - SQLCipher distribution slovo depends on: https://github.com/sqlcipher/GRDB.swift
-  (manifest at the pinned tag: https://github.com/sqlcipher/GRDB.swift/blob/v7.11.1/Package.swift)
+  (manifest: `Package.swift` at the tag the `grdb.swift` pin in `Package.resolved` names)
 - SQLCipher Community Edition (the binary XCFramework that distribution pulls in):
   https://github.com/sqlcipher/SQLCipher.swift
 - SQLCipher README — plaintext→encrypted via `ATTACH` + `sqlcipher_export()`,
@@ -427,8 +427,8 @@ and the GitHub releases page). I did not author this doc.
 
 ### Checked (all confirmed correct against canonical sources)
 
-- **Version / release date.** v7.11.1, published 2026-06-18, is the latest
-  release; 7.x is the current major. (releases page)
+- **Version / release date.** v7.11.1, published 2026-06-18, was the latest
+  release on the verification date; 7.x was the current major. (releases page)
 - **SPM install.** Package URL `https://github.com/groue/GRDB.swift.git`; two
   products `GRDB` and `GRDB-dynamic` ("Pick only one. When in doubt, prefer
   `GRDB`"); pinning `from: "7.0.0"` is valid 7.x. (README)
