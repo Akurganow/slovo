@@ -164,6 +164,9 @@ the examples; no prompt text is assembled from string literals scattered in code
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
+A reply with no visible character counts as a cleanup failure, so the raw
+transcript is inserted.
+
 ## Storage
 
 Slovo uses SQLite through GRDB for local personalization data:

@@ -1,60 +1,36 @@
 /// OpenRouter Chat Completions request body for text-only cleanup.
-public struct OpenRouterRequest: Encodable {
-    public struct Message: Encodable, Equatable, Sendable {
-        public let role: String
-        public let content: String
-
-        public init(role: String, content: String) {
-            self.role = role
-            self.content = content
-        }
+struct OpenRouterRequest: Encodable {
+    struct Message: Encodable {
+        let role: String
+        let content: String
     }
 
-    public struct Reasoning: Encodable, Equatable, Sendable {
-        public let effort: String
-
-        public init(effort: String) {
-            self.effort = effort
-        }
+    struct Reasoning: Encodable {
+        let effort: String
     }
 
-    public let model: String
-    public let messages: [Message]
-    public let temperature: Double
-    public let reasoning: Reasoning
-
-    public init(
-        model: String,
-        messages: [Message],
-        temperature: Double,
-        reasoning: Reasoning
-    ) {
-        self.model = model
-        self.messages = messages
-        self.temperature = temperature
-        self.reasoning = reasoning
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case model, messages, temperature, reasoning
-    }
+    let model: String
+    let messages: [Message]
+    let temperature: Double
+    let reasoning: Reasoning
 }
 
 /// Minimal tolerant decoder for OpenRouter Chat Completions text output.
-public struct OpenRouterResponse: Decodable {
-    public struct Choice: Decodable {
-        public struct Message: Decodable {
-            public let content: String?
+struct OpenRouterResponse: Decodable {
+    struct Choice: Decodable {
+        struct Message: Decodable {
+            let content: String?
         }
 
-        public let message: Message?
+        let message: Message?
     }
 
-    public let choices: [Choice]?
+    let choices: [Choice]?
 
-    public var firstText: String? {
+    // Whitespace-only is no reply. Never trim: the model's text is returned as it is.
+    var firstText: String? {
         for choice in choices ?? [] {
-            if let content = choice.message?.content, !content.isEmpty {
+            if let content = choice.message?.content, content.contains(where: { !$0.isWhitespace }) {
                 return content
             }
         }

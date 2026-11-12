@@ -21,11 +21,9 @@ struct OpenRouterCleanerTests {
         PersonalizationContext(vocabulary: [])
     }
 
-    private static func successBody(text: String) -> Data {
-        Data(
-            """
-            {"choices":[{"message":{"role":"assistant","content":"\(text)"}}]}
-            """.utf8
+    private static func successBody(text: String) throws -> Data {
+        try JSONSerialization.data(
+            withJSONObject: ["choices": [["message": ["role": "assistant", "content": text]]]]
         )
     }
 
@@ -36,7 +34,7 @@ struct OpenRouterCleanerTests {
     /// request-shape assertions go RED.
     @Test
     func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -73,9 +71,11 @@ struct OpenRouterCleanerTests {
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
     /// reading the wrong Chat Completions field, returns no cleaned text.
-    @Test
-    func success200ReturnsAssistantMessageContent() async throws {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned prose")))
+    /// Trimming the returned content (`.trimmingCharacters(in: .whitespacesAndNewlines)`)
+    /// turns the `"Hello\n"` and leading-space rows RED: the reply must come back as sent.
+    @Test(arguments: ["cleaned prose", "Hello\n", " leading space"])
+    func success200ReturnsAssistantMessageContent(reply: String) async throws {
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: reply)))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -84,7 +84,7 @@ struct OpenRouterCleanerTests {
 
         let output = try await cleaner.clean("raw", config: Self.config, context: Self.context)
 
-        #expect(output == "cleaned prose")
+        #expect(output == reply)
     }
 
     /// Stated sensitivity: add a retry loop on transport failure -> the transcript
@@ -123,10 +123,17 @@ struct OpenRouterCleanerTests {
     }
 
     /// Stated sensitivity: letting a raw DecodingError escape on malformed 2xx
-    /// bypasses `FallbackCleaner`'s CleanupError degradation path.
-    @Test
-    func malformed200MapsToCleanupError() async {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data("{}".utf8)))
+    /// bypasses `FallbackCleaner`'s CleanupError degradation path. Accepting a
+    /// reply that is only whitespace (`!content.isEmpty` instead of a visible
+    /// character) turns the `"\n"` and `" \n\t"` rows RED: they return instead of throwing.
+    @Test(arguments: [
+        #"{}"#,
+        #"{"choices":[{"message":{"role":"assistant","content":""}}]}"#,
+        #"{"choices":[{"message":{"role":"assistant","content":"\n"}}]}"#,
+        #"{"choices":[{"message":{"role":"assistant","content":" \n\t"}}]}"#,
+    ])
+    func malformed200MapsToCleanupError(body: String) async {
+        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data(body.utf8)))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -139,11 +146,10 @@ struct OpenRouterCleanerTests {
         }
     }
 
-    /// Stated sensitivity: a key-sourcing error must not become offline/apiError
-    /// or carry the key value into the thrown error.
+    /// Stated sensitivity: a key-sourcing error must not become offline/apiError.
     @Test
-    func keySourcingFailureMapsToMissingKey() async {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))
+    func keySourcingFailureMapsToMissingKey() async throws {
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.failure(.missingKey)),
@@ -170,8 +176,8 @@ struct OpenRouterCleanerTests {
             writeKey: { _ in },
             deleteKey: { }
         )
-        let first = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
-        let second = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))
+        let first = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
+        let second = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))
 
         _ = try await OpenRouterCleaner(
             session: first.makeSession(),
@@ -191,9 +197,9 @@ struct OpenRouterCleanerTests {
     /// Stated sensitivity: logging the request body, response body, output, or
     /// bearer key makes the matching synthetic sentinel reach the capturing sink.
     @Test
-    func openRouterPayloadChannelsNeverReachLog() async {
+    func openRouterPayloadChannelsNeverReachLog() async throws {
         let body = Data(#"{"error":{"message":"\#(Self.sentinelBody)"}}"#.utf8)
-        let cases: [(String, FakeOpenRouterKeyProvider.Outcome, StubResponse, String, [Term])] = [
+        let cases: [(String, FakeOpenRouterKeyProvider.Outcome, StubResponse, String, [Term])] = try [
             (
                 "transcript",
                 .success("synthetic-openrouter-key"),

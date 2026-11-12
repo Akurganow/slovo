@@ -7,7 +7,7 @@ public struct CleanupScopeState: Equatable, Sendable {
     /// K10 ordering gate: no fetch starts before the app reports the hotkey
     /// pipeline started (set by `.pipelineStarted`, never cleared — restarts
     /// re-send the event, which is idempotent on the flag).
-    public var pipelineHasStarted: Bool = false
+    var pipelineHasStarted: Bool = false
     public init() {}
 }
 
