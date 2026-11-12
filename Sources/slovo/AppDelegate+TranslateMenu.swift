@@ -4,7 +4,7 @@ import SlovoCore
 extension AppDelegate {
     /// Builds the "Translate to" submenu from the recognition-language catalog,
     /// checkmarking the persisted target. No Auto row: a translate target must be a
-    /// concrete language (the fail-closed config guard rejects the sentinel). Mirrors
+    /// concrete language (a stored `auto` target returns to English on load). Mirrors
     /// `modelMenu(title:options:selectedModel:)`.
     func translationLanguageMenu(selected: String) -> NSMenuItem {
         let title = "Translate to: \(RecognitionLanguageCatalog.displayName(for: selected) ?? selected)"

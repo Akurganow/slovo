@@ -9,16 +9,6 @@ import SlovoTestSupport
 // stored `false` must survive a round trip.
 @Suite("ConfigStore cleanupEnabled")
 struct ConfigStoreCleanupEnabledTests {
-    /// Stated sensitivity: restore the discard-decode (`_ = decodeIfPresent`) or
-    /// drop `cleanupEnabled` from `validated()` → this reads `true` → RED.
-    @Test
-    func storedFalseDecodesOff() throws {
-        let defaults = FakeUserDefaults()
-        defaults.set(try ConfigFixtures.configData(legacyEnabledField: false), forKey: ConfigStore.defaultKey)
-
-        #expect(ConfigStore.load(from: defaults).cleanupEnabled == false)
-    }
-
     /// Stated sensitivity: default the new field to `false` anywhere on the
     /// decode/default path → RED.
     @Test

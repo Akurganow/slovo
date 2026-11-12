@@ -160,15 +160,20 @@ provider's HTTP status. A failed mute of system output adds the name of its
 failing step (one of six) and the CoreAudio status number. A failed restore adds
 that status number alone. A failed microphone start adds the name of its failing
 step (one of two) and, where one exists, the CoreAudio status number or the
-engine's error code. None of these names a device. Error text is logged
-privately; transcripts, cleaned text and keys never reach the log.
+engine's error code. None of these names a device. A launch that finds stored
+settings damaged or in conflict logs how many it found, never their names or
+values; stored settings that are not a JSON object log one fixed line saying the
+defaults were used. Error text is logged privately; transcripts, cleaned text
+and keys never reach the log.
 
 ## Clipboard
 
 Text insertion uses clipboard paste because it is reliable for mixed Cyrillic and
-Latin text. The injector checks secure input before touching the pasteboard,
-restores the previous clipboard contents on exit, and fails closed for secure
-fields.
+Latin text. The injector checks secure input before touching the pasteboard and
+fails closed for secure fields. The previous clipboard contents are put back
+after the paste unless the clipboard changed in the meantime, so a copy made
+during that wait is kept. Until then Slovo holds the previous contents in its
+memory, and drops them once the restore runs or is skipped.
 
 ## Cloud Cleanup
 

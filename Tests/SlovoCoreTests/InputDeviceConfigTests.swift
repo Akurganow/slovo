@@ -27,8 +27,8 @@ struct InputDeviceConfigTests {
 
     /// The fixture encodes language "ru", not the `.auto` default, so the language
     /// check proves the blob decoded rather than fell back to defaults.
-    /// Stated sensitivity: `decode` instead of `decodeIfPresent` → the blob fails,
-    /// loads defaults, and the language check goes RED.
+    /// Stated sensitivity: reset the whole config because the device key is absent → the
+    /// blob loads defaults and the language check goes RED.
     @Test
     func absentFieldMeansSystemDefault() throws {
         let defaults = FakeUserDefaults(dataByKey: [
@@ -41,9 +41,10 @@ struct InputDeviceConfigTests {
         #expect(loaded.preferredInputDevice == nil)
     }
 
-    /// A literal stored blob pins the wire key, which a round trip cannot: encode
-    /// and decode share one coding key.
-    /// Stated sensitivity: a coding key raw value other than "preferredInputDevice" → RED.
+    /// A literal stored blob pins the wire key, which a round trip cannot: a rename
+    /// on both the save and the load side still round-trips.
+    /// Stated sensitivity: read the device under a key other than
+    /// "preferredInputDevice" → RED.
     @Test
     func storedDeviceDecodesFromWireKey() throws {
         let defaults = FakeUserDefaults(dataByKey: [
@@ -57,7 +58,7 @@ struct InputDeviceConfigTests {
         #expect(loaded.preferredInputDevice == InputDevice(uid: "example-uid-1", name: "Example Interface"))
     }
 
-    /// Stated sensitivity: `encode` instead of `encodeIfPresent` writes a null → RED.
+    /// Stated sensitivity: write the device key as null when none is set → RED.
     @Test
     func systemDefaultOmitsTheWireField() throws {
         #expect(try storedKeys(of: Config.defaults).contains("preferredInputDevice") == false)

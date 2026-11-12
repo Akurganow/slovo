@@ -182,8 +182,9 @@ tap, verify on a real keyboard:
   release even though Left ⌥ still holds the ⌥ bit (the recording glyph leaves
   the recording state and the dictated text inserts), never staying stuck
   recording.
-- **Retired Right ⌃:** an install that had Right ⌃ selected resets to defaults on
-  first launch of this build, so the trigger reads fn.
+- **Retired Right ⌃:** an install that had Right ⌃ selected loads with the trigger
+  at fn and the other settings kept; a translate key stored as fn then collides,
+  so both keys return to their defaults.
 - **Interrupt:** hold the selected modifier and press another key mid-hold
   (e.g. Right ⌘ then C) — dictation is cancelled silently (nothing inserted, no
   error, menu-bar glyph returns to idle) and the real shortcut still fires.

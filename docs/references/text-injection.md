@@ -36,19 +36,32 @@ the receiving app handles it through its normal paste path. (Note: synthetic key
 flowchart TD
     A[Transcript ready] --> B{IsSecureEventInputEnabled?}
     B -- yes --> X[Abort: do NOT put text on clipboard]
-    B -- no --> C[Snapshot pasteboard: changeCount + all items]
+    B -- no --> C[Snapshot pasteboard: all items, types in order]
     C --> D[clearContents]
-    D --> E[Write string + concealed/transient/autogen markers]
-    E --> F[Post Cmd-V down, then Cmd-V up]
+    D --> R0[Read changeCount: the value we own]
+    R0 --> S1{Secure input still off?}
+    S1 -. no .-> K
+    S1 -- yes --> E[Write string + concealed/transient/autogen markers]
+    E --> R[Read changeCount: the value we own]
+    R --> W{Write succeeded?}
+    W -- no --> K
+    W -- yes --> S2{Secure input still off?}
+    S2 -. no .-> K
+    S2 -- yes --> F[Post Cmd-V down, then Cmd-V up]
     F --> G[Wait briefly for the paste to be consumed]
-    G --> H[Restore original pasteboard items]
+    G --> K{changeCount still the value we own?}
+    K -- yes --> H[Restore original pasteboard items]
+    K -- no --> Y[Keep the new copy: skip the restore]
     H --> I[Done]
-    F -. failure .-> H
-    E -. failure .-> H
+    Y --> I
+    F -. failure .-> K
 ```
 
-Invariant: **every** exit path after we have mutated the pasteboard must run the restore
-step. Use `defer` so success, thrown errors, and early returns all restore.
+Invariant: **every** exit path after we have mutated the pasteboard restores the user's
+clipboard while slovo still owns it. Slovo owns the clipboard while `changeCount` equals
+the value read after slovo's last write, or after its clear when no write has run yet (a
+secure-input abort before the write). A failed transcript write aborts before `Cmd-V`.
+Use `defer` so success, thrown errors, and early returns all reach the ownership check.
 
 ## Key APIs
 
@@ -62,13 +75,16 @@ are noted.
 ```swift
 class var general: NSPasteboard { get }              // the system clipboard
 
-var changeCount: Int { get }                         // increments on every change;
-                                                     // "a computer-wide variable",
-                                                     // independent per named pasteboard
-                                                     // (Pasteboard Concepts, archived)
+var changeCount: Int { get }                         // increments when pasteboard ownership
+                                                     // changes; record it when taking
+                                                     // ownership, compare it later
+                                                     // (changeCount doc); "a computer-wide
+                                                     // variable", independent per named
+                                                     // pasteboard (Pasteboard Concepts,
+                                                     // archived)
 
-func clearContents() -> Int                          // clears + bumps changeCount,
-                                                     // returns new changeCount
+func clearContents() -> Int                          // clears the contents, takes ownership
+                                                     // and returns the change count
 
 func setString(_ string: String,
                forType type: NSPasteboard.PasteboardType) -> Bool
@@ -82,6 +98,26 @@ func writeObjects(_ objects: [NSPasteboardWriting]) -> Bool
 func setData(_ data: Data?,
              forType type: NSPasteboard.PasteboardType) -> Bool
 ```
+
+Sources for the `NSPasteboard` signatures and statements above:
+
+- `changeCount` (documentation, Apple Developer, no revision published): "The change count
+  subsequently increments each time the pasteboard ownership changes." and "You can
+  therefore record the value of changeCount at the time that you take ownership of the
+  pasteboard and compare it with a later value".
+  https://developer.apple.com/documentation/appkit/nspasteboard/changecount
+- `clearContents()` (source code, AppKit `NSPasteboard.h` line 176, macOS 27.2 SDK):
+  "Returns the change count of the pasteboard." The URL example in the same header carries
+  the comment `[pasteboard clearContents]; // clear pasteboard to take ownership` (line 450), so
+  `clearContents` takes ownership, and an ownership change increments `changeCount` (the
+  `changeCount` page above). A second `clearContents` while slovo is already the owner is not
+  documented to increment the count. slovo does not depend on it: it reads the count after
+  its own write.
+- `writeObjects(_:)` (source code, AppKit `NSPasteboard.h` line 181, macOS 27.2 SDK):
+  "Returns NO if the items were not successfully added to the pasteboard." Documentation,
+  Apple Developer, no revision published: it returns `true` if the array was successfully
+  added, otherwise `false`. Neither source says what the pasteboard holds after `false`.
+  https://developer.apple.com/documentation/appkit/nspasteboard/writeobjects(_:)
 
 `NSPasteboard.PasteboardType` is a string wrapper; `.string` is the built-in plain-text
 type. Custom marker types are constructed as
@@ -199,7 +235,9 @@ func injectText(_ text: String) throws {
 }
 ```
 
-> Timing note: the example restores synchronously in `defer` for clarity. In production,
+> Timing note: the example restores synchronously in `defer` for clarity, restores
+> without an ownership check and ignores the write result. slovo restores only while it
+> still owns the clipboard (see [slovo gotchas](#slovo-gotchas)). In production,
 > the paste is asynchronous — the keystroke is posted, the target app processes it on its
 > own run loop, and only then has it read the clipboard. Restoring too early clobbers the
 > clipboard before the paste reads it. macOS exposes no signal that the paste has consumed
@@ -247,18 +285,39 @@ well-behaved clipboard manager will never persist the transcript. These markers 
 convention, not enforced by the OS — they reduce exposure but do not guarantee it, hence
 restoring the original clipboard is still required.
 
+The restored content carries **no marker**, on purpose. It is the user's own copy, and both
+markers would misdescribe it. nspasteboard.org defines `TransientType` as content that "will
+either be restored to previous content" or "will be replaced within seconds", and
+`AutoGeneratedType` as content the user "had no intention to Copy" (documentation, `index.md:38`
+and `index.md:40` of https://github.com/NSPasteboard/NSPasteboard.org at commit
+`9d430c41948b72d43e9072a4a68aa734a41bfeb4`). slovo does not set `org.nspasteboard.source`
+on restored content either. The convention asks an app that "places data originally from
+some other application" to set it (same file and commit, `index.md:48`).
+
 ## slovo gotchas
 
 - **Restore on the failure path too.** Use `defer`. A thrown error after `clearContents()`
   must still put the user's clipboard back, or slovo silently eats whatever they had
-  copied. This plane was a security MAJOR — the restore must be unconditional.
+  copied.
+- **A failed transcript write aborts before `Cmd-V`.** A failed `setString` means
+  `writeObjects` never runs. Apple does not say what the pasteboard holds after
+  `writeObjects` returns `false` (`writeObjects(_:)`, see the sources above), so slovo does
+  not paste. It throws `.pasteFailed` and restores the previous clipboard.
+- **A copy between the compare and the restore is lost.** They are two separate calls.
+- **A write just after slovo's own is taken for slovo's.** A write that lands between
+  slovo's `writeObjects` and its read of `changeCount` is counted before slovo reads the
+  count. slovo then pastes that content, and the restore overwrites it.
+- **A change before the target app reads the paste is pasted.** Another write between
+  slovo's write and the target app's read puts that content into the app. slovo adds no
+  check for it.
 - **`NSPasteboardItem` is invalidated by `clearContents()`.** Deep-copy the saved items
   (copy each type's `Data`) before clearing; do not hold references to the live items.
 - **Multi-type / multi-item clipboards lose fidelity.** A perfect restore is only
   guaranteed for the types you read back. Promised/lazy data providers, file promises, and
   private application types may not survive a snapshot-and-rewrite round trip. Snapshot all
-  `pasteboardItems` and all `types` per item to maximize fidelity, and accept that exotic
-  promised content can still be lost. Document this limitation.
+  `pasteboardItems` and all `types` per item to maximize fidelity, and restore each item's
+  types in the order the item listed them. Accept that exotic promised content can still be
+  lost. Document this limitation.
 - **Re-check `IsSecureEventInputEnabled()` right before pasting**, not only when dictation
   starts — focus can move to a password field in between.
 - **Timing/race between set and paste, and between paste and restore.** Posting `Cmd-V`
@@ -288,6 +347,8 @@ but the keystroke that triggers it still needs the Accessibility grant.
 - NSPasteboard — Apple Developer Documentation: https://developer.apple.com/documentation/appkit/nspasteboard
 - `clearContents()` — Apple Developer: https://developer.apple.com/documentation/appkit/nspasteboard/clearcontents()
 - `changeCount` — Apple Developer: https://developer.apple.com/documentation/appkit/nspasteboard/changecount
+- `NSPasteboard.h` — AppKit header (source code), macOS 27.2 SDK (`clearContents`, `writeObjects`)
+- `writeObjects(_:)` — Apple Developer: https://developer.apple.com/documentation/appkit/nspasteboard/writeobjects(_:)
 - Pasteboard Concepts (archived guide): https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/PasteboardGuide106/Articles/pbConcepts.html
 - `CGEvent` — Apple Developer: https://developer.apple.com/documentation/coregraphics/cgevent
 - `CGEvent.init(keyboardEventSource:virtualKey:keyDown:)` — Apple Developer: https://developer.apple.com/documentation/coregraphics/cgevent/init(keyboardeventsource:virtualkey:keydown:)
@@ -298,9 +359,9 @@ but the keystroke that triggers it still needs the Accessibility grant.
 - Technical Note TN2150 — Using Secure Event Input Fairly (Apple): https://developer.apple.com/library/archive/technotes/tn2150/_index.html
 - `AXIsProcessTrusted()` — Apple Developer: https://developer.apple.com/documentation/applicationservices/1459186-axisprocesstrusted
 - nspasteboard.org — Identifying and Handling Transient or Special Data on the Clipboard: https://nspasteboard.org/
-- nspasteboard.org source (index.md): https://github.com/NSPasteboard/NSPasteboard.org/blob/main/index.md
+- nspasteboard.org source (index.md), at commit `9d430c41948b72d43e9072a4a68aa734a41bfeb4`: https://github.com/NSPasteboard/NSPasteboard.org/blob/9d430c41948b72d43e9072a4a68aa734a41bfeb4/index.md
 - Virtual key codes reference (`kVK_ANSI_V` = 0x09): https://gist.github.com/swillits/df648e87016772c7f7e5dbed2b345066
-- Maccy clipboard manager — marker-type handling (real-world consumer): https://github.com/p0deje/Maccy/blob/master/Maccy/Clipboard.swift
+- Maccy clipboard manager — marker-type handling (real-world consumer), at commit `f0b571e32e4031d7b91ba811f50d0f33e8e5548b`: https://github.com/p0deje/Maccy/blob/f0b571e32e4031d7b91ba811f50d0f33e8e5548b/Maccy/Clipboard.swift
 
 ## Verification
 
@@ -377,3 +438,34 @@ Still unverifiable (and why):
 - `AXIsProcessTrusted()` declaration page: both the `.json` and HTML endpoints returned
   HTTP 404 via WebFetch (Apple moved/renamed the archived `applicationservices` path);
   the function itself is real and current, but its page was not fetchable in this session.
+
+### Re-verification: ownership, failed write, restored content
+
+Date: 2026-11-12
+Verdict: PASS
+
+Checked against the Apple documentation JSON pages (no revision published), the AppKit
+`NSPasteboard.h` of the macOS 27.2 SDK, and nspasteboard.org at commit
+`9d430c41948b72d43e9072a4a68aa734a41bfeb4`:
+
+- `changeCount` — PASS. The page says "The change count subsequently increments each time the
+  pasteboard ownership changes." and "You can therefore record the value of changeCount at
+  the time that you take ownership of the pasteboard and compare it with a later value".
+  The header (line 165) declares the property with no prose.
+  https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard/changecount.json
+- `clearContents()` — PASS. The page says it returns "The change count of the receiver." and
+  is silent on incrementing. Header line 176: "Returns the change count of the pasteboard."
+  Header line 450: `[pasteboard clearContents]; // clear pasteboard to take ownership`.
+  https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard/clearcontents().json
+- `writeObjects(_:)` — PASS. The page says it returns `true` if the array was successfully
+  added, otherwise `false`, and names no pasteboard state after `false`. Header line 181:
+  "Returns NO if the items were not successfully added to the pasteboard."
+  https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard/writeobjects(_:).json
+- `TransientType`, `AutoGeneratedType` and `org.nspasteboard.source` — PASS. `index.md:38`
+  and `index.md:40` carry the quoted phrases. `index.md:48` reads "If your application places
+  data originally from some other application, ... set `org.nspasteboard.source` ...".
+- Maccy link — PASS. `Maccy/Clipboard.swift` exists at commit
+  `f0b571e32e4031d7b91ba811f50d0f33e8e5548b` (HTTP 200).
+
+Not verified: that `NSPasteboard.h` lines 176, 181 and 450 are identical in older SDKs. The
+macOS 27 SDK carries the same lines; no earlier SDK was read.

@@ -14,8 +14,8 @@ struct HotkeyDecisionTranslateKeyTests {
 
     /// Control as the PUSH-TO-TALK key must not latch itself: a plain Control hold is
     /// a plain dictation. The translate key is explicitly a non-Control key — with a
-    /// colliding pair the whole configuration would fail closed to the defaults and
-    /// this test would prove nothing.
+    /// colliding pair both keys would return to their defaults and this test would
+    /// prove nothing.
     /// Stated sensitivity: re-hardcode the latch to the Control class bit (the
     /// transitional state this test retires) → every Control hold self-latches and
     /// starts AND stops in `.translate` → RED, as proven against that code.

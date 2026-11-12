@@ -4,8 +4,8 @@
 public struct HotkeyConfiguration: Equatable, Sendable {
     /// The push-to-talk key that opens a dictation.
     public var main: HotkeyTrigger
-    /// The key that makes a dictation translate. Naming the same key as `main` is
-    /// rejected where the configuration is loaded, so a tie never reaches here;
+    /// The key that makes a dictation translate. A stored pair naming the same key
+    /// loads as both keys' defaults and is refused on save, so a tie never reaches here;
     /// consulting `main` first only settles which role owns a session.
     public var translate: HotkeyTrigger
     /// Whether `translate` acts on top of a `main` hold, latching translate for

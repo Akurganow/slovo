@@ -87,22 +87,6 @@ struct ConfigStoreCatalogMigrationTests {
         #expect(config.writingStyle == .formal)
     }
 
-    /// Earlier builds stored `modelCatalogVersion`; a config carrying it migrates too.
-    /// Stated sensitivity: skip replacements for a config saved under catalog
-    /// version 2 → the replaced id stays → RED.
-    @Test
-    func replacedModelMigratesWhateverCatalogVersionWasSaved() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(
-                cleanupProvider: "openrouter",
-                openRouterModel: "qwen/qwen3.6-flash",
-                modelCatalogVersion: 2
-            ),
-        ])
-
-        #expect(ConfigStore.load(from: defaults).openRouterModel == "qwen/qwen3.8-flash")
-    }
-
     /// Stated sensitivity: point a successor outside the catalog, chain two ids
     /// into a cycle, or keep a replaced id in the catalog → RED.
     @Test

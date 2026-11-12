@@ -259,7 +259,8 @@ Slovo has two different data paths:
 In both modes the final text is inserted with a clipboard-based paste: Slovo
 snapshots the clipboard, writes the text with conceal markers that ask
 clipboard managers not to record it, pastes, and restores the previous
-clipboard contents afterward.
+clipboard contents afterward unless the clipboard changed in the meantime
+([docs/privacy.md](docs/privacy.md), "Clipboard").
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. The personalization database is encrypted at rest
@@ -279,6 +280,13 @@ stored in Keychain:
 
 - OpenRouter service/account: `slovo` / `openrouter-api-key`
 - ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
+
+A stored setting this version cannot read returns to its default, and the other
+settings are kept. An unknown recognition backend also resets the recognition
+model; an unknown cleanup provider, an unreadable cleanup switch or an unreadable
+cleanup section turns cleanup off; and two colliding hotkeys both return to their
+defaults. A stored value that cannot be decoded as a whole (not JSON, or not a
+JSON object) returns every setting to its default.
 
 ## Build And Test
 
