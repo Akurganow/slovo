@@ -7,18 +7,20 @@ import os
 /// 1. Refuse if secure input is active BEFORE touching the pasteboard, so the
 ///    transcript never transits the clipboard in a password field (fail-closed —
 ///    a "restored to original" check alone would miss this leak window).
-/// 2. Snapshot the user's clipboard, then 3. always restore it via `defer` on
-///    EVERY exit path (success, throw, or abort) so the original is never lost.
-/// 4. Clear the pasteboard.
-/// 5. Re-check secure input immediately before writing the transcript — focus may
+/// 2. Snapshot the user's clipboard, then clear it.
+/// 3. Re-check secure input immediately before writing the transcript — focus may
 ///    have moved after the first guard.
-/// 6. Write the transcript with conceal markers so clipboard managers
-///    don't persist it.
-/// 7. Re-check secure input immediately before pasting — focus may have moved to a
+/// 4. Write the transcript with conceal markers so clipboard managers don't
+///    persist it. A failed write aborts before the paste.
+/// 5. Re-check secure input immediately before pasting — focus may have moved to a
 ///    password field after step 1.
-/// 8. Paste, surfacing accessibility/paste failures rather than swallowing them.
-/// 9. Wait `restoreDelay` so the app consumes the paste before the deferred
+/// 6. Paste, surfacing accessibility/paste failures rather than swallowing them.
+/// 7. Wait `restoreDelay` so the app consumes the paste before the deferred
 ///    restore lands.
+///
+/// Every exit path after step 2 restores the snapshot while the clipboard still
+/// holds what Slovo wrote (or the cleared state it left). A copy anyone else made
+/// since then is kept.
 public struct ClipboardPasteInjector: Injector {
     private let pasteboard: Pasteboard
     private let secureInput: SecureInput
@@ -58,29 +60,32 @@ public struct ClipboardPasteInjector: Injector {
             throw InjectionError.secureInputActive
         }
 
-        // 2. Capture the user's clipboard before clearing it.
+        // 2. Capture the user's clipboard, then clear it.
         let saved = pasteboard.snapshot()
-        // 3. Restore it on EVERY exit path (success, throw, or secure-recheck abort).
-        defer { pasteboard.restore(saved) }
-
-        // 4. Clear before the second guard so any aborted write path restores a
-        //    known snapshot instead of leaving a stale transcript behind.
         pasteboard.clearContents()
+        // Restore only while the clipboard still holds what Slovo left. The compare and
+        // the restore are two calls, so a copy that lands between them is still lost.
+        var ownedChangeCount = pasteboard.changeCount
+        defer {
+            if pasteboard.changeCount == ownedChangeCount { pasteboard.restore(saved) }
+        }
 
-        // 5. Re-check immediately before writing the transcript.
+        // 3. Re-check immediately before writing the transcript.
         guard !secureInput.isSecureInputActive() else {
             throw InjectionError.secureInputActive
         }
 
-        // 6. Write the transcript with the conceal markers.
-        pasteboard.write(PasteboardWriteItem(string: text, markerTypes: Self.markerTypes))
+        // 4. Write the transcript with the conceal markers, then read the count after `write`, success or failure.
+        let wrote = pasteboard.write(PasteboardWriteItem(string: text, markerTypes: Self.markerTypes))
+        ownedChangeCount = pasteboard.changeCount
+        guard wrote else { throw InjectionError.pasteFailed }
 
-        // 7. Re-check: focus may have moved to a password field since step 1.
+        // 5. Re-check: focus may have moved to a password field since step 1.
         guard !secureInput.isSecureInputActive() else {
             throw InjectionError.secureInputActive
         }
 
-        // 8. Paste, surfacing the failure (never swallowed).
+        // 6. Paste, surfacing the failure (never swallowed).
         try keystroke.paste()
 
         // Timing mark BEFORE the restore delay, deliberately: once ⌘V is posted
@@ -90,7 +95,7 @@ public struct ClipboardPasteInjector: Injector {
         // Static text only, no payload.
         Self.diagnosticLog.log("injection.pasted")
 
-        // 9. Let the app consume the paste before the deferred restore lands.
+        // 7. Let the app consume the paste before the deferred restore lands.
         try? await Task.sleep(for: restoreDelay)
     }
 }

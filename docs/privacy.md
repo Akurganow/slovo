@@ -135,8 +135,9 @@ logged privately; transcripts, cleaned text and keys never reach the log.
 
 Text insertion uses clipboard paste because it is reliable for mixed Cyrillic and
 Latin text. The injector checks secure input before touching the pasteboard,
-restores the previous clipboard contents on exit, and fails closed for secure
-fields.
+restores the previous clipboard contents on exit, keeps a copy you make during
+the brief wait after a paste instead of overwriting it, and fails closed for
+secure fields.
 
 ## Cloud Cleanup
 

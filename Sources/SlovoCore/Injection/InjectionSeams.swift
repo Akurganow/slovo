@@ -1,12 +1,23 @@
 import Foundation
 
-/// A snapshot of one pasteboard item — every type→data pair it held — so the
-/// user's original clipboard can be restored byte-for-byte.
+/// A snapshot of one pasteboard item: every type→data pair it held, in the order
+/// the item lists them, so the user's original clipboard can be restored
+/// byte-for-byte.
 public struct PasteboardSnapshotItem: Equatable, Sendable {
-    public let typedData: [String: Data]
+    public let representations: [Representation]
 
-    public init(typedData: [String: Data]) {
-        self.typedData = typedData
+    public struct Representation: Equatable, Sendable {
+        public let type: String
+        public let data: Data
+
+        public init(type: String, data: Data) {
+            self.type = type
+            self.data = data
+        }
+    }
+
+    public init(representations: [Representation]) {
+        self.representations = representations
     }
 }
 
@@ -28,7 +39,11 @@ public protocol Pasteboard: Sendable {
     /// Captures the current contents so they can be restored later.
     func snapshot() -> [PasteboardSnapshotItem]
     func clearContents()
-    func write(_ item: PasteboardWriteItem)
+    /// Replaces the pasteboard contents and may change `changeCount` even when it fails.
+    /// Returns true only when the string and the item reached the pasteboard.
+    func write(_ item: PasteboardWriteItem) -> Bool
+    /// Compared before the restore to see whether anyone wrote the clipboard since Slovo's own write.
+    var changeCount: Int { get }
     /// Restores a previously captured snapshot.
     func restore(_ items: [PasteboardSnapshotItem])
 }
