@@ -83,19 +83,23 @@ struct AppRuntimeSourceGuardTests {
         #expect(composition.contains("passphrase: PersonalizationDatabasePassphrase.derive"))
     }
 
-    /// The personalization database is opened ONCE per launch and the one source is
-    /// injected into every composition, as the speech model is. Each rebuild — a
-    /// granted permission, Retry Setup, the hotkey retry — would otherwise open a
-    /// second pool on the same file, which GRDB's concurrency guide rules out
-    /// ("Connect to any database file only once"). The opener and the delegate are
-    /// in the executable target, which no test imports, so the wiring is read as text.
-    /// Killing mutation: open the database inside `makeLive` or anywhere else in
-    /// the app again, or call `openPersonalization()` from `startPipeline` or a
-    /// second site → RED.
+    /// The personalization database is opened at one site, once per launch: never
+    /// by `makeLive`, `startPipeline` or Settings, which run again on every rebuild
+    /// or edit. The opener and the delegate are in the executable target, which no
+    /// test imports, so the wiring is read as text.
+    /// Killing mutation: open the database anywhere else in the app, call
+    /// `openPersonalization()` from a second site, or move its one call into
+    /// `makeLive`, `startPipeline` or Settings → RED.
     @Test
     func thePersonalizationDatabaseIsOpenedOnceForTheProcessAndInjected() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
+        let settings = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let rebuiltOrRepeated = [
+            ("makeLive", try SourceText.functionBody(named: "makeLive", in: composition)),
+            ("startPipeline", try SourceText.functionBody(named: "startPipeline", in: delegate)),
+            ("Settings", settings),
+        ]
         let appSources = try SourceText.swiftFiles(under: "Sources/slovo").map(SourceText.code)
         func occurrences(of needle: String) -> Int {
             appSources.reduce(0) { $0 + $1.components(separatedBy: needle).count - 1 }
@@ -105,12 +109,10 @@ struct AppRuntimeSourceGuardTests {
                 "the app may open the database at exactly one site, the opener")
         #expect(occurrences(of: "openPersonalization(") == 2,
                 "the opener must be declared once and called once")
-        #expect(SourceText.statementCount(#"(\w+ )*let personalization\b.*= AppComposition\.openPersonalization\(\)"#, in: delegate) == 1,
-                "the delegate must own the one opened database as a stored property")
-        #expect(!startPipeline.contains("openPersonalization("),
-                "a rebuild must reuse the launch's database, never open it again")
-        #expect(startPipeline.contains("personalization: personalization"),
-                "the app-owned database must be injected into AppComposition.makeLive")
+        for (name, body) in rebuiltOrRepeated {
+            #expect(!body.contains("openPersonalization("),
+                    "\(name) runs more than once per launch and must never open the database")
+        }
     }
 
     /// The SlovoCore half reads `KeychainAPIKeyProvider` as text. `keychainItemExists` is

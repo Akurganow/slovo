@@ -24,8 +24,8 @@ public enum PersonalizationDatabasePassphrase {
 
     /// The IOPlatformUUID could not be read — practically unreachable on real
     /// hardware. A throw here fails the database open rather than deriving a
-    /// bogus key and orphaning the real database; the app logs it and runs
-    /// without vocabulary until the next launch. One transitional exception:
+    /// bogus key and orphaning the real database; the app logs one fixed line
+    /// and runs without vocabulary until the next launch. One transitional exception:
     /// in the pre-encryption (plaintext) state the failure first surfaces
     /// inside the migration and lands in its broad catch — that session runs
     /// on the plaintext file unchanged (still no bogus key) and the migration

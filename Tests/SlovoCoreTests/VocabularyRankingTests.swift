@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // vocabulary() = BiasRanker order over stored misses; term_misses read is
 // separately fallible and degrades to weight order, never to an empty
@@ -50,8 +50,9 @@ struct VocabularyRankingTests {
     /// `database.read` as the vocabulary fetch → the DROP kills both →
     /// vocabulary comes back [] → RED; delete the `term miss read failed`
     /// `log.event` → the degradation becomes silent → RED; drop
-    /// `Column("term").asc` from the vocabulary ORDER BY → the tie group
-    /// comes back reversed → RED.
+    /// `Column("term").asc` from the vocabulary ORDER BY → under the
+    /// migrator's ascending `(weight, term)` index the tie group comes back
+    /// reversed → RED.
     @Test
     func brokenEventsTableDegradesToWeightOrder() throws {
         let (pool, teardown) = try Self.openStore()

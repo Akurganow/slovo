@@ -189,7 +189,7 @@ The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
 SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
 identifier and stored nowhere.
 
-The repository tracks only schema and migrations. Local databases and seed files
+The repository tracks only the migrations. Local databases and seed files
 are never committed.
 
 ## Menu-Bar App

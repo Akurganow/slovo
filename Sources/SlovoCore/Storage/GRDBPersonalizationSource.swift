@@ -42,8 +42,7 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
     /// be read, ranking degrades to weight order — the vocabulary itself must
     /// never vanish with it (the cleanup glossary rides on this read too).
     /// A failed vocabulary read returns `[]` and logs `vocabulary read failed`, never
-    /// the error: a `DatabaseError` or `RowDecodingError` description can carry SQL
-    /// text or a row's values.
+    /// the error: an error's text may carry SQL or a row's values.
     public func vocabulary() -> [Term] {
         let records: [VocabularyRecord]
         do {

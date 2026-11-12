@@ -387,26 +387,34 @@ struct PersonalizationDatabaseEncryptionTests {
         #expect(manager.fileExists(atPath: path))
     }
 
-    /// A non-wrong-key open failure (here: permissions) must PROPAGATE — never
-    /// be answered by setting a readable database aside and starting empty.
-    /// Stated sensitivity: widening the .opaque catch beyond SQLITE_NOTADB →
-    /// the aside appears and open succeeds → RED on both assertions.
+    /// A non-wrong-key open failure of an encrypted database must PROPAGATE —
+    /// never be answered by setting a readable database aside and starting
+    /// empty. Here the passphrase cannot be derived: the header reads, the
+    /// state is `.opaque`, and the keyed open fails with the provider's error.
+    /// Stated sensitivity: widen the .opaque catch beyond SQLITE_NOTADB → the
+    /// database is moved to the aside path and a fresh one takes its place →
+    /// RED on the aside and the kept-rows assertions.
     @Test
     func nonWrongKeyOpenFailurePropagatesInsteadOfSettingAside() throws {
         let path = TempDatabase.freshPath()
-        defer {
-            _ = chmod(path, 0o600)
-            TempDatabase.remove(at: path)
-        }
+        defer { TempDatabase.remove(at: path) }
         let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        try GRDBPersonalizationSource(database: pool).addVocabulary([
+            VocabularyRecord(term: "kept", category: "term"),
+        ])
         try pool.close()
-        try #require(chmod(path, 0) == 0)
 
-        #expect(throws: (any Error).self) {
-            _ = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        #expect(throws: PersonalizationDatabasePassphrase.ReadError.self) {
+            _ = try PersonalizationDatabase.open(at: path, passphrase: {
+                throw PersonalizationDatabasePassphrase.ReadError.uuidMissing
+            })
         }
         #expect(!FileManager.default.fileExists(atPath: path + ".unreadable"),
-                "a permission error must not be treated as a wrong key")
+                "a failed derivation must not be treated as a wrong key")
+        let reopened = try PersonalizationDatabase.open(at: path, passphrase: Self.passphraseA)
+        defer { try? reopened.close() }
+        let terms = try reopened.read { db in try String.fetchAll(db, sql: "SELECT term FROM vocabulary") }
+        #expect(terms == ["kept"], "the original database must stay in place with its rows; got \(terms)")
     }
 
     /// A failing passphrase provider must fail the open outright — never fall

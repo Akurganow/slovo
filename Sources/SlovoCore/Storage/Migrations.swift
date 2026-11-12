@@ -1,8 +1,8 @@
 import GRDB
 
-/// The schema migrations for the personalization store, and its authority:
-/// `data/schema.sql` documents what they create. Idempotent by construction: GRDB's `DatabaseMigrator`
-/// tracks applied migration identifiers, so re-running `migrate` is a no-op — no
+/// The schema migrations for the personalization store, the one statement of
+/// its schema. Idempotent by construction: GRDB's `DatabaseMigrator` tracks
+/// applied migration identifiers, so re-running `migrate` is a no-op — no
 /// unconditional `CREATE TABLE`.
 ///
 /// `vocabulary` seeds the cleanup prompt so the cleaner preserves the user's

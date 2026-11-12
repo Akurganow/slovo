@@ -15,11 +15,8 @@ enum AppComposition {
 
     private static let storageLog = Logger(subsystem: "com.slovo.app", category: "storage")
 
-    /// Opens the personalization database for the life of the process; every
-    /// composition reads through the one source it returns. Nil when the
-    /// database does not open: dictation then runs without vocabulary until the
-    /// next launch. The log line names no path and no error: a database error's
-    /// text carries SQLite's message and the SQL statement.
+    /// Nil when the database does not open. The log line names no path and no
+    /// error: an error's text may carry SQL or a row's values.
     static func openPersonalization() -> GRDBPersonalizationSource? {
         do {
             let database = try PersonalizationDatabase.open(
@@ -105,6 +102,14 @@ enum AppComposition {
             cueController: cueController,
             recorder: recorder
         )
+    }
+
+    /// The vocabulary while the database is not open: no terms, so a dictation
+    /// runs with no bias and no cleanup glossary.
+    private struct EmptyPersonalizationSource: PersonalizationSource {
+        func vocabulary() -> [Term] {
+            []
+        }
     }
 
     private static func personalizationDatabasePath() throws -> URL {
