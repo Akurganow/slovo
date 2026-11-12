@@ -86,8 +86,7 @@ tuned.
   request, is in [docs/privacy.md](docs/privacy.md), "Keychain" and "Cloud
   Cleanup".
 - Clipboard-based text insertion with secure-input checks and clipboard
-  restore. A copy you make during the brief wait after a paste is kept, not
-  overwritten.
+  restore.
 - Local SQLite personalization store for vocabulary hints, encrypted at rest
   with SQLCipher — add and remove terms in **Settings → Vocabulary**, or use the
   menu-bar **Add Vocabulary…** quick action — to protect your own terms during
@@ -260,8 +259,8 @@ Slovo has two different data paths:
 In both modes the final text is inserted with a clipboard-based paste: Slovo
 snapshots the clipboard, writes the text with conceal markers that ask
 clipboard managers not to record it, pastes, and restores the previous
-clipboard contents afterward. A copy you make during that brief wait is kept
-instead of being overwritten.
+clipboard contents afterward unless the clipboard changed in the meantime
+([docs/privacy.md](docs/privacy.md), "Clipboard").
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. The personalization database is encrypted at rest

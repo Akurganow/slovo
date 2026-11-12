@@ -10,10 +10,10 @@ import Synchronization
 /// A test can then pin that the paste happened strictly AFTER the write and
 /// BEFORE the restore — not merely count attempts.
 ///
-/// The change count models the adapter: each clear, the clear inside `write`,
-/// and each restore takes ownership and raises the count. `writeSucceeds` makes
-/// `write` report failure. `copiesDuringWait` stands for a copy that lands after
-/// the paste and before the restore check.
+/// The fake raises the change count on each clear, on the clear inside `write`
+/// and on each restore. That is an assumption, not documented AppKit behaviour
+/// (`docs/references/text-injection.md`). `writeSucceeds` makes `write` report
+/// failure. `copiesDuringWait` stands for a copy made during the restore wait.
 ///
 /// The op timeline and the change count are `Mutex`-guarded so the fake is
 /// genuinely race-free.

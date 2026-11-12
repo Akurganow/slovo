@@ -18,8 +18,8 @@ import os
 /// 7. Wait so the app consumes the paste before the deferred restore lands.
 ///
 /// Every exit path after step 2 restores the snapshot only while the clipboard still
-/// holds what Slovo wrote (or the cleared state it left). A copy made after the count
-/// is read at step 4 is kept, except in the instant between the check and the restore.
+/// holds what Slovo wrote (or the cleared state it left). A copy made after the owned
+/// count is read is kept, except in the instant between the check and the restore.
 /// See `docs/references/text-injection.md`, "Approach", for the ownership rule.
 public struct ClipboardPasteInjector: Injector {
     /// Long enough that the slowest supported app consumes the paste before the

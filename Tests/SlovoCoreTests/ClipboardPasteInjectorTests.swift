@@ -111,7 +111,7 @@ struct ClipboardPasteInjectorTests {
     }
 
     /// Stated sensitivity: make the restore unconditional → `.restore(originalClip)` appended → RED.
-    /// Stated sensitivity: decide ownership before the wait → restore runs during the copy → RED.
+    /// Stated sensitivity: decide ownership before the wait → `.restore(originalClip)` appended after `.wait` → RED.
     @Test
     func copyDuringWaitKeepsTheNewClipboard() async throws {
         let pasteboard = FakePasteboard(initialSnapshot: Self.originalClip, copiesDuringWait: true)
