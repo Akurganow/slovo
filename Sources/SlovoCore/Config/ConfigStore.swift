@@ -255,6 +255,8 @@ public enum ConfigStore {
     /// One JSON object read key by key. A reader over no object answers every read
     /// with its default, or with `whenUnreadable` when `unreadable` says the object
     /// was present but held another type.
+    /// Hand-rolled because one unreadable field must cost only that field and be
+    /// counted, and none of the `Package.swift` dependencies decodes stored settings.
     private struct FieldReader {
         let container: KeyedDecodingContainer<Field>?
         let recovered: RecoveredKeys

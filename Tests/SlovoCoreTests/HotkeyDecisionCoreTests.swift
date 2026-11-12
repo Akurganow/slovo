@@ -98,8 +98,8 @@ struct HotkeyDecisionCoreTests {
 
     /// Control as the push-to-talk key is class-level: EITHER Control key opens the
     /// hold and clearing the class bit ends it — there is no side to name. The
-    /// translate key is deliberately a non-Control key, because naming Control in
-    /// both roles is rejected where the configuration is loaded and a colliding
+    /// translate key is deliberately a non-Control key, because Control in both
+    /// roles is refused on save and loads as both keys' defaults, so a colliding
     /// pair would prove nothing here.
     /// Stated sensitivity: recognize `.control` as any other kind (the fn bit, or a
     /// side-specific key code) → the class-bit event opens no hold → RED. Release a

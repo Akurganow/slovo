@@ -152,6 +152,13 @@ struct ConfigStoreRecoveryTests {
             $0.asrModel = Config.defaultAsrModel
             $0.usesVocabularyBias = false
         },
+        null("cleanup.enabled") { $0.cleanupEnabled = true },
+        null("cleanup") {
+            $0.cleanupEnabled = true
+            $0.writingStyle = .casual
+            $0.useSpellCheckHints = true
+            $0.openRouterModel = Config.defaultOpenRouterModel
+        },
         Row(
             edits: [Edit("cleanup.enabled", "true"), Edit("cleanup.provider", "null")],
             recovered: [],
@@ -164,9 +171,10 @@ struct ConfigStoreRecoveryTests {
     /// `null` provider row also shows a missing provider leaves cleanup as stored.
     /// Stated sensitivity: report an absent or `null` key as recovered → the set is
     /// not empty → RED; treat a `null` provider as unknown → cleanup turns off →
-    /// RED; require a field that older blobs lack → the whole config resets and the
-    /// kept fields are lost → RED; reset the model when only the backend is missing
-    /// → `Config` differs → RED.
+    /// RED; treat a `null` cleanup switch or section as present but unreadable →
+    /// cleanup off / key recorded → RED; require a field that older blobs lack →
+    /// the whole config resets and the kept fields are lost → RED; reset the model
+    /// when only the backend is missing → `Config` differs → RED.
     @Test(arguments: missingFields)
     func missingFieldTakesItsDefaultSilently(row: Row) throws {
         try expect(row)
@@ -196,6 +204,24 @@ struct ConfigStoreRecoveryTests {
             edits: [Edit("asr.model", #""system-dictation""#)],
             recovered: [],
             expected: { $0.asrModel = Config.defaultAsrModel }
+        ))
+    }
+
+    /// A legacy Apple Speech blob reaches WhisperKit with the default model and a
+    /// resident model (keep-warm nil). The migration itself is not damage and is not
+    /// reported, but the stored keep-warm 5000 is out of range, so it is still counted.
+    /// Stated sensitivity: stop counting a damaged legacy keep-warm → the set is empty
+    /// → RED; count the legacy migration itself (the backend or the model) → the set
+    /// has an extra key → RED.
+    @Test
+    func legacyBackendWithDamagedKeepWarmCountsOnlyTheKeepWarm() throws {
+        try expect(Row(
+            edits: [Edit("asr.backend", #""speechtranscriber""#), Edit("keepWarmSeconds", "5000")],
+            recovered: ["keepWarmSeconds"],
+            expected: {
+                $0.asrModel = Config.defaultAsrModel
+                $0.keepWarmSeconds = nil
+            }
         ))
     }
 
