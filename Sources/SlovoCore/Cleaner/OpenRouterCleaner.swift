@@ -4,7 +4,7 @@ import os
 /// Rewrites a transcript through OpenRouter's OpenAI-compatible Chat
 /// Completions API.
 public struct OpenRouterCleaner: Cleaner {
-    private let session: URLSession
+    let session: URLSession
     private let keyProvider: OpenRouterKeyProvider
     private let promptBuilder: PromptBuilder
     private let log: RedactionSafeLog
@@ -18,13 +18,14 @@ public struct OpenRouterCleaner: Cleaner {
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
     // The resource timer bounds the whole request: an idle timer alone lets a trickling
-    // reply hold the pipeline, and every press is refused until it ends. The idle timer
-    // gets the same number so it cannot fire first. Apple's NSURLSession.h (macOS 27.2
+    // reply hold the pipeline, and every press is refused until it ends. Both timers
+    // take the one number so it states the request's deadline; the resource timer
+    // alone already fires first. Apple's NSURLSession.h (macOS 27.2
     // SDK), timeoutIntervalForResource: "The resource timer starts when the request is
     // initiated and counts until either the request completes or this timeout interval
     // is reached, whichever comes first."
-    static let deadline: TimeInterval = 10
-    static let session: URLSession = {
+    private static let deadline: TimeInterval = 10
+    private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = deadline
         configuration.timeoutIntervalForResource = deadline
@@ -164,7 +165,7 @@ public struct OpenRouterCleaner: Cleaner {
         )
     }
 
-    // Fixed tokens only: `RedactionSafeLog.event` takes no payload.
+    // Fixed tokens only: `RedactionSafeLog.event` must never receive a payload.
     private static func transportToken(_ error: URLError) -> String {
         switch error.code {
         case .timedOut:

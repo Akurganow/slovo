@@ -46,7 +46,6 @@ struct KeychainKeySourceTests {
     /// deleted it from the Keychain → RED.
     @Test
     func failedWriteDropsTheCache() throws {
-        struct WriteFailure: Error {}
         let stored = Mutex<String?>(nil)
         let writeFails = Mutex(false)
         let provider = KeychainOpenRouterKeyProvider(
@@ -77,6 +76,8 @@ struct KeychainKeySourceTests {
         }
     }
 
+    private struct WriteFailure: Error {}
+
     private final class ProviderBox: @unchecked Sendable {
         // Set once after construction, before the first apiKey() call.
         var provider: KeychainOpenRouterKeyProvider?
@@ -85,6 +86,7 @@ struct KeychainKeySourceTests {
     /// A provider whose first Keychain read runs `duringFirstRead` and still
     /// returns the old key, the value read before the write landed.
     private static func providerWithWriteDuringFirstRead(
+        saveFails: Bool = false,
         _ duringFirstRead: @escaping @Sendable (KeychainOpenRouterKeyProvider) throws -> Void
     ) throws -> KeychainOpenRouterKeyProvider {
         let stored = Mutex<String?>("synthetic-old-key")
@@ -103,7 +105,11 @@ struct KeychainKeySourceTests {
                 return "synthetic-old-key"
             },
             keyExists: { stored.withLock { $0 != nil } },
-            writeKey: { key in stored.withLock { $0 = key } },
+            writeKey: { key in
+                // Mirrors the real helper: the old item goes before the add runs.
+                stored.withLock { $0 = saveFails ? nil : key }
+                if saveFails { throw WriteFailure() }
+            },
             deleteKey: { stored.withLock { $0 = nil } }
         )
         box.provider = provider
@@ -114,7 +120,7 @@ struct KeychainKeySourceTests {
     /// older value that read returns.
     /// Stated sensitivity: fill the cache unconditionally after the read → the
     /// second apiKey() serves the old key → RED. A lock held across readKey()
-    /// deadlocks this test, because the read calls store() on the same provider.
+    /// hangs this test, because the read calls store() on the same provider.
     @Test
     func keySavedDuringFirstReadSurvivesTheReadsFill() throws {
         let provider = try Self.providerWithWriteDuringFirstRead { try $0.store("synthetic-new-key") }
@@ -126,7 +132,7 @@ struct KeychainKeySourceTests {
     /// A key removed while the first Keychain read is in flight must stay removed.
     /// Stated sensitivity: fill the cache unconditionally after the read → the
     /// removed key reads as present → RED. A lock held across readKey()
-    /// deadlocks this test, because the read calls removeKey() on the same provider.
+    /// hangs this test, because the read calls removeKey() on the same provider.
     @Test
     func keyRemovedDuringFirstReadStaysRemoved() throws {
         let provider = try Self.providerWithWriteDuringFirstRead { try $0.removeKey() }
@@ -138,6 +144,28 @@ struct KeychainKeySourceTests {
             Issue.record("apiKey() must throw after the key was removed")
         } catch CleanupError.missingKey {
             // The contract: a removed key reads as missing.
+        } catch {
+            Issue.record("expected CleanupError.missingKey, got \(error)")
+        }
+    }
+
+    /// A save that fails during the first Keychain read may already have deleted the
+    /// old item, so the older value that read returns must not refill the cache.
+    /// Stated sensitivity: in store's `catch`, clear the key without bumping the
+    /// write count → the read refills the cache with the deleted key → RED.
+    @Test
+    func failedSaveDuringFirstReadLeavesNoKey() throws {
+        let provider = try Self.providerWithWriteDuringFirstRead(saveFails: true) {
+            try? $0.store("synthetic-new-key")
+        }
+
+        #expect(try provider.apiKey() == "synthetic-old-key", "the caller whose read began first gets what it read")
+        #expect(!provider.hasConfiguredKey(), "the failed save deleted the item, so no key is configured")
+        do {
+            _ = try provider.apiKey()
+            Issue.record("apiKey() must throw after a failed save removed the key")
+        } catch CleanupError.missingKey {
+            // The contract: the next read consults the empty Keychain.
         } catch {
             Issue.record("expected CleanupError.missingKey, got \(error)")
         }

@@ -5,7 +5,7 @@ import Synchronization
 /// Keychain-backed API key storage with a process-local memory cache. The
 /// Keychain item Settings writes is the key's only source.
 public final class KeychainOpenRouterKeyProvider: OpenRouterKeyProvider {
-    private enum StoreError: Error, Sendable {
+    private enum StoreError: Error {
         case emptyKey
         case keychain(OSStatus)
     }

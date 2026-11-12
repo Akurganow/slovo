@@ -68,13 +68,15 @@ struct OpenRouterCleanerTests {
         #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
     }
 
-    /// Stated sensitivity: drop either timeout line from the session configuration
-    /// -> the default (60 s idle, 7 days total) comes back -> RED.
+    /// Stated sensitivity: pass `.shared` or any other session from the public init,
+    /// or drop the resource-timeout line -> RED.
     @Test
     func cleanupSessionEndsEveryRequestAfterTenSeconds() {
-        let configuration = OpenRouterCleaner.session.configuration
-        #expect(configuration.timeoutIntervalForResource == 10)
-        #expect(configuration.timeoutIntervalForRequest == 10)
+        let cleaner = OpenRouterCleaner(
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder()
+        )
+        #expect(cleaner.session.configuration.timeoutIntervalForResource == 10)
     }
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
