@@ -156,8 +156,12 @@ at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,
 and a 0 or 1 flag for a retry without vocabulary bias. Five cue lines carry the
 cue's name (one of three), and two of them also its elapsed milliseconds. They
 carry dictation timing and no user text. A cleanup failure adds its kind and the
-provider's HTTP status. Error text is logged privately; transcripts, cleaned text
-and keys never reach the log.
+provider's HTTP status. A failed mute of system output adds the name of its
+failing step (one of six) and the CoreAudio status number. A failed restore adds
+that status number alone. A failed microphone start adds the name of its failing
+step (one of two) and, where one exists, the CoreAudio status number or the
+engine's error code. None of these names a device. Error text is logged
+privately; transcripts, cleaned text and keys never reach the log.
 
 ## Clipboard
 
