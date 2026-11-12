@@ -2,11 +2,9 @@
 
 ## Requirements
 
-- Apple Silicon Mac.
-- Xcode 26.4 or newer, the first release carrying the Swift 6.3 toolchain, which
-  needs macOS 26.2 or newer on the build machine. The shipped app runs on
-  macOS 15 (Sequoia) or newer.
-- Swift Package Manager.
+The toolchain and build-machine requirements are in
+[CONTRIBUTING.md](../CONTRIBUTING.md), "Development Setup". The shipped app runs on
+macOS 15 (Sequoia) or newer.
 
 ## Build
 
@@ -83,13 +81,13 @@ The lint script runs:
 
 ## Gate Self-Test
 
-The gate has an intentional red-path check:
+The gate has an intentional red-path check, run by CI after the gate:
 
 ```sh
-SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution
+SLOVO_GATE_SELFTEST=red swift test --disable-automatic-resolution --filter gateGoesRedWhenSelfTestArmed
 ```
 
-This command is expected to fail. It proves the gate can go red when armed.
+The run must exit non-zero. That proves the gate can go red when armed.
 
 ## Cleanup Benchmark
 
@@ -145,18 +143,10 @@ corpus you tested against. Never commit the audio.
 
 ## Packaging
 
-Published releases are fully automated (see [release-ci.md](release-ci.md)); this
-local packaging is only for verifying a build before it is merged.
-
-Packaging runs in two phases (`app`, then `dmg`); use a stable signing identity:
-
-```sh
-SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" Scripts/sign-and-notarize.sh app
-```
-
-The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set. See
-[release-checklist.md](release-checklist.md) for the full flow; stapling the
-notarization ticket is the only manual step.
+Releases are automated from `main`; see [docs/release-ci.md](release-ci.md).
+Local packaging, ad-hoc signing included, is in
+[docs/release-checklist.md](release-checklist.md), "Verify packaging before
+merge (optional, local)".
 
 ## Repository Hygiene
 
@@ -240,8 +230,7 @@ not exercised in CI. After changing them, verify by hand:
 ## Manual auto-update checks (release-only)
 
 The silent Sparkle pipeline is not exercised in CI (out-of-process installer,
-real signatures). Before the FIRST Sparkle-enabled release ships, verify by hand
-on the dev Mac:
+real signatures). After a change to the update path, verify by hand:
 
 - **Silent update:** install a previous release build into `/Applications`,
   publish a newer test release, then launch the old build. Within the hourly
