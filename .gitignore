@@ -10,11 +10,11 @@ DerivedData/
 
 # ── Personalization data — NEVER commit ──────────────────────────────────────
 # The dictionary DB is purely local user data. The app creates an empty DB from
-# its schema on first run (create-or-get); an empty dictionary is a valid state.
+# its migrations on first run (create-or-get); an empty dictionary is a valid state.
 # Pre-seeding is a local-only convenience and is NEVER shipped: seed files can
 # contain personal vocabulary or other private terms. The public repository tracks
-# only schema/migrations, no seed data and no user database.
-# The repo tracks ONLY the migrations (Sources/SlovoCore/Storage/Migrations.swift), no seed, no DB.
+# only the migrations (Sources/SlovoCore/Storage/Migrations.swift), no seed data
+# and no user database.
 # Globs (not exact names) so every future seed variant and DB sidecar is caught:
 # data/seed.dev.sql, data/seed.2.sql, data/*.db-shm, and every DB sidecar stay
 # uncommittable even across app renames.
