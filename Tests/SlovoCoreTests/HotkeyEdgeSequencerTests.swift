@@ -26,10 +26,11 @@ struct HotkeyEdgeSequencerTests {
     /// The sequencer runs one edge to completion before starting the next, in receipt
     /// order. The first handler parks under test control, so the second must not have
     /// begun while it is parked.
-    /// Killing mutation: dispatch each edge on its own Task -> RED in the schedules
-    /// where the second edge's Task enters before the first expectation reads. No wait
-    /// can make that read certain: it checks for an absence, so a schedule that has not
-    /// yet run the second Task passes it.
+    /// Killing mutation: dispatch each edge on its own Task -> RED. The first
+    /// expectation catches it in the schedules where the second edge's Task enters
+    /// before the read: no wait can make an absence read certain. The order
+    /// expectation after the release catches it in the schedules where the second
+    /// edge finishes first.
     @Test
     func edgesAreHandledInReceiptOrderEvenWhenFirstHandlerIsSlow() async {
         let recorder = EdgeSinkRecorder()

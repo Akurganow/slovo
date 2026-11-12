@@ -163,7 +163,9 @@ step (one of two) and, where one exists, the CoreAudio status number or the
 engine's error code. None of these names a device. A launch that finds stored
 settings damaged or in conflict logs how many it found, never their names or
 values; stored settings that are not a JSON object log one fixed line saying the
-defaults were used. Error text is logged privately; transcripts, cleaned text
+defaults were used. A disable of the key tap by macOS logs one of two fixed
+lines, for a timeout or for user input, with a true or false flag saying whether
+a dictation in progress was ended. Error text is logged privately; transcripts, cleaned text
 and keys never reach the log.
 
 ## Clipboard

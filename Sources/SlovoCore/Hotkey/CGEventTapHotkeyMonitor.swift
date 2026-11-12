@@ -16,8 +16,8 @@ import Synchronization
 /// lock, and the compiler refuses any other: the class is `Sendable`, so it can
 /// hold no unguarded mutable state.
 ///
-/// Exercised only by a live run, not in CI; its decision logic is unit-tested
-/// through `HotkeyDecisionCore`.
+/// Exercised by the manual hotkey checks of `docs/development.md`, not in CI; its
+/// decision logic is unit-tested through `HotkeyDecisionCore`.
 public final class CGEventTapHotkeyMonitor: Sendable {
     public struct HotkeyTapError: Error {
         public let reason: String
@@ -90,17 +90,16 @@ public final class CGEventTapHotkeyMonitor: Sendable {
     public func stop() {
         // The calls run outside the lock, so a callback waiting on it never waits on
         // the window server as well.
-        guard let tap = state.withLock({ state in
-            defer { state.tap = nil }
-            return state.tap
-        }) else { return }
+        guard let tap = state.withLock({ $0.tap.take() }) else { return }
         CGEvent.tapEnable(tap: tap.port, enable: false)
         CFMachPortInvalidate(tap.port)
         CFRunLoopStop(tap.runLoop)
     }
 
-    /// The tap thread's whole life: create the tap on this thread, add it to this
-    /// thread's run loop, report back to `start()`, and serve events until `stop()`.
+    /// Creates the tap on the thread that serves it. The header documents only that
+    /// the callback runs from the run loop the tap's source is added to
+    /// (`CGEvent.h`, macOS 27.2 SDK), and nothing of a tap created on one thread and
+    /// served on another.
     private func serveTap(reportingTo installed: DispatchSemaphore) {
         // keyDown joins flagsChanged so the tap can observe an interrupting key
         // press and cancel a passthrough-modifier hold.
@@ -170,17 +169,18 @@ public final class CGEventTapHotkeyMonitor: Sendable {
             // The real combo (e.g. Right ⌘ + C) must proceed untouched.
             return Unmanaged.passUnretained(event)
         case .resync(let synthesizedStop):
+            // No tap once `stop()` has run: nothing is re-enabled, so nothing is logged.
             if let tap {
                 CGEvent.tapEnable(tap: tap.port, enable: true)
-            }
-            // The unified log keeps numbers unredacted and redacts dynamic strings
-            // (man page `os_log(3)`, revision "June 2, 2016"): the Bool is logged as a
-            // number, and the cause is a literal of its own arm.
-            let releasedHold = synthesizedStop != nil
-            if type == .tapDisabledByTimeout {
-                Self.diagnosticLog.notice("key tap disabled by timeout, re-enabled; open hold released: \(releasedHold)")
-            } else {
-                Self.diagnosticLog.notice("key tap disabled by user input, re-enabled; open hold released: \(releasedHold)")
+                // The unified log keeps scalars such as this Bool unredacted and redacts
+                // dynamic strings (man page `os_log(3)`, revision "June 2, 2016"), so
+                // the cause is a literal of its own arm.
+                let releasedHold = synthesizedStop != nil
+                if type == .tapDisabledByTimeout {
+                    Self.diagnosticLog.notice("key tap disabled by timeout, re-enabled; open hold released: \(releasedHold)")
+                } else {
+                    Self.diagnosticLog.notice("key tap disabled by user input, re-enabled; open hold released: \(releasedHold)")
+                }
             }
             if let synthesizedStop {
                 // The emergency stop keeps the dead hold's mode, so a translate

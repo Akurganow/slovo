@@ -244,18 +244,25 @@ struct HotkeyDecisionCoreTests {
 
     /// A key change made while the key is held waits for that hold to close: the
     /// release is judged against the key that opened it, so the dictation gets its
-    /// stop, and the new key works from the next press.
+    /// stop, and the last change made during the hold works from the next press.
     /// Stated sensitivity: apply the change at once (drop the hold) → the old key's
     /// release passes through, the dictation never stops → RED. Never apply the
-    /// waiting change → the new key's press passes through → RED.
+    /// waiting change → the new key's press passes through → RED. Keep the first of
+    /// two waiting changes (`pendingConfiguration = pendingConfiguration ??
+    /// configuration`) → Right ⇧ starts and Left ⌥ passes through → RED.
     @Test
     func aKeyChangeDuringAHoldAppliesWhenTheHoldCloses() {
         var core = makeDecisionCore(main: .rightCommand)
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
         core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
+        core.reconfigure(to: controlLatchConfiguration(main: .leftOption))
         #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain),
                 "the hold open at the key change must still stop on its own key's release")
-        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .passThrough,
+                "a change superseded during the hold must not apply")
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [.option])) == .start(suppress: false, mode: .plain),
+                "the last change made during the hold applies when it closes")
     }
 
     /// A tap disable closes the hold too, so a key change waiting on it applies then.
