@@ -98,8 +98,8 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - A dictation leaves the previous clipboard in place.
 - Nothing waits on a cue: the microphone opens without waiting for Start, and
   releasing the key stops recording immediately rather than after the sound.
-- Speaking while the speech model is still loading ("Preparing Speech Model" on a
-  cold start) still reaches the transcript — that audio is not dropped.
+- A press while the speech model is still loading ("Preparing Speech Model") is
+  refused: no microphone and no cue, and the loading glyph keeps pulsing.
 - Never revoke a permission while Slovo is running. Revoking Accessibility blocks
   keyboard input for the whole session (issue #73). Reset permissions before launch
   instead, with `tccutil`.
@@ -128,6 +128,16 @@ xcrun stapler validate .build/dist/Slovo.dmg
   - Grant Accessibility from that menu and open the Slovo menu again. The log shows
     `production composition started` and still no new `asr.modelLoad` line.
   - The next dictation starts immediately, with no "Preparing Speech Model" pulse.
+- **A failed first load retries on its own.** Same stream:
+  - Quit Slovo. Remove `~/Library/Application Support/slovo/models`. Turn the
+    network off. Launch.
+  - The log shows `asr.modelLoad state=failed` lines at growing intervals and the
+    glyph keeps pulsing.
+  - Press the push-to-talk key. No orange microphone indicator appears in the menu
+    bar and no cue plays.
+  - Turn the network on. Within a minute the log shows
+    `state=finished ms=… source=download`, the pulse stops, and the next dictation
+    inserts text.
 - **A cached model loads offline.** Same stream, model left in the cache from the
   check above:
   - Quit Slovo. Turn off Wi-Fi (and any wired network). Open the log stream. Launch.

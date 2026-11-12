@@ -111,9 +111,10 @@ The checked-in schema is safe; user data and seed content are not.
 Slovo loads the speech model through WhisperKit at launch. A launch with the
 model cached loads it from the app cache and sends nothing to Hugging Face.
 WhisperKit's download path runs only when that local load fails: the first run,
-or a cached copy missing a file the load needs. A load that failed runs again at
-the next attempt: the next dictation, **Retry Setup**, or the rebuild after a
-permission is granted. The download path asks Hugging Face (`huggingface.co`)
+or a cached copy missing a file the load needs. Slovo retries a failed
+load on its own, after 1 second, then after pauses that double up to 60 seconds,
+until the model loads. Each attempt makes the requests described below; offline,
+the first file-list request fails and nothing is sent. The download path asks Hugging Face (`huggingface.co`)
 for the model repository's file list twice, then for the metadata of each model
 file, before it downloads what is missing or changed. The first run downloads the
 model files and a tokenizer. A later load reads the cached tokenizer from disk,
