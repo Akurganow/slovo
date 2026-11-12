@@ -4,6 +4,7 @@ import os
 /// Rewrites a transcript through OpenRouter's OpenAI-compatible Chat
 /// Completions API.
 public struct OpenRouterCleaner: Cleaner {
+    // Internal so a test reads the session the public init chose.
     let session: URLSession
     private let keyProvider: OpenRouterKeyProvider
     private let promptBuilder: PromptBuilder
@@ -20,12 +21,12 @@ public struct OpenRouterCleaner: Cleaner {
     // The resource timer bounds the whole request: an idle timer alone lets a trickling
     // reply hold the pipeline, and every press is refused until it ends. Both timers
     // take the one number so it states the request's deadline; the resource timer
-    // alone already fires first. Apple's NSURLSession.h (macOS 27.2
-    // SDK), timeoutIntervalForResource: "The resource timer starts when the request is
+    // alone already fires first. Apple's NSURLSession.h (macOS 27.2 SDK),
+    // timeoutIntervalForResource: "The resource timer starts when the request is
     // initiated and counts until either the request completes or this timeout interval
     // is reached, whichever comes first."
     private static let deadline: TimeInterval = 10
-    private static let session: URLSession = {
+    private static let cleanupSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = deadline
         configuration.timeoutIntervalForResource = deadline
@@ -37,9 +38,10 @@ public struct OpenRouterCleaner: Cleaner {
         promptBuilder: PromptBuilder,
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "cleaner")
     ) {
-        self.init(session: Self.session, keyProvider: keyProvider, promptBuilder: promptBuilder, log: log)
+        self.init(session: Self.cleanupSession, keyProvider: keyProvider, promptBuilder: promptBuilder, log: log)
     }
 
+    // Internal so tests can pass a stub session.
     init(
         session: URLSession,
         keyProvider: OpenRouterKeyProvider,

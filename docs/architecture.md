@@ -164,9 +164,8 @@ the examples; no prompt text is assembled from string literals scattered in code
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
-A reply of only whitespace counts as a cleanup failure, so the raw
-transcript is inserted. One cleanup request is bounded by 10 seconds in total,
-and a request that runs longer inserts the raw transcript.
+`OpenRouterCleaner` owns its network session, and one deadline bounds the whole
+request, so a slow reply can never hold the pipeline.
 
 ## Storage
 

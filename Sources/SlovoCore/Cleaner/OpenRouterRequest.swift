@@ -30,7 +30,7 @@ struct OpenRouterResponse: Decodable {
     // Whitespace-only is no reply. Never trim: the model's text is returned as it is.
     var firstText: String? {
         for choice in choices ?? [] {
-            if let content = choice.message?.content, content.contains(where: { !$0.isWhitespace }) {
+            if let content = choice.message?.content, content.hasVisibleCharacter {
                 return content
             }
         }

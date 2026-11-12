@@ -169,10 +169,11 @@ Model". Transcription itself runs on the Mac.
    the menu-bar icon briefly shows the red failure glyph `Ⱁ`. With Sound Cues
    on you hear End at key-up, since recording did end, and then Error — no
    alert dialog or persistent notice.
-5. If cleanup itself fails (unavailable, refused, misconfigured, or a
-   provider/network error), the raw transcript is inserted instead and the
-   menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off by
-   choice is not a failure — raw mode inserts silently, with no error glyph.
+5. If cleanup itself fails (unavailable, refused, misconfigured, a
+   provider/network error, a reply with nothing visible in it, or a request
+   that takes longer than 10 seconds), the raw transcript is inserted instead
+   and the menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off
+   by choice is not a failure — raw mode inserts silently, with no error glyph.
 
 To translate a dictation, use the **Translate key** — ⌃ out of the box, and
 any other key from the same pool in **Settings → General**. By default it is
