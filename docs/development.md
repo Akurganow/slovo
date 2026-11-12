@@ -191,6 +191,8 @@ tap, verify on a real keyboard:
   error, menu-bar glyph returns to idle) and the real shortcut still fires.
 - **Live change:** switch the key in Settings → General while idle — the new key works
   on the next dictation with no "Preparing Speech Model" pulse.
+- **Change during a hold:** hold the push-to-talk key and switch it in Settings with the
+  mouse, then release — recording ends on that release, and the new key works next.
 - **Translate key, additional (the default):** hold the push-to-talk key and press
   the translate key (⌃ by default) at any point before releasing — the dictation is
   translated into the configured target (menu bar / Settings → Cleanup), and the

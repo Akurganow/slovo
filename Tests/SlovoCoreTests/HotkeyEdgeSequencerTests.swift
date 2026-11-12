@@ -12,7 +12,8 @@ import SlovoCore
 //   - init(sink: @escaping @Sendable (HotkeyEdge) async -> Void)
 //   - func send(_ phase: HotkeyPhase)   // synchronous, thread-safe, non-isolated
 //                                        // (called from the CGEventTap run-loop thread)
-//   - func stop() async                 // teardown: consumer stops, later sends are dropped
+//   - func stop() async                 // teardown: drains, ends with one .cancel, consumer stops,
+//                                        // later sends are dropped
 //
 // Every edge carries a stamp set when it was sent: true when an earlier edge was
 // still queued or being handled. `OutstandingEdgeCountTests` drives that counter.
@@ -26,7 +27,11 @@ struct HotkeyEdgeSequencerTests {
     /// The sequencer runs one edge to completion before starting the next, in receipt
     /// order. The first handler parks under test control, so the second must not have
     /// begun while it is parked.
-    /// Killing mutation: dispatch each edge on its own Task -> RED.
+    /// Killing mutation: dispatch each edge on its own Task -> RED. The first
+    /// expectation catches it in the schedules where the second edge's Task enters
+    /// before the read: no wait can make an absence read certain. The order
+    /// expectation after the release catches it in the schedules where the second
+    /// edge finishes first.
     @Test
     func edgesAreHandledInReceiptOrderEvenWhenFirstHandlerIsSlow() async {
         let recorder = EdgeSinkRecorder()
@@ -70,27 +75,12 @@ struct HotkeyEdgeSequencerTests {
         await sequencer.stop()
     }
 
-    /// A press made with the channel free must not be stamped busy, or the app refuses
-    /// the first press of every session.
-    /// Killing mutation: stamp every edge busy, or answer `outstanding > 0` after the
-    /// increment instead of `outstanding > 1` -> RED.
-    @Test
-    func anEdgeSentWithTheChannelFreeIsNotStampedBusy() async {
-        let recorder = EdgeSinkRecorder()
-        let sequencer = HotkeyEdgeSequencer { edge in await recorder.record(edge) }
-
-        sequencer.send(.down(.plain))
-
-        await recorder.awaitHandled(1)
-        #expect(await recorder.handled.map(\.arrivedWhileBusy) == [false],
-                "an edge sent while nothing else was outstanding must not be stamped busy")
-        await sequencer.stop()
-    }
-
     /// "The next press dictates normally": once a dictation's own edges are handled,
-    /// the press that follows must not be stamped busy.
+    /// the press that follows must not be stamped busy. The first press of the session
+    /// finds the channel free too, or the app refuses the first press of every session.
     /// Killing mutation: delete `outstandingEdges.depart()`, so the count only grows
-    /// and every press after the first is refused -> RED.
+    /// and every press after the first is refused -> RED. Killing mutation: stamp every
+    /// edge busy -> RED.
     @Test
     func aPressMadeAfterTheEarlierDictationFinishedIsNotStampedBusy() async {
         let recorder = EdgeSinkRecorder()
@@ -129,34 +119,33 @@ struct HotkeyEdgeSequencerTests {
         await sequencer.stop()
     }
 
-    /// Teardown must DRAIN the enqueued edges and JOIN the consumer before it
-    /// returns, then drop everything sent afterwards — so a rebuilt monitor cannot
-    /// leave a second consumer draining the same fn edges.
+    /// Teardown must DRAIN the enqueued edges, end the stream with one `.cancel`, and
+    /// JOIN the consumer before it returns. The cancel ends any dictation the drained
+    /// edges left open (a press with no release, say), so a torn-down pipeline never
+    /// keeps the microphone open or output muted; a rebuilt monitor cannot leave a
+    /// second consumer draining the same fn edges.
     ///
     /// The recorder is read SYNCHRONOUSLY (a Mutex, not an actor) on purpose: the
-    /// only suspension point between enqueuing `.down` and the assertion is `stop()`
-    /// itself. A correct stop() suspends there to finish the stream and await the
-    /// consumer, so `.down` is delivered before it returns. A stop() that neither
-    /// finishes the stream nor joins the consumer has no suspension point, so the
-    /// consumer never runs before the synchronous read.
-    /// Killing mutation: drop `continuation.finish()` and/or the `await
-    /// consumer.value` join from stop(). Then `.down` is still undelivered at the
-    /// first read (handled == []) and/or the post-teardown `.up` leaks through the
-    /// still-live consumer -> RED.
+    /// only suspension point between enqueuing the edges and the assertion is
+    /// `stop()` itself.
+    /// Killing mutation: drop the cancel from stop() → handled ends at `.up` → RED.
+    /// Killing mutation: hand the cancel to the sink directly at the start of stop(),
+    /// ahead of the drained edges → RED in the schedules where the consumer has not
+    /// handled both edges yet. Killing mutation: drop the `await consumer.value`
+    /// join → RED in the schedules where the consumer has not delivered all three
+    /// edges by the read. Drop `continuation.finish()` → the consumer never ends and
+    /// the join never returns → the test hangs.
     @Test
-    func teardownStopsDeliveryOfSubsequentEdges() async {
+    func teardownDrainsEnqueuedEdgesThenCancelsBeforeStopReturns() async {
         let handled = Mutex<[HotkeyPhase]>([])
         let sequencer = HotkeyEdgeSequencer { edge in handled.withLock { $0.append(edge.phase) } }
 
         sequencer.send(.down(.plain))
+        sequencer.send(.up(.plain))
         await sequencer.stop()
 
-        #expect(handled.withLock { $0 } == [.down(.plain)],
-                "stop() must drain the enqueued edge and join the consumer before returning")
-
-        sequencer.send(.up(.plain))
-        #expect(handled.withLock { $0 } == [.down(.plain)],
-                "no edge may be delivered after teardown")
+        #expect(handled.withLock { $0 } == [.down(.plain), .up(.plain), .cancel],
+                "stop() must deliver the enqueued edges, then one cancel, and nothing after, before returning")
     }
 }
 
