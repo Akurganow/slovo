@@ -6,9 +6,11 @@ import Foundation
 /// The comment stripper keeps string literals, so a guard can forbid a token inside one;
 /// only `statementCount` blanks them first, so a quoted copy of a statement never counts.
 /// Its known limits: an escaped `\"` flips its string state, and block comments do not
-/// nest. Neither stripper understands raw (`#"…"#`) or multi-line (`"""`) literals.
+/// nest. Neither stripper understands raw (`#"…"#`) or multi-line (`"""`) literals. The
+/// brace matcher counts braces and parentheses inside string literals too, and
+/// `functionBody` returns the next block for a `func` that has no body.
 enum SourceText {
-    /// A guard's anchor text is missing from the source, or its braces never balance.
+    /// A guard's anchor text or scanned directory holds nothing to read, or its braces never balance.
     enum Failure: Error {
         case anchorNotFound(String)
         case unbalancedBraces(String)
@@ -34,13 +36,16 @@ enum SourceText {
     }
 
     /// Every `.swift` file under the directory, recursively, as package-relative paths in
-    /// sorted order, so a failure message lists files the same way on every run.
+    /// sorted order, so a failure message lists files the same way on every run. Throws
+    /// when the directory holds none, so an absence guard never passes over nothing.
     static func swiftFiles(under relativeDirectory: String) throws -> [String] {
         let root = packageRoot.appending(path: relativeDirectory, directoryHint: .isDirectory).path
-        return try FileManager.default.subpathsOfDirectory(atPath: root)
+        let files = try FileManager.default.subpathsOfDirectory(atPath: root)
             .filter { $0.hasSuffix(".swift") }
             .map { "\(relativeDirectory)/\($0)" }
             .sorted()
+        guard !files.isEmpty else { throw Failure.anchorNotFound(relativeDirectory) }
+        return files
     }
 
     /// Lines that hold exactly `pattern` (a regular expression) as their whole statement,

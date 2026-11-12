@@ -2,8 +2,8 @@ import Testing
 
 import SlovoCore
 
-// The About pane and the Settings openers live in the app target, which no test
-// target imports, so their wiring is pinned by scanning source. The one piece that
+// No test target depends on the `slovo` executable, so the wiring of the About pane
+// and the Settings openers is pinned by scanning source. The one piece that
 // is pure and importable — the version line formatter — is unit-tested directly.
 @Suite("About pane")
 struct AboutPaneTests {

@@ -102,8 +102,9 @@ struct SoundCueWiringSourceGuardTests {
                 "generic mute/fn adapters are outside the cue-volume prohibition")
     }
 
-    /// Stated sensitivity: drop the `isPersistentNotice` check from `flashBriefStatusGlyph`,
-    /// so the brief red flash resets a persistent failure's line to the idle hint → RED.
+    /// Stated sensitivity: remove the `status.isPersistentNotice` token from
+    /// `flashBriefStatusGlyph`, so nothing there spares a persistent failure's line → RED.
+    /// An inverted condition keeps the token and stays green.
     /// The `showStatus` routing of failure notices is pinned in
     /// `AppRuntimeSourceGuardTests.transientProgressAndSadToFailStatusDoNotBecomeSticky`.
     @Test

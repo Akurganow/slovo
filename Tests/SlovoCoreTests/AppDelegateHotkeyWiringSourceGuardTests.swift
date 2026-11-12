@@ -317,8 +317,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
-    /// key went down — never its typed character or key code. No behaviour can show
-    /// that a field went unread, so the absence is read from the source. Killing mutations:
+    /// key went down — never its typed character or key code. `process(type:event:)` is
+    /// `fileprivate` and only the installed tap calls it, so no test can feed it a keyDown,
+    /// and the absence is read from the source. Killing mutations:
     /// read the typed character (add `keyboardGetUnicodeString`), or read the key
     /// code outside the flagsChanged arm to retain key identity → RED. Zero the key
     /// code in the flagsChanged arm → RED.

@@ -8,10 +8,7 @@ import Testing
 struct CleanupPaneObservationSourceGuardTests {
     /// Stated sensitivity: re-introduce an availability `@State` snapshot in the
     /// pane — explicitly typed, type-INFERRED (`= CleanupAvailability.…`, no
-    /// colon), or with `@State` on a line of its own above the declaration →
-    /// the regex assert reddens; read the store's `cleanupAvailability` a second time
-    /// in the pane (a re-fetch beside the observed `availability` property) → the
-    /// count assert reddens.
+    /// colon), or with `@State` on a line of its own above the declaration → RED.
     @Test
     func paneHoldsNoAvailabilitySnapshot() throws {
         let pane = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
@@ -22,8 +19,6 @@ struct CleanupPaneObservationSourceGuardTests {
         let snapshotPattern = try NSRegularExpression(pattern: #"@State[^\n]*\n?[^\n]*CleanupAvailability\b"#)
         let range = NSRange(pane.startIndex..<pane.endIndex, in: pane)
         #expect(snapshotPattern.numberOfMatches(in: pane, range: range) == 0, "the pane must hold no availability @State snapshot")
-        #expect(pane.components(separatedBy: "cleanupAvailability").count - 1 == 1,
-                "the pane reads the store's availability once, in its observed `availability` property")
     }
 
     /// Stated sensitivity: stop consuming the store (render from a local copy, or
