@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.7] - 2026-11-12
+
+### Fixed
+
+- Run the key tap on its own thread and finish a dictation when its key setting changes mid-hold (#219)
+
 ## [0.37.6] - 2026-11-12
 
 ### Fixed
