@@ -2,8 +2,8 @@ import Testing
 
 import SlovoCore
 
-// The About pane and the Settings openers live in the app target, which no test
-// target imports, so their wiring is pinned by scanning source. The one piece that
+// No test target depends on the `slovo` executable, so the wiring of the About pane
+// and the Settings openers is pinned by scanning source. The one piece that
 // is pure and importable — the version line formatter — is unit-tested directly.
 @Suite("About pane")
 struct AboutPaneTests {
@@ -40,7 +40,7 @@ struct AboutPaneTests {
     /// RED, proving the dropdown entry no longer opens the About pane.
     @Test
     func menuBuilderWiresAboutItem() throws {
-        let builder = try AppRuntimeSourceGuardTests.code("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         #expect(builder.contains("\"About Slovo\""))
         #expect(builder.contains("#selector(AppDelegate.showAboutPane)"))
     }
@@ -57,18 +57,18 @@ struct AboutPaneTests {
     /// observation with `_ =`, or build the toolbar from a literal list → RED.
     @Test
     func settingsOpenersChooseTheirPanes() throws {
-        let opener = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        let about = try AppRuntimeSourceGuardTests.functionBody(named: "showAboutPane", in: opener)
-        let settings = try AppRuntimeSourceGuardTests.functionBody(named: "showSettingsWindow", in: opener)
+        let opener = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let about = try SourceText.functionBody(named: "showAboutPane", in: opener)
+        let settings = try SourceText.functionBody(named: "showSettingsWindow", in: opener)
         #expect(about.contains(".about"), "About Slovo must open the About pane")
         #expect(settings.contains("store.state.lastSettingsPane"), "Settings… must open the last settings pane")
         #expect(
             opener.components(separatedBy: "show(pane:").count == 2
-                && AppRuntimeSourceGuardTests.containsInOrder(["SettingsWindowController(panes:", "show(pane:"], in: opener),
+                && SourceText.containsInOrder(["SettingsWindowController(panes:", "show(pane:"], in: opener),
             "only the open that builds the window may switch through show(pane:)"
         )
         #expect(
-            AppRuntimeSourceGuardTests.containsInOrder(["NSApp.sendAction(", ".show()"], in: opener),
+            SourceText.containsInOrder(["NSApp.sendAction(", ".show()"], in: opener),
             "a later open must switch as a toolbar click does, then show without a pane"
         )
         #expect(opener.contains("observe(\\.selectedItemIdentifier"))
@@ -84,7 +84,7 @@ struct AboutPaneTests {
     /// either bundle-version read or the `SlovoDevBuild` read → RED.
     @Test
     func aboutPaneFollowsTheStoreAndReadsTheBundle() throws {
-        let pane = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AboutSettingsPane.swift")
+        let pane = try SourceText.code("Sources/slovo/Settings/AboutSettingsPane.swift")
         #expect(pane.contains("@ObservedObject private var store: AppStore"))
         #expect(pane.contains("store.state.config.hotkeyConfiguration"))
         #expect(pane.contains("\"CFBundleShortVersionString\""))
@@ -102,7 +102,7 @@ struct AboutPaneTests {
     /// matching `#expect` goes RED.
     @Test
     func aboutPaneRendersBrandGlyphVersionAndKeyKeycaps() throws {
-        let view = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AboutSettingsPane.swift")
+        let view = try SourceText.code("Sources/slovo/Settings/AboutSettingsPane.swift")
         #expect(view.contains("\u{2C14}"))
         #expect(view.contains("AboutInfo.versionLine("))
         #expect(view.contains("Keycap(label: hotkeys.main.displayName)"))
@@ -121,8 +121,8 @@ struct AboutPaneTests {
     /// satisfy it — the scan strips comments).
     @Test
     func aboutPaneOffersAcknowledgementsOpeningBundledNotices() throws {
-        let pane = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AboutSettingsPane.swift")
-        let opener = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let pane = try SourceText.code("Sources/slovo/Settings/AboutSettingsPane.swift")
+        let opener = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
         #expect(pane.contains("\"Acknowledgements\""))
         #expect(pane.contains("actions.openAcknowledgements("))
         #expect(opener.contains("THIRD-PARTY-NOTICES"))

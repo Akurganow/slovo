@@ -31,6 +31,21 @@ struct FsmTests {
                 "deterministic result must be (.recording, [.beginCapture]); got \(first)")
     }
 
+    /// The transition is a function of (state, event) and nothing else: no config and no
+    /// mute flag. The mute flag gates the effect executor, never the decision table.
+    /// Function types carry no labels, so renaming a parameter label stays green.
+    /// Stated sensitivity: add any third parameter to `DictationFsm.transition`, with
+    /// or without a default → the unapplied reference stops having this type → does
+    /// not compile → RED.
+    @Test
+    func transitionTakesOnlyStateAndEvent() {
+        let transition: (DictationState, DictationEvent) -> (DictationState, [DictationEffect]) =
+            DictationFsm.transition
+        // The call keeps the constant used: an unused constant is a warning, and the
+        // gate builds with warnings as errors.
+        #expect(transition(.idle, .startRequested) == (DictationState.recording, [DictationEffect.beginCapture]))
+    }
+
     /// A Start while processing is ignored, and logged as ignored.
     /// Sensitivity: restart processing, or drop the log → RED.
     @Test

@@ -17,7 +17,7 @@ struct ThirdPartyNoticesTests {
     /// → its distinctive copyright line vanishes → the matching `#expect` goes RED.
     @Test
     func noticesFileReproducesEveryBundledComponent() throws {
-        let notices = try Self.noticesText()
+        let notices = try SourceText.read("THIRD-PARTY-NOTICES.md")
 
         // The project's own top-level copyright statement.
         #expect(notices.contains("Copyright (C) 2026 Alexander Kurganov"))
@@ -82,7 +82,7 @@ struct ThirdPartyNoticesTests {
         #expect(packages.isSuperset(of: Self.shippedPackagesFloor),
                 "manifest parsing lost known shipped packages; derived \(packages.sorted())")
 
-        let headings = try Self.noticesText()
+        let headings = try SourceText.read("THIRD-PARTY-NOTICES.md")
             .split(separator: "\n")
             .filter { $0.hasPrefix("## ") }
         for package in packages.sorted() {
@@ -126,7 +126,7 @@ struct ThirdPartyNoticesTests {
     /// tooling stays exempt by construction; a dependency spelling outside
     /// these forms is not walked and would surface through the floor guard.
     private static func shippedProductPackages() throws -> Set<String> {
-        let manifest = AppRuntimeSourceGuardTests.strippingComments(from: try Self.source("Package.swift"))
+        let manifest = try SourceText.code("Package.swift")
         var pending: Set<String> = ["slovo"]
         var visited: Set<String> = []
         var packages: Set<String> = []
@@ -180,14 +180,6 @@ struct ThirdPartyNoticesTests {
     }
 
     // MARK: - Helpers (copies of the AppShellPackagingTests / SparklePackagingGuardTests helpers)
-
-    private static func noticesText() throws -> String {
-        try String(contentsOf: packageRoot.appending(path: "THIRD-PARTY-NOTICES.md"), encoding: .utf8)
-    }
-
-    private static func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
 
     private struct CommandResult {
         let exitCode: Int32

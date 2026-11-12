@@ -1,13 +1,18 @@
 import Foundation
 import Testing
 
+// `resolve()` takes no parameters and reads the process-wide `Bundle.main` and linked bundle,
+// so a test sees only its success path and never the nil fallback; this guard reads its source.
+// A resolver that took its search roots as arguments would let a test drive both paths.
 @Suite("SlovoCore resource bundle source guard")
 struct SlovoCoreResourceBundleSourceGuardTests {
     /// Sensitivity: replacing the resolver with `Bundle.module` removes the
-    /// packaged-app lookup and nil fallback while adding the fatal accessor.
+    /// packaged-app lookup and nil fallback while adding the fatal accessor → RED, as does
+    /// anchoring the linked-bundle lookup on a class other than `BundleLocator`, which
+    /// points it at another binary.
     @Test
     func packagedAppResolverUsesNonfatalNamedBundleLookup() throws {
-        let source = try String(contentsOf: Self.resolverURL, encoding: .utf8)
+        let source = try SourceText.code("Sources/SlovoCore/SlovoCoreResourceBundle.swift")
 
         #expect(Self.contractFailures(in: source).isEmpty)
     }
@@ -49,23 +54,12 @@ struct SlovoCoreResourceBundleSourceGuardTests {
         if !source.contains("Bundle(for: BundleLocator.self)") {
             failures.append("linked-bundle fallback is missing")
         }
-        if !source.contains("internal static func resolve() -> Bundle?") {
+        if !source.contains("static func resolve() -> Bundle?") {
             failures.append("optional resolver return is missing")
         }
         if !source.contains("return nil") || source.contains("fatalError(") {
             failures.append("nonfatal nil fallback is missing")
         }
         return failures
-    }
-
-    private static var resolverURL: URL {
-        packageRoot.appending(path: "Sources/SlovoCore/SlovoCoreResourceBundle.swift")
-    }
-
-    private static var packageRoot: URL {
-        URL(fileURLWithPath: "\(#filePath)")
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
     }
 }
