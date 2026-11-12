@@ -12,8 +12,9 @@ name: Release
 #     it still tests and packages a signed artifact under a unique dev stamp, but
 #     creates no tag and no release.
 #
-# Humans never run release commands, edit versions, or push tags — the pipeline is
-# the only path. The publish job pushes the bump commit and tag over SSH with a
+# Humans never edit versions or push tags — the pipeline is the only path. A person
+# may dispatch it on main or re-run a failed publish job (docs/release-ci.md, "When
+# `publish` fails"). The publish job pushes the bump commit and tag over SSH with a
 # write-access deploy key: deploy keys bypass the `main` ruleset's pull-request
 # rule, and the GITHUB_TOKEN (the GitHub Actions app) does not. A deploy-key push does
 # start workflow runs. `[skip ci]` in the bump commit skips every push-triggered

@@ -77,9 +77,10 @@ The lint script runs:
   compiler log. The log must carry a `swiftc` invocation for every module
   the analyzer reads, and SwiftPM logs only what it actually compiles, so the
   stage touches those sources first to force their modules to rebuild
-  (dependencies stay warm), then fails outright if the log still holds no
-  invocation. `Tests/` is not analyzed: SourceKit crashes expanding the
-  Swift Testing macros when it type-checks a test file for the analyzer
+  (dependencies stay warm). The analyzer stage then fails when SwiftLint reads a
+  different number of files than it was given. `Tests/` is not analyzed:
+  SourceKit crashes expanding the Swift Testing macros when it type-checks a
+  test file for the analyzer
 
 ## Gate Self-Test
 

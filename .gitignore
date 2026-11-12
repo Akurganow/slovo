@@ -3,11 +3,6 @@
 .build/
 
 .swiftpm/
-.codex/
-.agentic/project-profile.md
-*_handoff*
-docs/agentic-workflow/
-docs/superpowers/
 DerivedData/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
@@ -49,6 +44,3 @@ id_rsa*
 # carry it (AGENTS.md, "This repository's own machinery").
 /.claude/*
 !/.claude/rules
-
-# Browser-automation artifacts (Playwright MCP page snapshots) — never commit.
-/.playwright-mcp/
