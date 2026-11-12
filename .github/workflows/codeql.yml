@@ -18,24 +18,34 @@ jobs:
   analyze:
     # CodeQL for Swift runs on macOS; macos-26 carries the required toolchain.
     runs-on: macos-26
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+          # The cache key takes this value, so it must be one line without commas.
+          xcode_version="$(xcodebuild -version | paste -sd ' ' - | tr -d ',')"
+          echo "xcode_version=${xcode_version}" >> "$GITHUB_OUTPUT"
       - name: Cache SwiftPM build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
-          key: ${{ runner.os }}-codeql-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          key: ${{ runner.os }}-codeql-spm-${{ steps.toolchain.outputs.xcode_version }}-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
-            ${{ runner.os }}-codeql-spm-${{ env.ImageVersion }}-
-      - uses: github/codeql-action/init@v4
+            ${{ runner.os }}-codeql-spm-${{ steps.toolchain.outputs.xcode_version }}-
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: swift
           build-mode: manual
       - name: Build for analysis
         run: swift build --disable-automatic-resolution
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:swift"

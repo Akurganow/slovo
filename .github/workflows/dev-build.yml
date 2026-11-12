@@ -39,8 +39,8 @@ permissions:
 concurrency:
   # A superseded dev build has no value; cancel it (unlike a release, no run
   # here ever mutates repository state). On label events the ref is the PR's
-  # merge ref, so each PR gets its own group.
-  group: dev-build-${{ github.ref }}
+  # merge ref. The label name keeps a run for another label from cancelling it.
+  group: dev-build-${{ github.ref }}-${{ github.event.label.name }}
   cancel-in-progress: true
 
 jobs:
@@ -59,6 +59,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' || github.event.label.name == 'dev-build') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
+    timeout-minutes: 45
     # Secret store only (the two Developer ID certificate secrets). No required
     # reviewers: in this repository the dispatcher IS the owner, so a second
     # approval click would gate nothing.
@@ -67,7 +68,7 @@ jobs:
       version: ${{ steps.stamp.outputs.version }}
       artifact-url: ${{ steps.upload.outputs.artifact-url }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Stamp the dev version
         id: stamp
         env:
@@ -79,8 +80,17 @@ jobs:
           current="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)"
           Scripts/stamp-app-version.sh "${current}-dev.${RUN_NUMBER}" "$RUN_NUMBER"
           echo "version=${current}-dev.${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+      - name: Toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+          # The cache key takes this value, so it must be one line without commas.
+          xcode_version="$(xcodebuild -version | paste -sd ' ' - | tr -d ',')"
+          echo "xcode_version=${xcode_version}" >> "$GITHUB_OUTPUT"
       - name: Cache SwiftPM build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # Same key family as the release pipeline (both build -c release), so
           # dev builds reuse its warm cache; .build/dist stays excluded so a
@@ -90,32 +100,14 @@ jobs:
             .build/repositories
             .build/artifacts
             .build/release
-          key: ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-${{ hashFiles('**/Package.resolved') }}
+          key: ${{ runner.os }}-release-spm-${{ steps.toolchain.outputs.xcode_version }}-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
-            ${{ runner.os }}-release-spm-${{ env.ImageVersion }}-
-      - name: Toolchain
-        run: swift --version && xcodebuild -version
+            ${{ runner.os }}-release-spm-${{ steps.toolchain.outputs.xcode_version }}-
       - name: Import Developer ID signing certificate
         env:
           DEVELOPER_ID_APP_P12_BASE64: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 }}
           DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_P12_PASSWORD }}
-        run: |
-          set -euo pipefail
-          keychain_path="$RUNNER_TEMP/slovo-signing.keychain-db"
-          keychain_password="$(openssl rand -base64 24)"
-          cert_path="$RUNNER_TEMP/developer_id_app.p12"
-          printf '%s' "$DEVELOPER_ID_APP_P12_BASE64" | base64 --decode > "$cert_path"
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$cert_path" -P "$DEVELOPER_ID_APP_P12_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$keychain_path"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -s -k "$keychain_password" "$keychain_path" >/dev/null
-          # The ephemeral keychain is the only one on the user search list for the
-          # rest of the job, so codesign resolves the Developer ID identity from it.
-          security list-keychains -d user -s "$keychain_path"
-          rm -f "$cert_path"
+        run: Scripts/import-signing-certificate.sh
       - name: Build and sign the app and DMG (sign-only, no notarization)
         env:
           SIGNING_IDENTITY: "Developer ID Application: Alexander Kurganov (ZN8H5SF4R7)"
@@ -140,7 +132,7 @@ jobs:
           echo "$info" | grep -q "TeamIdentifier=ZN8H5SF4R7"
       - name: Upload dev artifact
         id: upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: slovo-dev
           path: .build/dist/Slovo.dmg
@@ -154,8 +146,8 @@ jobs:
     needs: package-dev
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
-      issues: write
       pull-requests: write
     steps:
       - name: Link the DMG from the PR and re-arm the label
