@@ -87,7 +87,7 @@ struct OpenRouterCleanerTests {
             promptBuilder: PromptBuilder()
         )
         #expect(cleaner.session.configuration.timeoutIntervalForResource == 10)
-        // Only the ephemeral configuration keeps no disk cache; a cleanup reply holds the user's words.
+        // No disk cache: a cleanup reply holds the user's words.
         #expect((cleaner.session.configuration.urlCache?.diskCapacity ?? 0) == 0)
     }
 

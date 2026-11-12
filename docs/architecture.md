@@ -165,7 +165,7 @@ A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
 `OpenRouterCleaner` owns its network session, and one deadline bounds the whole
-request, so a slow reply can never hold the pipeline.
+request, so one cleanup request holds a dictation for at most 10 seconds.
 
 ## Storage
 
