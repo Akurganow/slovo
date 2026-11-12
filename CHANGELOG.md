@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.6] - 2026-11-12
+
+### Fixed
+
+- Log failed output mute, restore and microphone start with their status (#213)
+
 ## [0.37.5] - 2026-11-12
 
 ### Fixed
