@@ -53,9 +53,12 @@ struct DatabasePassphraseDerivationTests {
         )
     }
 
-    /// Smoke for the production path: derivation works on the machine running
-    /// the suite — one legible failure instead of obscure downstream errors if
-    /// IOKit ever stops serving the UUID (e.g. under future sandboxing).
+    /// The one designated test of the IOKit seam: derivation works on the
+    /// machine running the suite — one legible failure instead of obscure
+    /// downstream errors if IOKit ever stops serving the UUID (e.g. under
+    /// future sandboxing). It stays on CI because gating it off would leave the
+    /// seam with no CI signal. It asserts only a 64-character result, so a
+    /// different but readable IOKit property keeps it green.
     /// Stated sensitivity: break the IOKit read (wrong service/property name)
     /// → RED here, by name.
     @Test

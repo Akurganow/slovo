@@ -410,12 +410,16 @@ struct PersonalizationDatabaseEncryptionTests {
     }
 
     /// A failing passphrase provider must fail the open outright — never fall
-    /// through to an unkeyed or empty-key database.
-    /// Stated sensitivity: swallowing the provider's error inside
-    /// `keyedConfiguration` (e.g. `try? passphrase() ?? ""`) → open succeeds
-    /// and a database file appears → RED on both assertions.
+    /// through to an unkeyed or empty-key database. SQLite may pre-create an
+    /// empty file before the key setup runs; whether it does is SQLite's
+    /// choice, so the test accepts both an absent and an empty file.
+    /// Stated sensitivity: skip the key when the provider throws inside
+    /// `keyedConfiguration` (`if let key = try? passphrase() { … }`) → the
+    /// open succeeds unkeyed and the migrator writes a database → RED on both
+    /// assertions; key with `(try? passphrase()) ?? ""` → SQLite's error
+    /// replaces `ReadError` → RED on the first.
     @Test
-    func throwingPassphraseProviderFailsTheOpenWithoutCreatingAFile() throws {
+    func throwingPassphraseProviderFailsTheOpenWithoutWritingADatabase() throws {
         let path = TempDatabase.freshPath()
         defer { TempDatabase.remove(at: path) }
 
@@ -424,29 +428,30 @@ struct PersonalizationDatabaseEncryptionTests {
                 throw PersonalizationDatabasePassphrase.ReadError.uuidMissing
             })
         }
-        let attributes = try FileManager.default.attributesOfItem(atPath: path)
-        #expect((attributes[.size] as? Int) == 0,
-                "a failed derivation must leave no database — at most the empty file SQLite pre-created")
+        let size = (try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int
+        #expect(size == nil || size == 0,
+                "a failed derivation must leave no database — at most an empty file; got \(String(describing: size)) bytes")
     }
 
-    /// Spec test 8: the classification is total — every possible on-disk
-    /// state maps to a defined case. (`fileState` is internal; this test is
-    /// its consumer.)
+    /// Spec test 8: every on-disk state that reads maps to a defined case.
+    /// (`fileState` is internal; this test is its consumer.) The throw on a
+    /// failed header read is untested: no hermetic input fails the read after
+    /// the open succeeds, and a directory at the path does not even open.
     /// Stated sensitivity: classify empty/short files as plaintext, or drop
     /// the fileExists guard (missing ≠ unreadable) → RED.
     @Test
-    func fileStateClassificationIsTotal() throws {
+    func fileStateClassifiesEachReadableState() throws {
         let path = TempDatabase.freshPath()
         defer { TempDatabase.remove(at: path) }
-        #expect(PersonalizationDatabase.fileState(at: path) == .missing)
+        #expect(try PersonalizationDatabase.fileState(at: path) == .missing)
 
         try Self.plaintextHeader.write(to: URL(fileURLWithPath: path))
-        #expect(PersonalizationDatabase.fileState(at: path) == .plaintext)
+        #expect(try PersonalizationDatabase.fileState(at: path) == .plaintext)
 
         try Data().write(to: URL(fileURLWithPath: path))
-        #expect(PersonalizationDatabase.fileState(at: path) == .opaque)
+        #expect(try PersonalizationDatabase.fileState(at: path) == .opaque)
 
         try Data("garbage".utf8).write(to: URL(fileURLWithPath: path))
-        #expect(PersonalizationDatabase.fileState(at: path) == .opaque)
+        #expect(try PersonalizationDatabase.fileState(at: path) == .opaque)
     }
 }

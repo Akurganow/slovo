@@ -1,45 +1,46 @@
 -- slovo — personalization store (SQLite, accessed from Swift via GRDB.swift).
 --
--- Purpose:
---   * `vocabulary` seeds the cleanup prompt's known-vocabulary prefix so the
---     OpenRouter-routed cleaner preserves the user's terms verbatim.
---   * `corrections` accumulates (raw -> corrected) edits so the cleaned OUTPUT
---     improves over time (this does NOT adapt the acoustic model to your voice);
---     recent rows are fed to the cleaner as few-shot examples.
---   * `profile` holds a few cleaner-context facts about the user (name, languages,
---     domain) — distinct from app settings, which live in UserDefaults.
+-- This file documents the schema; `PersonalizationMigrations` in
+-- Sources/SlovoCore/Storage/Migrations.swift creates it and is the authority.
+-- Statements and index names below are the ones the migrator creates.
 --
--- Dedup: UNIQUE(term, category) lets us merge new sources with INSERT OR IGNORE.
+-- Purpose:
+--   * `vocabulary` holds the user's terms: the cleanup prompt's glossary and the
+--     ASR bias head both read it.
+--   * `corrections` and `profile` are created for migration stability and are
+--     INERT: no code reads or writes them.
+--   * `term_misses` records per-term ASR misses that drive the bias ranking.
+--
+-- Dedup: UNIQUE(term, category) lets an add skip an existing row with
+-- INSERT OR IGNORE.
 
 PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS vocabulary (
-    id         INTEGER PRIMARY KEY,
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
     term       TEXT    NOT NULL,                  -- canonical spelling to preserve
     expansion  TEXT,                              -- optional meaning / full form
     lang       TEXT    NOT NULL DEFAULT 'en',     -- 'ru' | 'en' (any other value maps to auto in v1)
     category   TEXT    NOT NULL,                  -- product|service|domain|release|tech|person|org|term
-    source     TEXT    NOT NULL,                  -- import|github|projects|manual
+    source     TEXT    NOT NULL,                  -- where the row came from; written, never read
     weight     INTEGER NOT NULL DEFAULT 1,        -- priority hint for prompt ordering
-    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')), -- filled by default, never read
     UNIQUE (term, category)
 );
 
-CREATE INDEX IF NOT EXISTS idx_vocabulary_weight   ON vocabulary (weight DESC, term);
-CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary (category);
+CREATE INDEX IF NOT EXISTS index_vocabulary_on_weight_term ON vocabulary (weight, term);
+CREATE INDEX IF NOT EXISTS index_vocabulary_on_category    ON vocabulary (category);
 
 CREATE TABLE IF NOT EXISTS corrections (
-    id         INTEGER PRIMARY KEY,
-    raw        TEXT NOT NULL,                     -- what the cleaner produced
-    corrected  TEXT NOT NULL,                     -- what the user changed it to
-    app_bundle TEXT,                              -- frontmost app id when edited (optional)
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw        TEXT NOT NULL,
+    corrected  TEXT NOT NULL,
+    app_bundle TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_corrections_recent ON corrections (created_at DESC);
-
 CREATE TABLE IF NOT EXISTS profile (
-    key   TEXT PRIMARY KEY,
+    key   TEXT PRIMARY KEY NOT NULL,
     value TEXT NOT NULL
 );
 

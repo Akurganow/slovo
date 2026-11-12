@@ -44,12 +44,21 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
     /// order. The events read is SEPARATELY fallible: if `term_misses` cannot
     /// be read, ranking degrades to weight order — the vocabulary itself must
     /// never vanish with it (the cleanup glossary rides on this read too).
+    /// A failed vocabulary read returns `[]` and logs `vocabulary read failed`, never
+    /// the error: a `DatabaseError` or `RowDecodingError` description can carry SQL
+    /// text or a row's values.
     public func vocabulary() -> [Term] {
-        let records = (try? database.read { db in
-            try VocabularyRecord
-                .order(Column("weight").desc, Column("term").asc)
-                .fetchAll(db)
-        }) ?? []
+        let records: [VocabularyRecord]
+        do {
+            records = try database.read { db in
+                try VocabularyRecord
+                    .order(Column("weight").desc, Column("term").asc)
+                    .fetchAll(db)
+            }
+        } catch {
+            log.event("vocabulary read failed")
+            return []
+        }
 
         // Coarse only: the COUNT is not a payload; no term/expansion is ever logged.
         log.event("vocabulary fetched")
@@ -79,7 +88,7 @@ public struct GRDBPersonalizationSource: PersonalizationSource {
 
     /// Every stored vocabulary row — the Settings vocabulary table's read, which needs
     /// the stable row ids `vocabulary()` does not carry. Unlike `vocabulary()`, which
-    /// swallows a read failure into `[]` so the dictation pipeline degrades gracefully,
+    /// logs a read failure and returns `[]` so a dictation runs without vocabulary,
     /// this method `throws`: the management UI must be able to tell a genuine read
     /// failure apart from an empty store. Keeps raw weight order INTENTIONALLY while
     /// `vocabulary()` re-ranks by decayed misses: Settings shows the user the manual
