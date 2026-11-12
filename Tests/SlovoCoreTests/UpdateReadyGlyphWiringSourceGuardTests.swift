@@ -47,9 +47,9 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
     /// the loading pulse; onboarding stands in for model readiness.
     /// Stated sensitivity: drop the call from `startUpdater`'s `onUpdaterEvent`,
     /// make `reduce` call `onUpdaterEvent()` under a condition or move the repaint
-    /// into a store listener, or drop any gate (`isPipelineActive`,
-    /// `isShowingBriefStatus`, `isModelReady`, `store.state.menuMode.isOnboarding`)
-    /// → RED.
+    /// into a store listener, drop any gate (`isPipelineActive`,
+    /// `isShowingBriefStatus`, `isModelReady`, `store.state.menuMode.isOnboarding`),
+    /// negate the onboarding term or join the readiness terms with `&&` → RED.
     @Test
     func everyUpdaterEventRepaintsIdleGlyphWithGates() throws {
         let updateMenuSource = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
@@ -74,7 +74,7 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
         #expect(!reduceBody.contains("if ") && !reduceBody.contains("guard "),
                 "reduce must report the event under no condition")
         let gate = try SourceText.slice(of: repaintBody, from: "guard", to: "else { return }")
-        for condition in ["!isPipelineActive", "!isShowingBriefStatus", "isModelReady", "store.state.menuMode.isOnboarding"] {
+        for condition in ["!isPipelineActive", "!isShowingBriefStatus", "isModelReady || store.state.menuMode.isOnboarding"] {
             #expect(gate.contains(condition), "repaintIdleGlyphForUpdateState must be gated on \(condition)")
         }
         #expect(SourceText.containsInOrder(["else { return }", "paintIdleGlyph(on: statusItem?.button)"], in: repaintBody),

@@ -13,9 +13,11 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// The fn hotkey must deliver every edge through the ordered sequencer, never
     /// on its own per-edge Task. Killing mutation (either direction): delete the
-    /// `sequencer.send` routing, or restore `onTrigger = { phase in Task { ... } }`
-    /// per-edge dispatch. Then the closure no longer routes through the sequencer,
-    /// or it dispatches concurrently again -> RED.
+    /// `sequencer.send` routing, send a constant phase (`sequencer.send(.cancel)`)
+    /// instead of the monitor's, or restore `onTrigger = { phase in Task { ... } }`
+    /// per-edge dispatch. Then the closure no longer forwards the monitor's phase
+    /// through the sequencer, or it dispatches concurrently again -> RED. Renaming
+    /// the closure parameter also turns it red: nothing else guards the forwarding.
     @Test
     func onTriggerRoutesEveryEdgeThroughTheSequencer() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
@@ -24,8 +26,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         #expect(startPipeline.contains("HotkeyEdgeSequencer"),
                 "startPipeline must build the ordered edge sequencer")
-        #expect(onTriggerClosure.contains("sequencer.send("),
-                "the hotkey onTrigger must route every edge through the sequencer")
+        #expect(onTriggerClosure.contains("sequencer.send(phase)"),
+                "the hotkey onTrigger must forward the monitor's phase through the sequencer")
         #expect(!onTriggerClosure.contains("Task"),
                 "the onTrigger closure must not dispatch each edge on its own Task (the stuck-mute race)")
         #expect(!onTriggerClosure.contains("orchestrator.handle"),
