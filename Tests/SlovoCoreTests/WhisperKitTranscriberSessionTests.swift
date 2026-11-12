@@ -247,12 +247,11 @@ struct WhisperKitTranscriberSessionTests {
         }
     }
 
-    /// A load/download failure maps to `.backendUnavailable` or `.engineFailure` —
-    /// NEVER `.assetMissing` (that case is Apple-Speech-only).
-    /// Stated sensitivity: map a load failure to `.assetMissing` (or
-    /// `.audioFormatUnsupported`) → the disallowed-case branch records an issue → RED.
+    /// A load or download failure maps to `.backendUnavailable`.
+    /// Stated sensitivity: map a load failure to any other case (`mapLoadFailure`
+    /// returns `.engineFailure`) → RED.
     @Test
-    func loadFailureMapsToBackendUnavailableOrEngineFailureNotAssetMissing() async throws {
+    func loadFailureMapsToBackendUnavailable() async throws {
         let engine = FakeSpeechEngine(loadSucceeds: false)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
@@ -260,12 +259,7 @@ struct WhisperKitTranscriberSessionTests {
             try await transcriber.begin(biasTerms: [])
             Issue.record("begin must throw when the model fails to load")
         } catch let error as TranscriptionError {
-            switch error {
-            case .backendUnavailable, .engineFailure:
-                break  // allowed
-            case .assetMissing, .audioFormatUnsupported:
-                Issue.record("load failure must not map to \(error) (never .assetMissing)")
-            }
+            #expect(error == .backendUnavailable)
         }
     }
 }

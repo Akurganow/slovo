@@ -14,7 +14,6 @@ struct ConfigStoreTests {
         let defaults = FakeUserDefaults()
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
-        #expect(Config.defaults.asrBackend == .whisperKit)
         #expect(Config.defaults.asrModel == "large-v3-v20240930_turbo_632MB")
         #expect(Config.defaults.cleanupModel == Config.defaultOpenRouterModel)
     }
@@ -124,7 +123,6 @@ struct ConfigStoreTests {
 
         #expect(ConfigStore.load(from: defaults) == Config(
             language: .ru,
-            asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             openRouterModel: "openai/gpt-6-luna",
             cleanupEnabled: false,
@@ -134,13 +132,12 @@ struct ConfigStoreTests {
 
     /// Persisted configs from the abandoned Apple-Speech migration used backend
     /// "speechtranscriber" + model "system-dictation". Those legacy values MIGRATE
-    /// to the WhisperKit turbo runtime on load (a mapping, not a recovery): the
-    /// single-case `AsrBackend`'s synthesized Codable cannot even represent
-    /// "speechtranscriber", so the loader maps the legacy string BEFORE raw-value
-    /// matching. Unrelated cleanup/style fields survive untouched.
+    /// to the WhisperKit turbo runtime on load (a mapping, not a recovery).
+    /// Unrelated cleanup/style fields survive untouched.
     ///
-    /// Anti-tautology: after migration asrBackend/asrModel BOTH equal their new
-    /// defaults (.whisperKit / turbo), so asserting either alone is false-green — the BROKEN discard-to-defaults path satisfies them too.
+    /// Anti-tautology: after migration asrModel equals its new default (turbo), so
+    /// asserting it alone is false-green — the BROKEN discard-to-defaults path
+    /// satisfies it too.
     /// The load-bearing assertion is a NON-DEFAULT surviving sibling: `writingStyle:
     /// .formal` (≠ .casual default) and a non-default openRouterModel the user set.
     /// Stated sensitivity: reset the whole config on the legacy backend → the
@@ -169,20 +166,18 @@ struct ConfigStoreTests {
         #expect(config.writingStyle == .formal)
         #expect(config.openRouterModel == "openai/gpt-6-nano")
         #expect(config != .defaults)
-        // The migration mapping itself (each equals a NEW default, hence tautological alone).
-        #expect(config.asrBackend == .whisperKit)
+        // The migration mapping itself (it equals a NEW default, hence tautological alone).
         #expect(config.asrModel == "large-v3-v20240930_turbo_632MB")
     }
 
-    /// `ConfigStore.validated` accepts a WhisperKit config with a non-empty model,
-    /// so such a config survives a save→load cycle unchanged.
-    /// Stated sensitivity: reject `.whisperKit` at validation, or drop the model on
+    /// `ConfigStore.validated` accepts a config with a non-empty model, so such a
+    /// config survives a save→load cycle unchanged.
+    /// Stated sensitivity: reject the config at validation, or drop the model on
     /// save/load, → the reloaded config differs from the saved one → RED.
     @Test
     func whisperKitConfigRoundTripsThroughSaveAndLoad() throws {
         let defaults = FakeUserDefaults()
         let config = Config(
-            asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             openRouterModel: "openai/gpt-6-luna"
         )

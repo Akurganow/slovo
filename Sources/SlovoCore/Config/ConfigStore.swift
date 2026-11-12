@@ -95,7 +95,6 @@ public enum ConfigStore {
             translationTargetLanguage = config.translationTargetLanguage
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
             asr = StoredAsr(
-                backend: config.asrBackend,
                 model: config.asrModel,
                 vocabularyBias: config.usesVocabularyBias
             )
@@ -109,7 +108,7 @@ public enum ConfigStore {
     }
 
     private struct StoredAsr: Encodable {
-        let backend: AsrBackend
+        let backend = ConfigStore.whisperKitBackend
         let model: String
         let vocabularyBias: Bool
     }
@@ -158,7 +157,7 @@ public enum ConfigStore {
                 "backend", String.self, default: StoredBackend.whisperKit, whenUnreadable: .unknown
             ) {
                 switch $0 {
-                case AsrBackend.whisperKit.rawValue: .whisperKit
+                case ConfigStore.whisperKitBackend: .whisperKit
                 case ConfigStore.legacyAppleSpeechBackend: .legacyAppleSpeech
                 default: nil
                 }
@@ -302,6 +301,10 @@ public enum ConfigStore {
         }
     }
 
+    /// The backend wire value every build since the WhisperKit runtime writes and
+    /// reads; an older build requires it.
+    private static let whisperKitBackend = "whisperkit"
+
     /// Legacy persisted values from the abandoned Apple-Speech migration; decoded
     /// as raw strings and mapped forward, never held as live backend cases.
     private static let legacyAppleSpeechBackend = "speechtranscriber"
@@ -344,8 +347,7 @@ public enum ConfigStore {
         guard config.trigger != config.translateTrigger else {
             return nil
         }
-        guard config.asrBackend == .whisperKit,
-              nonBlank(config.asrModel) != nil,
+        guard nonBlank(config.asrModel) != nil,
               nonBlank(config.openRouterModel) != nil
         else {
             return nil

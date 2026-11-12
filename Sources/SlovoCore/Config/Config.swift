@@ -56,7 +56,6 @@ public struct Config: Equatable, Sendable {
     /// and exactly what holding Control did before the key became configurable —
     /// rather than opening a translate dictation of its own.
     public var translateKeyIsAdditional: Bool
-    public var asrBackend: AsrBackend
     public var asrModel: String
     /// Whether the top vocabulary terms are also handed to the speech recognizer as
     /// a bias prompt. EXPERIMENTAL, default off: the prompt rides every decode
@@ -121,7 +120,6 @@ public struct Config: Equatable, Sendable {
         trigger: HotkeyTrigger = Config.defaultTrigger,
         translateTrigger: HotkeyTrigger = Config.defaultTranslateTrigger,
         translateKeyIsAdditional: Bool = true,
-        asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
         usesVocabularyBias: Bool = false,
         openRouterModel: String = Config.defaultOpenRouterModel,
@@ -138,7 +136,6 @@ public struct Config: Equatable, Sendable {
         self.trigger = trigger
         self.translateTrigger = translateTrigger
         self.translateKeyIsAdditional = translateKeyIsAdditional
-        self.asrBackend = asrBackend
         self.asrModel = asrModel
         self.usesVocabularyBias = usesVocabularyBias
         self.openRouterModel = openRouterModel
