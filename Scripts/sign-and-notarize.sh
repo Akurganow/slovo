@@ -92,54 +92,7 @@ APP_ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 DMG_STAGING="$DIST_DIR/$APP_NAME-dmg-staging"
 
-# Locate the single Sparkle.framework SwiftPM unpacks under .build/artifacts.
-# Real staging demands exactly one (zero/multiple is a setup error worth
-# stopping for); a DRY_RUN plan falls back to the canonical artifact path so the
-# printed plan stays stable on machines that have not fetched the artifact.
-sparkle_framework_path() {
-    local canonical found count
-    canonical="$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
-    found="$(find "$ROOT/.build/artifacts" -type d -name "Sparkle.framework" 2>/dev/null || true)"
-    count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
-    if [[ "$count" == "1" ]]; then
-        printf '%s\n' "$found"
-    elif [[ "$DRY_RUN" == "1" ]]; then
-        printf '%s\n' "$canonical"
-    else
-        echo "Expected exactly one Sparkle.framework under $ROOT/.build/artifacts, found $count" >&2
-        exit 65
-    fi
-}
-
-# Locate the macOS slice of SQLCipher.xcframework, with the same
-# one-or-stop/DRY_RUN contract as the Sparkle twin above. Every platform slice
-# carries a SQLCipher.framework, so the path filter picks the macOS one — the
-# maccatalyst slice has no "macos-" path component and is excluded by it.
-sqlcipher_framework_path() {
-    local canonical found count
-    canonical="$ROOT/.build/artifacts/sqlcipher.swift/SQLCipher/SQLCipher.xcframework/macos-arm64_x86_64/SQLCipher.framework"
-    found="$(find "$ROOT/.build/artifacts" -type d -path "*/macos-*/*" -name "SQLCipher.framework" 2>/dev/null || true)"
-    count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
-    if [[ "$count" == "1" ]]; then
-        printf '%s\n' "$found"
-    elif [[ "$DRY_RUN" == "1" ]]; then
-        printf '%s\n' "$canonical"
-    else
-        echo "Expected exactly one macOS SQLCipher.framework under $ROOT/.build/artifacts, found $count" >&2
-        exit 65
-    fi
-}
-
-# SwiftPM's resource bundle is flat under the native build system and a macOS
-# bundle with Contents/Resources under Swift Build, its default from
-# swift-6.4.0-RELEASE (swift-package-manager, Sources/CoreCommands/Options.swift).
-bundle_resource_dir() {
-    if [[ -d "$1/Contents/Resources" ]]; then
-        printf '%s\n' "$1/Contents/Resources"
-    else
-        printf '%s\n' "$1"
-    fi
-}
+source "$ROOT/Scripts/app-bundle.sh"
 
 build_app() {
     if [[ -e "$APP_PATH" ]]; then
@@ -163,52 +116,7 @@ build_app() {
     run install "$BINARY_PATH" "$CONTENTS_PATH/MacOS/slovo"
     run install -m 0644 "$ROOT/Resources/Info.plist" "$CONTENTS_PATH/Info.plist"
 
-    # SwiftPM resource bundle for SlovoCore (bundled prompt examples).
-    # PromptExampleCatalog resolves it from Contents/Resources; a missing bundle
-    # degrades every prompt to example-free, so staging it is part of the
-    # product. Staged before signing so the seal covers it.
-    run ditto "$ROOT/.build/$CONFIGURATION/slovo_SlovoCore.bundle" "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle"
-    local core_resources cue_resource
-    core_resources="$(bundle_resource_dir "$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle")"
-    for cue_resource in start.wav end.wav error.wav; do
-        run test -f "$core_resources/AudioCues/$cue_resource"
-    done
-
-    # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).
-    local icon_build="$DIST_DIR/icon"
-    run install -d "$icon_build"
-    run xcrun actool "$ROOT/Resources/$APP_NAME.icon" --app-icon "$APP_NAME" --compile "$icon_build" \
-        --output-partial-info-plist "$icon_build/partial.plist" \
-        --minimum-deployment-target 15.0 --platform macosx --target-device mac \
-        --output-format human-readable-text
-    run install -m 0644 "$icon_build/Assets.car" "$CONTENTS_PATH/Resources/Assets.car"
-    run install -m 0644 "$icon_build/$APP_NAME.icns" "$CONTENTS_PATH/Resources/$APP_NAME.icns"
-
-    # Ship the third-party license notices with the binary. Staged before signing
-    # so the codesign below seals it into the bundle; a resource added afterward
-    # would break the seal.
-    run install -m 0644 "$ROOT/THIRD-PARTY-NOTICES.md" "$CONTENTS_PATH/Resources/THIRD-PARTY-NOTICES.md"
-
-    # Embed Sparkle for auto-update. ditto preserves the framework's internal
-    # symlinks and executable bits — a flattening copy breaks the bundle.
-    local sparkle_framework
-    sparkle_framework="$(sparkle_framework_path)"
-    run ditto "$sparkle_framework" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
-
-    # Not sandboxed → Sparkle's XPC services are unused; strip them from the
-    # staged copy to shrink the signing/notarization surface. Drop the versioned
-    # dir and the now-dangling framework-root symlink so codesign --strict sees
-    # no broken link.
-    run rm -r "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
-    run rm "$CONTENTS_PATH/Frameworks/Sparkle.framework/XPCServices"
-
-    # Embed SQLCipher, the dynamic framework the binary loads through
-    # @executable_path/../Frameworks; without the embedded copy the notarized
-    # app carries a load command that only resolves next to a development
-    # checkout.
-    local sqlcipher_framework
-    sqlcipher_framework="$(sqlcipher_framework_path)"
-    run ditto "$sqlcipher_framework" "$CONTENTS_PATH/Frameworks/SQLCipher.framework"
+    stage_bundle_contents "$ROOT/.build/$CONFIGURATION" "$CONTENTS_PATH" "$DIST_DIR/icon"
 
     # Inside-out signing: Sparkle's nested helpers, then the frameworks, before
     # the app below. Deep signing mis-signs the Autoupdate helper and fails only
@@ -218,10 +126,7 @@ build_app() {
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then
         framework_codesign_args+=(--timestamp)
     fi
-    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
-    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
-    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/Sparkle.framework"
-    run codesign "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY" "$CONTENTS_PATH/Frameworks/SQLCipher.framework"
+    sign_bundle_frameworks "$CONTENTS_PATH" "${framework_codesign_args[@]}" --sign "$SIGNING_IDENTITY"
 
     local codesign_args=(--force --options runtime --entitlements "$ROOT/slovo.entitlements")
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then
@@ -253,6 +158,7 @@ build_dmg() {
     run ditto "$APP_PATH" "$DMG_STAGING/$APP_NAME.app"
     run ln -s /Applications "$DMG_STAGING/Applications"
     run hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGING" -format UDZO "$DMG_PATH"
+    run rm -r "$DMG_STAGING"
 
     if [[ "$SIGNING_IDENTITY" != "-" ]]; then
         run codesign --force --timestamp --sign "$SIGNING_IDENTITY" "$DMG_PATH"

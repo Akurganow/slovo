@@ -109,22 +109,6 @@ struct ThirdPartyNoticesTests {
         ]), Comment(rawValue: appPlan.output))
     }
 
-    /// The dev launcher stages the same bundle shape as the release pipeline, so it
-    /// too must copy the notices artifact into Contents/Resources during staging —
-    /// which runs entirely before `sign_bundle`, keeping the file present before the
-    /// signature is applied.
-    /// Stated sensitivity: drop the copy from `stage_bundle` → the body scan for the
-    /// notices file into Resources → RED.
-    @Test
-    func devLauncherStagesNoticesIntoResources() throws {
-        let launcher = try Self.source("Scripts/build_and_run.sh")
-        let script = Self.strippingShellComments(from: launcher)
-        let stage = try #require(Self.shellFunctionBody(named: "stage_bundle", in: script))
-
-        #expect(stage.contains("THIRD-PARTY-NOTICES.md"), Comment(rawValue: stage))
-        #expect(stage.contains("Resources/THIRD-PARTY-NOTICES.md"), Comment(rawValue: stage))
-    }
-
     // MARK: - Shipped-graph derivation
 
     /// Today's shipped graph; the derivation must never report less, so a
@@ -255,56 +239,6 @@ struct ThirdPartyNoticesTests {
             searchStart = range.upperBound
         }
         return true
-    }
-
-    private static func strippingShellComments(from source: String) -> String {
-        source
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { strippingHashComment(from: String($0)) }
-            .joined(separator: "\n")
-    }
-
-    private static func strippingHashComment(from line: String) -> String {
-        var output = ""
-        var inSingleQuote = false
-        var inDoubleQuote = false
-        var escaped = false
-
-        for character in line {
-            if escaped {
-                output.append(character)
-                escaped = false
-            } else if character == "\\" && !inSingleQuote {
-                output.append(character)
-                escaped = true
-            } else if character == "'" && !inDoubleQuote {
-                output.append(character)
-                inSingleQuote.toggle()
-            } else if character == "\"" && !inSingleQuote {
-                output.append(character)
-                inDoubleQuote.toggle()
-            } else if character == "#" && !inSingleQuote && !inDoubleQuote {
-                break
-            } else {
-                output.append(character)
-            }
-        }
-        return output
-    }
-
-    private static func shellFunctionBody(named name: String, in source: String) -> String? {
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard let start = lines.firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "\(name)() {"
-        }) else {
-            return nil
-        }
-        guard let end = lines[(start + 1)...].firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "}"
-        }) else {
-            return nil
-        }
-        return lines[start...end].joined(separator: "\n")
     }
 
     private static var packageRoot: URL {

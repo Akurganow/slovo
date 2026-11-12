@@ -19,6 +19,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 RUN_DIR="$ROOT_DIR/.build/benchmark-runs/$STAMP"
 mkdir -p "$RUN_DIR"
@@ -28,20 +29,24 @@ PROVIDERS="${PROVIDERS:-$DEFAULT_PROVIDERS}"
 REPETITIONS="${REPETITIONS:-10}"
 
 # Build synchronously so a compile failure surfaces here, not inside nohup.
-swift build --disable-automatic-resolution --product slovo-cleanup-benchmark >"$RUN_DIR/build.log" 2>&1
+if ! swift build --disable-automatic-resolution --product slovo-cleanup-benchmark >"$RUN_DIR/build.log" 2>&1; then
+  echo "FAILED(build)" > "$RUN_DIR/status"
+  tail -n 40 "$RUN_DIR/build.log" >&2
+  echo "benchmark build failed; full log: $RUN_DIR/build.log" >&2
+  exit 1
+fi
 
 echo "RUNNING" > "$RUN_DIR/status"
 {
   echo "[$(date '+%F %T')] start"
-  echo "[$(date '+%F %T')] commit:      $(git -C "$ROOT_DIR" rev-parse --short HEAD)"
+  echo "[$(date '+%F %T')] commit:      $(git rev-parse --short HEAD)"
   echo "[$(date '+%F %T')] providers:   $PROVIDERS"
   echo "[$(date '+%F %T')] repetitions: $REPETITIONS"
   echo "[$(date '+%F %T')] report:      $RUN_DIR/report.csv"
 } >> "$RUN_DIR/run.log"
 
 nohup bash -c '
-  RUN_DIR="$1"; PROVIDERS="$2"; REPETITIONS="$3"; ROOT_DIR="$4"
-  cd "$ROOT_DIR"
+  RUN_DIR="$1"; PROVIDERS="$2"; REPETITIONS="$3"
   swift run --disable-automatic-resolution slovo-cleanup-benchmark \
     --env-file .env \
     --providers "$PROVIDERS" \
@@ -66,7 +71,7 @@ nohup bash -c '
     echo "FAILED($CODE)" > "$RUN_DIR/status"
     echo "[$(date "+%F %T")] FAILED with exit $CODE after $(( (SECONDS - START) / 60 )) min" >> "$RUN_DIR/run.log"
   fi
-' bench-worker "$RUN_DIR" "$PROVIDERS" "$REPETITIONS" "$ROOT_DIR" >> "$RUN_DIR/run.log" 2>&1 &
+' bench-worker "$RUN_DIR" "$PROVIDERS" "$REPETITIONS" >> "$RUN_DIR/run.log" 2>&1 &
 disown
 
 echo "benchmark launched, detached from this shell"

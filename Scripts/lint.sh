@@ -1,4 +1,5 @@
 #!/bin/sh
+# No -e: every stage runs, so one failure never hides another (as Scripts/diagnose.sh does).
 set -u
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
