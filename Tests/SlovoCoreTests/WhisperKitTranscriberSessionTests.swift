@@ -127,11 +127,9 @@ struct WhisperKitTranscriberSessionTests {
 
     // MARK: - finish
 
-    /// finish finalizes the live session exactly once, then finalizes the model
-    /// lifecycle exactly once.
+    /// finish finalizes the live session exactly once.
     /// Stated sensitivity: finalize twice → count != 1 → RED; drop the forwarded
-    /// samples → sampleCount != 50 → RED; skip didFinishUse →
-    /// releaseCount 0 → RED.
+    /// samples → sampleCount != 50 → RED.
     @Test
     func finishFinalizesTheLiveSessionExactlyOnce() async throws {
         let engine = FakeSpeechEngine(finalize: .success("привет hello"))
@@ -145,7 +143,6 @@ struct WhisperKitTranscriberSessionTests {
         #expect(text == "привет hello")
         #expect(engine.streamFinishCount == 1, "finish must finalize the live session exactly once")
         #expect(engine.finalizeCalls.first?.sampleCount == 50)
-        #expect(engine.releaseCount == 1, "finish must finalize the lifecycle once (keepWarm 0 → immediate release)")
     }
 
     /// finish trims surrounding whitespace off the finalized transcript.
@@ -191,12 +188,12 @@ struct WhisperKitTranscriberSessionTests {
 
     // MARK: - cancel
 
-    /// cancel discards the live session without finalization and closes the model
-    /// lifecycle once. Stated sensitivity: finalizing on cancel records a call;
-    /// skipping didFinishUse leaves releaseCount at zero; leaving the session open
-    /// makes the trailing finish return a discarded result → RED.
+    /// cancel discards the live session without finalization.
+    /// Stated sensitivity: finalizing on cancel records a call; dropping the session
+    /// without `speechSession.cancel()` → streamCancelCount 0; leaving the session
+    /// open makes the trailing finish return a discarded result → RED.
     @Test
-    func cancelDiscardsTheLiveSessionAndReleasesOnce() async throws {
+    func cancelDiscardsTheLiveSessionWithoutFinalizing() async throws {
         let engine = FakeSpeechEngine(finalize: .success("should not run"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
@@ -205,7 +202,7 @@ struct WhisperKitTranscriberSessionTests {
         await transcriber.cancel()
 
         #expect(engine.finalizeCalls.isEmpty, "cancel must not finalize")
-        #expect(engine.releaseCount == 1, "cancel must finalize the lifecycle exactly once")
+        #expect(engine.streamCancelCount == 1, "cancel must cancel the live session")
 
         #expect(try await transcriber.finish().isEmpty, "finish after cancel returns empty")
         #expect(engine.finalizeCalls.isEmpty, "finish after cancel must not finalize a discarded session")
@@ -215,9 +212,9 @@ struct WhisperKitTranscriberSessionTests {
 
     /// A second finish on a closed session does not finalize again.
     /// Stated sensitivity: drop the session-open guard → the second finish
-    /// re-finalizes and re-releases → counts climb past 1 → RED.
+    /// re-finalizes → count climbs past 1 → RED.
     @Test
-    func finishAfterFinishDoesNotFinalizeOrReleaseAgain() async throws {
+    func finishAfterFinishDoesNotFinalizeAgain() async throws {
         let engine = FakeSpeechEngine(finalize: .success("привет"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
@@ -227,24 +224,6 @@ struct WhisperKitTranscriberSessionTests {
         #expect(try await transcriber.finish().isEmpty, "a second finish on a closed session returns empty")
 
         #expect(engine.finalizeCalls.count == 1, "the closed session must not finalize again")
-        #expect(engine.releaseCount == 1, "the lifecycle must finalize at most once per session")
-    }
-
-    /// A cancel after finish must not finalize the lifecycle a second time.
-    /// Stated sensitivity: drop the session-open guard on cancel → cancel releases
-    /// again → releaseCount 2 → RED.
-    @Test
-    func cancelAfterFinishDoesNotReleaseAgain() async throws {
-        let engine = FakeSpeechEngine(finalize: .success("привет"))
-        let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
-
-        try await transcriber.begin(biasTerms: [])
-        try await transcriber.feed(TranscriberFixtures.chunk())
-        _ = try await transcriber.finish()
-        await transcriber.cancel()
-
-        #expect(engine.releaseCount == 1, "cancel after finish must not release a second time")
-        #expect(engine.finalizeCalls.count == 1)
     }
 
     // MARK: - error mapping

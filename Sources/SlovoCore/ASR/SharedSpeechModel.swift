@@ -21,19 +21,16 @@ public struct SharedSpeechModel: Sendable {
         self.transcriber = transcriber
     }
 
-    /// The production model for `config`. `asrModel` and `keepWarmSeconds` are read
-    /// here, once per launch — a hand edit of either applies at the next launch —
-    /// unlike the recognition language, which is pushed live into the running
-    /// transcriber.
+    /// The production model for `config`. `asrModel` is read here, once per launch —
+    /// a hand edit of it applies at the next launch — unlike the recognition
+    /// language, which is pushed live into the running transcriber.
     public init(config: Config) {
         transcriber = WhisperKitTranscriber(
             configuration: WhisperKitTranscriber.Configuration(
-                keepWarmSeconds: config.keepWarmSeconds,
                 language: config.language
             ),
             engine: WhisperKitEngine(model: config.asrModel),
-            converter: WhisperSampleConverter(),
-            clock: MonotonicClock()
+            converter: WhisperSampleConverter()
         )
     }
 

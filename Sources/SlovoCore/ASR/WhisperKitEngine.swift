@@ -78,10 +78,6 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         ).appending(path: "slovo/models", directoryHint: .isDirectory)
     }
 
-    public func release() {
-        lock.withLock { loadedEngine = nil }
-    }
-
     public func makeSpeechStreamingSession(biasTerms: [Term], language: Language) throws -> any SpeechStreamingSession {
         guard let engine = currentEngine else {
             throw TranscriptionError.backendUnavailable

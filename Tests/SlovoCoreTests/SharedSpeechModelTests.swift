@@ -9,7 +9,7 @@ import SlovoTestSupport
 @Suite("Shared speech model")
 struct SharedSpeechModelTests {
     private static func makeModel(engine: FakeSpeechEngine) -> SharedSpeechModel {
-        SharedSpeechModel(transcriber: TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil))
+        SharedSpeechModel(transcriber: TranscriberFixtures.makeTranscriber(engine: engine))
     }
 
     /// A rebuild while the model is still loading gets its OWN warm-up task and

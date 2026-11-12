@@ -1,7 +1,7 @@
 import SlovoCore
 import Synchronization
 
-/// A scriptable spy standing in for model lifecycle and live speech sessions.
+/// A scriptable spy standing in for model loading and live speech sessions.
 ///
 /// It records an ordered event timeline and the samples finalized by each live
 /// session. State is `Mutex`-guarded so the spy is genuinely race-free when
@@ -16,7 +16,6 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
     /// One recorded interaction, in invocation order.
     public enum Event: Sendable, Equatable {
         case load
-        case release
         case finalize(sampleCount: Int)
     }
 
@@ -75,11 +74,6 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
     /// Number of `load()` attempts (successful or scripted-failure).
     public var loadCount: Int {
         events.filter { $0 == .load }.count
-    }
-
-    /// Number of `release()` calls.
-    public var releaseCount: Int {
-        events.filter { $0 == .release }.count
     }
 
     /// Every live-session finalization's arguments, in order.
@@ -182,25 +176,6 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
                 return
             }
             await Task.yield()
-        }
-    }
-
-    /// Waits until `release()` has been called at least `target` times, or relents
-    /// after a bounded yield budget (so a "must NOT release" assertion still gives a
-    /// buggy release time to manifest before asserting zero).
-    public func waitForReleaseCount(atLeast target: Int, maxYields: Int = 500) async {
-        for _ in 0..<maxYields {
-            if releaseCount >= target {
-                return
-            }
-            await Task.yield()
-        }
-    }
-
-    public func release() {
-        state.withLock { current in
-            current.events.append(.release)
-            current.loaded = false
         }
     }
 

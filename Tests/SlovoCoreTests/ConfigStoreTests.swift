@@ -6,8 +6,7 @@ import SlovoTestSupport
 
 // A blob that cannot be read as a whole (no data, malformed JSON) falls back to
 // defaults without crashing or leaking partially decoded garbage into the app. A
-// single unreadable field, an out-of-range keep-warm included, is recovered per
-// field in ConfigStoreRecoveryTests.
+// single unreadable field is recovered per field in ConfigStoreRecoveryTests.
 @Suite("ConfigStore")
 struct ConfigStoreTests {
     @Test
@@ -18,8 +17,6 @@ struct ConfigStoreTests {
         #expect(Config.defaults.asrBackend == .whisperKit)
         #expect(Config.defaults.asrModel == "large-v3-v20240930_turbo_632MB")
         #expect(Config.defaults.cleanupModel == Config.defaultOpenRouterModel)
-        // Resident by default: nil keepWarm means the model is never released.
-        #expect(Config.defaults.keepWarmSeconds == nil)
     }
 
     /// Stated sensitivity: force-unwrap/decode directly or keep partially decoded
@@ -31,43 +28,6 @@ struct ConfigStoreTests {
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// The keep-warm setting is load-bearing for WhisperKit model retention: a
-    /// positive value keeps the loaded engine warm for that many idle seconds
-    /// before release, while zero releases immediately after each use.
-    /// Stated sensitivity: dropping the decoded value or silently defaulting it
-    /// means this no longer round-trips.
-    @Test
-    func keepWarmSecondsIsLoadedForWhisperKitRetention() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 45),
-        ])
-
-        #expect(ConfigStore.load(from: defaults).keepWarmSeconds == 45)
-    }
-
-    /// The save side refuses a keep-warm window outside 0...3600 and accepts both
-    /// ends. Load keeps such a value out of the config field by field, so only `save`
-    /// and `isValid` enforce this range.
-    /// Stated sensitivity: delete the keep-warm range check from `validated` → the
-    /// out-of-range saves succeed and `isValid` is true → RED.
-    @Test
-    func saveAndIsValidRefuseKeepWarmOutsideTheRange() throws {
-        for seconds in [-1, 3_601] {
-            let config = Config(keepWarmSeconds: seconds)
-
-            #expect(throws: ConfigStore.SaveError.self) {
-                try ConfigStore.save(config, to: FakeUserDefaults())
-            }
-            #expect(!ConfigStore.isValid(config))
-        }
-        for seconds in [0, 3_600] {
-            let config = Config(keepWarmSeconds: seconds)
-
-            #expect(ConfigStore.isValid(config))
-            try ConfigStore.save(config, to: FakeUserDefaults())
-        }
     }
 
     /// A blank or whitespace-only model id is refused on save for either engine, and
@@ -153,7 +113,6 @@ struct ConfigStoreTests {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
                 language: "ru",
-                keepWarmSeconds: 45,
                 backend: "whisperkit",
                 asrModel: "large-v3-v20240930_turbo_632MB",
                 legacyEnabledField: false,
@@ -165,7 +124,6 @@ struct ConfigStoreTests {
 
         #expect(ConfigStore.load(from: defaults) == Config(
             language: .ru,
-            keepWarmSeconds: 45,
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             openRouterModel: "openai/gpt-6-luna",
@@ -179,13 +137,10 @@ struct ConfigStoreTests {
     /// to the WhisperKit turbo runtime on load (a mapping, not a recovery): the
     /// single-case `AsrBackend`'s synthesized Codable cannot even represent
     /// "speechtranscriber", so the loader maps the legacy string BEFORE raw-value
-    /// matching. keepWarmSeconds RESETS to resident (nil) for any
-    /// legacy value (legacy keepWarm meant Apple retention, not an idle window).
-    /// Unrelated cleanup/style fields survive untouched.
+    /// matching. Unrelated cleanup/style fields survive untouched.
     ///
-    /// Anti-tautology: after migration asrBackend/asrModel/keepWarmSeconds ALL equal
-    /// their new defaults (.whisperKit / turbo / nil), so asserting any of those
-    /// alone is false-green — the BROKEN discard-to-defaults path satisfies them too.
+    /// Anti-tautology: after migration asrBackend/asrModel BOTH equal their new
+    /// defaults (.whisperKit / turbo), so asserting either alone is false-green — the BROKEN discard-to-defaults path satisfies them too.
     /// The load-bearing assertion is a NON-DEFAULT surviving sibling: `writingStyle:
     /// .formal` (≠ .casual default) and a non-default openRouterModel the user set.
     /// Stated sensitivity: reset the whole config on the legacy backend → the
@@ -197,7 +152,6 @@ struct ConfigStoreTests {
     func legacyAppleSpeechConfigMigratesToWhisperKit() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
-                keepWarmSeconds: 999,
                 backend: "speechtranscriber",
                 asrModel: "legacy-other-model",
                 cleanupProvider: "openrouter",
@@ -218,7 +172,6 @@ struct ConfigStoreTests {
         // The migration mapping itself (each equals a NEW default, hence tautological alone).
         #expect(config.asrBackend == .whisperKit)
         #expect(config.asrModel == "large-v3-v20240930_turbo_632MB")
-        #expect(config.keepWarmSeconds == nil)
     }
 
     /// `ConfigStore.validated` accepts a WhisperKit config with a non-empty model,
@@ -229,7 +182,6 @@ struct ConfigStoreTests {
     func whisperKitConfigRoundTripsThroughSaveAndLoad() throws {
         let defaults = FakeUserDefaults()
         let config = Config(
-            keepWarmSeconds: 90,
             asrBackend: .whisperKit,
             asrModel: "large-v3-v20240930_turbo_632MB",
             openRouterModel: "openai/gpt-6-luna"
@@ -238,55 +190,5 @@ struct ConfigStoreTests {
         try ConfigStore.save(config, to: defaults)
 
         #expect(ConfigStore.load(from: defaults) == config)
-    }
-
-    /// Wire compat: a persisted blob with NO keepWarm field decodes to the resident
-    /// default (nil), not a numeric fallback or a whole-config rejection.
-    /// Stated sensitivity: decode an absent keepWarm field as 0/120 (or reject the
-    /// config) → keepWarmSeconds is not nil → RED.
-    @Test
-    func absentKeepWarmDecodesAsResident() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: nil),
-        ])
-
-        #expect(ConfigStore.load(from: defaults).keepWarmSeconds == nil)
-    }
-
-    /// Legacy keepWarm resets to resident (nil) REGARDLESS of value — the 120 case,
-    /// companion to the 999 case in `legacyAppleSpeechConfigMigratesToWhisperKit`.
-    /// Testing both values proves the reset is not value-specific (120, the old
-    /// Apple-Speech default, is not special).
-    /// Stated sensitivity: carry a legacy keepWarm verbatim (no reset) → 120 survives
-    /// as 120 instead of nil → RED.
-    @Test
-    func legacyKeepWarm120ResetsToResident() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(
-                keepWarmSeconds: 120,
-                backend: "speechtranscriber",
-                asrModel: "system-dictation"
-            ),
-        ])
-
-        let config = ConfigStore.load(from: defaults)
-
-        #expect(config.keepWarmSeconds == nil, "legacy keepWarm resets to resident (nil) for any value")
-        #expect(config.asrBackend == .whisperKit)
-        #expect(config.asrModel == "large-v3-v20240930_turbo_632MB")
-    }
-
-    /// The keepWarm reset is LEGACY-ONLY: a current WhisperKit blob PRESERVES its
-    /// explicit keepWarm window (the user's choice) — only "speechtranscriber" blobs
-    /// reset to resident.
-    /// Stated sensitivity: reset non-legacy keepWarm too → a WhisperKit user's
-    /// explicit 30 s window is silently lost to nil → RED.
-    @Test
-    func whisperKitKeepWarmIsPreserved() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 30, backend: "whisperkit"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults).keepWarmSeconds == 30)
     }
 }

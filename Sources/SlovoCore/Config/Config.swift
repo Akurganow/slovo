@@ -47,10 +47,6 @@ public struct Config: Equatable, Sendable {
     public static let defaults = Config()
 
     public var language: Language
-    /// WhisperKit model retention: `nil` keeps the model resident by default
-    /// (fastest first word), `0` releases immediately after each dictation, a
-    /// positive value is the idle-seconds window before release.
-    public var keepWarmSeconds: Int?
     public var trigger: HotkeyTrigger
     /// The key that makes a dictation translate. Must differ from `trigger`:
     /// `ConfigStore` is where that exclusion is enforced. It refuses to save a
@@ -122,7 +118,6 @@ public struct Config: Equatable, Sendable {
 
     public init(
         language: Language = .auto,
-        keepWarmSeconds: Int? = nil,
         trigger: HotkeyTrigger = Config.defaultTrigger,
         translateTrigger: HotkeyTrigger = Config.defaultTranslateTrigger,
         translateKeyIsAdditional: Bool = true,
@@ -140,7 +135,6 @@ public struct Config: Equatable, Sendable {
         automaticallyInstallsUpdates: Bool = true
     ) {
         self.language = language
-        self.keepWarmSeconds = keepWarmSeconds
         self.trigger = trigger
         self.translateTrigger = translateTrigger
         self.translateKeyIsAdditional = translateKeyIsAdditional
