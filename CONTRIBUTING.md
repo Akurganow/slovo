@@ -18,18 +18,19 @@ Install Swift package dependencies from the checked-in lockfile:
 swift build --disable-automatic-resolution
 ```
 
-Run the full gate locally when you want it before pushing — CI runs this same
-script on every pull request into `main`:
+Run the full gate locally when you want it before pushing:
 
 ```sh
 Scripts/diagnose.sh
 ```
 
+What it runs, and how CI uses it, is in [docs/development.md](docs/development.md),
+"Full Gate".
+
 ## Project Rules
 
-- Keep raw audio local. Only transcript text may leave the machine for cleanup —
-  plus the key-scope metadata request to OpenRouter (`/models/user`), which
-  carries the API key and no user content.
+- Keep raw audio local. Send off the Mac only what [docs/privacy.md](docs/privacy.md),
+  "Data Paths", lists.
 - Store API keys only in Keychain or development-only environment variables.
 - Never commit `.env`, signing keys, credential files, local databases, or seed
   files.
@@ -55,21 +56,12 @@ Scripts/diagnose.sh
 
 ## Packaging
 
-Local packaging requires a stable signing identity and runs in two phases —
-`app`, then `dmg`:
-
-```sh
-SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" Scripts/sign-and-notarize.sh app
-```
-
-The script refuses ad-hoc signing unless `ALLOW_AD_HOC_SIGNING=1` is set, because
-ad-hoc builds cannot prove stable macOS privacy or Keychain trust behavior. See
-[docs/release-checklist.md](docs/release-checklist.md) for the full local
-build → staple → DMG → staple verification flow. Published releases are fully
-automated: a push to `main` runs the whole chain — including notarization,
-stapling, tagging, and publishing — when the conventional commits warrant a
-release; nobody tags or edits a version by hand. See
-[docs/release-ci.md](docs/release-ci.md).
+Releases are automated from `main`; see [docs/release-ci.md](docs/release-ci.md).
+Nobody edits a version by hand; the release pipeline stamps it
+([docs/release-ci.md](docs/release-ci.md), "Versioning"). Local packaging,
+ad-hoc signing included, is in
+[docs/release-checklist.md](docs/release-checklist.md), "Verify packaging before
+merge (optional, local)".
 
 For manual testing on a Mac that cannot build or sign locally, the owner can
 dispatch the on-demand [Dev Build workflow](.github/workflows/dev-build.yml) —

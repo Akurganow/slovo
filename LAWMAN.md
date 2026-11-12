@@ -1,5 +1,5 @@
 ---
-contract_version: 3
+contract_version: 4
 ---
 
 # Constitution of Akurganow/slovo
@@ -92,6 +92,7 @@ contract_version: 3
 - `invalid`: Reviewed and found wrong
 - `question`: A decision is needed from the owner
 - `wontfix`: Out of scope. The owner's veto, final; no role touches the issue
+- `ready-for-human`: The machine is done; review and merge remain
 
 ## Precedents
 

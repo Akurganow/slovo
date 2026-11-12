@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.3] - 2026-11-12
+
+### Fixed
+
+- Update GRDB.swift to 7.12.0, SQLCipher.swift to 4.20.0, Sparkle to 2.10.1, install-action to v2.90.3 (#211)
+
 ## [0.37.2] - 2026-10-25
 
 ### Fixed

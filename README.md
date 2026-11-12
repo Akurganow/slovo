@@ -4,10 +4,11 @@ Slovo is a private, on-device push-to-talk dictation app for macOS. Hold your
 push-to-talk key — the `fn` / Globe key by default — speak, release, and Slovo
 inserts the cleaned-up text into the focused field.
 
-The privacy boundary is deliberately narrow: raw audio stays on the Mac. While
-the **Clean Up Dictation** setting is on (the default), only the
-already-transcribed text is sent to OpenRouter for model-routed text cleanup;
-with it off, nothing leaves the machine at all.
+The privacy boundary is deliberately narrow: raw audio stays on the Mac, and
+speech is recognized on the Mac. While cleanup is on (the default), each
+dictation's transcript goes to OpenRouter for model-routed text cleanup. With
+cleanup off, nothing is sent to OpenRouter. [docs/privacy.md](docs/privacy.md),
+"Data Paths", lists everything Slovo sends.
 
 [![Swift CI](https://github.com/Akurganow/slovo/actions/workflows/swift.yml/badge.svg)](https://github.com/Akurganow/slovo/actions/workflows/swift.yml)
 [![Release](https://img.shields.io/github/v/release/Akurganow/slovo)](https://github.com/Akurganow/slovo/releases/latest)
@@ -30,12 +31,17 @@ tuned.
   standalone WhisperKit package), including several languages mixed within a
   single utterance.
 - Text cleanup through OpenRouter, with curated routed models and custom
-  OpenRouter model ids.
-- A **Clean Up Dictation** toggle (menu bar and Settings, on by default). Turn
-  it off — or run without an OpenRouter key — for the explicit raw-transcript
-  mode: zero network requests, and the raw final transcript lands in the
-  focused field once at key-up, near-instantly. Translation is unavailable
-  while cleanup is off.
+  OpenRouter model ids. Pick a model under **Model** in **Settings → Cleanup**
+  or from **Cleanup Model: …** in the menu bar. A custom id goes in the field
+  under the list and takes effect with **Use**. Once Slovo knows which models
+  your key can call, the curated models in both places are limited to those.
+- A cleanup switch, on by default: **Clean Up Dictation** in the menu bar and
+  **Clean up dictation** in **Settings → Cleanup**. Turn it off for the explicit
+  raw-transcript mode: the raw final transcript lands in the focused field once
+  at key-up, near-instantly.
+  Translation is unavailable while cleanup is off. With no OpenRouter key saved,
+  cleanup is off as well: the menu shows **Add OpenRouter Key…** in place of the
+  switch, and the Settings switch is off and cannot be turned on.
 - Optional per-dictation translation from a **Translate key** of its own — ⌃ by
   default, drawn from the same pool as the push-to-talk key and never the same
   key. It is an *additional* key by default: hold it together with the
@@ -69,16 +75,16 @@ tuned.
   and Slovo has no separate volume control.
 - Cleanup hints: your active keyboard language and the system spell and grammar
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
-  then sends them to OpenRouter with the transcript as advisory context. Grammar
-  hints are English-only, as macOS ships grammar rules for English alone.
-- OpenRouter API key stored in macOS Keychain. Slovo reads it at most once
-  per run of the app, and whichever part asks first gets it. Normally that
-  is the key-scope request Slovo makes once the hotkey is ready, before any
-  dictation. It goes out only while Clean Up Dictation is on. Cleanup asks
-  later and reuses that value. Add the key through the menu-bar **Add
-  OpenRouter Key…** window or **Settings → Cleanup**. A **Remove Key…**
-  button in **Settings → Cleanup** deletes it (cleanup then turns off until
-  you add a key again).
+  then sends them to OpenRouter with the transcript as advisory context. Turn
+  off **Use system spell and grammar hints** in **Settings → Cleanup** (on by
+  default) to stop the spell and grammar hints. Grammar hints are English-only.
+  [docs/privacy.md](docs/privacy.md), "Data Paths", lists what is sent.
+- OpenRouter API key stored in macOS Keychain. Add it through the menu-bar
+  **Add OpenRouter Key…** window or **Settings → Cleanup**. A **Remove Key…**
+  button in **Settings → Cleanup** deletes it, and cleanup then turns off until
+  you add a key again. When Slovo reads the key, and when it makes the key-scope
+  request, is in [docs/privacy.md](docs/privacy.md), "Keychain" and "Cloud
+  Cleanup".
 - Clipboard-based text insertion with secure-input checks and clipboard
   restore. A copy you make during the brief wait after a paste is kept, not
   overwritten.
@@ -91,18 +97,27 @@ tuned.
   when a downloaded update awaits restart; the recording glyph names the mode:
   `Ⱍ` clean, `Ⰳ` raw, `Ⱂ` translate — plus a monochrome app icon that follows
   the system theme.
-- A native **Settings** window (General, Cleanup, Vocabulary, About) for the
-  push-to-talk key, the translate key, recognition language, sound cues, launch at login,
-  automatic updates, cleanup model and style, translation target language, API
-  key, and vocabulary.
+- A native **Settings** window, opened from **Settings…** in the menu bar. It
+  opens on the pane you last viewed, never on **About**, and on **General**
+  after a launch.
+  - **General**: hotkeys, language, microphone, mute, cues, bias, login, updates.
+  - **Cleanup**: the switch, model, **Writing style** (**Formal**, **Casual** or
+    **Very casual**; Casual by default), target, key, hints.
+  - **Vocabulary**: your terms.
+  - **About**: the quick guide and version, described below.
+- **Vocabulary bias (experimental)**, off by default, also passes the
+  top-ranked vocabulary terms that fit a short prompt to the on-device speech
+  recognizer, ranked by each term's weight and its recent cleanup corrections.
+  Your vocabulary reaches cleanup whether it is on or off.
 - An **About** pane in Settings with a built-in quick guide (dictate,
   cleanup, translate, vocabulary) and the running version. **About Slovo**
   in the menu bar opens it.
 - Silent automatic updates with an always-visible menu-bar update row:
   **Check for Updates…** runs a manual silent check, **Checking…** shows while
-  any check runs, and a downloaded update switches the status bar glyph to `Ⱀ`
-  and offers **Update ready — v…** / **Restart**. The **Automatically install updates** switch (Settings →
-  General, on by default) turns scheduled checking off.
+  any check runs, **Downloading v…** shows while an update downloads, and a
+  downloaded update switches the status bar glyph to `Ⱀ` and offers **Update
+  ready — v…** / **Restart**. The **Automatically install updates** switch
+  (Settings → General, on by default) turns scheduled checking off.
 - Strict Swift build, test, concurrency, lint, and static guard checks.
 
 ## Requirements
@@ -115,8 +130,10 @@ tuned.
 - An OpenRouter API key for cleanup (optional — without one, Slovo still
   dictates, inserting the raw transcript).
 
-On first use, WhisperKit downloads the speech model once over the network;
-after that, transcription runs fully on-device.
+On first use, WhisperKit downloads the speech model from Hugging Face. Each
+time Slovo loads the model, WhisperKit first checks the cached copy with Hugging
+Face; when loads happen is in [docs/privacy.md](docs/privacy.md), "Speech
+Model". Transcription itself runs on the Mac.
 
 ## Install
 
@@ -126,7 +143,11 @@ after that, transcription runs fully on-device.
 3. Launch Slovo from Applications. It lives in the menu bar — there is no
    Dock icon.
 4. Grant **Microphone** and **Accessibility** when prompted. Accessibility
-   is required for the global `fn` / Globe hotkey.
+   is required for the global `fn` / Globe hotkey. Until both are granted, the
+   menu shows **Slovo Setup Required**, a **Request Microphone Access** or
+   **Request Accessibility Access** row for each missing permission, and
+   **Retry Setup**. If the hotkey cannot start, it shows **Slovo Hotkey Setup
+   Required** with **Request Input Monitoring Access** and **Retry Setup**.
 5. Cleanup is optional: open the menu-bar item, choose **Add OpenRouter
    Key…**, and save your OpenRouter API key in the small key window to enable
    it (the key can be managed later in **Settings → Cleanup**). Optionally use
@@ -144,7 +165,7 @@ after that, transcription runs fully on-device.
 3. Release `fn` / Globe. Cleanup runs immediately through OpenRouter, then
    the cleaned text is inserted into the focused field. With **Clean Up
    Dictation** off (or no key saved), the raw transcript is inserted instead,
-   near-instantly and with no network request.
+   near-instantly and with no cleanup request.
 4. If you held the key but only silence was captured, nothing is inserted and
    the menu-bar icon briefly shows the red failure glyph `Ⱁ`. With Sound Cues
    on you hear End at key-up, since recording did end, and then Error — no
@@ -172,7 +193,7 @@ from the start of a standalone translate hold, so the mode is visible at a
 glance. Translation requires cleanup: while **Clean Up Dictation** is off, the
 translate key adds no translation and the recording glyph stays the raw-mode
 `Ⰳ`.
-Choose the target — the Recognition Language list without **Auto** — from the
+Choose the target — the **Recognition language** list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation
 adds no new error surface.
@@ -180,6 +201,17 @@ adds no new error surface.
 Failures surface through the menu-bar icon and, while **Sound Cues** is on, the
 Error cue — never a dialog or focus-stealing notification, since Slovo types
 into whichever app you're already using. Intentional cancellation is silent.
+Open the menu for the reason: after most failures its first row names it, such
+as **Secure Field Active** when Slovo refused to paste because secure input was
+on, and it stays until your next dictation. **Inserted As Spoken**, after a
+cleanup fallback, clears after about a second, and a hold with no speech shows
+only the glyph. With nothing to report, that row reads the hold hint, for
+example “Hold fn to talk”. Under it, a row shows how to
+translate: **Add ⌃ to translate** while the translate key is additional,
+**Hold ⌃ to translate** while it stands alone (with your own keys in place of
+⌃). With fn as the push-to-talk key or the translate key, and the Globe key also
+assigned a macOS action, the menu adds a row between those two. It asks you to
+set “Press 🌐 key to” to “Do Nothing” in System Settings ▸ Keyboard.
 
 ### When sound cues stop playing
 
@@ -215,21 +247,15 @@ and not on other versions.
 
 Slovo has two different data paths:
 
-- Audio path: microphone audio is captured and transcribed locally through
-  WhisperKit. Raw audio never leaves the machine. The Whisper model itself
-  is a third-party asset: WhisperKit downloads it once (from Hugging Face)
-  on first use and caches it under Application Support; transcription then
-  runs fully on-device with no per-dictation network calls.
-- Cleanup path: transcript text is sent to OpenRouter when cleanup is
-  available. OpenRouter routes the request to the selected model id.
-  Translation, when used, adds no new data category: the same transcript text,
-  plus the target-language name in the request. Raw audio still never leaves.
-  While cleanup is on, Slovo also makes one metadata request to OpenRouter —
-  `GET /api/v1/models/user` — so the model pickers only offer models your key
-  can actually call.
-  With **Clean Up Dictation** off (or no key configured) this path is not
-  taken at all: the entire dictation stays on-device with zero network
-  requests, and the raw final transcript is inserted once at key-up.
+- Audio path: microphone audio is captured and transcribed on the Mac through
+  WhisperKit. Raw audio never leaves the machine. The Whisper model is a
+  third-party asset, cached under Application Support. Transcription itself
+  makes no network call.
+- Cleanup path: while cleanup is on, each dictation's transcript goes to
+  OpenRouter, which routes the request to the selected model id;
+  [docs/privacy.md](docs/privacy.md), "Data Paths", lists the rest of what Slovo
+  sends. With cleanup off (or no key saved), nothing is sent to OpenRouter, and
+  the raw final transcript is inserted once at key-up.
 
 In both modes the final text is inserted with a clipboard-based paste: Slovo
 snapshots the clipboard, writes the text with conceal markers that ask
@@ -245,8 +271,8 @@ Mac's hardware identifier; the flip side is that it opens only on the Mac that
 created it, and once an encrypting build has opened it, older Slovo builds can
 no longer read it. Local personalization databases, seed files, dotenv files,
 signing keys, and credential bundles are ignored by Git. See
-[docs/privacy.md](docs/privacy.md) for the full data-path table and what the
-encryption does and does not protect against.
+[docs/privacy.md](docs/privacy.md) for what the encryption does and does not
+protect against.
 
 ## Configuration
 
@@ -274,10 +300,8 @@ Run the full gate locally when you want it before pushing:
 Scripts/diagnose.sh
 ```
 
-`Scripts/diagnose.sh` runs build, tests, a cleanup-benchmark CLI smoke check,
-and strict lint as independent stages so one failure does not hide another. CI
-runs this same script on a macOS runner for every pull request into `main` —
-that run is the gate.
+What it runs, and how CI uses it, is in [docs/development.md](docs/development.md),
+"Full Gate".
 
 Compare cleanup latency and quality with the non-product benchmark:
 
@@ -310,49 +334,13 @@ entitlements, opens it, and verifies that the `slovo` process is running.
 Stable signing is required for macOS TCC permission persistence; pass the
 identity explicitly so a different certificate cannot be selected implicitly.
 
-Published releases are fully automated: a push to `main` runs one pipeline that
-decides from the conventional commits whether a release is due, computes the next
-version, and runs the full build/sign/notarize/staple chain on GitHub-hosted macOS
-runners, then tags `v<version>` and publishes the stapled DMG to a GitHub Release.
-Nobody runs a release command, edits a version, or pushes a tag by hand. See
-[docs/release-ci.md](docs/release-ci.md) for the CI flow and triggers. The local
-flow below is only for verifying a build before it is merged.
-
-Packaging runs in two automated phases: build/sign/notarize the app, then
-package the stapled app into a DMG. Stapling the notarization ticket is the
-only manual step locally and must run on a Mac that can reach Apple's
-notarization service:
-
-```sh
-# 1. build, sign, and notarize the app
-SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh app
-# 2. staple the app (manual, on a networked Mac)
-xcrun stapler staple .build/dist/Slovo.app
-# 3. package the stapled app into a signed, notarized DMG
-SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-  NOTARY_PROFILE="slovo-notary" Scripts/sign-and-notarize.sh dmg
-# 4. staple the DMG (manual, on a networked Mac)
-xcrun stapler staple .build/dist/Slovo.dmg
-```
-
-`NOTARY_PROFILE` (a `notarytool` keychain profile) enables notarization;
-omit it to stop after signing. Stapling is a separate manual step because
-it contacts Apple's CloudKit endpoint and can fail even when notarization
-succeeds. See
-[docs/release-checklist.md](docs/release-checklist.md) for verification
-steps.
-
-The signing script intentionally rejects ad-hoc signing by default because
-macOS privacy grants and Keychain trust are tied to a stable app identity.
-For local experiments only, ad-hoc signing can be forced:
-
-```sh
-ALLOW_AD_HOC_SIGNING=1 SIGNING_IDENTITY=- Scripts/sign-and-notarize.sh app
-```
+Releases are automated from `main`; see [docs/release-ci.md](docs/release-ci.md).
+To package and notarize a build locally before merge, follow
+[docs/release-checklist.md](docs/release-checklist.md), "Verify packaging before
+merge (optional, local)".
 
 After first launch, grant the requested setup permissions in System
-Settings, then use the Slovo menu to retry setup and enter the OpenRouter
+Settings, then choose **Retry Setup** in the Slovo menu and add the OpenRouter
 key.
 
 ## Documentation
@@ -378,8 +366,11 @@ Everything it does serves that single loop — dictate, clean up, optionally
 translate, insert. To stay simple and unobtrusive, Slovo intentionally does
 not implement:
 
-- **No history.** Nothing is stored after the text is inserted — no
-  transcript log to browse, search, or leak.
+- **No history.** Slovo keeps no transcript or cleaned text after the text is
+  inserted — no transcript log to browse, search, or leak. When cleanup corrects
+  one of your vocabulary terms, Slovo records which term and when, encrypted on
+  your Mac and never sent. Records older than 90 days are ignored and are deleted
+  when the next one is written ([docs/privacy.md](docs/privacy.md)).
 - **No main window.** No overlay, no visible live transcript — only the
   menu-bar icon and the on-demand Settings and Add Vocabulary panels.
 - **No features beyond the loop.** No meeting recording or file
