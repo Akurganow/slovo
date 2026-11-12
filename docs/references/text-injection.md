@@ -304,6 +304,9 @@ some other application" to set it (same file and commit, `index.md:48`).
   `writeObjects` returns `false` (`writeObjects(_:)`, see the sources above), so slovo does
   not paste. It throws `.pasteFailed` and restores the previous clipboard.
 - **A copy between the compare and the restore is lost.** They are two separate calls.
+- **A write just after slovo's own is taken for slovo's.** A write that lands between
+  slovo's `writeObjects` and its read of `changeCount` is counted before slovo reads the
+  count. slovo then pastes that content, and the restore overwrites it.
 - **A change before the target app reads the paste is pasted.** Another write between
   slovo's write and the target app's read puts that content into the app. slovo adds no
   check for it.
