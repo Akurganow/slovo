@@ -36,10 +36,11 @@ to OpenRouter (`/models/user`), which carries the API key and no user content.
   output device has a mute or volume control macOS can set. On a device without
   one, the menu item and the Settings toggle are disabled.
   Known limitation: a restore that the audio device rejects (for example, the
-  output device disappeared mid-dictation) is swallowed, leaving output muted with
-  nothing left to restore from — and cues queued afterwards, including Error, go
-  into that silence. Pre-existing and accepted for now; fixing it means deciding
-  what a failed restore should surface.
+  output device disappeared mid-dictation) is logged with its status, then
+  swallowed, leaving output muted with nothing left to restore from — and cues
+  queued afterwards, including Error, go into that silence. Pre-existing and
+  accepted for now; fixing it means deciding what a failed restore should
+  surface.
 - `AudioRecorder` captures native microphone buffers and delivers every callback,
   whole and unaltered, from the first frame. Each chunk is a detached copy, because
   it outlives the tap callback. Nothing is withheld for a cue. The recorder tags

@@ -17,11 +17,11 @@ import SlovoTestSupport
 @Suite("AVAudioEngineRecorder authorization")
 struct AVAudioEngineRecorderAuthorizationTests {
 
-    /// A denied mic makes the real recorder throw `.microphoneDenied` before any engine work.
+    /// A denied authorizer makes `AVAudioEngineRecorder.start()` throw `.microphoneDenied`.
     /// Stated sensitivity: delete the authorization guard at the top of
     /// `AVAudioEngineRecorder.start()` → RED.
     @Test
-    func deniedMicThrowsBeforeAnyEngineWork() async {
+    func deniedMicThrowsMicrophoneDenied() async {
         let recorder = AVAudioEngineRecorder(
             authorizer: FakeMicrophoneAuthorizer(authorized: false),
             preferredInputDevice: nil

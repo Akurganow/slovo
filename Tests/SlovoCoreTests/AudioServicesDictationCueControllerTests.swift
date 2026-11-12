@@ -180,7 +180,7 @@ struct AudioServicesDictationCueControllerTests {
 
     /// Sensitivity: a guard that loads before it stores lets more than one caller
     /// through. A shared release instant frees every caller within nanoseconds of the
-    /// others, which the deadline-versus-playback race cannot do.
+    /// others.
     @Test
     func oneShotActionRunsForExactlyOneOfManySimultaneousCallers() async {
         for _ in 0 ..< Self.oneShotTrials {

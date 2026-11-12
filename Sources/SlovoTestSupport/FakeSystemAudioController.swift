@@ -2,7 +2,7 @@ import SlovoCore
 import Synchronization
 
 /// A `SystemAudioController` fake that returns a programmed `PriorAudioState` on
-/// mute and records the device each restore targeted.
+/// mute and records the device each restore was handed.
 ///
 /// The recorded state is `Mutex`-guarded so the fake is genuinely race-free under
 /// the `actor Orchestrator`.
@@ -19,8 +19,7 @@ public final class FakeSystemAudioController: SystemAudioController {
         self.programmedState = state
     }
 
-    /// The device id each restore targeted, in order (proves restore uses the
-    /// pinned `state.deviceID`, not the then-current default).
+    /// The device id each restore was handed, in order.
     public var restoredDeviceIDs: [UInt32] {
         recorded.withLock { $0.restoredDeviceIDs }
     }

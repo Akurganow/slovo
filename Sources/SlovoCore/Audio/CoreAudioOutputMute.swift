@@ -16,8 +16,12 @@ import os
 /// The HAL calls run only on real hardware; CI tests the pure restore decision,
 /// `restoreWrite(for:)`.
 public struct CoreAudioOutputMute: SystemAudioController {
-    /// No fields: `traceFailure` logs the status, and nothing else reads it.
-    private struct CoreAudioError: Error {}
+    /// The HAL helpers throw this and never log: the availability probe reads
+    /// through them, where a failure is an expected answer.
+    private struct HALFailure: Error {
+        let call: HALCall
+        let status: OSStatus
+    }
 
     /// The device write a restore issues.
     enum OutputWrite: Equatable {
@@ -71,6 +75,28 @@ public struct CoreAudioOutputMute: SystemAudioController {
     }
 
     public func muteSystemOutput() throws -> PriorAudioState {
+        do {
+            return try muteDefaultOutput()
+        } catch {
+            switch error.call {
+            case .getDefaultDevice:
+                Self.diagnosticLog.error("output.mute failed step=getDefaultDevice status=\(error.status)")
+            case .isSettable:
+                Self.diagnosticLog.error("output.mute failed step=isSettable status=\(error.status)")
+            case .getMute:
+                Self.diagnosticLog.error("output.mute failed step=getMute status=\(error.status)")
+            case .setMute:
+                Self.diagnosticLog.error("output.mute failed step=setMute status=\(error.status)")
+            case .getVolume:
+                Self.diagnosticLog.error("output.mute failed step=getVolume status=\(error.status)")
+            case .setVolume:
+                Self.diagnosticLog.error("output.mute failed step=setVolume status=\(error.status)")
+            }
+            throw error
+        }
+    }
+
+    private func muteDefaultOutput() throws(HALFailure) -> PriorAudioState {
         let deviceID = try defaultOutputDeviceID()
 
         if try isPropertySettable(deviceID, muteAddress()) {
@@ -103,11 +129,16 @@ public struct CoreAudioOutputMute: SystemAudioController {
 
     public func restoreSystemOutput(_ state: PriorAudioState) throws {
         guard let write = Self.restoreWrite(for: state) else { return }
-        switch write {
-        case .mute(let deviceID, let muted):
-            try setMute(deviceID, muted: muted)
-        case .volume(let deviceID, let scalar):
-            try setVirtualMasterVolume(deviceID, scalar: scalar)
+        do {
+            switch write {
+            case .mute(let deviceID, let muted):
+                try setMute(deviceID, muted: muted)
+            case .volume(let deviceID, let scalar):
+                try setVirtualMasterVolume(deviceID, scalar: scalar)
+            }
+        } catch {
+            Self.diagnosticLog.error("output.restore failed status=\(error.status)")
+            throw error
         }
     }
 
@@ -135,7 +166,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         )
     }
 
-    private func defaultOutputDeviceID() throws -> AudioDeviceID {
+    private func defaultOutputDeviceID() throws(HALFailure) -> AudioDeviceID {
         var address = defaultOutputAddress()
         var deviceID = AudioDeviceID(0)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
@@ -143,7 +174,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceID
         )
         guard status == noErr else {
-            throw Self.traceFailure(.getDefaultDevice, status)
+            throw HALFailure(call: .getDefaultDevice, status: status)
         }
         return deviceID
     }
@@ -160,35 +191,38 @@ public struct CoreAudioOutputMute: SystemAudioController {
 
     /// A lever counts only when the property exists AND is settable: a present but
     /// read-only volume would make the fallback's set throw.
-    private func isPropertySettable(_ deviceID: AudioDeviceID, _ address: AudioObjectPropertyAddress) throws -> Bool {
+    private func isPropertySettable(
+        _ deviceID: AudioDeviceID,
+        _ address: AudioObjectPropertyAddress
+    ) throws(HALFailure) -> Bool {
         var address = address
         guard AudioObjectHasProperty(deviceID, &address) else { return false }
         var settable = DarwinBoolean(false)
         let status = AudioObjectIsPropertySettable(deviceID, &address, &settable)
         guard status == noErr else {
-            throw Self.traceFailure(.isSettable, status)
+            throw HALFailure(call: .isSettable, status: status)
         }
         return settable.boolValue
     }
 
-    private func currentMute(_ deviceID: AudioDeviceID) throws -> Bool {
+    private func currentMute(_ deviceID: AudioDeviceID) throws(HALFailure) -> Bool {
         var address = muteAddress()
         var muted = UInt32(0)
         var size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &muted)
         guard status == noErr else {
-            throw Self.traceFailure(.getMute, status)
+            throw HALFailure(call: .getMute, status: status)
         }
         return muted != 0
     }
 
-    private func setMute(_ deviceID: AudioDeviceID, muted: Bool) throws {
+    private func setMute(_ deviceID: AudioDeviceID, muted: Bool) throws(HALFailure) {
         var address = muteAddress()
         var value = UInt32(muted ? 1 : 0)
         let size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioObjectSetPropertyData(deviceID, &address, 0, nil, size, &value)
         guard status == noErr else {
-            throw Self.traceFailure(.setMute, status)
+            throw HALFailure(call: .setMute, status: status)
         }
     }
 
@@ -205,45 +239,24 @@ public struct CoreAudioOutputMute: SystemAudioController {
         )
     }
 
-    private func currentVirtualMasterVolume(_ deviceID: AudioDeviceID) throws -> Float {
+    private func currentVirtualMasterVolume(_ deviceID: AudioDeviceID) throws(HALFailure) -> Float {
         var address = virtualMasterVolumeAddress()
         var scalar = Float(0)
         var size = UInt32(MemoryLayout<Float>.size)
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &scalar)
         guard status == noErr else {
-            throw Self.traceFailure(.getVolume, status)
+            throw HALFailure(call: .getVolume, status: status)
         }
         return scalar
     }
 
-    private func setVirtualMasterVolume(_ deviceID: AudioDeviceID, scalar: Float) throws {
+    private func setVirtualMasterVolume(_ deviceID: AudioDeviceID, scalar: Float) throws(HALFailure) {
         var address = virtualMasterVolumeAddress()
         var value = scalar
         let size = UInt32(MemoryLayout<Float>.size)
         let status = AudioObjectSetPropertyData(deviceID, &address, 0, nil, size, &value)
         guard status == noErr else {
-            throw Self.traceFailure(.setVolume, status)
+            throw HALFailure(call: .setVolume, status: status)
         }
-    }
-
-    // MARK: - Failure trace
-
-    /// Only the status is interpolated, so the line never carries a device ID, name or UID.
-    private static func traceFailure(_ call: HALCall, _ status: OSStatus) -> CoreAudioError {
-        switch call {
-        case .getDefaultDevice:
-            diagnosticLog.error("output.getDefaultDevice failed status=\(status)")
-        case .isSettable:
-            diagnosticLog.error("output.isSettable failed status=\(status)")
-        case .getMute:
-            diagnosticLog.error("output.getMute failed status=\(status)")
-        case .setMute:
-            diagnosticLog.error("output.setMute failed status=\(status)")
-        case .getVolume:
-            diagnosticLog.error("output.getVolume failed status=\(status)")
-        case .setVolume:
-            diagnosticLog.error("output.setVolume failed status=\(status)")
-        }
-        return CoreAudioError()
     }
 }
