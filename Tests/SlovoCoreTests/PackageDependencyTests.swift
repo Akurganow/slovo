@@ -125,12 +125,17 @@ struct PackageDependencyTests {
     }
 
     /// Strict lint never switches off the checker rules for concurrency annotations
-    /// and unused imports. The planted spellings prove the reader sees block and
-    /// one-line flow lists, quoted or not.
+    /// and unused imports. The planted spellings prove the reader sees block lists
+    /// (indented or not) and one-line flow lists, quoted or not, and that a form it
+    /// cannot read gives no list at all, which fails the read of the real file.
+    /// Stated sensitivity: list either rule in `disabled_rules` of `.swiftlint.yml`
+    /// in any readable spelling, write the list in a spelling the reader cannot
+    /// read, or stop reading an unindented sequence → RED.
     @Test
     func criticalCheckerRulesCannotBeDisabled() throws {
         let lintConfig = try String(contentsOf: Self.packageRoot.appending(path: ".swiftlint.yml"), encoding: .utf8)
-        let disabledRules = Self.topLevelYaml(from: lintConfig).lists["disabled_rules"] ?? []
+        let disabledRules = try #require(Self.disabledRules(in: lintConfig),
+                                         "the reader cannot read `disabled_rules` in .swiftlint.yml")
         for forbiddenRule in ["incompatible_concurrency_annotation", "unused_import"] {
             #expect(!disabledRules.contains(forbiddenRule),
                     "strict lint must not disable critical checker rule \(forbiddenRule)")
@@ -142,8 +147,15 @@ struct PackageDependencyTests {
             #"disabled_rules: ["unused_import", 'incompatible_concurrency_annotation']"#,
             "disabled_rules:\n  - unused_import\n  - incompatible_concurrency_annotation",
             "disabled_rules:\n  - \"unused_import\"\n  - 'incompatible_concurrency_annotation'",
+            "disabled_rules:\n- unused_import\n- incompatible_concurrency_annotation",
         ] {
-            #expect(Self.topLevelYaml(from: spelling).lists["disabled_rules"] == planted, "\(spelling)")
+            #expect(Self.disabledRules(in: spelling) == planted, "\(spelling)")
+        }
+        for unreadable in [
+            "disabled_rules: [\n  unused_import,\n  incompatible_concurrency_annotation\n]",
+            "disabled_rules:\n  [unused_import, incompatible_concurrency_annotation]",
+        ] {
+            #expect(Self.disabledRules(in: unreadable) == nil, "\(unreadable)")
         }
     }
 
@@ -221,6 +233,14 @@ struct PackageDependencyTests {
         var lists: [String: [String]]
     }
 
+    /// The `disabled_rules` list, or nil when the key is absent, empty or spelled
+    /// in a way `topLevelYaml` cannot read: a form the reader misses never
+    /// passes for an empty list.
+    private static func disabledRules(in yaml: String) -> [String]? {
+        guard let rules = topLevelYaml(from: yaml).lists["disabled_rules"], !rules.isEmpty else { return nil }
+        return rules
+    }
+
     private static func topLevelYaml(from source: String) -> TopLevelYaml {
         var scalars: [String: String] = [:]
         var lists: [String: [String]] = [:]
@@ -231,7 +251,9 @@ struct PackageDependencyTests {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
 
-            if line.first?.isWhitespace == false {
+            if trimmed.hasPrefix("- "), let key = currentList {
+                lists[key, default: []].append(unquoted(String(trimmed.dropFirst(2))))
+            } else if line.first?.isWhitespace == false {
                 guard let separator = trimmed.firstIndex(of: ":") else { continue }
                 let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespaces)
                 let value = String(trimmed[trimmed.index(after: separator)...])
@@ -246,8 +268,6 @@ struct PackageDependencyTests {
                     scalars[key] = value
                     currentList = nil
                 }
-            } else if trimmed.hasPrefix("- "), let key = currentList {
-                lists[key, default: []].append(unquoted(String(trimmed.dropFirst(2))))
             } else {
                 currentList = nil
             }
@@ -332,7 +352,7 @@ struct PackageDependencyTests {
         }
     }
 
-    private static func shellTopLevelLines(from source: String) -> String {
+    static func shellTopLevelLines(from source: String) -> String {
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var blockLines: [String] = []
         var isInFunction = false

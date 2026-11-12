@@ -12,7 +12,8 @@ import Testing
 // re-breaks `data/slovo.db` and `data/slovo.db-shm`. A re-admit (`!data/seed.2.sql`,
 // `!data/slovo.db`) re-breaks its probe. Narrowing `credentials*.json` to
 // `credentials.json` re-breaks `credentials-prod.json`; narrowing `id_rsa*` to `id_rsa`
-// re-breaks `id_rsa.pub`.
+// re-breaks `id_rsa.pub`. Narrowing `data/*.db*` to `data/slovo.db*` re-breaks
+// `data/other.db` and `data/other.db-wal`.
 @Suite(".gitignore hardening")
 struct GitignoreHardeningTests {
     /// Each probe must be IGNORED by the hardened `.gitignore`. Build artifacts
@@ -28,6 +29,8 @@ struct GitignoreHardeningTests {
         "data/seed.2.sql",       // alone caught by a re-admit: !data/seed.2.sql
         "data/slovo.db-shm",     // a SQLite sidecar: data/*.db* must match it
         "data/slovo.db",         // alone caught by a re-admit: !data/slovo.db
+        "data/other.db",         // alone caught by narrowing data/*.db* to data/slovo.db*
+        "data/other.db-wal",     // alone caught by the same narrowing, for a sidecar of another name
         "secrets/anthropic.key",  // key material must be ignored
         "secrets/notes.txt",      // only secrets/ ignores it
         "signing.key",            // only *.key ignores it
@@ -59,7 +62,8 @@ struct GitignoreHardeningTests {
             )
             FileManager.default.createFile(atPath: full, contents: Data())
 
-            let check = try Self.run("/usr/bin/git", ["-C", repo, "check-ignore", "-q", probe])
+            // No global excludes file: the host's own ignore rules must not make a probe pass.
+            let check = try Self.run("/usr/bin/git", ["-c", "core.excludesFile=/dev/null", "-C", repo, "check-ignore", "-q", probe])
             #expect(check.exitCode == 0, "\(probe) is NOT ignored by .gitignore")
         }
     }

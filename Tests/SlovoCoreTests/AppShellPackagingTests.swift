@@ -204,9 +204,11 @@ struct AppShellPackagingTests {
             contentsOf: Self.packageRoot.appending(path: "Scripts/build_and_run.sh"),
             encoding: .utf8
         )
-        let bundleSteps = try Self.source("Scripts/app-bundle.sh")
+        let appPlan = try Self.scriptPlan(["app"], appName: "DryRunPrompts-\(UUID().uuidString)")
 
-        #expect(bundleSteps.contains("ditto \"$bin_dir/slovo_SlovoCore.bundle\" \"$contents/Resources/slovo_SlovoCore.bundle\""))
+        #expect(appPlan.output.split(separator: "\n").contains {
+            $0.hasPrefix("DRY-RUN ditto ") && $0.hasSuffix("/Contents/Resources/slovo_SlovoCore.bundle")
+        }, Comment(rawValue: appPlan.output))
         #expect(devLauncher.contains("$core_resources/PromptExamples.xml"),
                 "--verify must assert the staged resource bundle")
     }

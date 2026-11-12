@@ -72,7 +72,8 @@ struct SparklePackagingGuardTests {
     /// steps (`Scripts/app-bundle.sh`), so the two bundles cannot diverge and
     /// the release `DRY_RUN` plan covers both.
     /// Stated sensitivity: drop either call, or sign the app before the
-    /// frameworks → RED.
+    /// frameworks → RED; drop the launcher's top-level `sign_bundle` line, or
+    /// call it before `stage_bundle` → RED.
     @Test
     func devLauncherStagesAndSignsThroughTheSharedBundleSteps() throws {
         let script = Self.strippingShellComments(from: try Self.source("Scripts/build_and_run.sh"))
@@ -82,6 +83,12 @@ struct SparklePackagingGuardTests {
         let sign = try #require(Self.shellFunctionBody(named: "sign_bundle", in: script))
         #expect(Self.output(sign, containsInOrder: ["sign_bundle_frameworks", "codesign", "$APP_BUNDLE"]),
                 Comment(rawValue: sign))
+        let launcherCalls = PackageDependencyTests.shellTopLevelLines(from: script)
+            .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let stageCall = launcherCalls.firstIndex(of: "stage_bundle")
+        let signCall = launcherCalls.firstIndex(of: "sign_bundle")
+        #expect(stageCall != nil && signCall != nil, "the launcher must call stage_bundle and sign_bundle")
+        #expect((stageCall ?? Int.max) < (signCall ?? -1), "stage_bundle must run before sign_bundle")
     }
 
     /// Sparkle's whole silent-update contract is declared in Info.plist: the
