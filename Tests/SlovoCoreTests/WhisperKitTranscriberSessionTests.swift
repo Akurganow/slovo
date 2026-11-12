@@ -210,9 +210,11 @@ struct WhisperKitTranscriberSessionTests {
 
     // MARK: - session-open guard
 
-    /// A second finish on a closed session does not finalize again.
+    /// A second finish on a closed session does not finalize again, and a cancel after
+    /// a finish cancels no stream.
     /// Stated sensitivity: drop the session-open guard → the second finish
-    /// re-finalizes → count climbs past 1 → RED.
+    /// re-finalizes → count climbs past 1 → RED; finish leaves the session set → the
+    /// cancel after it cancels that stream → streamCancelCount 1 → RED.
     @Test
     func finishAfterFinishDoesNotFinalizeAgain() async throws {
         let engine = FakeSpeechEngine(finalize: .success("привет"))
@@ -224,6 +226,9 @@ struct WhisperKitTranscriberSessionTests {
         #expect(try await transcriber.finish().isEmpty, "a second finish on a closed session returns empty")
 
         #expect(engine.finalizeCalls.count == 1, "the closed session must not finalize again")
+
+        await transcriber.cancel()
+        #expect(engine.streamCancelCount == 0, "a cancel after a finish has no session to cancel")
     }
 
     // MARK: - error mapping
