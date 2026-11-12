@@ -3,13 +3,11 @@ import Testing
 
 import SlovoCore
 
-// Source guards for wiring no behavioural test can reach. `Sources/slovo` is an
-// executable target that no test target depends on (`Package.swift`: the
-// `SlovoCoreTests` target depends on `SlovoCore`, `SlovoTestSupport` and `SlovoObjC`
-// only), and `CGEventTapHotkeyMonitor` builds a real event tap, which needs Input
-// Monitoring. Behaviour tests such as HotkeyEdgeSequencerTests and HotkeyDecision*Tests
-// cover the logic; these guards check that the app calls it. They read the source
-// with comments stripped.
+// Source guards for wiring no behavioural test can reach: no test target depends on the
+// `slovo` executable. Behaviour tests such as HotkeyEdgeSequencerTests and
+// HotkeyDecision*Tests cover the logic; these guards check that the app calls it. They
+// read the source with comments stripped. The three guards over `CGEventTapHotkeyMonitor`
+// in SlovoCore each state their own reason.
 @Suite("AppDelegate hotkey wiring source guards")
 struct AppDelegateHotkeyWiringSourceGuardTests {
 
@@ -22,7 +20,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     func onTriggerRoutesEveryEdgeThroughTheSequencer() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
-        let onTriggerClosure = try Self.closureBody(afterAnchor: "hotkeyMonitor.onTrigger =", in: startPipeline)
+        let onTriggerClosure = try SourceText.block(after: "hotkeyMonitor.onTrigger =", in: startPipeline)
 
         #expect(startPipeline.contains("HotkeyEdgeSequencer"),
                 "startPipeline must build the ordered edge sequencer")
@@ -39,14 +37,15 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// rebuild Task.
     /// Stated sensitivity: remove the guard, or move it below the `Task` → RED, since a
     /// concurrent retrySetup then spawns a second consumer; drop the join of the
-    /// previous sequencer → RED. The exact flag and local naming are free.
+    /// previous sequencer → RED. The guard is pinned by the flag it reads, so a second
+    /// `guard` above the `Task` cannot stand in for it.
     @Test
     func retrySetupGuardsAgainstConcurrentRebuild() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let retrySetup = try SourceText.functionBody(named: "retrySetup", in: delegate)
 
         #expect(SourceText.containsInOrder([
-            "guard",
+            "guard !isRebuildingPipeline",
             "return",
             "Task {",
             "?.stop()",
@@ -144,8 +143,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// lives in the store. It is written at launch, before each composition is
     /// built, and in the one helper that ends every key save or removal, each time
     /// read straight from the app-owned provider. A composition is seeded from the
-    /// store, so the `startPipeline` write must precede `AppComposition.makeLive(`;
-    /// `startPipeline` has no behavioural seam, so its source is read.
+    /// store, so the `startPipeline` write must precede `AppComposition.makeLive(`.
     /// Stated sensitivity: a key-presence write that does not read the app-owned
     /// provider → RED; a read through `composition?.openRouterKeyProvider`, or a
     /// `?? false` fallback, → RED, also after a provider member is added back to
@@ -291,7 +289,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// The tap must observe keyDown so a combo can interrupt a passthrough-modifier
-    /// hold. Killing mutation: drop keyDown from the event mask → the interrupt is
+    /// hold. The event mask is a local inside `start()`, which installs the real tap,
+    /// so no test can read it.
+    /// Killing mutation: drop keyDown from the event mask → the interrupt is
     /// never seen → RED.
     @Test
     func hotkeyTapObservesKeyDownForInterrupt() throws {
@@ -303,7 +303,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The stop the tap synthesizes after a tap death must carry the mode the
     /// decision core reports for the dead hold — a standalone translate dictation, or
     /// one the additional key latched, must not be downgraded to plain on the way
-    /// out. The tap is hardware-only, so this wire is guarded at the source.
+    /// out. `process(type:event:)` is `fileprivate` and only the installed tap calls it,
+    /// so no test can drive this arm.
     /// Killing mutation: restore the hardcoded `onTrigger?(.up(.plain))` in the
     /// resync arm → RED.
     @Test
@@ -316,7 +317,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
-    /// key went down — never its typed character or key code. Killing mutations:
+    /// key went down — never its typed character or key code. No behaviour can show
+    /// that a field went unread, so the absence is read from the source. Killing mutations:
     /// read the typed character (add `keyboardGetUnicodeString`), or read the key
     /// code outside the flagsChanged arm to retain key identity → RED. Zero the key
     /// code in the flagsChanged arm → RED.
@@ -349,10 +351,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             reconfigureCount += try SourceText.code(file).components(separatedBy: "hotkeyMonitor.reconfigure(configuration:").count - 1
         }
         #expect(reconfigureCount == 1, "the app target must reconfigure the tap from exactly one place")
-        let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift").filter { !$0.isWhitespace }
-        #expect(storeWiring.contains(
-            "reconfigureHotkeys:{[weakself]inself?.composition?.hotkeyMonitor.reconfigure(configuration:$0)}"
-        ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
+        let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift")
+        #expect(storeWiring.contains("hotkeyMonitor.reconfigure(configuration: $0)"),
+                "the one reconfigure call must pass the value the store's subscriber hands the hotkey target")
     }
 
     /// The system facts the dropdown shows must be re-read on every menu OPEN, not
@@ -408,33 +409,5 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 #expect(!body.contains(literal), "\(name) must never hardcode the fn verdict: \(literal)")
             }
         }
-    }
-
-    /// The closure literal assigned right after `anchor`, e.g. `onTrigger = { ... }`.
-    private static func closureBody(afterAnchor anchor: String, in source: String) throws -> String {
-        guard let anchorRange = source.range(of: anchor) else {
-            throw NSError(domain: "AppDelegateHotkeyWiringSourceGuard", code: 4)
-        }
-        return try blockBody(from: source[anchorRange.upperBound...].firstIndex(of: "{"), in: source, code: 5)
-    }
-
-    private static func blockBody(from openBrace: String.Index?, in source: String, code: Int) throws -> String {
-        guard let openBrace else {
-            throw NSError(domain: "AppDelegateHotkeyWiringSourceGuard", code: code)
-        }
-        var depth = 0
-        var index = openBrace
-        while index < source.endIndex {
-            if source[index] == "{" {
-                depth += 1
-            } else if source[index] == "}" {
-                depth -= 1
-                if depth == 0 {
-                    return String(source[openBrace...index])
-                }
-            }
-            index = source.index(after: index)
-        }
-        throw NSError(domain: "AppDelegateHotkeyWiringSourceGuard", code: code)
     }
 }

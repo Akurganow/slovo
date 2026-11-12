@@ -2,8 +2,9 @@ import Foundation
 
 /// Reads this repository's source text for the tests that guard it as text: every
 /// `*SourceGuard*Tests` suite, `AboutPaneTests` and `ThirdPartyNoticesTests`. No test
-/// target links the `slovo` executable, so these guards read its source instead.
-/// The comment stripper keeps string literals, so a guard can forbid a token inside one.
+/// target depends on the `slovo` executable, so these guards read its source instead.
+/// The comment stripper keeps string literals, so a guard can forbid a token inside one;
+/// only `statementCount` blanks them first, so a quoted copy of a statement never counts.
 /// Its known limits: an escaped `\"` flips its string state, and block comments do not
 /// nest. Neither stripper understands raw (`#"…"#`) or multi-line (`"""`) literals.
 enum SourceText {
@@ -14,7 +15,7 @@ enum SourceText {
     }
 
     /// The package root: this file sits at `Tests/SlovoCoreTests/Support/`.
-    static var packageRoot: URL {
+    private static var packageRoot: URL {
         URL(fileURLWithPath: "\(#filePath)")
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -32,12 +33,14 @@ enum SourceText {
         try strippingComments(from: read(relativePath))
     }
 
-    /// Every `.swift` file under the directory, recursively, as package-relative paths.
+    /// Every `.swift` file under the directory, recursively, as package-relative paths in
+    /// sorted order, so a failure message lists files the same way on every run.
     static func swiftFiles(under relativeDirectory: String) throws -> [String] {
         let root = packageRoot.appending(path: relativeDirectory, directoryHint: .isDirectory).path
         return try FileManager.default.subpathsOfDirectory(atPath: root)
             .filter { $0.hasSuffix(".swift") }
             .map { "\(relativeDirectory)/\($0)" }
+            .sorted()
     }
 
     /// Lines that hold exactly `pattern` (a regular expression) as their whole statement,
@@ -49,7 +52,7 @@ enum SourceText {
         return expression?.numberOfMatches(in: code, range: range) ?? 0
     }
 
-    static func containsInOrder<S: StringProtocol>(_ needles: [String], in source: S) -> Bool {
+    static func containsInOrder(_ needles: [String], in source: String) -> Bool {
         var searchStart = source.startIndex
         for needle in needles {
             guard let range = source.range(of: needle, range: searchStart..<source.endIndex) else {
@@ -76,16 +79,53 @@ enum SourceText {
         return String(source[startRange.lowerBound..<endRange.lowerBound])
     }
 
-    /// The brace-balanced body of the first `func <name>`, braces included.
+    /// The brace-balanced body of the first `func <name>` whose name ends right after
+    /// `name`: `foo` never matches `fooBar`. `name` may run on into the parameter list
+    /// (`updater(_ updater: SPUUpdater, mayPerform`) to pick one overload.
     static func functionBody(named name: String, in source: String) throws -> String {
-        guard let signature = source.range(of: "func \(name)") else {
-            throw Failure.anchorNotFound("func \(name)")
+        let anchor = "func \(name)"
+        var searchStart = source.startIndex
+        while let match = source.range(of: anchor, range: searchStart..<source.endIndex) {
+            let next = source[match.upperBound...].first
+            if next.map({ !$0.isLetter && !$0.isNumber && $0 != "_" }) ?? true {
+                return try balancedBlock(from: match.lowerBound, in: source, anchor: anchor)
+            }
+            searchStart = match.upperBound
         }
-        guard let openBrace = functionOpeningBrace(after: signature.lowerBound, in: source) else {
-            throw Failure.anchorNotFound("{ of func \(name)")
+        throw Failure.anchorNotFound(anchor)
+    }
+
+    /// The brace-balanced block that opens at the first `{` after `anchor` (a closure,
+    /// a computed property or a modifier's trailing closure), braces included.
+    static func block(after anchor: String, in source: String) throws -> String {
+        guard let match = source.range(of: anchor) else {
+            throw Failure.anchorNotFound(anchor)
+        }
+        return try balancedBlock(from: match.lowerBound, in: source, anchor: anchor)
+    }
+
+    /// The block whose opening brace is the first `{` at or after `start` outside
+    /// parentheses, so a default argument's closure never counts as the opening brace.
+    private static func balancedBlock(from start: String.Index, in source: String, anchor: String) throws -> String {
+        var parenDepth = 0
+        var openBrace: String.Index?
+        var index = start
+        while index < source.endIndex {
+            if source[index] == "(" {
+                parenDepth += 1
+            } else if source[index] == ")" {
+                parenDepth -= 1
+            } else if source[index] == "{", parenDepth == 0 {
+                openBrace = index
+                break
+            }
+            index = source.index(after: index)
+        }
+        guard let openBrace else {
+            throw Failure.anchorNotFound("{ after \(anchor)")
         }
         var depth = 0
-        var index = openBrace
+        index = openBrace
         while index < source.endIndex {
             if source[index] == "{" {
                 depth += 1
@@ -97,25 +137,7 @@ enum SourceText {
             }
             index = source.index(after: index)
         }
-        throw Failure.unbalancedBraces("func \(name)")
-    }
-
-    /// The first `{` after `start` outside parentheses: a default argument's closure
-    /// or a parameter's braces never count as the body's opening brace.
-    static func functionOpeningBrace(after start: String.Index, in source: String) -> String.Index? {
-        var index = start
-        var parenDepth = 0
-        while index < source.endIndex {
-            if source[index] == "(" {
-                parenDepth += 1
-            } else if source[index] == ")" {
-                parenDepth -= 1
-            } else if source[index] == "{", parenDepth == 0 {
-                return index
-            }
-            index = source.index(after: index)
-        }
-        return nil
+        throw Failure.unbalancedBraces(anchor)
     }
 
     /// The source with every string literal's content removed and its quotes kept.
@@ -146,7 +168,7 @@ enum SourceText {
         return output
     }
 
-    static func strippingComments(from source: String) -> String {
+    private static func strippingComments(from source: String) -> String {
         var output = ""
         var index = source.startIndex
         var inLineComment = false, inBlockComment = false, inString = false

@@ -2,9 +2,8 @@ import Foundation
 import Testing
 
 // The update row is the app target's persistent NSMenuItem, mutated in place by
-// renderUpdateIndication. The executable `slovo` target is not a dependency of
-// `SlovoCoreTests` (`Package.swift`: `SlovoCore`, `SlovoTestSupport`, `SlovoObjC`), so
-// the per-state rendering and the Sparkle-callback wiring are pinned by reading
+// renderUpdateIndication. No test target depends on the `slovo` executable, so the
+// per-state rendering and the Sparkle-callback wiring are pinned by reading
 // comment-stripped source; the state reduction itself is tested in UpdateIndicationTests.
 // Each render pin is scoped to its own switch arm, so a sibling arm cannot satisfy it.
 @Suite("Update row wiring source guards")

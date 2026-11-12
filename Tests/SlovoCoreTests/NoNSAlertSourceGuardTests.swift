@@ -3,7 +3,8 @@ import Testing
 
 // The project surfaces errors and configuration through the menu bar and native
 // windows — never a focus-stealing modal. No `NSAlert` is constructed anywhere
-// under Sources/.
+// under Sources/. The guard is a tree scan of forbidden text: no behavioural test
+// observes a construction's absence from every file.
 @Suite("No NSAlert source guard")
 struct NoNSAlertSourceGuardTests {
     /// Stated sensitivity: reintroduce any `NSAlert(` construction under Sources/ →

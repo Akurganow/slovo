@@ -3,9 +3,7 @@ import Testing
 
 // The recording glyph reads cleanup availability in one place: both sequencer arms
 // route the glyph through `applyRecordingGlyph`, which reads the store.
-// AppDelegate is in the executable "slovo" target, which no test target imports
-// (Package.swift, SlovoCoreTests dependencies; docs/references/testing-swift.md
-// section 1.6), so these guards read source.
+// No test target depends on the `slovo` executable, so these guards read AppDelegate's source.
 @Suite("Cleanup toggle wiring source guard")
 struct CleanupToggleWiringSourceGuardTests {
     /// Availability stays out of the sequencer arms: `applyRecordingGlyph` reads
@@ -19,15 +17,8 @@ struct CleanupToggleWiringSourceGuardTests {
     @Test
     func sequencerArmsReadNoAvailabilityAndPaintThroughApplyRecordingGlyph() throws {
         let source = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        guard let downArm = source.range(of: "case .down(let mode):"),
-              let latchArm = source.range(of: "case .translateLatched:"),
-              let upArm = source.range(of: "case .up(let mode):")
-        else {
-            Issue.record("sequencer arms not found")
-            return
-        }
-        let downBody = source[downArm.lowerBound..<latchArm.lowerBound]
-        let latchBody = source[latchArm.lowerBound..<upArm.lowerBound]
+        let downBody = try SourceText.slice(of: source, from: "case .down(let mode):", to: "case .translateLatched:")
+        let latchBody = try SourceText.slice(of: source, from: "case .translateLatched:", to: "case .up(let mode):")
 
         #expect(!downBody.contains("cleanupAvailability"),
                 "the .down arm must not read availability; it is consumed once inside applyRecordingGlyph")

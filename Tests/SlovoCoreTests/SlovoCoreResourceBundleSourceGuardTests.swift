@@ -1,12 +1,15 @@
 import Foundation
 import Testing
 
-// SlovoCoreResourceBundle reads Bundle.main and the linked bundle, which a test cannot
-// repoint, so its non-fatal fallback cannot be driven; this guard reads its source.
+// `resolve()` takes no parameters and reads the process-wide `Bundle.main` and linked bundle,
+// so a test sees only its success path and never the nil fallback; this guard reads its source.
+// A resolver that took its search roots as arguments would let a test drive both paths.
 @Suite("SlovoCore resource bundle source guard")
 struct SlovoCoreResourceBundleSourceGuardTests {
     /// Sensitivity: replacing the resolver with `Bundle.module` removes the
-    /// packaged-app lookup and nil fallback while adding the fatal accessor.
+    /// packaged-app lookup and nil fallback while adding the fatal accessor → RED, as does
+    /// anchoring the linked-bundle lookup on a class other than `BundleLocator`, which
+    /// points it at another binary.
     @Test
     func packagedAppResolverUsesNonfatalNamedBundleLookup() throws {
         let source = try SourceText.code("Sources/SlovoCore/SlovoCoreResourceBundle.swift")
@@ -48,7 +51,7 @@ struct SlovoCoreResourceBundleSourceGuardTests {
         if !source.contains(#""slovo_SlovoCore.bundle""#) {
             failures.append("exact SlovoCore bundle name is missing")
         }
-        if !source.contains("Bundle(for:") {
+        if !source.contains("Bundle(for: BundleLocator.self)") {
             failures.append("linked-bundle fallback is missing")
         }
         if !source.contains("static func resolve() -> Bundle?") {

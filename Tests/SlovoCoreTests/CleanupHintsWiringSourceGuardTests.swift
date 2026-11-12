@@ -1,10 +1,9 @@
 import Foundation
 import Testing
 
-// AppComposition is in the executable "slovo" target, which no test target imports
-// (Package.swift, SlovoCoreTests dependencies), and Dependencies defaults both hint
-// seams to nil, so a composition that omits one still compiles; the source is the only
-// place the choice shows.
+// No test target depends on the `slovo` executable, and `Dependencies` defaults
+// both hint seams to nil, so a composition that omits one still compiles; the source is
+// the only place the choice shows.
 @Suite("Cleanup hints wiring source guard")
 struct CleanupHintsWiringSourceGuardTests {
     /// Stated sensitivity: dropping either real hint provider from the Dependencies

@@ -1,19 +1,17 @@
 import Foundation
 import Testing
 
-// The observation invariant (spec D1): the Cleanup pane renders the app's store,
-// never its own snapshot or a re-fetch, so it cannot show a value no other
-// surface agrees with.
-// The Cleanup pane and AppDelegate are in the executable "slovo" target, which no test
-// target imports (Package.swift, SlovoCoreTests dependencies; docs/references/testing-swift.md
-// section 1.6), so these guards read source.
+// The observation invariant: the Cleanup pane renders the app's store, never its own
+// snapshot or a re-fetch, so it cannot show a value no other surface agrees with.
+// No test target depends on the `slovo` executable, so these guards read its source.
 @Suite("Cleanup pane observation source guard")
 struct CleanupPaneObservationSourceGuardTests {
     /// Stated sensitivity: re-introduce an availability `@State` snapshot in the
     /// pane — explicitly typed, type-INFERRED (`= CleanupAvailability.…`, no
     /// colon), or with `@State` on a line of its own above the declaration →
-    /// the regex assert reddens. A manual re-fetch of availability reddens
-    /// `RemoveKeySourceGuardTests.paneDerivesKeyPresenceFromObservedAvailability`.
+    /// the regex assert reddens; read the store's `cleanupAvailability` a second time
+    /// in the pane (a re-fetch beside the observed `availability` property) → the
+    /// count assert reddens.
     @Test
     func paneHoldsNoAvailabilitySnapshot() throws {
         let pane = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
@@ -24,6 +22,8 @@ struct CleanupPaneObservationSourceGuardTests {
         let snapshotPattern = try NSRegularExpression(pattern: #"@State[^\n]*\n?[^\n]*CleanupAvailability\b"#)
         let range = NSRange(pane.startIndex..<pane.endIndex, in: pane)
         #expect(snapshotPattern.numberOfMatches(in: pane, range: range) == 0, "the pane must hold no availability @State snapshot")
+        #expect(pane.components(separatedBy: "cleanupAvailability").count - 1 == 1,
+                "the pane reads the store's availability once, in its observed `availability` property")
     }
 
     /// Stated sensitivity: stop consuming the store (render from a local copy, or

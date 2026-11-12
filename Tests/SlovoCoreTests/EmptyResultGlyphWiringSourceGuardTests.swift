@@ -3,8 +3,8 @@ import Testing
 
 import SlovoCore
 
-// The empty-result surface lives in the executable `slovo` target's AppDelegate,
-// which the test bundle cannot import; this reads its source to confirm the wiring
+// The empty-result surface lives in the `slovo` executable's AppDelegate, and no test
+// target depends on that executable, so this reads its source to confirm the wiring
 // the SlovoCore-level tests cannot see: a no-speech notice flashes the brief red
 // glyph ONLY — it never latches a persistent status line.
 @Suite("Empty-result glyph wiring")

@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 
-// The slovo app target is not importable by any test target (Package.swift, SlovoCoreTests
-// dependencies), and the launcher, notices and README are text, so these guards read source.
+// No test target depends on the `slovo` executable, so these guards read its source; the
+// launcher, notices and README are text.
 @Suite("Sound cue wiring source guards")
 struct SoundCueWiringSourceGuardTests {
     /// One preference in the store projects both UI surfaces, the menu toggle inverts
@@ -48,6 +48,10 @@ struct SoundCueWiringSourceGuardTests {
 
     /// The policy scans both production app targets, so a helper introduced away
     /// from today's cue files cannot hide an app-owned volume or alternate player.
+    /// The scan is a tree scan of forbidden text: no behavioural test observes a token's
+    /// absence from every file. The player's `AudioServices` calls reach the real system
+    /// sound service, which no hermetic test observes; the controller's behaviour is
+    /// driven through its injected `Playback` closure in `AudioServicesDictationCueControllerTests`.
     /// Sensitivity: any forbidden token in the code or a string literal of any production
     /// Swift file → RED; removing alert playback from the real player independently breaks
     /// the positive guard.
@@ -98,23 +102,20 @@ struct SoundCueWiringSourceGuardTests {
                 "generic mute/fn adapters are outside the cue-volume prohibition")
     }
 
-    /// Stated sensitivity: fail to paint a classified failure red, write the status
-    /// row directly instead of `statusLine`, or reset a persistent failure's line
-    /// with the brief glyph → RED.
+    /// Stated sensitivity: drop the `isPersistentNotice` check from `flashBriefStatusGlyph`,
+    /// so the brief red flash resets a persistent failure's line to the idle hint → RED.
+    /// The `showStatus` routing of failure notices is pinned in
+    /// `AppRuntimeSourceGuardTests.transientProgressAndSadToFailStatusDoNotBecomeSticky`.
     @Test
-    func failureStatusDrivesBriefRedGlyphWithoutErasingPersistentText() throws {
+    func briefRedFlashNeverResetsPersistentFailureText() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let showStatus = try SourceText.functionBody(named: "showStatus", in: delegate)
         let flash = try SourceText.functionBody(named: "flashBriefStatusGlyph", in: delegate)
-        #expect(showStatus.contains("status.isFailureNotice"))
-        #expect(showStatus.contains("flashBriefStatusGlyph(status)"))
-        #expect(showStatus.contains("statusLine = .message(status)"))
         #expect(flash.contains("status.isPersistentNotice"),
                 "brief red paint must not reset persistent failure text to the idle hint")
     }
 
-    /// Sensitivity: omitting a dev-verify assertion, the CC0 attribution/source/recipe,
-    /// or the user-facing behavior documentation → RED.
+    /// Sensitivity: omitting a dev-verify assertion, the CC0 attribution/source/recipe, the README
+    /// feature bullet's first line, or its sentence tying cue loudness to the alert volume → RED.
     @Test
     func resourcesPackagingNoticesAndDocsTravelTogether() throws {
         let launcher = try SourceText.read("Scripts/build_and_run.sh")
@@ -128,8 +129,9 @@ struct SoundCueWiringSourceGuardTests {
         for required in ["AbdrTar", "CC0 1.0", "519985", "519986", "558121", "asetrate=44160", "lowpass=f=2400"] {
             #expect(notices.contains(required), "third-party notices must preserve \(required)")
         }
-        #expect(readme.localizedCaseInsensitiveContains("sound cues"))
-        #expect(readme.localizedCaseInsensitiveContains("alert volume"),
+        #expect(readme.contains("**Sound Cues** for recording readiness"),
+                "README must list Sound Cues as a feature")
+        #expect(readme.contains("follows the macOS system alert volume"),
                 "README must explain that cue loudness follows the system alert volume")
     }
 

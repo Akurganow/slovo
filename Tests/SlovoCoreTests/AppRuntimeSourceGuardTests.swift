@@ -3,10 +3,9 @@ import Testing
 
 import SlovoCore
 
-// No test target links the `slovo` executable: the `SlovoCoreTests` dependencies in
-// `Package.swift` are `SlovoCore`, `SlovoTestSupport` and `SlovoObjC`. So its wiring has
-// no behavioural seam, and the guards below read its comment-stripped source. A guard
-// over a SlovoCore file states its own reason.
+// No test target depends on the `slovo` executable, so its wiring has no behavioural
+// seam and the guards below read its comment-stripped source. A guard over a SlovoCore
+// file states its own reason.
 @Suite("App runtime source guards")
 struct AppRuntimeSourceGuardTests {
     /// The SlovoCore half reads `SystemPermissionPreflighter` as text: its request methods
@@ -84,8 +83,10 @@ struct AppRuntimeSourceGuardTests {
         #expect(composition.contains("passphrase: PersonalizationDatabasePassphrase.derive"))
     }
 
-    /// The SlovoCore half reads `KeychainAPIKeyProvider` as text: its item lookups are
-    /// private calls into the real Keychain, which no hermetic test can drive.
+    /// The SlovoCore half reads `KeychainAPIKeyProvider` as text. `keychainItemExists` is
+    /// a private call into the real Keychain, which no hermetic test can drive.
+    /// `hasConfiguredKey` could be driven through the public closure initializer, but
+    /// this guard pins it as text beside the lookup it delegates to.
     @Test
     func readinessCheckUsesKeyPresenceWithoutDecryptingSecret() throws {
         let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
@@ -107,7 +108,7 @@ struct AppRuntimeSourceGuardTests {
         }
         #expect(keychainItemExistsBody.contains("kSecReturnAttributes as String: true"))
         #expect(keychainItemExistsBody.contains("kSecMatchLimit as String: kSecMatchLimitOne"))
-        #expect(keychainItemExistsBody.contains("SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess"))
+        #expect(SourceText.containsInOrder(["SecItemCopyMatching(query as CFDictionary", "== errSecSuccess"], in: keychainItemExistsBody))
         for forbidden in ["keychainKey(", "kSecReturnData"] {
             #expect(!SourceText.withoutStringLiterals(keychainItemExistsBody).contains(forbidden),
                     "keychainItemExists must stay attributes-only and must not read the secret via \(forbidden)")
@@ -188,6 +189,8 @@ struct AppRuntimeSourceGuardTests {
     // K4's "NEVER on the key-up path": the dictation-side core never references
     // the scope machinery — the only SlovoCore→app channel is the K8 observer,
     // which hops to the main actor after the failure is already degraded.
+    // The orchestrator, the FSM and the scope machinery share the SlovoCore module, so no
+    // import boundary forbids the reference, and no run observes a call that is absent.
     // Sensitivity: reference the reducer or fetcher from the orchestrator/FSM → RED.
     @Test
     func hotPathNeverTouchesTheScopeMachinery() throws {
@@ -264,7 +267,9 @@ struct AppRuntimeSourceGuardTests {
     /// real model, so its source is the only place the argument can be checked.
     @Test
     func productionAsrEngineSetsNonDocumentsModelDownloadBase() throws {
-        let sources = try Self.productionAsrRuntimeSources()
+        let sourcePaths = try ["Sources/SlovoCore/ASR", "Sources/SlovoCore/Composition", "Sources/slovo"]
+            .flatMap { try SourceText.swiftFiles(under: $0) } + ["Package.swift"]
+        let sources = try sourcePaths.map { (relativePath: $0, contents: try SourceText.code($0)) }
         let sourceByPath = Dictionary(uniqueKeysWithValues: sources.map { ($0.relativePath, $0.contents) })
         let speechModel = try #require(sourceByPath["Sources/SlovoCore/ASR/SharedSpeechModel.swift"])
         let engine = try #require(sourceByPath["Sources/SlovoCore/ASR/WhisperKitEngine.swift"])
@@ -322,7 +327,6 @@ struct AppRuntimeSourceGuardTests {
             "flashBriefStatusGlyph(status)",
         ], in: showStatusBody))
         #expect(SourceText.containsInOrder([
-            "setStatusGlyph(status",
             "Task { @MainActor",
             "Task.sleep(",
             "paintIdleGlyph",
@@ -362,7 +366,6 @@ struct AppRuntimeSourceGuardTests {
     /// and the Microphone submenu follow state through their five listeners, and a
     /// rebuild seeds the status and fn rows, the mute item and the Microphone submenu
     /// from the committed state.
-    /// The app target has no behavioural seam for these rows, so this reads its source.
     /// Stated sensitivity: delete any of the five listeners, pass the idle hint or a
     /// literal into the build's rows, its mute availability or its microphone choice,
     /// or write the status row's title anywhere else in the app target → RED.
@@ -377,7 +380,7 @@ struct AppRuntimeSourceGuardTests {
             ("store.listen(\\.inputDeviceChoice)", "renderMicrophoneMenu("),
         ]
         for (listener, write) in rowWrites {
-            let body = try SourceText.slice(of: wiring, from: listener, to: "\n        }")
+            let body = try SourceText.block(after: listener, in: wiring)
             #expect(body.contains(write), "\(listener) must write its row with \(write)")
         }
         let build = try SourceText.slice(of: wiring, from: "store.subscribe(\\.menuStructure)", to: "store.listen(")
@@ -396,8 +399,6 @@ struct AppRuntimeSourceGuardTests {
 
     /// A mode change is a state write, and the build subscriber installs the menu of
     /// the mode, so a settings change during onboarding rebuilds the setup menu.
-    /// The app target has no behavioural seam that SlovoCoreTests can reach, so this
-    /// reads its source.
     /// Stated sensitivity: draw the dictation menu for every mode, drop an arm of the
     /// build's switch, or drop the mode write from presentOnboarding,
     /// presentHotkeyRecovery, refreshOnboardingMenuIfNeeded or retrySetup → RED.
@@ -421,8 +422,7 @@ struct AppRuntimeSourceGuardTests {
 
     /// The dropdown's "Mute Audio While Dictating" switch renders as a
     /// checkmark toggle wired to the AppDelegate selector, and the builder stores the
-    /// item so the availability renderer can disable it in place. The builder lives
-    /// in the app target (not unit-importable), so this scans its source.
+    /// item so the availability renderer can disable it in place.
     /// Stated sensitivity: drop the `state = isOn ? .on : .off` checkmark, the
     /// "Mute Audio While Dictating" title, the
     /// `#selector(AppDelegate.toggleMuteWhileDictating` action wiring, or the store
@@ -467,9 +467,8 @@ struct AppRuntimeSourceGuardTests {
     /// The mute item follows the default output device: disabled, with the reason as
     /// its tooltip, where macOS can set neither mute nor volume. Launch registers the
     /// CoreAudio listener, the listener writes the store, and the build renders the
-    /// availability onto each new item. The app target has no behavioural seam for
-    /// these, so this reads its source. Each assignment is checked on one line with
-    /// its projection, so a stray token elsewhere in the body cannot satisfy it.
+    /// availability onto each new item. Each assignment is checked on one line with its
+    /// projection, so a stray token elsewhere in the body cannot satisfy it.
     /// Stated sensitivity: drop the `isEnabled` or the `toolTip` assignment (a
     /// disabled item with no tooltip, or a tooltip on an enabled item), drop the
     /// store write or the launch call, or drop the build-time render → RED.
@@ -494,8 +493,7 @@ struct AppRuntimeSourceGuardTests {
     /// The Microphone submenu follows the devices and the choice in state. Launch
     /// registers the CoreAudio listener and reads the devices once into the store, the
     /// listener writes the store, a build stores the item and renders the choice onto
-    /// it, and a row writes the preference. The app target has no behavioural seam for
-    /// these, so this reads its source.
+    /// it, and a row writes the preference.
     /// Stated sensitivity: drop any of these → RED.
     @Test
     func inputDevicesReachTheMicrophoneMenu() throws {

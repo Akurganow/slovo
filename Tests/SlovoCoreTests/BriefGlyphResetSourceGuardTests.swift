@@ -1,12 +1,12 @@
 import Foundation
 import Testing
 
-// The brief-glyph reset lives in the executable `slovo` target's AppDelegate, which
-// the test bundle cannot import, so the repair is pinned in the source the way the
+// The brief-glyph reset lives in the `slovo` executable's AppDelegate, and no test target
+// depends on that executable, so the supersede handling is pinned in source the way the
 // sibling glyph guards are. A source guard is only worth its line count if it can
 // go red on broken code, so the same predicate is also run against four MUTANTS
 // built from that source — each must be rejected (AGENTS.md, "Tests must be able
-// to fail"; issue #38).
+// to fail").
 @Suite("Brief-glyph reset supersede")
 struct BriefGlyphResetSourceGuardTests {
     static let sleepStatement = "try? await Task.sleep(for: .seconds(1))"
@@ -15,7 +15,7 @@ struct BriefGlyphResetSourceGuardTests {
     static let latchClear = "self.isShowingBriefStatus = false"
     static let pipelineGate = "guard !self.isPipelineActive else { return }"
 
-    /// The whole repair as ONE predicate, so every mutant travels the same path:
+    /// The whole supersede handling as ONE predicate, so every mutant travels the same path:
     ///
     /// 1. The abort sits AFTER the sleep and is an executed early exit. `Task.sleep`
     ///    resumes a cancelled task by THROWING (SE-0304) and the helper's `try?`
@@ -31,7 +31,7 @@ struct BriefGlyphResetSourceGuardTests {
     /// 3. The pipeline gate covers the PAINT ONLY, and comes after the clear — a
     ///    dictation that began inside the window keeps its recording glyph instead of
     ///    being blanked to idle mid-hold.
-    static func repairsSupersededReset(in helperBody: String) -> Bool {
+    static func handlesSupersededReset(in helperBody: String) -> Bool {
         guard let afterSleep = try? SourceText.slice(of: helperBody, from: sleepStatement),
               SourceText.statementCount(abortPattern, in: afterSleep) == 1,
               let abortToClear = try? SourceText.slice(of: afterSleep, from: abortStatement, to: latchClear),
@@ -45,7 +45,7 @@ struct BriefGlyphResetSourceGuardTests {
         )
     }
 
-    /// The repaired source with exactly one thing broken, four ways. Every one leaves
+    /// The helper source with exactly one thing broken, four ways. Every one leaves
     /// the superseded reset able to clear the newer flash, or strands the latch, so
     /// the predicate must reject all four. Derived from the live source rather than
     /// written out, so a rename cannot quietly turn a mutant into a copy of the
@@ -72,20 +72,20 @@ struct BriefGlyphResetSourceGuardTests {
         ]
     }
 
-    /// Stated sensitivity: the helper as written before this guard (no check after the
-    /// sleep) → RED. Each of the four mutants → RED, asserted here rather than recorded
-    /// in prose, so loosening the needles later cannot pass unnoticed.
+    /// Stated sensitivity: a helper with no abort check after the sleep → RED. Each of
+    /// the four mutants → RED, asserted here rather than recorded in prose, so loosening
+    /// the needles later cannot pass unnoticed.
     @Test
     func supersededResetAbortsAfterTheSleepWithoutStrandingTheLatch() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let helper = try SourceText.functionBody(named: "flashBriefStatusGlyph", in: delegate)
 
-        #expect(Self.repairsSupersededReset(in: helper),
+        #expect(Self.handlesSupersededReset(in: helper),
                 "the reset task must abort when superseded, clear the latch, then gate only the paint; got:\n\(helper)")
 
         for mutant in Self.mutants(of: helper) {
             #expect(mutant.source != helper, "the \"\(mutant.name)\" mutant no longer changes the source")
-            #expect(!Self.repairsSupersededReset(in: mutant.source), "the \"\(mutant.name)\" mutant survives this guard")
+            #expect(!Self.handlesSupersededReset(in: mutant.source), "the \"\(mutant.name)\" mutant survives this guard")
         }
     }
 }

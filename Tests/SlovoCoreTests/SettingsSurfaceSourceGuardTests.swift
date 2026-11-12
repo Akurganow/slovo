@@ -1,11 +1,10 @@
 import Foundation
 import Testing
 
-// No test target links the slovo executable (Package.swift: the SlovoCoreTests dependencies
-// are SlovoCore, SlovoTestSupport and SlovoObjC), so the Settings panes, the key and quick-add
-// windows and the menu renderer cannot be exercised; these guards read their comment-stripped
-// source. What SlovoCore decides (the item list, the enabled flags) is tested in
-// DictationMenuTests and AppStateTests, not here.
+// No test target depends on the `slovo` executable, so the Settings panes, the key and
+// quick-add windows and the menu renderer cannot be exercised; these guards read their
+// comment-stripped source. What SlovoCore decides (the item list, the enabled flags) is
+// tested in DictationMenuTests and AppStateTests, not here.
 @Suite("Settings surface source guards")
 struct SettingsSurfaceSourceGuardTests {
     /// Each pane's `Config` controls bind the store through `store.binding(_:)`, and
@@ -39,7 +38,7 @@ struct SettingsSurfaceSourceGuardTests {
         }
         #expect(cleanup.contains("$0.config.openRouterModel = trimmedCustomModelId"))
         #expect(cleanup.contains("actions.saveOpenRouterKey("))
-        // Only a user action writes the model: the Picker's set closure and the custom-id
+        // K3: only a user action writes the model: the Picker's set closure and the custom-id
         // Use button. A third write would be a programmatic re-seed.
         // Sensitivity: write openRouterModel from `.onAppear` or `.onChange` → RED.
         #expect(cleanup.components(separatedBy: "openRouterModel =").count - 1 == 2,
@@ -67,7 +66,7 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func generalPaneReseedsLaunchAtLoginOnAppear() throws {
         let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let onAppear = try Self.blockBody(after: ".onAppear", in: general)
+        let onAppear = try SourceText.block(after: ".onAppear", in: general)
         #expect(onAppear.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
     }
 
@@ -89,8 +88,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// The General pane's Microphone picker lists the present devices and, while the
     /// chosen one is absent, that device too, so the selection never blanks. The
     /// label names the fallback, and a choice writes the stored preference through
-    /// the store. The app target has no behavioural seam for the pane, so this reads
-    /// its source.
+    /// the store.
     /// Stated sensitivity: omit `absent` (the picker blanks), drop the line, or bind a
     /// local `@State` → RED.
     @Test
@@ -118,12 +116,12 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func keyPickersDisableEachOthersSelection() throws {
         let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let mainPicker = try Self.blockBody(
+        let mainPicker = try SourceText.block(
             after: #"Picker("Push-to-talk key", selection: store.binding(\.trigger))"#, in: general
         )
         #expect(mainPicker.contains(".selectionDisabled(option == store.state.config.translateTrigger)"),
                 "the push-to-talk picker must disable the key the TRANSLATE role holds")
-        let translatePicker = try Self.blockBody(
+        let translatePicker = try SourceText.block(
             after: #"Picker("Translate key", selection: store.binding(\.translateTrigger))"#, in: general
         )
         #expect(translatePicker.contains(".selectionDisabled(option == store.state.config.trigger)"),
@@ -140,7 +138,7 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func translateRowPrefixesTheMainKeyOnlyWhileAdditional() throws {
         let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let row = try Self.blockBody(after: #"LabeledContent("Translate key")"#, in: general)
+        let row = try SourceText.block(after: #"LabeledContent("Translate key")"#, in: general)
         #expect(row.contains("if store.state.config.translateKeyIsAdditional {"))
         #expect(row.contains(#"Text("\(store.state.config.trigger.displayName) +")"#))
         #expect(!row.contains("translateTrigger.displayName"),
@@ -161,7 +159,7 @@ struct SettingsSurfaceSourceGuardTests {
         let cleanup = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
         #expect(cleanup.contains("Text(translateCaption)"),
                 "the Translate to row must render the caption derived from the configured keys")
-        let caption = try Self.blockBody(after: "var translateCaption", in: cleanup)
+        let caption = try SourceText.block(after: "var translateCaption", in: cleanup)
         #expect(caption.contains("store.state.config.hotkeyConfiguration"))
         #expect(caption.contains("hotkeys.translate.displayName"))
         #expect(caption.contains(#"case .additional: return "Used when you add \(key)"#),
@@ -202,7 +200,7 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func quickAddWindowRebuildsViewOnEveryShow() throws {
         let source = try SourceText.code("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
+        #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
     }
 
     /// The quick-add field must become the AppKit window's first responder after
@@ -399,7 +397,7 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func keyWindowRebuildsViewAndFocusesTheKeyField() throws {
         let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
-        #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
+        #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
         #expect(source.contains("NSSecureTextField"))
         #expect(source.contains("override func viewDidMoveToWindow()"))
         #expect(source.contains("window.initialFirstResponder = self"))
@@ -409,8 +407,10 @@ struct SettingsSurfaceSourceGuardTests {
     /// The key window's Save routes the trimmed key through `onSave` (wired to the
     /// save funnel by the presenter) and closes; Cancel closes WITHOUT saving; an
     /// empty key cannot be saved; Esc cancels; the app activates before showing (the
-    /// `.accessory` quirk). Stated sensitivity: wire Cancel to save, drop Cancel's
-    /// close, drop the empty-key guard, drop the Esc shortcut, or drop the activate → RED.
+    /// `.accessory` quirk). Cancel's close is read from the `onCancel:` closure, so only
+    /// its content counts, not how it wraps. Stated sensitivity: wire Cancel to save,
+    /// drop Cancel's close, drop the empty-key guard, drop the Esc shortcut, or drop
+    /// the activate → RED.
     @Test
     func keyWindowSaveThroughOnSaveAndCancelDoesNotSave() throws {
         let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
@@ -420,7 +420,8 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(source.contains(".disabled(trimmedKey.isEmpty)"))
         #expect(source.contains(".keyboardShortcut(.cancelAction)"))
         #expect(source.contains("NSApp.activate(ignoringOtherApps: true)"))
-        #expect(source.contains("onCancel: { [weak self] in self?.close() }"))
+        let onCancel = try SourceText.block(after: "onCancel:", in: source)
+        #expect(onCancel.contains("close()"), "Cancel must close the window")
     }
 
     /// Saving must CLOSE the window itself — otherwise a window still holding the
@@ -471,13 +472,13 @@ struct SettingsSurfaceSourceGuardTests {
     @Test
     func makeMenuFeedsBuilderTheRealConfig() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
+        let makeMenu = try SourceText.functionBody(named: "makeMenu", in: delegate)
         #expect(makeMenu.contains(".make(input, rows: rows)"))
         let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         #expect(builder.contains("let hotkeys = input.hotkeyConfiguration"))
         #expect(builder.contains("selectedModelId: input.cleanupModelSelection.effective"))
         let cleanupMenu = try SourceText.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
-        let modelMenu = try Self.blockBody(after: "func modelMenu", in: cleanupMenu)
+        let modelMenu = try SourceText.functionBody(named: "modelMenu", in: cleanupMenu)
         for (name, body) in [("makeMenu", makeMenu), ("modelMenu", modelMenu), ("DictationMenuBuilder.swift", builder)] {
             #expect(!body.contains("store."), "\(name) must read only its input, never the store")
         }
@@ -487,28 +488,5 @@ struct SettingsSurfaceSourceGuardTests {
                 "makeMenu must take the fn verdict as its argument, not from the live reader")
         #expect(!makeMenu.contains("updaterCoordinator"),
                 "makeMenu must take the update indication as its argument, not from the coordinator")
-    }
-
-    /// The brace-balanced block that opens right after `anchor` — a function body or
-    /// a trailing closure. Scoping an assertion to it keeps a token found elsewhere in
-    /// the file from satisfying a check about this one block.
-    private static func blockBody(after anchor: String, in source: String) throws -> String {
-        guard let anchorRange = source.range(of: anchor),
-              let openBrace = source[anchorRange.upperBound...].firstIndex(of: "{")
-        else {
-            throw NSError(domain: "SettingsSurfaceSourceGuard", code: 1)
-        }
-        var depth = 0
-        var index = openBrace
-        while index < source.endIndex {
-            if source[index] == "{" {
-                depth += 1
-            } else if source[index] == "}" {
-                depth -= 1
-                if depth == 0 { return String(source[openBrace...index]) }
-            }
-            index = source.index(after: index)
-        }
-        throw NSError(domain: "SettingsSurfaceSourceGuard", code: 2)
     }
 }

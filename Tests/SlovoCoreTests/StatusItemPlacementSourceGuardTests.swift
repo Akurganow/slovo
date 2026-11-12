@@ -3,10 +3,10 @@ import Testing
 
 import SlovoCore
 
-// Guards the app wiring the SlovoCore placement test cannot see: the executable
-// `slovo` target is not importable, so these read its source to confirm the
-// preferred-position seed runs before the status item exists and that nothing
-// ever touches the AppKit visibility default (the position-loss trap FB9052637).
+// Guards the app wiring the SlovoCore placement test cannot see. No test target depends on
+// the `slovo` executable, so these read its source to confirm the preferred-position seed
+// runs before the status item exists and that nothing ever touches the AppKit visibility
+// default (the position-loss trap FB9052637).
 @Suite("Status-item placement wiring")
 struct StatusItemPlacementSourceGuardTests {
     /// The position seed only matters BEFORE `NSStatusBar.system.statusItem` runs:
@@ -58,7 +58,7 @@ struct StatusItemPlacementSourceGuardTests {
         let sourcePaths = try ["Sources/slovo", "Sources/SlovoCore"]
             .flatMap { try SourceText.swiftFiles(under: $0) }
 
-        for path in sourcePaths.sorted() {
+        for path in sourcePaths {
             let contents = try SourceText.code(path)
             #expect(!contents.contains("NSStatusItem Visible"), "\(path)")
             #expect(!contents.contains(".isVisible ="), "\(path)")

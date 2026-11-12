@@ -1,10 +1,9 @@
 import Foundation
 import Testing
 
-// Guards the update-ready Nash Ⱀ glyph wiring across the app target. The executable
-// `slovo` target is not a dependency of `SlovoCoreTests` (`Package.swift`: `SlovoCore`,
-// `SlovoTestSupport`, `SlovoObjC`), so these read its source; the core projection is
-// tested by MenuBarGlyphTests.idleGlyphProjectsUpdateReadiness.
+// Guards the update-ready Nash Ⱀ glyph wiring across the app target. No test target depends
+// on the `slovo` executable, so these read its source; the core projection is tested by
+// MenuBarGlyphTests.idleGlyphProjectsUpdateReadiness.
 // The icon is the resting-idle glyph replacement when an update is downloaded and
 // awaiting restart. Every return to idle must route through paintIdleGlyph(on:),
 // and indication changes must trigger a gated repaint.
@@ -17,7 +16,7 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
     /// `Sources/slovo` → RED.
     @Test
     func idleReturnsRouteThroughTheUpdateAwareFunnel() throws {
-        for file in try SourceText.swiftFiles(under: "Sources/slovo").sorted() {
+        for file in try SourceText.swiftFiles(under: "Sources/slovo") {
             let contents = try SourceText.code(file)
             #expect(!contents.contains("setStatusGlyph(.idle"),
                     "\(file) must route through paintIdleGlyph(on:) rather than calling setStatusGlyph(.idle directly")

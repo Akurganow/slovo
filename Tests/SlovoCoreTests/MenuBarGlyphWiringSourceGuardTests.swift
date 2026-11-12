@@ -3,10 +3,10 @@ import Testing
 
 import SlovoCore
 
-// Guards the app wiring the SlovoCore renderer test cannot see: the executable
-// `slovo` target is not importable, so these read its source to confirm each
-// status's own tint reaches `MenuBarGlyph.image(for:tint:)` and that the app no
-// longer hand-builds a template glyph image locally.
+// Guards the app wiring the SlovoCore renderer test cannot see. No test target depends on
+// the `slovo` executable, so these read its source to confirm each status's own tint
+// reaches `MenuBarGlyph.image(for:tint:)` and that the app builds no template glyph image
+// locally.
 @Suite("Menu-bar glyph wiring")
 struct MenuBarGlyphWiringSourceGuardTests {
     /// A failure status must render through the core error tint; a live-state glyph
@@ -31,9 +31,9 @@ struct MenuBarGlyphWiringSourceGuardTests {
     }
 
     /// Template management belongs to the core renderer, not the app: the menu bar
-    /// re-tints template images and drops the error red, which was the original bug.
+    /// re-tints template images, which drops the error red.
     ///
-    /// Sensitivity: reintroduce an app-local `isTemplate` glyph builder → RED.
+    /// Sensitivity: add an app-local `isTemplate` glyph builder → RED.
     @Test
     func appGlyphSourceDoesNotManageTemplateFlagLocally() throws {
         let glyphSource = try SourceText.code("Sources/slovo/AppDelegate+Glyph.swift")
