@@ -17,7 +17,7 @@ public struct SharedSpeechModel: Sendable {
     public let transcriber: WhisperKitTranscriber
     private let pause: @Sendable (_ failedAttempts: Int) async -> Void
 
-    public init(
+    init(
         transcriber: WhisperKitTranscriber,
         pause: @escaping @Sendable (_ failedAttempts: Int) async -> Void
     ) {
@@ -31,9 +31,7 @@ public struct SharedSpeechModel: Sendable {
     public init(config: Config) {
         pause = { try? await Task.sleep(for: SharedSpeechModel.retryPause(afterFailedAttempts: $0)) }
         transcriber = WhisperKitTranscriber(
-            configuration: WhisperKitTranscriber.Configuration(
-                language: config.language
-            ),
+            language: config.language,
             engine: WhisperKitEngine(model: config.asrModel),
             converter: WhisperSampleConverter()
         )
@@ -48,11 +46,11 @@ public struct SharedSpeechModel: Sendable {
     /// Starts this composition's preload and hands back the task its model gate
     /// awaits. The task completes only when the model has loaded: a failed load
     /// (each one logs `asr.modelLoad state=failed`) is retried after a pause that
-    /// doubles from one second up to a minute.
+    /// doubles from one second up to a minute. A cancelled warm-up stops retrying.
     public func startWarmUp() -> Task<Void, Never> {
         Task { [transcriber, pause] in
             var failedAttempts = 0
-            while true {
+            while !Task.isCancelled {
                 do {
                     _ = try await transcriber.warmUp()
                     return

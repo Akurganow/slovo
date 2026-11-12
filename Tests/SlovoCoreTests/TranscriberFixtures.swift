@@ -12,7 +12,7 @@ enum TranscriberFixtures {
         language: Language = Config.defaults.language
     ) -> WhisperKitTranscriber {
         WhisperKitTranscriber(
-            configuration: .init(language: language),
+            language: language,
             engine: engine,
             converter: converter
         )

@@ -26,7 +26,6 @@ struct WhisperKitTranscriberLifecycleTests {
         #expect(engine.loadCount == 1, "warmUp must load the engine")
         #expect(engine.finalizeCalls.isEmpty, "warmUp must not finalize a speech session")
         #expect(engine.streamStartCount == 0, "warmUp must not open a speech session")
-        #expect(engine.sessionLanguages.isEmpty, "warmUp must not open a speech session")
     }
 
     /// A begin() after warmUp() reuses the already-loaded engine — no second load.

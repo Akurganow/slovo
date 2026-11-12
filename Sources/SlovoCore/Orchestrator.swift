@@ -480,8 +480,9 @@ public actor Orchestrator {
         sessionRunsCleaner = cleanupConfig.runsCleaner
         // Only claim preparation when `begin` really has loading to do. Reported
         // unconditionally, it overwrote "Recording" with a lie for the whole hold
-        // of every dictation once the model was warm. It still fires where it is
-        // true: the first-run download, and a failed preload retried inside begin.
+        // of every dictation once the model was warm. The report fires only when
+        // `begin` has a load to do; the model gate keeps every press out until the
+        // model has loaded, so in the app it does not fire.
         let isModelResident = await deps.transcriber.isModelResident
         guard ownsRecordingSession(recordingSession) else { return }
         if !isModelResident {

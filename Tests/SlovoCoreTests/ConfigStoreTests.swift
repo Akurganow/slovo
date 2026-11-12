@@ -107,6 +107,19 @@ struct ConfigStoreTests {
         #expect(cleanup["enabled"] as? Bool == true)
     }
 
+    /// An older build requires `asr.backend` in the stored blob, so a save must carry it.
+    /// Stated sensitivity: drop `StoredAsr.backend`, or change its value → RED.
+    @Test
+    func savedConfigWritesTheWhisperKitBackendKey() throws {
+        let defaults = FakeUserDefaults()
+
+        try ConfigStore.save(.defaults, to: defaults)
+
+        let raw = try #require(defaults.data(forKey: ConfigStore.defaultKey))
+        let object = try #require(JSONSerialization.jsonObject(with: raw) as? [String: Any])
+        #expect((object["asr"] as? [String: Any])?["backend"] as? String == "whisperkit")
+    }
+
     @Test
     func validConfigDecodesSpecShape() throws {
         let defaults = FakeUserDefaults(dataByKey: [

@@ -9,7 +9,7 @@ everything Slovo sends off the Mac.
 | Data | Location | Network |
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
-| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request; fetched from Hugging Face only when that local load fails — see Speech Model |
+| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request while the cached tokenizer is also present; fetched from Hugging Face only when that local load fails — see Speech Model |
 | Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, while cleanup is on — see Cloud Cleanup |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Only in the cleanup request; never logged |
 | Key-scope request: `GET /api/v1/models/user`, carrying the API key and no dictated content | — | Sent to OpenRouter on each occasion listed under Cloud Cleanup |
@@ -89,11 +89,11 @@ what is on disk, never from a log.
 
 ## Local Files
 
-Slovo caches the WhisperKit (Whisper) model under Application Support, in
-app-owned storage. It must not download the model into the user's Documents or
-the Argmax OSS SDK's (formerly WhisperKit) default home Hugging Face cache;
-`WhisperKitEngine` pins the download base to Application Support for exactly
-this reason.
+Slovo reads and writes the WhisperKit (Whisper) model only under
+`~/Library/Application Support/slovo/models`, in app-owned storage, and never in
+the user's Documents folder. `WhisperKitEngine` pins the download base there, and
+fails the load rather than use another folder when Application Support cannot be
+created.
 
 The `.gitignore` rules make these categories uncommittable, whether or not a
 matching file exists on disk today:
@@ -109,9 +109,11 @@ The checked-in schema is safe; user data and seed content are not.
 ## Speech Model
 
 Slovo loads the speech model through WhisperKit at launch. A launch with the
-model cached loads it from the app cache and sends nothing to Hugging Face.
-WhisperKit's download path runs only when that local load fails: the first run,
-or a cached copy missing a file the load needs. Slovo retries a failed
+model cached loads it from the app cache and sends nothing to Hugging Face, as
+long as the cached tokenizer is present too. WhisperKit's download path runs only
+when that local load fails: the first run, or a cached copy missing a file the
+load needs. It downloads the files that are missing or whose upstream version
+changed; a file present but damaged in place is kept. Slovo retries a failed
 load on its own, after 1 second, then after pauses that double up to 60 seconds,
 until the model loads. Each attempt makes the requests described below; offline,
 the first file-list request fails and nothing is sent. The download path asks Hugging Face (`huggingface.co`)
@@ -155,7 +157,7 @@ Logs must not contain:
 
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
 In the clear it carries elapsed times in milliseconds, the model-load state token,
-and the Error cue's reason token. It also carries three numbers about each
+the model-load source token (`cache` or `download`), and the Error cue's reason token. It also carries three numbers about each
 dictation: the transcript's length in characters, the captured audio's sample
 count, and how far into the recording, in seconds, recognition had confirmed text
 at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,

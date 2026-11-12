@@ -112,8 +112,8 @@ struct OrchestratorSoundCueTests {
         await orchestrator.awaitPipelineDrain()
     }
 
-    /// Recognition hears what the microphone captures from the first frame, through
-    /// the model load and while the Start cue plays.
+    /// Recognition hears what the microphone captures from the first frame, while the
+    /// Start cue plays.
     /// Stated sensitivity: starting the pump only on `startCueFinished`, or a gate on
     /// delivery during the cue → RED.
     @Test

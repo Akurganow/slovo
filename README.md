@@ -129,10 +129,11 @@ tuned.
 - An OpenRouter API key for cleanup (optional — without one, Slovo still
   dictates, inserting the raw transcript).
 
-On first use, WhisperKit downloads the speech model from Hugging Face. Each
-time Slovo loads the model, WhisperKit first checks the cached copy with Hugging
-Face; when loads happen is in [docs/privacy.md](docs/privacy.md), "Speech
-Model". Transcription itself runs on the Mac.
+On first use, WhisperKit downloads the speech model from Hugging Face; later
+launches load the copy Slovo keeps and contact Hugging Face only when it fails
+to load. When Slovo contacts Hugging Face is in
+[docs/privacy.md](docs/privacy.md), "Speech Model". Transcription itself runs
+on the Mac.
 
 ## Install
 

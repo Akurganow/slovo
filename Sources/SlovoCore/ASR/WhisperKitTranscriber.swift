@@ -14,19 +14,6 @@ import Foundation
 /// `AudioConverting`, so the whole session is driven by fakes in tests.
 /// Bias-prompt EFFICACY is verified on-device (docs/release-checklist.md), not here.
 public actor WhisperKitTranscriber: Transcriber {
-    public struct Configuration: Equatable, Sendable {
-        public static let defaults = Configuration()
-
-        /// The recognition language the first session decodes with. Later changes
-        /// arrive through `setRecognitionLanguage`, never through a new transcriber.
-        public var language: Language
-
-        public init(language: Language = Config.defaults.language) {
-            self.language = language
-        }
-    }
-
-    private let configuration: Configuration
     private let engine: any ModelLoading & SpeechStreamingSessionCreating & Sendable
     private let converter: any AudioConverting
 
@@ -34,13 +21,14 @@ public actor WhisperKitTranscriber: Transcriber {
     private var speechSession: (any SpeechStreamingSession)?
     private var loadTask: Task<Void, Error>?
 
+    /// `language` is the recognition language the first session decodes with. Later
+    /// changes arrive through `setRecognitionLanguage`, never through a new transcriber.
     public init(
-        configuration: Configuration = .defaults,
+        language: Language = Config.defaults.language,
         engine: some ModelLoading & SpeechStreamingSessionCreating & Sendable,
         converter: sending some AudioConverting
     ) {
-        self.configuration = configuration
-        self.recognitionLanguage = configuration.language
+        self.recognitionLanguage = language
         self.engine = engine
         self.converter = converter
     }

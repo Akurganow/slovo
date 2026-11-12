@@ -135,8 +135,9 @@ xcrun stapler validate .build/dist/Slovo.dmg
     glyph keeps pulsing.
   - Press the push-to-talk key. No orange microphone indicator appears in the menu
     bar and no cue plays.
-  - Turn the network on. Within a minute the log shows
-    `state=finished ms=… source=download`, the pulse stops, and the next dictation
+  - Turn the network on. Within about a minute the log shows a new
+    `asr.modelLoad state=started`; `state=finished ms=… source=download` follows
+    when the download completes. The pulse then stops, and the next dictation
     inserts text.
 - **A cached model loads offline.** Same stream, model left in the cache from the
   check above:
@@ -144,7 +145,7 @@ xcrun stapler validate .build/dist/Slovo.dmg
   - The log shows one `asr.modelLoad state=started` and one
     `state=finished ms=… source=cache`.
   - The first dictation inserts text. Turn the network back on.
-- **A damaged cache repairs itself.** Same stream, model cached, network on:
+- **A missing model file is downloaded again.** Same stream, model cached, network on:
   - Quit Slovo. Delete one file inside
     `~/Library/Application Support/slovo/models/models/argmaxinc/whisperkit-coreml/openai_whisper-large-v3-v20240930_turbo_632MB/AudioEncoder.mlmodelc/`
     (for example `weights/weight.bin`). Launch.

@@ -62,6 +62,31 @@ struct SharedSpeechModelTests {
         #expect(engine.loadCount == 1, "a rebuild mid-load must join that load, never start a second one")
     }
 
+    /// A cancelled warm-up stops retrying: the pause is where a cancel lands, and the
+    /// loop must not start another load attempt after it.
+    /// Stated sensitivity: drop the cancellation check → the loop tries again, the
+    /// third attempt loads → loadCount 3 → RED.
+    @Test
+    func aCancelledWarmUpMakesNoFurtherLoadAttempt() async {
+        let engine = FakeSpeechEngine(loadFailuresBeforeSuccess: 2)
+        let recorder = PauseRecorder()
+        let model = SharedSpeechModel(
+            transcriber: TranscriberFixtures.makeTranscriber(engine: engine),
+            pause: { attempts in
+                await recorder.pause(afterFailedAttempts: attempts)
+                if attempts == 1 {
+                    withUnsafeCurrentTask { $0?.cancel() }
+                }
+            }
+        )
+
+        await model.startWarmUp().value
+
+        #expect(engine.loadCount == 1, "no load attempt follows the cancel")
+        #expect(!engine.isLoaded)
+        #expect(recorder.failedAttempts == [1])
+    }
+
     /// A failed preload retries by itself until the model loads, so the gate that
     /// awaits the warm-up task opens only on a loaded model.
     /// Stated sensitivity: stop after the first failed attempt (today's behaviour) →
@@ -81,7 +106,7 @@ struct SharedSpeechModelTests {
     }
 
     /// Stated sensitivity: a schedule that does not grow, starts elsewhere, or has no
-    /// cap → RED; overflow on a large count → crash → RED.
+    /// cap → RED; a shift beyond the cap yields a zero pause → RED.
     @Test
     func retryPausesDoubleFromOneSecondUpToSixtySeconds() {
         let schedule = (1...8).map { SharedSpeechModel.retryPause(afterFailedAttempts: $0) }

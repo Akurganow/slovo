@@ -28,8 +28,9 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
     }
 
     /// Loads the model from the app cache first, with no request; the download path
-    /// runs only when that load fails, and it downloads what is missing and repairs
-    /// the cache.
+    /// runs only when that load fails. It downloads the files that are missing or whose
+    /// upstream version changed; a file present but damaged in place is kept
+    /// (argmax-oss-swift 1.1.1 at `1bbc57cb`, `HubApi.swift:469-526`, source).
     ///
     /// Logged HERE rather than at the transcriber's single flight: this is the one
     /// place a model is really constructed (and, on a cold cache, downloaded), so a
@@ -104,14 +105,15 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         ).appending(path: "slovo/models", directoryHint: .isDirectory)
     }
 
-    /// The folder WhisperKit's download writes `model` into under `base`: the Hub client's
-    /// repository folder (`HubApi.localRepoLocation`, `downloadBase/models/<repo id>`) and the
-    /// Hub's `openai_whisper-<variant>` folder name; argmax-oss-swift 1.1.1 at `1bbc57cb`,
-    /// `HubApi.swift:333-335` and `WhisperKit.swift:264-303`, read from source.
-    /// Hand-written rather than asked of `HubApiWrapper.localRepoLocation`, whose client
-    /// starts the process's network path monitor (`HubApi.swift:113`) just to name a folder.
+    /// The folder WhisperKit's download writes `model` into under `base`. The SDK names the
+    /// repository folder; the `openai_whisper-` prefix is the Hub's folder name for every
+    /// model of that repository Slovo offers (argmax-oss-swift 1.1.1 at `1bbc57cb`,
+    /// `WhisperKit.swift:264-303`, source). A model id under another prefix, which only a
+    /// hand edit can produce, misses the cache and loads through the download path.
     static func cachedModelFolder(model: String, base: URL) -> URL {
-        base.appending(path: "models/argmaxinc/whisperkit-coreml/openai_whisper-\(model)", directoryHint: .isDirectory)
+        HubApiWrapper(downloadBase: base)
+            .localRepoLocation(HubApiWrapper.Repo(id: "argmaxinc/whisperkit-coreml"))
+            .appending(path: "openai_whisper-\(model)", directoryHint: .isDirectory)
     }
 
     public func makeSpeechStreamingSession(biasTerms: [Term], language: Language) throws -> any SpeechStreamingSession {

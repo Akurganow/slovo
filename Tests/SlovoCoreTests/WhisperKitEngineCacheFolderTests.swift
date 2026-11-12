@@ -6,8 +6,9 @@ import Testing
 @Suite("WhisperKit engine cache folder")
 struct WhisperKitEngineCacheFolderTests {
     /// The folder a cached model is loaded from is the one WhisperKit's download wrote.
-    /// Stated sensitivity: drop a path segment, misspell the repository or the
-    /// `openai_whisper-` prefix, or build the path outside `base` → RED.
+    /// The expected string pins the SDK's repository layout under the download base.
+    /// Stated sensitivity: an SDK change of that layout, a misspelled repository or
+    /// `openai_whisper-` prefix, or a path built outside `base` → RED.
     /// A directory URL's path ends in a slash, so the expected string does too.
     @Test
     func cachedModelFolderIsWhereTheDownloadWritesTheModel() {

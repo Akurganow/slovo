@@ -275,8 +275,9 @@ struct AppRuntimeSourceGuardTests {
         let engine = try #require(sourceByPath["Sources/SlovoCore/ASR/WhisperKitEngine.swift"])
 
         #expect(speechModel.contains("WhisperKitTranscriber("))
-        #expect(engine.contains("downloadBase: base"),
-                "WhisperKitEngine must set WhisperKitConfig.downloadBase to override the SDK's ~/Documents default")
+        // The comma matches the two WhisperKit configs, not the folder lookup's `downloadBase: base)`.
+        #expect(engine.components(separatedBy: "downloadBase: base,").count - 1 == 2,
+                "both WhisperKit configs in WhisperKitEngine must set downloadBase; the download call is the one that would write under Documents")
         #expect(engine.contains("applicationSupportDirectory"),
                 "the model download base must resolve under Application Support, not Documents")
         for forbidden in ["documentDirectory", ".documentsDirectory", "Documents"] {
