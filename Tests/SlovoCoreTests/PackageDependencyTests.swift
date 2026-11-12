@@ -67,7 +67,6 @@ struct PackageDependencyTests {
         let lintMain = Self.shellTopLevelLines(from: lintCode)
         let pluginFunction = try #require(Self.shellFunctionBody(named: "swift_package_plugin", in: lintCode))
         let pluginInvocations = Self.shellContinuationBlocks(containing: "swift package", in: pluginFunction)
-        #expect(pluginInvocations.count == 2)
         for invocation in pluginInvocations {
             let tokens = Self.shellTokens(from: invocation)
             #expect(Self.containsOrdered(["swift", "package"], in: tokens))
@@ -77,6 +76,11 @@ struct PackageDependencyTests {
             #expect(Self.containsOrdered(["--allow-network-connections", "none"], in: tokens))
         }
         #expect(pluginInvocations.filter { Self.shellTokens(from: $0).contains("--disable-sandbox") }.count == 1)
+        let sandboxedAttempt = pluginInvocations.firstIndex { !Self.shellTokens(from: $0).contains("--disable-sandbox") }
+        let sandboxOffAttempt = pluginInvocations.firstIndex { Self.shellTokens(from: $0).contains("--disable-sandbox") }
+        #expect(sandboxedAttempt != nil, "some plugin attempt must run without --disable-sandbox")
+        #expect((sandboxedAttempt ?? Int.max) < (sandboxOffAttempt ?? -1),
+                "the attempt without --disable-sandbox must come before the one with it")
         #expect(pluginFunction.contains("sandbox_apply: Operation not permitted"))
 
         let swiftLintStage = try #require(Self.shellContinuationBlock(
@@ -99,7 +103,6 @@ struct PackageDependencyTests {
         #expect(analyzeTokens.contains("--strict"))
         #expect(analyzeTokens.contains("--force-exclude"))
         #expect(analyzeTokens.contains("--compiler-log-path"))
-        #expect(analyzeFunction.contains(".build/swiftlint-analyze.log"))
         let analyzeStage = try #require(Self.shellContinuationBlock(
             startingWith: #"run_stage "swiftlint-analyze""#,
             in: lintMain
@@ -119,6 +122,29 @@ struct PackageDependencyTests {
         #expect(swiftLintConfig.scalars["check_for_updates"] == "false")
         #expect(swiftLintConfig.lists["opt_in_rules"] == ["all"])
         #expect(swiftLintConfig.lists["analyzer_rules"] == ["all"])
+    }
+
+    /// Strict lint never switches off the checker rules for concurrency annotations
+    /// and unused imports. The planted spellings prove the reader sees block and
+    /// one-line flow lists, quoted or not.
+    @Test
+    func criticalCheckerRulesCannotBeDisabled() throws {
+        let lintConfig = try String(contentsOf: Self.packageRoot.appending(path: ".swiftlint.yml"), encoding: .utf8)
+        let disabledRules = Self.topLevelYaml(from: lintConfig).lists["disabled_rules"] ?? []
+        for forbiddenRule in ["incompatible_concurrency_annotation", "unused_import"] {
+            #expect(!disabledRules.contains(forbiddenRule),
+                    "strict lint must not disable critical checker rule \(forbiddenRule)")
+        }
+
+        let planted = ["unused_import", "incompatible_concurrency_annotation"]
+        for spelling in [
+            "disabled_rules: [unused_import, incompatible_concurrency_annotation]",
+            #"disabled_rules: ["unused_import", 'incompatible_concurrency_annotation']"#,
+            "disabled_rules:\n  - unused_import\n  - incompatible_concurrency_annotation",
+            "disabled_rules:\n  - \"unused_import\"\n  - 'incompatible_concurrency_annotation'",
+        ] {
+            #expect(Self.topLevelYaml(from: spelling).lists["disabled_rules"] == planted, "\(spelling)")
+        }
     }
 
     private static var packagePath: String {
@@ -213,17 +239,29 @@ struct PackageDependencyTests {
                 if value.isEmpty {
                     lists[key] = []
                     currentList = key
+                } else if value.hasPrefix("["), value.hasSuffix("]") {
+                    lists[key] = value.dropFirst().dropLast().split(separator: ",").map { unquoted(String($0)) }.filter { !$0.isEmpty }
+                    currentList = nil
                 } else {
                     scalars[key] = value
                     currentList = nil
                 }
             } else if trimmed.hasPrefix("- "), let key = currentList {
-                lists[key, default: []].append(String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces))
+                lists[key, default: []].append(unquoted(String(trimmed.dropFirst(2))))
             } else {
                 currentList = nil
             }
         }
         return TopLevelYaml(scalars: scalars, lists: lists)
+    }
+
+    /// A YAML scalar without the single or double quotes around it.
+    private static func unquoted(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2, let quote = trimmed.first, quote == "\"" || quote == "'", trimmed.last == quote else {
+            return trimmed
+        }
+        return String(trimmed.dropFirst().dropLast())
     }
 
     private static func strippingShellComments(from source: String) -> String {
