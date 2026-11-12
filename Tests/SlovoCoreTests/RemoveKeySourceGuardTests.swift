@@ -12,7 +12,7 @@ import Testing
 struct RemoveKeySourceGuardTests {
     private static let panePath = "Sources/slovo/Settings/CleanupSettingsPane.swift"
     private static let settingsPath = "Sources/slovo/Settings/AppDelegate+Settings.swift"
-    private static let providerPath = "Sources/SlovoCore/Cleaner/KeychainAPIKeyProvider.swift"
+    private static let providerPath = "Sources/SlovoCore/Cleaner/KeychainOpenRouterKeyProvider.swift"
 
     /// Stated sensitivity: drop the `if hasKey` gate → the gate slice vanishes → RED;
     /// add a second condition to it (`if hasKey && …`) → the condition assert reddens;

@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // The OpenRouter key has one source: the Keychain item Settings writes, fronted
 // by a process cache that must never hold a key the Keychain no longer stores.
@@ -49,7 +49,7 @@ struct KeychainKeySourceTests {
         struct WriteFailure: Error {}
         let stored = Mutex<String?>(nil)
         let writeFails = Mutex(false)
-        let provider = KeychainAPIKeyProvider(
+        let provider = KeychainOpenRouterKeyProvider(
             readKey: { stored.withLock { $0 } },
             keyExists: { stored.withLock { $0 != nil } },
             writeKey: { key in
@@ -75,5 +75,91 @@ struct KeychainKeySourceTests {
         } catch {
             Issue.record("expected CleanupError.missingKey, got \(error)")
         }
+    }
+
+    private final class ProviderBox: @unchecked Sendable {
+        // Set once after construction, before the first apiKey() call.
+        var provider: KeychainOpenRouterKeyProvider?
+    }
+
+    /// A provider whose first Keychain read runs `duringFirstRead` and still
+    /// returns the old key, the value read before the write landed.
+    private static func providerWithWriteDuringFirstRead(
+        _ duringFirstRead: @escaping @Sendable (KeychainOpenRouterKeyProvider) throws -> Void
+    ) throws -> KeychainOpenRouterKeyProvider {
+        let stored = Mutex<String?>("synthetic-old-key")
+        let reads = Mutex(0)
+        let box = ProviderBox()
+        let provider = KeychainOpenRouterKeyProvider(
+            readKey: {
+                let isFirst = reads.withLock { count -> Bool in
+                    count += 1
+                    return count == 1
+                }
+                guard isFirst else { return stored.withLock { $0 } }
+                if let provider = box.provider {
+                    try? duringFirstRead(provider)
+                }
+                return "synthetic-old-key"
+            },
+            keyExists: { stored.withLock { $0 != nil } },
+            writeKey: { key in stored.withLock { $0 = key } },
+            deleteKey: { stored.withLock { $0 = nil } }
+        )
+        box.provider = provider
+        return provider
+    }
+
+    /// A key saved while the first Keychain read is in flight must win over the
+    /// older value that read returns.
+    /// Stated sensitivity: fill the cache unconditionally after the read → the
+    /// second apiKey() serves the old key → RED. A lock held across readKey()
+    /// deadlocks this test, because the read calls store() on the same provider.
+    @Test
+    func keySavedDuringFirstReadSurvivesTheReadsFill() throws {
+        let provider = try Self.providerWithWriteDuringFirstRead { try $0.store("synthetic-new-key") }
+
+        #expect(try provider.apiKey() == "synthetic-old-key", "the caller whose read began first gets what it read")
+        #expect(try provider.apiKey() == "synthetic-new-key", "the saved key must not be overwritten by the older read")
+    }
+
+    /// A key removed while the first Keychain read is in flight must stay removed.
+    /// Stated sensitivity: fill the cache unconditionally after the read → the
+    /// removed key reads as present → RED. A lock held across readKey()
+    /// deadlocks this test, because the read calls removeKey() on the same provider.
+    @Test
+    func keyRemovedDuringFirstReadStaysRemoved() throws {
+        let provider = try Self.providerWithWriteDuringFirstRead { try $0.removeKey() }
+
+        #expect(try provider.apiKey() == "synthetic-old-key", "the caller whose read began first gets what it read")
+        #expect(!provider.hasConfiguredKey(), "the removed key must not be resurrected by the older read")
+        do {
+            _ = try provider.apiKey()
+            Issue.record("apiKey() must throw after the key was removed")
+        } catch CleanupError.missingKey {
+            // The contract: a removed key reads as missing.
+        } catch {
+            Issue.record("expected CleanupError.missingKey, got \(error)")
+        }
+    }
+
+    /// Readiness must never decrypt the secret, so it must never prompt for the Keychain.
+    /// Stated sensitivity: implement hasConfiguredKey() as `(try? apiKey()) != nil`,
+    /// or answer without keyExists() → RED.
+    @Test(arguments: [true, false])
+    func hasConfiguredKeyNeverReadsTheSecret(itemExists: Bool) {
+        let reads = Mutex(0)
+        let provider = KeychainOpenRouterKeyProvider(
+            readKey: {
+                reads.withLock { $0 += 1 }
+                return "synthetic-openrouter-key"
+            },
+            keyExists: { itemExists },
+            writeKey: { _ in },
+            deleteKey: {}
+        )
+
+        #expect(provider.hasConfiguredKey() == itemExists)
+        #expect(reads.withLock { $0 } == 0, "presence is answered by keyExists(), never by reading the secret")
     }
 }
