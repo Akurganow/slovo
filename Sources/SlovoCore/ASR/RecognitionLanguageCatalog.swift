@@ -43,7 +43,7 @@ public enum RecognitionLanguageCatalog {
     }()
 
     /// Whether `code` is a recognition language WhisperKit supports. Backs the
-    /// fail-closed config check: a persisted code outside this set is rejected.
+    /// config load: a persisted code outside this set returns to its default.
     public static func isSupported(_ code: String) -> Bool {
         Constants.languageCodes.contains(code)
     }

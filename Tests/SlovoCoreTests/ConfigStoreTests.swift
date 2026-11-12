@@ -4,10 +4,10 @@ import Testing
 @testable import SlovoCore
 import SlovoTestSupport
 
-// A blob that cannot be read as a whole (no data, malformed JSON) or carries an
-// out-of-range keep-warm falls back to defaults without crashing or leaking
-// partially decoded garbage into the app. A single unreadable field is recovered
-// per field in ConfigStoreRecoveryTests.
+// A blob that cannot be read as a whole (no data, malformed JSON) falls back to
+// defaults without crashing or leaking partially decoded garbage into the app. A
+// single unreadable field, an out-of-range keep-warm included, is recovered per
+// field in ConfigStoreRecoveryTests.
 @Suite("ConfigStore")
 struct ConfigStoreTests {
     @Test
@@ -47,15 +47,48 @@ struct ConfigStoreTests {
         #expect(ConfigStore.load(from: defaults).keepWarmSeconds == 45)
     }
 
-    /// Stated sensitivity: accept a negative keep-warm duration → the invalid
-    /// config survives and this defaults assertion fails.
+    /// The save side refuses a keep-warm window outside 0...3600 and accepts both
+    /// ends. Load keeps such a value out of the config field by field, so only `save`
+    /// and `isValid` enforce this range.
+    /// Stated sensitivity: delete the keep-warm range check from `validated` → the
+    /// out-of-range saves succeed and `isValid` is true → RED.
     @Test
-    func negativeKeepWarmRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: -1),
-        ])
+    func saveAndIsValidRefuseKeepWarmOutsideTheRange() throws {
+        for seconds in [-1, 3_601] {
+            let config = Config(keepWarmSeconds: seconds)
 
-        #expect(ConfigStore.load(from: defaults) == .defaults)
+            #expect(throws: ConfigStore.SaveError.self) {
+                try ConfigStore.save(config, to: FakeUserDefaults())
+            }
+            #expect(!ConfigStore.isValid(config))
+        }
+        for seconds in [0, 3_600] {
+            let config = Config(keepWarmSeconds: seconds)
+
+            #expect(ConfigStore.isValid(config))
+            try ConfigStore.save(config, to: FakeUserDefaults())
+        }
+    }
+
+    /// A blank or whitespace-only model id is refused on save for either engine, and
+    /// `isValid` agrees. Load replaces such an id with the default instead.
+    /// Stated sensitivity: let `validated` accept a blank `asrModel` → the save
+    /// succeeds → RED. The same for a blank `openRouterModel` → RED.
+    @Test
+    func saveAndIsValidRefuseBlankModelIds() {
+        for blank in ["", "  "] {
+            let asrConfig = Config(asrModel: blank)
+            let openRouterConfig = Config(openRouterModel: blank)
+
+            #expect(throws: ConfigStore.SaveError.self) {
+                try ConfigStore.save(asrConfig, to: FakeUserDefaults())
+            }
+            #expect(!ConfigStore.isValid(asrConfig))
+            #expect(throws: ConfigStore.SaveError.self) {
+                try ConfigStore.save(openRouterConfig, to: FakeUserDefaults())
+            }
+            #expect(!ConfigStore.isValid(openRouterConfig))
+        }
     }
 
     /// Stated sensitivity: treat OpenRouter as an ad hoc string or forget its
@@ -143,10 +176,10 @@ struct ConfigStoreTests {
 
     /// Persisted configs from the abandoned Apple-Speech migration used backend
     /// "speechtranscriber" + model "system-dictation". Those legacy values MIGRATE
-    /// to the WhisperKit turbo runtime on load (a mapping, NOT whole-config
-    /// rejection): the single-case `AsrBackend`'s synthesized Codable cannot even
-    /// represent "speechtranscriber", so the loader maps the legacy string
-    /// BEFORE raw-value matching. keepWarmSeconds RESETS to resident (nil) for any
+    /// to the WhisperKit turbo runtime on load (a mapping, not a recovery): the
+    /// single-case `AsrBackend`'s synthesized Codable cannot even represent
+    /// "speechtranscriber", so the loader maps the legacy string BEFORE raw-value
+    /// matching. keepWarmSeconds RESETS to resident (nil) for any
     /// legacy value (legacy keepWarm meant Apple retention, not an idle window).
     /// Unrelated cleanup/style fields survive untouched.
     ///
@@ -155,17 +188,18 @@ struct ConfigStoreTests {
     /// alone is false-green — the BROKEN discard-to-defaults path satisfies them too.
     /// The load-bearing assertion is a NON-DEFAULT surviving sibling: `writingStyle:
     /// .formal` (≠ .casual default) and a non-default openRouterModel the user set.
-    /// Stated sensitivity: reject-instead-of-migrate (whole config → defaults) → the
+    /// Stated sensitivity: reset the whole config on the legacy backend → the
     /// non-default writingStyle/openRouterModel are lost → RED. Skip the model remap
-    /// → asrModel stays "system-dictation" → RED. Report the legacy backend as
-    /// recovered → the recovered set is not empty → RED.
+    /// → asrModel stays "legacy-other-model" → RED. The stored model is not
+    /// "system-dictation", so only the backend can trigger the remap. Report the
+    /// legacy backend as recovered → the recovered set is not empty → RED.
     @Test
     func legacyAppleSpeechConfigMigratesToWhisperKit() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
                 keepWarmSeconds: 999,
                 backend: "speechtranscriber",
-                asrModel: "system-dictation",
+                asrModel: "legacy-other-model",
                 cleanupProvider: "openrouter",
                 openRouterModel: "openai/gpt-6-nano",
                 writingStyle: "formal"

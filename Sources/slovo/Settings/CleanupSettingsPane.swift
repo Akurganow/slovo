@@ -124,8 +124,8 @@ struct CleanupSettingsPane: View {
     }
 
     private var translateRow: some View {
-        // No Auto row: a translate target must be a concrete language (the fail-closed
-        // config guard rejects the sentinel), unlike the recognition-language picker.
+        // No Auto row: a translate target must be a concrete language (a stored `auto`
+        // target returns to English on load), unlike the recognition-language picker.
         // Rows are tagged with `Language` values so the picker binds the field directly.
         Picker(selection: store.binding(\.translationTargetLanguage)) {
             ForEach(RecognitionLanguageCatalog.options) { option in

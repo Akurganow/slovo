@@ -256,8 +256,10 @@ stored in Keychain:
 
 A stored setting this version cannot read returns to its default, and the other
 settings are kept. An unknown recognition backend also resets the recognition
-model, an unknown cleanup provider turns cleanup off, and two colliding hotkeys
-both return to their defaults.
+model, an unknown cleanup provider or an unreadable cleanup switch or cleanup
+section turns cleanup off, and two colliding hotkeys both return to their defaults. A stored value that
+cannot be decoded as a whole (not JSON, or not a JSON object) returns every
+setting to its default.
 
 ## Build And Test
 

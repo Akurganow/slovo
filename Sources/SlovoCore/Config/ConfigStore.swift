@@ -33,9 +33,9 @@ public enum ConfigStore {
 
     /// `Config.defaults` overlaid by every stored field this build can read. A field
     /// that is present but unreadable returns to its default and is reported by key
-    /// path, so one damaged setting never costs the others. Only a blob that is no
-    /// JSON object, or a keep-warm that is not an integer in range, resets the whole
-    /// config.
+    /// path, so one damaged setting never costs the others. The reported set counts
+    /// damaged key paths, which can differ from the fields reset. Only a blob that is
+    /// not a JSON object resets the whole config.
     static func loadRecovering(
         from defaults: UserDefaultsReading,
         key: String = defaultKey
@@ -43,16 +43,14 @@ public enum ConfigStore {
         guard let data = defaults.data(forKey: key) else {
             return (.defaults, [])
         }
-        guard let loaded = try? JSONDecoder().decode(LoadedConfig.self, from: data),
-              let config = validated(loaded.config)
-        else {
+        guard let loaded = try? JSONDecoder().decode(LoadedConfig.self, from: data) else {
             log.error("config.load unreadable, defaults used")
             return (.defaults, [])
         }
         if !loaded.recoveredKeys.isEmpty {
             log.error("config.load fieldsRecovered=\(loaded.recoveredKeys.count, privacy: .public)")
         }
-        return (config, loaded.recoveredKeys)
+        return (loaded.config, loaded.recoveredKeys)
     }
 
     public static func save(_ config: Config, to defaults: UserDefaultsWriting, key: String = defaultKey) throws {
@@ -69,8 +67,9 @@ public enum ConfigStore {
         validated(config) != nil
     }
 
-    /// The wire shape `save` writes. Reading it back is `LoadedConfig`'s job, so a
-    /// field's key and default are each stated once.
+    /// The wire shape `save` writes. Reading it back is `LoadedConfig`'s job, which
+    /// spells each key as a string, so a renamed property here must be renamed there
+    /// too.
     private struct StoredConfig: Encodable {
         let language: Language
         let keepWarmSeconds: Int?
@@ -126,7 +125,8 @@ public enum ConfigStore {
 
     /// A stored blob read field by field. A missing or `null` key takes its default
     /// silently (an older blob predates the field); a present key this build cannot
-    /// read takes its default and is reported through `FieldReader`.
+    /// read takes its default, or a safer value where the field names one, and is
+    /// reported through `FieldReader`.
     private struct LoadedConfig: Decodable {
         let config: Config
         let recoveredKeys: Set<String>
@@ -134,16 +134,10 @@ public enum ConfigStore {
         init(from decoder: Decoder) throws {
             let root = try decoder.container(keyedBy: Field.self)
             let recovered = RecoveredKeys()
-            let top = FieldReader(container: root, recovered: recovered)
+            let top = FieldReader(container: root, recovered: recovered, unreadable: false)
             let asr = top.object("asr")
             let cleanup = top.object("cleanup")
             let defaults = Config.defaults
-
-            // Config has no field for the mode: only "hold" exists, so anything else
-            // is damage to report and there is nothing to reset.
-            _ = top.value("mode", String.self, default: Config.defaultMode) {
-                $0 == Config.defaultMode ? $0 : nil
-            }
 
             var trigger = top.value(
                 "trigger", String.self, default: defaults.trigger, convert: HotkeyTrigger.init(rawValue:)
@@ -162,34 +156,42 @@ public enum ConfigStore {
 
             // A backend this build does not know takes its model with it: a model id
             // means something only to its own backend.
-            let backend = asr.value("backend", String.self, default: AsrBackend.whisperKit.rawValue) {
-                [AsrBackend.whisperKit.rawValue, ConfigStore.legacyAppleSpeechBackend].contains($0) ? $0 : nil
+            let backend = asr.value(
+                "backend", String.self, default: StoredBackend.whisperKit, whenUnreadable: .unknown
+            ) {
+                switch $0 {
+                case AsrBackend.whisperKit.rawValue: .whisperKit
+                case ConfigStore.legacyAppleSpeechBackend: .legacyAppleSpeech
+                default: nil
+                }
             }
             let storedModel = asr.value(
                 "model", String.self, default: defaults.asrModel, convert: ConfigStore.nonBlank
             )
-            let isLegacyAppleSpeech = backend == ConfigStore.legacyAppleSpeechBackend
-            let usesDefaultModel = recovered.paths.contains("asr.backend")
-                || isLegacyAppleSpeech
-                || storedModel == ConfigStore.legacyAppleSpeechModel
+            let usesDefaultModel = backend != .whisperKit || storedModel == ConfigStore.legacyAppleSpeechModel
 
-            // Only a cleanup provider other than OpenRouter turns cleanup off: this
-            // build has no other, and the stored model id still belongs to the user.
-            _ = cleanup.value("provider", String.self, default: "openrouter") {
-                $0 == "openrouter" ? $0 : nil
+            // Cleanup sends text off the machine, so a provider this build does not
+            // know and a switch it cannot read both leave it off; the stored model id
+            // still belongs to the user. A missing switch is the default, on.
+            let providerIsOpenRouter = cleanup.value(
+                "provider", String.self, default: true, whenUnreadable: false
+            ) {
+                $0 == "openrouter" ? true : nil
             }
-            let cleanupEnabled = cleanup.value("enabled", default: defaults.cleanupEnabled)
-                && !recovered.paths.contains("cleanup.provider")
+            let cleanupEnabled = cleanup.value("enabled", default: defaults.cleanupEnabled, whenUnreadable: false)
+                && providerIsOpenRouter
 
-            // A legacy Apple-Speech blob's keep-warm meant Apple-Speech retention, not
-            // a WhisperKit window, so it returns to the resident default (nil).
-            let keepWarmSeconds = try root.decodeIfPresent(Int.self, forKey: Field("keepWarmSeconds"))
+            let keepWarmSeconds = top.value("keepWarmSeconds", Int.self, default: Int?.none) {
+                ConfigStore.keepWarmRange.contains($0) ? .some($0) : nil
+            }
 
             config = Config(
                 language: top.value("language", Language.self, default: defaults.language) {
                     $0 == .auto || RecognitionLanguageCatalog.isSupported($0.rawValue) ? $0 : nil
                 },
-                keepWarmSeconds: isLegacyAppleSpeech ? nil : keepWarmSeconds,
+                // A legacy Apple-Speech blob's keep-warm meant Apple-Speech retention,
+                // not a WhisperKit window, so it returns to the resident default (nil).
+                keepWarmSeconds: backend == .legacyAppleSpeech ? nil : keepWarmSeconds,
                 trigger: trigger,
                 translateTrigger: translateTrigger,
                 translateKeyIsAdditional: top.value(
@@ -229,6 +231,12 @@ public enum ConfigStore {
         }
     }
 
+    private enum StoredBackend {
+        case whisperKit
+        case legacyAppleSpeech
+        case unknown
+    }
+
     private struct Field: CodingKey {
         let stringValue: String
         let intValue: Int? = nil
@@ -244,44 +252,50 @@ public enum ConfigStore {
         var paths: Set<String> = []
     }
 
-    /// One JSON object read key by key. A reader over no object (the key was absent,
-    /// or held another type) answers every read with its default.
+    /// One JSON object read key by key. A reader over no object answers every read
+    /// with its default, or with `whenUnreadable` when `unreadable` says the object
+    /// was present but held another type.
     private struct FieldReader {
         let container: KeyedDecodingContainer<Field>?
         let recovered: RecoveredKeys
+        let unreadable: Bool
 
-        /// The stored `Raw` converted to the field's value, or `fallback`: silently
-        /// when the key is absent or `null`, and recorded when it is present but
-        /// `convert` or the decode rejects it.
+        /// The stored `Raw` converted to the field's value. A missing or `null` key
+        /// gives `fallback` silently; a key that is present but rejected by `convert`
+        /// or the decode is recorded and gives `whenUnreadable`, or `fallback` where
+        /// the field names no safer value.
         func value<Raw: Decodable, Value>(
             _ key: String,
             _ rawType: Raw.Type,
             default fallback: Value,
+            whenUnreadable: Value? = nil,
             convert: (Raw) -> Value?
         ) -> Value {
-            guard let container = presentContainer(for: key) else { return fallback }
+            guard let container = presentContainer(for: key) else {
+                return unreadable ? whenUnreadable ?? fallback : fallback
+            }
             if let raw = try? container.decode(rawType, forKey: Field(key)), let value = convert(raw) {
                 return value
             }
             record(key)
-            return fallback
+            return whenUnreadable ?? fallback
         }
 
-        func value<Value: Decodable>(_ key: String, default fallback: Value) -> Value {
-            value(key, Value.self, default: fallback) { $0 }
+        func value<Value: Decodable>(_ key: String, default fallback: Value, whenUnreadable: Value? = nil) -> Value {
+            value(key, Value.self, default: fallback, whenUnreadable: whenUnreadable) { $0 }
         }
 
         /// The nested object under `key`. A value of another type is recorded and
-        /// leaves every field inside at its default.
+        /// leaves every field inside unreadable.
         func object(_ key: String) -> FieldReader {
             guard let container = presentContainer(for: key) else {
-                return FieldReader(container: nil, recovered: recovered)
+                return FieldReader(container: nil, recovered: recovered, unreadable: false)
             }
-            let nested = try? container.nestedContainer(keyedBy: Field.self, forKey: Field(key))
-            if nested == nil {
+            guard let nested = try? container.nestedContainer(keyedBy: Field.self, forKey: Field(key)) else {
                 record(key)
+                return FieldReader(container: nil, recovered: recovered, unreadable: true)
             }
-            return FieldReader(container: nested, recovered: recovered)
+            return FieldReader(container: nested, recovered: recovered, unreadable: false)
         }
 
         func record(_ key: String) {
@@ -326,10 +340,15 @@ public enum ConfigStore {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
     }
 
+    /// The idle seconds a loaded model may stay warm; load and save share it.
+    private static let keepWarmRange = 0...3_600
+
+    /// What `save` and `isValid` accept. Load does not call it: it recovers every
+    /// value this refuses.
     private static func validated(_ config: Config) -> Config? {
         // A nil keep-warm is the valid resident default; a present value must be a
         // sane window.
-        if let keepWarmSeconds = config.keepWarmSeconds, !(0...3_600).contains(keepWarmSeconds) {
+        if let keepWarmSeconds = config.keepWarmSeconds, !keepWarmRange.contains(keepWarmSeconds) {
             return nil
         }
         // The save-side mutual-exclusion check on the two hotkeys: one key cannot

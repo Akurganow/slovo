@@ -9,7 +9,8 @@ import SlovoTestSupport
 // unreadable takes its default and is reported by key path, and no other field is
 // touched. Every test loads the witness blob (each field non-default, so a field
 // that falls back to its default is visible) with one change and compares the
-// whole `Config` and the whole recovered set.
+// whole `Config` and the whole recovered set. The tests assert the recovered set
+// whose count the log line prints; they do not read the log.
 @Suite("ConfigStore recovery")
 struct ConfigStoreRecoveryTests {
     typealias Edit = ConfigFixtures.WitnessEdit
@@ -56,9 +57,10 @@ struct ConfigStoreRecoveryTests {
 
     /// Pins the rule's baseline: a blob this build reads completely loads field for
     /// field, ignores keys it does not know, and reports nothing.
-    /// Stated sensitivity: drop or default any one field in the decode, report a key
-    /// that was readable, or read an unknown key into a field → the whole-`Config`
-    /// or recovered-set comparison → RED.
+    /// Stated sensitivity: drop or default any one field in the decode, or report a
+    /// key that was readable → the whole-`Config` or recovered-set comparison → RED;
+    /// decode with a container that throws on a key it does not know → the blob
+    /// resets to defaults → RED.
     @Test
     func witnessBlobLoadsEveryField() throws {
         let loaded = try load([])
@@ -76,12 +78,14 @@ struct ConfigStoreRecoveryTests {
         row("translateTrigger", #""capslock""#) { $0.translateTrigger = .control },
         row("translateTrigger", "true") { $0.translateTrigger = .control },
         row("translateKeyIsAdditional", #""yes""#) { $0.translateKeyIsAdditional = true },
-        row("mode", #""toggle""#) { _ in },
         row("asr.model", #""""#) { $0.asrModel = Config.defaultAsrModel },
         row("asr.model", #"" ""#) { $0.asrModel = Config.defaultAsrModel },
         row("asr.model", "5") { $0.asrModel = Config.defaultAsrModel },
         row("asr.vocabularyBias", #""on""#) { $0.usesVocabularyBias = false },
-        row("cleanup.enabled", #""no""#) { $0.cleanupEnabled = true },
+        row("cleanup.enabled", #""no""#) { $0.cleanupEnabled = false },
+        row("keepWarmSeconds", "-1") { $0.keepWarmSeconds = nil },
+        row("keepWarmSeconds", "3601") { $0.keepWarmSeconds = nil },
+        row("keepWarmSeconds", #""45""#) { $0.keepWarmSeconds = nil },
         row("cleanup.openRouterModel", #""""#) { $0.openRouterModel = Config.defaultOpenRouterModel },
         row("cleanup.openRouterModel", #""  ""#) { $0.openRouterModel = Config.defaultOpenRouterModel },
         row("cleanup.openRouterModel", "7") { $0.openRouterModel = Config.defaultOpenRouterModel },
@@ -101,7 +105,7 @@ struct ConfigStoreRecoveryTests {
             $0.usesVocabularyBias = false
         },
         row("cleanup", #""x""#) {
-            $0.cleanupEnabled = true
+            $0.cleanupEnabled = false
             $0.writingStyle = .casual
             $0.useSpellCheckHints = true
             $0.openRouterModel = Config.defaultOpenRouterModel
@@ -110,13 +114,15 @@ struct ConfigStoreRecoveryTests {
 
     /// One present-but-unreadable field returns to its default and is the only key
     /// reported; every other field keeps its stored value. Each row's default differs
-    /// from the witness value, so a field that was not reset also fails the compare;
-    /// the `mode` row has no `Config` field, so the recovered set alone catches it.
+    /// from the witness value, so a field that was not reset also fails the compare.
+    /// The exception is cleanup: an unreadable `cleanup.enabled`, or a `cleanup` that
+    /// is no object, returns to off (the witness value) where a missing key is on, so
+    /// no text leaves the machine on a guess.
     /// Stated sensitivity: reset the whole config to defaults on an unreadable field
-    /// → the untouched fields are lost → RED; leave an unreadable
-    /// field at its stored or decoded value, or leave it out of the recovered set →
-    /// RED; report a key that was readable → RED; reset keep-warm on an unreadable
-    /// sibling → RED.
+    /// → the untouched fields are lost → RED; leave an unreadable field at its
+    /// stored or decoded value, or leave it out of the recovered set → RED; report a
+    /// key that was readable → RED; recover `cleanup.enabled` to on → RED; reset
+    /// keep-warm on an unreadable sibling, or keep an out-of-range keep-warm → RED.
     @Test(arguments: unreadableFields)
     func oneUnreadableFieldTakesItsDefaultAndKeepsTheRest(row: Row) throws {
         try expect(row)
@@ -128,6 +134,9 @@ struct ConfigStoreRecoveryTests {
         absent("translateTrigger") { $0.translateTrigger = .control },
         absent("cleanup.enabled") { $0.cleanupEnabled = true },
         absent("cleanup.writingStyle") { $0.writingStyle = .casual },
+        absent("keepWarmSeconds") { $0.keepWarmSeconds = nil },
+        absent("asr.backend") { _ in },
+        absent("asr.model") { $0.asrModel = Config.defaultAsrModel },
         absent("asr") {
             $0.asrModel = Config.defaultAsrModel
             $0.usesVocabularyBias = false
@@ -154,8 +163,10 @@ struct ConfigStoreRecoveryTests {
     /// than the field, not damage: it takes the default and reports nothing. The
     /// `null` provider row also shows a missing provider leaves cleanup as stored.
     /// Stated sensitivity: report an absent or `null` key as recovered → the set is
-    /// not empty → RED; require a field that older blobs lack → the whole config
-    /// resets and the kept fields are lost → RED.
+    /// not empty → RED; treat a `null` provider as unknown → cleanup turns off →
+    /// RED; require a field that older blobs lack → the whole config resets and the
+    /// kept fields are lost → RED; reset the model when only the backend is missing
+    /// → `Config` differs → RED.
     @Test(arguments: missingFields)
     func missingFieldTakesItsDefaultSilently(row: Row) throws {
         try expect(row)
@@ -171,6 +182,19 @@ struct ConfigStoreRecoveryTests {
         try expect(Row(
             edits: [Edit("asr.backend", "\"\(backend)\"")],
             recovered: ["asr.backend"],
+            expected: { $0.asrModel = Config.defaultAsrModel }
+        ))
+    }
+
+    /// The model id of the abandoned Apple-Speech backend names nothing WhisperKit can
+    /// load, so it returns to the default model silently under the current backend too.
+    /// Stated sensitivity: keep the stored `system-dictation` model when the backend
+    /// is WhisperKit → `Config` differs → RED; report it as recovered → RED.
+    @Test
+    func legacyModelUnderCurrentBackendTakesTheDefaultSilently() throws {
+        try expect(Row(
+            edits: [Edit("asr.model", #""system-dictation""#)],
+            recovered: [],
             expected: { $0.asrModel = Config.defaultAsrModel }
         ))
     }
@@ -207,9 +231,9 @@ struct ConfigStoreRecoveryTests {
     }
 
     /// A cleanup provider other than OpenRouter is a contract this build cannot
-    /// honour, so cleanup turns off and the rest of the config stays. `W` stores
-    /// cleanup off, so each row first switches it on, to show the provider turns it
-    /// off.
+    /// honour, so cleanup turns off and the rest of the config stays. The witness
+    /// blob stores cleanup off, so each row first switches it on, to show the
+    /// provider turns it off.
     /// Stated sensitivity: keep cleanup on, reset the whole config, or leave the
     /// provider out of the recovered set → RED.
     @Test(arguments: [#""local-llm""#, #""anthropic""#, #""openai""#, "5"])
@@ -221,11 +245,23 @@ struct ConfigStoreRecoveryTests {
         ))
     }
 
+    /// The keep-warm window is inclusive at both ends: 0 releases the model after
+    /// each use and 3600 is the longest idle window.
+    /// Stated sensitivity: make either bound exclusive → the boundary value is
+    /// recovered to nil and reported → RED.
+    @Test(arguments: [0, 3_600])
+    func keepWarmBoundsLoadAsStored(seconds: Int) throws {
+        try expect(Row(
+            edits: [Edit("keepWarmSeconds", "\(seconds)")],
+            recovered: [],
+            expected: { $0.keepWarmSeconds = seconds }
+        ))
+    }
+
     /// A saved config reads back whole and without a recovered key, so an encoder
     /// that writes a damaged value does not hide behind the field's default.
     /// Stated sensitivity: write any field's default or a value this build cannot
-    /// read on save, or write `mode` other than `hold` → the whole-`Config` or
-    /// recovered-set comparison → RED.
+    /// read on save → the whole-`Config` or recovered-set comparison → RED.
     @Test
     func savedWitnessConfigLoadsWithoutRecoveredKeys() throws {
         let defaults = FakeUserDefaults()
