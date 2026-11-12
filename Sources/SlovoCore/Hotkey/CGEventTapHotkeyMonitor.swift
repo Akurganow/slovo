@@ -1,5 +1,7 @@
 import CoreGraphics
+import Foundation
 import os
+import Synchronization
 
 /// The push-to-talk key's `CGEventTap`. Observes `flagsChanged` (trigger edges)
 /// and `keyDown` (combo interrupts), reduces each event to a `HotkeyInputEvent`,
@@ -8,75 +10,114 @@ import os
 /// tap is disabled by timeout or user input it is re-enabled, the disable is
 /// logged, and a held trigger is released via a synthesized `.up`.
 ///
+/// The tap is active, so every key event in the session waits for its callback.
+/// The tap therefore runs on a thread of its own: a busy main thread never holds
+/// up typing in other apps. Every field the two threads share sits behind one
+/// lock, and the compiler refuses any other: the class is `Sendable`, so it can
+/// hold no unguarded mutable state.
+///
 /// Exercised on real hardware via the manual runbook, not in CI; its decision
 /// logic is unit-tested through `HotkeyDecisionCore`.
-public final class CGEventTapHotkeyMonitor {
+public final class CGEventTapHotkeyMonitor: Sendable {
     public struct HotkeyTapError: Error {
         public let reason: String
     }
 
-    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "hotkey")
-
-    /// Invoked on each hotkey edge; `.down` ⇒ Start, `.up` ⇒ Stop.
-    public var onTrigger: ((HotkeyPhase) -> Void)?
-
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
-    private var decisionCore: HotkeyDecisionCore
-
-    public init(configuration: HotkeyConfiguration) {
-        self.decisionCore = HotkeyDecisionCore(configuration: configuration)
+    /// An installed tap and the run loop of the thread that serves it. Unchecked
+    /// because Core Foundation does not mark these types `Sendable`, yet "the
+    /// functions in Core Foundation are generally thread-safe and can be called from
+    /// any thread" (archived guide, Threading Programming Guide, "Run Loop
+    /// Management", updated 2014-07-15). Only `stop()` calls them off the tap thread.
+    private struct InstalledTap: @unchecked Sendable {
+        let port: CFMachPort
+        let runLoop: CFRunLoop
     }
 
-    /// The tap holds `self` UNRETAINED via `refcon`; tear it down before the
-    /// monitor dies so the callback can never dereference a dangling pointer.
-    deinit {
-        stop()
+    private struct State {
+        var decisionCore: HotkeyDecisionCore
+        var onTrigger: (@Sendable (HotkeyPhase) -> Void)?
+        var tap: InstalledTap?
+    }
+
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "hotkey")
+
+    private let state: Mutex<State>
+
+    public init(configuration: HotkeyConfiguration) {
+        state = Mutex(State(decisionCore: HotkeyDecisionCore(configuration: configuration)))
+    }
+
+    /// Invoked on the tap thread for each hotkey edge, in the order the keys
+    /// moved; `.down` ⇒ Start, `.up` ⇒ Stop.
+    public var onTrigger: (@Sendable (HotkeyPhase) -> Void)? {
+        get { state.withLock { $0.onTrigger } }
+        set { state.withLock { $0.onTrigger = newValue } }
     }
 
     /// Applies a live key change in place. The event mask is key-independent, so
     /// only the decision core is swapped (held state reset) — no tap teardown, no
     /// failure window, no pipeline rebuild.
     public func reconfigure(configuration: HotkeyConfiguration) {
-        decisionCore.reconfigure(to: configuration)
+        state.withLock { $0.decisionCore.reconfigure(to: configuration) }
     }
 
+    /// Starts the tap thread and returns once it has installed the tap, or throws
+    /// when the tap could not be created.
     public func start() throws {
+        let installed = DispatchSemaphore(value: 0)
+        // The thread's closure holds `self` until its run loop exits, and the
+        // callback runs only inside that run loop, so the unretained `refcon` can
+        // never outlive the monitor.
+        let thread = Thread { [self] in
+            serveTap(reportingTo: installed)
+        }
+        thread.name = "com.slovo.app.hotkey-tap"
+        thread.qualityOfService = .userInteractive
+        thread.start()
+        installed.wait()
+        guard state.withLock({ $0.tap != nil }) else {
+            throw HotkeyTapError(reason: "CGEvent.tapCreate returned nil (Input Monitoring not granted?)")
+        }
+    }
+
+    /// Removes the tap. Invalidating the port takes its source off the tap
+    /// thread's run loop, so `CFRunLoopRun` returns even when the thread has not
+    /// reached it yet, and `CFRunLoopStop` wakes it when it is waiting.
+    public func stop() {
+        state.withLock { state in
+            guard let tap = state.tap else { return }
+            CGEvent.tapEnable(tap: tap.port, enable: false)
+            CFMachPortInvalidate(tap.port)
+            CFRunLoopStop(tap.runLoop)
+            state.tap = nil
+        }
+    }
+
+    /// The tap thread's whole life: create the tap on this thread, add it to this
+    /// thread's run loop, report back to `start()`, and serve events until `stop()`.
+    private func serveTap(reportingTo installed: DispatchSemaphore) {
         // keyDown joins flagsChanged so the tap can observe an interrupting key
         // press and cancel a passthrough-modifier hold.
         let eventMask = CGEventMask(
             (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
         )
-        let userInfo = Unmanaged.passUnretained(self).toOpaque()
-
-        guard let tap = CGEvent.tapCreate(
+        guard let port = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: eventMask,
             callback: hotkeyEventTapCallback,
-            userInfo: userInfo
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            throw HotkeyTapError(reason: "CGEvent.tapCreate returned nil (Input Monitoring not granted?)")
+            installed.signal()
+            return
         }
-
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-
-        self.eventTap = tap
-        self.runLoopSource = source
-    }
-
-    public func stop() {
-        if let eventTap {
-            CGEvent.tapEnable(tap: eventTap, enable: false)
-        }
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        }
-        eventTap = nil
-        runLoopSource = nil
+        let runLoop: CFRunLoop = CFRunLoopGetCurrent()
+        CFRunLoopAddSource(runLoop, CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0), .commonModes)
+        CGEvent.tapEnable(tap: port, enable: true)
+        state.withLock { $0.tap = InstalledTap(port: port, runLoop: runLoop) }
+        installed.signal()
+        CFRunLoopRun()
     }
 
     // MARK: - Tap callback
@@ -101,7 +142,16 @@ public final class CGEventTapHotkeyMonitor {
             return Unmanaged.passUnretained(event)
         }
 
-        switch decisionCore.handle(inputEvent) {
+        // The edge is sent outside the lock, so the receiver never runs under it.
+        let (decision, onTrigger) = state.withLock { state in
+            let decision = state.decisionCore.handle(inputEvent)
+            if case .resync = decision, let tap = state.tap {
+                CGEvent.tapEnable(tap: tap.port, enable: true)
+            }
+            return (decision, state.onTrigger)
+        }
+
+        switch decision {
         case .start(let suppress, let mode):
             onTrigger?(.down(mode))
             return suppress ? nil : Unmanaged.passUnretained(event)
@@ -118,9 +168,6 @@ public final class CGEventTapHotkeyMonitor {
             // The real combo (e.g. Right ⌘ + C) must proceed untouched.
             return Unmanaged.passUnretained(event)
         case .resync(let synthesizedStop):
-            if let eventTap {
-                CGEvent.tapEnable(tap: eventTap, enable: true)
-            }
             // The unified log keeps numbers unredacted and redacts dynamic strings
             // (man page `os_log(3)`, revision "June 2, 2016"): the Bool is logged as a
             // number, and the cause is a literal of its own arm.
