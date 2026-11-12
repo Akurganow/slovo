@@ -20,9 +20,8 @@ key up   -> stop capture -> restore output -> queue End -> finalize -> clean -> 
 
 Raw audio stays on the Mac and is transcribed on-device through WhisperKit
 (Whisper large-v3 turbo; the speech engine of the Argmax OSS SDK, formerly the
-standalone WhisperKit package); only transcript text ever leaves the machine,
-and only for the OpenRouter cleanup attempt — plus the key-scope metadata request
-to OpenRouter (`/models/user`), which carries the API key and no user content.
+standalone WhisperKit package). What leaves the Mac is listed in
+[docs/privacy.md](privacy.md), "Data Paths".
 
 ## Core Components
 
@@ -137,29 +136,30 @@ storage, cleanup, transcription, and injection behavior.
 Cleanup has one runtime provider: the OpenRouter Chat Completions API. The app
 stores one OpenRouter key in Keychain and exposes model selection as curated
 OpenRouter model ids and a custom id entry. Selecting a model changes only the
-model id. Whichever consumer asks first reads the key's value from Keychain and
-holds it in memory. That read happens at most once per process. Ordinarily the
-asker is the key-scope metadata request (`/models/user`), sent once the hotkey
-pipeline has started. Cleanup asks later and is served from memory. That scope
-request is not tied to a dictation. Slovo emits it on three occasions:
-
-- on pipeline start, when cleanup is already available
-- when cleanup becomes available, through a key save or Clean Up Dictation
-  switched back on
-- when a cleanup call reports the model is outside the key's scope
+model id. `KeychainAPIKeyProvider` reads the key's value from Keychain on the
+first request that needs it and keeps it in memory; a successful save replaces
+the copy, and a failed save or a successful removal drops it. The key-scope
+request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
+decides when it is sent: every occasion but one goes through `fetchIfReady`,
+which needs cleanup effectively on, the pipeline started, the scope unknown and
+no fetch in flight. A cleanup call that fails with HTTP status 404 starts a
+fetch directly, with cleanup on and the pipeline started. It keeps the old scope
+until the answer replaces it; a failed fetch resets the scope to unknown. The
+occasions are listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
 
 Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
-active keyboard language and, when enabled, system spell-check suggestions —
-which the model may use but never must; these hints travel to OpenRouter in the
-prompt alongside the transcript, and only the raw audio never leaves the Mac.
+active keyboard language and, when enabled, system spell and grammar findings —
+which the model may use but never must. The prompt also lists every vocabulary
+term. What the request carries is listed in [docs/privacy.md](privacy.md), "Data
+Paths".
 
-Both prompts (cleanup and translate) are built by `PromptBuilder` around a
-bundled few-shot example catalog: `PromptExampleCatalog` loads
-`Resources/PromptExamples.xml` (a SwiftPM resource of `SlovoCore`) and selects
-exemplars for the active language pair, including a shared language-neutral set
-that teaches the model to write dictated math expressions in conventional
-notation. The XML in the repository is the single source of truth for the
-examples; no prompt text is assembled from string literals scattered in code.
+Both prompts (cleanup and translate) are built by `PromptBuilder` around a bundled
+few-shot example catalog: `PromptExampleCatalog` loads
+`Sources/SlovoCore/Resources/PromptExamples.xml` (a SwiftPM resource of `SlovoCore`)
+and selects exemplars for the active language pair, including a shared
+language-neutral set that teaches the model to write dictated math expressions in
+conventional notation. The XML in the repository is the single source of truth for
+the examples; no prompt text is assembled from string literals scattered in code.
 
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
@@ -169,6 +169,12 @@ the configured target language) — there is no second pass.
 Slovo uses SQLite through GRDB for local personalization data:
 
 - `vocabulary` stores spelling anchors and term weights.
+- `term_misses` records which vocabulary term a plain (not translated) cleanup
+  corrected, and when: the folded term and a timestamp, no transcript or
+  cleaned text. The rows are encrypted with the rest of the store and never
+  sent; rows older than 90 days are ignored and are deleted when the next one is
+  written ([docs/privacy.md](privacy.md), "Data Paths").
+  `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
 
@@ -276,3 +282,7 @@ strict concurrency checking, and actor data-race checks; the one Objective-C
 target (`SlovoObjC`, an exception-catcher shim Swift cannot express) is exempt,
 since those settings do not apply to `.m` sources. SwiftLint is pinned through a
 SwiftPM plugin and is part of the release gate.
+
+`SlovoCore` stays free of the app shell and of Sparkle: it declares no
+dependency on either (`Package.swift`), and the `explicit-target-imports` stage
+of `Scripts/lint.sh` refuses an import of a target a module does not declare.

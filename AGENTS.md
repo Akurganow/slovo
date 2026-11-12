@@ -308,9 +308,9 @@ a real trap already caught once: Lightning-SimulWhisper).
   conclusion. A local `Scripts/diagnose.sh` is a convenience for whoever is already
   at a Mac, never something to ask the owner for. All it adds is the tests that skip
   whenever `CI` is set.
-- Keep raw audio local; only transcript text may leave the machine, and only for
-  cleanup — plus the key-scope metadata request to OpenRouter (`/models/user`),
-  which carries the API key and no user content.
+- Keep raw audio local. Send off the Mac only what `docs/privacy.md`, "Data
+  Paths", lists, and change that table in the same change that adds a datum or
+  a request.
 - Never commit secrets, local databases, seed files, or signing material.
 - Update the docs when user-visible behavior, setup, privacy, or the release
   workflow changes.
