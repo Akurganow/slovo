@@ -16,8 +16,8 @@ import Synchronization
 /// lock, and the compiler refuses any other: the class is `Sendable`, so it can
 /// hold no unguarded mutable state.
 ///
-/// Exercised on real hardware via the manual runbook, not in CI; its decision
-/// logic is unit-tested through `HotkeyDecisionCore`.
+/// Exercised only by a live run, not in CI; its decision logic is unit-tested
+/// through `HotkeyDecisionCore`.
 public final class CGEventTapHotkeyMonitor: Sendable {
     public struct HotkeyTapError: Error {
         public let reason: String
@@ -63,7 +63,8 @@ public final class CGEventTapHotkeyMonitor: Sendable {
     }
 
     /// Starts the tap thread and returns once it has installed the tap, or throws
-    /// when the tap could not be created.
+    /// when the tap could not be created. The tap thread keeps the monitor alive
+    /// until `stop()`, so a started monitor is removed only by calling `stop()`.
     public func start() throws {
         let installed = DispatchSemaphore(value: 0)
         // The thread's closure holds `self` until its run loop exits, and the
@@ -81,17 +82,21 @@ public final class CGEventTapHotkeyMonitor: Sendable {
         }
     }
 
-    /// Removes the tap. Invalidating the port takes its source off the tap
-    /// thread's run loop, so `CFRunLoopRun` returns even when the thread has not
-    /// reached it yet, and `CFRunLoopStop` wakes it when it is waiting.
+    /// Removes the tap and ends its thread. Invalidating the port invalidates its
+    /// run-loop source, and `CFRunLoopRun` returns once every source is gone from
+    /// the run loop or `CFRunLoopStop` is called (documentation, the reference pages
+    /// `CFMachPortInvalidate(_:)` and `CFRunLoopRun()`; the pages carry no
+    /// revision). So the thread ends whether or not it has reached `CFRunLoopRun`.
     public func stop() {
-        state.withLock { state in
-            guard let tap = state.tap else { return }
-            CGEvent.tapEnable(tap: tap.port, enable: false)
-            CFMachPortInvalidate(tap.port)
-            CFRunLoopStop(tap.runLoop)
-            state.tap = nil
-        }
+        // The calls run outside the lock, so a callback waiting on it never waits on
+        // the window server as well.
+        guard let tap = state.withLock({ state in
+            defer { state.tap = nil }
+            return state.tap
+        }) else { return }
+        CGEvent.tapEnable(tap: tap.port, enable: false)
+        CFMachPortInvalidate(tap.port)
+        CFRunLoopStop(tap.runLoop)
     }
 
     /// The tap thread's whole life: create the tap on this thread, add it to this
@@ -144,12 +149,8 @@ public final class CGEventTapHotkeyMonitor: Sendable {
         }
 
         // The edge is sent outside the lock, so the receiver never runs under it.
-        let (decision, onTrigger) = state.withLock { state in
-            let decision = state.decisionCore.handle(inputEvent)
-            if case .resync = decision, let tap = state.tap {
-                CGEvent.tapEnable(tap: tap.port, enable: true)
-            }
-            return (decision, state.onTrigger)
+        let (decision, onTrigger, tap) = state.withLock { state in
+            (state.decisionCore.handle(inputEvent), state.onTrigger, state.tap)
         }
 
         switch decision {
@@ -169,6 +170,9 @@ public final class CGEventTapHotkeyMonitor: Sendable {
             // The real combo (e.g. Right ⌘ + C) must proceed untouched.
             return Unmanaged.passUnretained(event)
         case .resync(let synthesizedStop):
+            if let tap {
+                CGEvent.tapEnable(tap: tap.port, enable: true)
+            }
             // The unified log keeps numbers unredacted and redacts dynamic strings
             // (man page `os_log(3)`, revision "June 2, 2016"): the Bool is logged as a
             // number, and the cause is a literal of its own arm.

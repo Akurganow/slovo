@@ -123,12 +123,13 @@ struct HotkeyEdgeSequencerTests {
     ///
     /// The recorder is read SYNCHRONOUSLY (a Mutex, not an actor) on purpose: the
     /// only suspension point between enqueuing `.down` and the assertion is `stop()`
-    /// itself. A correct stop() suspends there to finish the stream and await the
-    /// consumer, so `.down` is delivered before it returns.
-    /// Killing mutation: drop the `await consumer.value` join from stop() → stop()
-    /// has no suspension point, `.down` is still undelivered at the read
-    /// (handled == []) → RED. Drop `continuation.finish()` → the consumer never ends
-    /// and the join never returns → the test hangs.
+    /// itself. A correct stop() finishes the stream and awaits the consumer, so
+    /// `.down` is delivered before it returns.
+    /// Killing mutation: drop the `await consumer.value` join from stop() → RED in
+    /// the schedules where the consumer Task has not yet delivered `.down` when the
+    /// read runs (handled == []); the consumer runs on another thread, so a schedule
+    /// that delivers it first passes. Drop `continuation.finish()` → the consumer
+    /// never ends and the join never returns → the test hangs.
     @Test
     func teardownDrainsEnqueuedEdgesBeforeStopReturns() async {
         let handled = Mutex<[HotkeyPhase]>([])

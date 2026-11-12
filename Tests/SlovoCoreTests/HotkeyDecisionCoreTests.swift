@@ -258,6 +258,18 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
     }
 
+    /// A tap disable closes the hold too, so a key change waiting on it applies then.
+    /// Stated sensitivity: apply the waiting change only when a key event closes the
+    /// hold → the new key's press passes through → RED.
+    @Test
+    func aKeyChangeWaitingOnAHoldAppliesWhenATapDisableClosesIt() {
+        var core = makeDecisionCore(main: .rightCommand)
+        _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
+        core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
+        #expect(core.handle(.tapDisabled) == .resync(synthesizedStop: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
+    }
+
     // MARK: - The additional translate key (Control by default): held at any moment
     // of the hold, it latches the session's stop into `.translate` (default `.plain`).
 

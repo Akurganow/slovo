@@ -125,7 +125,9 @@ public struct HotkeyDecisionCore {
     /// rebuilt from the new configuration, so no state judged against the old keys
     /// survives. A change made while a key is down, live or cancelled, waits until
     /// that hold closes: its release is judged against the keys that opened it, so a
-    /// live dictation still gets its stop.
+    /// live dictation still gets its stop. The trade: a hold whose release was lost
+    /// stays open through the change, until a later release or a tap disable closes
+    /// it.
     public mutating func reconfigure(to configuration: HotkeyConfiguration) {
         guard hold == nil else {
             pendingConfiguration = configuration
