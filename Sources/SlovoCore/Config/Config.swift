@@ -53,8 +53,8 @@ public struct Config: Equatable, Sendable {
     public var keepWarmSeconds: Int?
     public var trigger: HotkeyTrigger
     /// The key that makes a dictation translate. Must differ from `trigger`:
-    /// `ConfigStore` is where that exclusion is enforced, failing a colliding pair
-    /// closed rather than persisting or loading it.
+    /// `ConfigStore` is where that exclusion is enforced. It refuses to save a
+    /// colliding pair and loads one as both keys' defaults.
     public var translateTrigger: HotkeyTrigger
     /// Whether the translate key rides ON TOP of a `trigger` hold — the default,
     /// and exactly what holding Control did before the key became configurable —

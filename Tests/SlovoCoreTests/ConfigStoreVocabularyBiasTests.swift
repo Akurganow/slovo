@@ -38,7 +38,7 @@ struct ConfigStoreVocabularyBiasTests {
     }
 
     /// Stated sensitivity: drop the field from the encoder, or from the `Config`
-    /// built in `validated()` → the saved `true` comes back `false` → RED.
+    /// built in `LoadedConfig.init` → the saved `true` comes back `false` → RED.
     @Test
     func saveLoadRoundTripPreservesOn() throws {
         let defaults = FakeUserDefaults()

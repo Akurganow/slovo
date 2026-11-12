@@ -6,9 +6,9 @@ import SlovoTestSupport
 
 // The configurable translate key on the persisted wire: it defaults to Control
 // as an ADDITIONAL key (today's hardcoded behavior), survives a round trip away
-// from those defaults, stays backward compatible when absent, and fails the WHOLE
-// config closed when it is unknown or collides with the push-to-talk key —
-// the single enforcement point of the two keys' mutual exclusion.
+// from those defaults, and stays backward compatible when absent. An unknown or
+// colliding key is recovered in ConfigStoreRecoveryTests; `ConfigStore` is the
+// single enforcement point of the two keys' mutual exclusion.
 @Suite("Translate key config")
 struct TranslateKeyConfigTests {
     /// A fresh install translates on Control held together with the main key —
@@ -23,25 +23,30 @@ struct TranslateKeyConfigTests {
 
     /// Both fields must survive save→load; only NON-default values can prove the
     /// wire path, since the defaults would read back either way.
-    /// Stated sensitivity: drop either field from `encode(to:)` or from the decode
-    /// side → the default (control / additional) comes back → RED.
+    /// Stated sensitivity: drop any of the three fields from `StoredConfig` or from
+    /// the load side, or write the default trigger in `init(config:)` → the
+    /// default (fn / control / additional) comes back → RED.
     @Test
     func translateKeySettingsRoundTripAwayFromTheDefaults() throws {
         let defaults = FakeUserDefaults()
         var config = Config.defaults
+        config.trigger = .leftOption
         config.translateTrigger = .rightShift
         config.translateKeyIsAdditional = false
 
         try ConfigStore.save(config, to: defaults)
 
         let loaded = ConfigStore.load(from: defaults)
+        #expect(loaded.trigger == .leftOption)
         #expect(loaded.translateTrigger == .rightShift)
         #expect(loaded.translateKeyIsAdditional == false)
     }
 
     /// The saved blob names both settings explicitly, so a stored state is a value
     /// rather than an absence (matching `automaticallyInstallsUpdates`).
-    /// Stated sensitivity: omit either key from `encode(to:)` → RED.
+    /// Stated sensitivity: omit either key from `StoredConfig`, or encode it only
+    /// when it differs from its default → the saved default-valued blob lacks the
+    /// key → RED.
     @Test
     func savedConfigCarriesBothTranslateKeysOnTheWire() throws {
         let defaults = FakeUserDefaults()
@@ -49,15 +54,15 @@ struct TranslateKeyConfigTests {
         try ConfigStore.save(.defaults, to: defaults)
 
         let data = try #require(defaults.data(forKey: ConfigStore.defaultKey))
-        let blob = String(decoding: data, as: UTF8.self)
-        #expect(blob.contains("translateTrigger"))
-        #expect(blob.contains("translateKeyIsAdditional"))
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["translateTrigger"] as? String == "control")
+        #expect(object["translateKeyIsAdditional"] as? Bool == true)
     }
 
     /// Backward compat: a blob stored before the setting existed keeps translating
     /// on Control, additional — and keeps every other stored field.
-    /// Stated sensitivity: (a) decode either field as required, or default it to
-    /// anything else → RED; (b) a fixture that fails to decode falls back to
+    /// Stated sensitivity: (a) reset the whole config because either key is absent, or
+    /// default it to anything else → RED; (b) a fixture that fails to decode falls back to
     /// `.defaults`, which would satisfy the two translate asserts for the WRONG
     /// reason — the language pin (fixture "ru" ≠ the `.auto` default) closes that mask.
     @Test
@@ -73,50 +78,8 @@ struct TranslateKeyConfigTests {
         #expect(loaded.translateKeyIsAdditional == true)
     }
 
-    /// An unknown translate key rides the same fail-closed path as an unknown
-    /// push-to-talk key: the WHOLE config resets, siblings included.
-    /// Stated sensitivity: accept the unknown value (or salvage the siblings around
-    /// it) → the loaded config keeps "custom/sibling-model" → RED.
-    @Test
-    func unknownTranslateTriggerFailsClosedToDefaults() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(
-                openRouterModel: "custom/sibling-model",
-                translateTrigger: "capslock"
-            ),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// The two keys must never be the same key. This validation is the app's ONLY
-    /// mutual-exclusion check, so a stored collision — explicit, or produced by the
-    /// translate key's Control default meeting a Control main key — resets the whole
-    /// config rather than leaving one key doing two jobs.
-    /// Stated sensitivity: remove the collision guard → the colliding pair loads and
-    /// keeps "custom/sibling-model" → RED.
-    @Test
-    func collidingMainAndTranslateKeysFailClosedToDefaults() throws {
-        let collisions: [(trigger: String, translateTrigger: String?)] = [
-            ("left-shift", "left-shift"),
-            ("control", nil),
-        ]
-        for collision in collisions {
-            let defaults = FakeUserDefaults(dataByKey: [
-                ConfigStore.defaultKey: try ConfigFixtures.configData(
-                    trigger: collision.trigger,
-                    openRouterModel: "custom/sibling-model",
-                    translateTrigger: collision.translateTrigger
-                ),
-            ])
-
-            #expect(ConfigStore.load(from: defaults) == .defaults,
-                    "main \(collision.trigger) colliding with translate \(collision.translateTrigger ?? "(default)") must reset the WHOLE config")
-        }
-    }
-
     /// The same guard on the way out: a colliding pair is never written, so the
-    /// stored blob can never be the one that resets everything at next launch.
+    /// stored blob can never be the one that resets both keys at next launch.
     /// Stated sensitivity: check the collision on the decode side only → the save
     /// succeeds → RED.
     @Test

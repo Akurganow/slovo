@@ -254,6 +254,11 @@ stored in Keychain:
 - OpenRouter service/account: `slovo` / `openrouter-api-key`
 - ASR backend/model: `whisperkit` / `large-v3-v20240930_turbo_632MB`
 
+A stored setting this version cannot read returns to its default, and the other
+settings are kept. An unknown recognition backend also resets the recognition
+model, an unknown cleanup provider turns cleanup off, and two colliding hotkeys
+both return to their defaults.
+
 ## Build And Test
 
 Building from source requires Xcode with the Swift 6.3 toolchain — see

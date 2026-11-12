@@ -1,12 +1,13 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
-// Config decode is fail-closed. Malformed JSON, unknown enum
-// values, and invalid numeric/string fields must fall back to defaults without
-// crashing or leaking partially decoded garbage into the app.
+// A blob that cannot be read as a whole (no data, malformed JSON) or carries an
+// out-of-range keep-warm falls back to defaults without crashing or leaking
+// partially decoded garbage into the app. A single unreadable field is recovered
+// per field in ConfigStoreRecoveryTests.
 @Suite("ConfigStore")
 struct ConfigStoreTests {
     @Test
@@ -27,34 +28,6 @@ struct ConfigStoreTests {
     func malformedJsonReturnsDefaultsWithoutCrashing() {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: Data("{not-json".utf8),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: accept an unknown ASR backend instead of rejecting the
-    /// whole config → the loaded config is not `.defaults` and this goes RED.
-    @Test
-    func unknownBackendRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "experimentalBackend"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// A refuted backend id (FluidAudio: no shipped adapter) must fail closed, not
-    /// be silently rerouted to WhisperKit. This is distinct from the legacy
-    /// Apple-Speech id, which is intentionally migrated (see
-    /// `legacyAppleSpeechConfigMigratesToWhisperKit`): the migration is SPECIFIC,
-    /// not a catch-all that swallows any unrecognized backend into the runtime.
-    /// Stated sensitivity: make backend decoding map every unrecognized id to
-    /// `.whisperKit` → "fluidaudio" loads as a whisperKit config (keepWarm 45)
-    /// instead of falling back to defaults → RED.
-    @Test
-    func refutedRuntimeBackendRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "fluidaudio"),
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
@@ -83,62 +56,6 @@ struct ConfigStoreTests {
         ])
 
         #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: accept an empty ASR model string → the invalid config
-    /// survives and this defaults assertion fails.
-    @Test
-    func emptyAsrModelRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(asrModel: ""),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: accept an empty OpenRouter model string -> the live
-    /// request would reach OpenRouter with an invalid model id.
-    @Test
-    func emptyOpenRouterModelRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(openRouterModel: ""),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: preserving a forbidden direct provider or converting
-    /// it into a user-off state lets legacy provider config keep controlling
-    /// cleanup instead of failing closed to the always-on OpenRouter contract.
-    @Test
-    func forbiddenAnthropicProviderRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(
-                legacyEnabledField: true,
-                cleanupProvider: "anthropic",
-                writingStyle: "formal"
-            ),
-        ])
-
-        let config = ConfigStore.load(from: defaults)
-
-        #expect(config == .defaults)
-        #expect(config.openRouterModel == Config.defaultOpenRouterModel)
-    }
-
-    /// Stated sensitivity: keep treating a forbidden OpenAI provider as active
-    /// or disabled instead of failing closed to the OpenRouter default contract.
-    @Test
-    func forbiddenOpenAIProviderRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(cleanupProvider: "openai"),
-        ])
-
-        let config = ConfigStore.load(from: defaults)
-
-        #expect(config == .defaults)
-        #expect(config.openRouterModel == Config.defaultOpenRouterModel)
-        #expect(config.cleanupConfig.model == Config.defaultOpenRouterModel)
     }
 
     /// Stated sensitivity: treat OpenRouter as an ad hoc string or forget its
@@ -176,17 +93,6 @@ struct ConfigStoreTests {
         #expect(config.cleanupConfig.model == "openai/gpt-6-luna")
     }
 
-    /// Stated sensitivity: accept an unknown cleanup provider as active or as a
-    /// user-off state -> the app silently preserves a forbidden cleanup contract.
-    @Test
-    func unknownCleanupProviderRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(cleanupProvider: "local-llm"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
     /// Stated sensitivity: omit `cleanup.openRouterModel` while saving -> load
     /// round-trip falls back to defaults.
     @Test
@@ -207,39 +113,6 @@ struct ConfigStoreTests {
         let cleanup = try #require(object["cleanup"] as? [String: Any])
         #expect(cleanup["provider"] == nil)
         #expect(cleanup["enabled"] as? Bool == true)
-    }
-
-    /// Stated sensitivity: decoding persisted ASR backend from the Swift case
-    /// name instead of the documented wire format must be rejected independently.
-    @Test
-    func swiftCaseBackendRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(backend: "whisperKit"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: decoding persisted writing style from the Swift case
-    /// name instead of the documented wire format must be rejected independently.
-    @Test
-    func swiftCaseWritingStyleRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(writingStyle: "veryCasual"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
-    }
-
-    /// Stated sensitivity: ignoring fixed v1 mode accepts a value the app cannot
-    /// execute.
-    @Test
-    func invalidFixedModeRejectsWholeConfig() throws {
-        let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(mode: "toggle"),
-        ])
-
-        #expect(ConfigStore.load(from: defaults) == .defaults)
     }
 
     @Test
@@ -284,7 +157,8 @@ struct ConfigStoreTests {
     /// .formal` (≠ .casual default) and a non-default openRouterModel the user set.
     /// Stated sensitivity: reject-instead-of-migrate (whole config → defaults) → the
     /// non-default writingStyle/openRouterModel are lost → RED. Skip the model remap
-    /// → asrModel stays "system-dictation" → RED.
+    /// → asrModel stays "system-dictation" → RED. Report the legacy backend as
+    /// recovered → the recovered set is not empty → RED.
     @Test
     func legacyAppleSpeechConfigMigratesToWhisperKit() throws {
         let defaults = FakeUserDefaults(dataByKey: [
@@ -298,8 +172,10 @@ struct ConfigStoreTests {
             ),
         ])
 
-        let config = ConfigStore.load(from: defaults)
+        let loaded = ConfigStore.loadRecovering(from: defaults)
+        let config = loaded.config
 
+        #expect(loaded.recoveredKeys.isEmpty, "the migration is not damage, so it reports nothing")
         // Load-bearing anti-tautology siblings: NON-DEFAULT fields the user set, which
         // a whole-config fallback to defaults would destroy.
         #expect(config.writingStyle == .formal)
