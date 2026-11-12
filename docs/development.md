@@ -22,8 +22,8 @@ SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 The development run script rebuilds the `slovo` product, stages
 `.build/dev-run/Slovo.app`, signs it with a stable local code-signing identity
 and the app entitlements, opens the menu-bar app, and verifies that the `slovo`
-process is running. Stable signing is required for macOS TCC permission
-persistence. The script signs with `SIGNING_IDENTITY` when it is set, and
+process runs from the staged bundle. Stable signing is required for macOS TCC
+permission persistence. The script signs with `SIGNING_IDENTITY` when it is set, and
 otherwise with the keychain's code-signing identity when exactly one is
 valid. Failing both, it signs ad-hoc when `ALLOW_AD_HOC_SIGNING=1` is set,
 and otherwise stops with a hint to set one of the two variables. Ad-hoc
@@ -262,7 +262,7 @@ the binary still launches on macOS 15.
 
 **Trigger:** before shipping a release that touches the floor — a change to the
 deployment target in `Package.swift`, to `LSMinimumSystemVersion`, to the actool
-`--minimum-deployment-target` flags in the packaging scripts, or adoption of a
+`--minimum-deployment-target` flag in `Scripts/app-bundle.sh`, or adoption of a
 system API newer than the floor.
 
 **Procedure:** package a signed build (`Scripts/sign-and-notarize.sh app`), copy

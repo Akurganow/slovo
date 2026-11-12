@@ -63,7 +63,8 @@ stage_bundle_contents() {
     run ditto "$bin_dir/slovo_SlovoCore.bundle" "$contents/Resources/slovo_SlovoCore.bundle"
     core_resources="$(bundle_resource_dir "$contents/Resources/slovo_SlovoCore.bundle")"
     for cue_resource in start.wav end.wav error.wav; do
-        run test -f "$core_resources/AudioCues/$cue_resource"
+        run test -f "$core_resources/AudioCues/$cue_resource" \
+            || { echo "dictation sound cue is not staged: $core_resources/AudioCues/$cue_resource" >&2; exit 1; }
     done
 
     # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).

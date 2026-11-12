@@ -3,7 +3,7 @@
 # terminal, the IDE, and any agent session that started it. All state lives in
 # one timestamped directory so progress and results are inspectable at any time:
 #
-#   .build/benchmark-runs/<stamp>/status         RUNNING -> DONE | FAILED(<code>)
+#   .build/benchmark-runs/<stamp>/status         RUNNING -> DONE | FAILED(<code>) | FAILED(build)
 #   .build/benchmark-runs/<stamp>/run.log        lifecycle + heartbeat every 60 s
 #   .build/benchmark-runs/<stamp>/report.csv     aggregate report (written at the END of the run)
 #   .build/benchmark-runs/<stamp>/benchmark.pid  worker PID (kill it to abort)

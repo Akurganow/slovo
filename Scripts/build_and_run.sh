@@ -7,22 +7,22 @@ PROCESS_NAME="slovo"
 SUBSYSTEM="com.slovo.app"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
-BUILD_CACHE_DIR="$ROOT_DIR/.build/swiftpm-cache"
-BUILD_CONFIG_DIR="$ROOT_DIR/.build/swiftpm-config"
-BUILD_SECURITY_DIR="$ROOT_DIR/.build/swiftpm-security"
-RUN_DIR="$ROOT_DIR/.build/dev-run"
+# Physical path: the process check below compares it with what ps reports.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$ROOT"
+BUILD_CACHE_DIR="$ROOT/.build/swiftpm-cache"
+BUILD_CONFIG_DIR="$ROOT/.build/swiftpm-config"
+BUILD_SECURITY_DIR="$ROOT/.build/swiftpm-security"
+RUN_DIR="$ROOT/.build/dev-run"
 APP_BUNDLE="$RUN_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$PROCESS_NAME"
 
 # The staging and framework-signing steps the release script runs too.
-ROOT="$ROOT_DIR"
 DRY_RUN=0
 run() { "$@"; }
-source "$ROOT_DIR/Scripts/app-bundle.sh"
+source "$ROOT/Scripts/app-bundle.sh"
 
 build_app() {
   mkdir -p "$BUILD_CACHE_DIR" "$BUILD_CONFIG_DIR" "$BUILD_SECURITY_DIR"
@@ -48,7 +48,7 @@ stage_bundle() {
   mkdir -p "$APP_MACOS" "$APP_CONTENTS/Resources"
   cp "$build_binary" "$APP_BINARY"
   chmod +x "$APP_BINARY"
-  cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+  cp "$ROOT/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
 
   # Mark the staged copy — never the committed plist — as a dev build; the About
   # header version line renders this as the Dobro suffix. Release packaging
@@ -96,7 +96,7 @@ sign_bundle() {
   codesign \
     --force \
     --options runtime \
-    --entitlements "$ROOT_DIR/slovo.entitlements" \
+    --entitlements "$ROOT/slovo.entitlements" \
     --sign "$identity" \
     "$APP_BUNDLE"
 }
@@ -146,6 +146,7 @@ verify_app() {
     sleep 0.25
     attempts=$((attempts - 1))
   done
+  pgrep -x "$PROCESS_NAME" >/dev/null && echo "a $PROCESS_NAME process runs, but not from $APP_BINARY" >&2
   echo "$APP_NAME did not stay running as process $PROCESS_NAME" >&2
   return 1
 }
