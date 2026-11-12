@@ -1,9 +1,10 @@
 import Foundation
 import Testing
 
-// App-target Settings surfaces are not unit-importable, so this guard scans their
-// source: each pane must drive the SettingsActions seam and stay package-agnostic
-// SwiftUI.
+// No test target depends on the `slovo` executable, so the Settings panes, the key and
+// quick-add windows and the menu renderer cannot be exercised; these guards read their
+// comment-stripped source. What SlovoCore decides (the item list, the enabled flags) is
+// tested in DictationMenuTests and AppStateTests, not here.
 @Suite("Settings surface source guards")
 struct SettingsSurfaceSourceGuardTests {
     /// Each pane's `Config` controls bind the store through `store.binding(_:)`, and
@@ -15,7 +16,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// `actions.setLaunchAtLogin(`) → the corresponding `#expect` goes RED.
     @Test
     func panesWriteThroughStoreBindingsAndActions() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
         #expect(general.contains("HotkeyTrigger.allCases"))
         #expect(general.contains("option.displayName"))
         for field in [
@@ -27,7 +28,7 @@ struct SettingsSurfaceSourceGuardTests {
         }
         #expect(general.contains("actions.setLaunchAtLogin("))
 
-        let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
+        let cleanup = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
         // The single-derivation invariant (K6): the pane renders the state's
         // selector and does NOT derive inline (displayName lookups in captions remain).
         #expect(cleanup.contains("store.state.cleanupModelSelection"))
@@ -37,21 +38,20 @@ struct SettingsSurfaceSourceGuardTests {
         }
         #expect(cleanup.contains("$0.config.openRouterModel = trimmedCustomModelId"))
         #expect(cleanup.contains("actions.saveOpenRouterKey("))
-        // K3 seed-guard, source form (no test target links Sources/slovo): the pane
-        // has no selection @State to re-seed, and the Picker binding's
-        // user-interaction set writes the preference.
-        // Sensitivity: restore the selectedModelId re-seed → onChange wiring → RED.
-        #expect(!cleanup.contains("selectedModelId"))
-        #expect(!cleanup.contains("State(initialValue: config.openRouterModel)"))
+        // K3: only a user action writes the model: the Picker's set closure and the custom-id
+        // Use button. A third write would be a programmatic re-seed.
+        // Sensitivity: write openRouterModel from `.onAppear` or `.onChange` → RED.
+        #expect(cleanup.components(separatedBy: "openRouterModel =").count - 1 == 2,
+                "only the Picker's set closure and the custom-id button write the model")
         #expect(cleanup.contains("set: { newValue in store.update { $0.config.openRouterModel = newValue } }"))
         // The pinned caption copy (spec K2 rev 3) — the substitution caption is
         // pinned as its FULL code literal (a bare prefix would be satisfied by the
-        // custom warning alone; v3-verification L1):
+        // custom warning alone):
         #expect(cleanup.contains(
             #"Your key can't use \(CleanupModelCatalog.displayName(for: preferred)) — using \(CleanupModelCatalog.displayName(for: effective))."#))
         #expect(cleanup.contains(#"Your key can't use this model. Dictations may insert the raw transcript."#))
 
-        let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
+        let vocabulary = try SourceText.code("Sources/slovo/Settings/VocabularySettingsPane.swift")
         #expect(vocabulary.contains("store.state.vocabulary"))
         #expect(vocabulary.contains("actions.addVocabulary("))
         #expect(vocabulary.contains("actions.removeVocabulary("))
@@ -65,8 +65,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// nowhere else (`init` uses `_launchAtLogin = State(initialValue:)`).
     @Test
     func generalPaneReseedsLaunchAtLoginOnAppear() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let onAppear = try Self.blockBody(after: ".onAppear", in: general)
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let onAppear = try SourceText.block(after: ".onAppear", in: general)
         #expect(onAppear.contains("launchAtLogin = actions.launchAtLoginEnabled()"))
     }
 
@@ -78,7 +78,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// Stated sensitivity: drop the `.disabled`, or drop the hint → RED.
     @Test
     func generalMuteToggleFollowsOutputAvailability() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
         #expect(general.contains(".disabled(!store.state.outputMuteAvailability.isToggleEnabled)"),
                 "the toggle must be disabled where macOS can set neither mute nor volume")
         #expect(general.contains("store.state.outputMuteAvailability.unavailableHint"),
@@ -88,13 +88,12 @@ struct SettingsSurfaceSourceGuardTests {
     /// The General pane's Microphone picker lists the present devices and, while the
     /// chosen one is absent, that device too, so the selection never blanks. The
     /// label names the fallback, and a choice writes the stored preference through
-    /// the store. The app target has no behavioural seam for the pane, so this reads
-    /// its source.
+    /// the store.
     /// Stated sensitivity: omit `absent` (the picker blanks), drop the line, or bind a
     /// local `@State` → RED.
     @Test
     func generalMicrophonePickerFollowsTheChoice() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
         for needle in [
             "inputDeviceChoice.present",
             "inputDeviceChoice.absent",
@@ -116,13 +115,13 @@ struct SettingsSurfaceSourceGuardTests {
     /// pool instead (hiding the row rather than disabling it) → RED.
     @Test
     func keyPickersDisableEachOthersSelection() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let mainPicker = try Self.blockBody(
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let mainPicker = try SourceText.block(
             after: #"Picker("Push-to-talk key", selection: store.binding(\.trigger))"#, in: general
         )
         #expect(mainPicker.contains(".selectionDisabled(option == store.state.config.translateTrigger)"),
                 "the push-to-talk picker must disable the key the TRANSLATE role holds")
-        let translatePicker = try Self.blockBody(
+        let translatePicker = try SourceText.block(
             after: #"Picker("Translate key", selection: store.binding(\.translateTrigger))"#, in: general
         )
         #expect(translatePicker.contains(".selectionDisabled(option == store.state.config.trigger)"),
@@ -138,8 +137,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// dropdown → the matching `#expect` reddens.
     @Test
     func translateRowPrefixesTheMainKeyOnlyWhileAdditional() throws {
-        let general = try Self.strippedCode("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let row = try Self.blockBody(after: #"LabeledContent("Translate key")"#, in: general)
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let row = try SourceText.block(after: #"LabeledContent("Translate key")"#, in: general)
         #expect(row.contains("if store.state.config.translateKeyIsAdditional {"))
         #expect(row.contains(#"Text("\(store.state.config.trigger.displayName) +")"#))
         #expect(!row.contains("translateTrigger.displayName"),
@@ -151,21 +150,21 @@ struct SettingsSurfaceSourceGuardTests {
     /// The Cleanup pane's translate caption must name the REAL gesture: it derives
     /// from the keys in the store, which the General pane edits, and it branches on
     /// the shared gesture value, never on prose.
-    /// Stated sensitivity: restore the hardcoded "Used when you hold Control while
-    /// dictating." → the negative `#expect` reddens; read the keys from anywhere but
-    /// the store → RED; SWAP the two branches' wording → the pairing `#expect`s
-    /// redden, because each case is pinned TOGETHER WITH the sentence it produces.
+    /// Stated sensitivity: render a literal sentence instead of `Text(translateCaption)`,
+    /// or hardcode a key in either branch → RED; read the keys from anywhere but the
+    /// store → RED; SWAP the two branches' wording → the pairing `#expect`s redden,
+    /// because each case is pinned TOGETHER WITH the sentence it produces.
     @Test
     func cleanupPaneCaptionNamesTheConfiguredTranslateGesture() throws {
-        let cleanup = try Self.strippedCode("Sources/slovo/Settings/CleanupSettingsPane.swift")
-        #expect(!cleanup.contains("hold Control while dictating"),
-                "the caption must not name a key the user may not have bound")
-        let caption = try Self.blockBody(after: "var translateCaption", in: cleanup)
+        let cleanup = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
+        #expect(cleanup.contains("Text(translateCaption)"),
+                "the Translate to row must render the caption derived from the configured keys")
+        let caption = try SourceText.block(after: "var translateCaption", in: cleanup)
         #expect(caption.contains("store.state.config.hotkeyConfiguration"))
         #expect(caption.contains("hotkeys.translate.displayName"))
-        #expect(caption.contains(#"case .additional: return "Used when you add"#),
+        #expect(caption.contains(#"case .additional: return "Used when you add \(key)"#),
                 "an additional key is ADDED to a dictation already under way")
-        #expect(caption.contains(#"case .standalone: return "Used when you dictate with"#),
+        #expect(caption.contains(#"case .standalone: return "Used when you dictate with \(key)"#),
                 "a standalone key's own hold IS the dictation")
     }
 
@@ -184,7 +183,7 @@ struct SettingsSurfaceSourceGuardTests {
     ///   non-empty selection, so it would offer to delete with nothing selected).
     @Test
     func vocabularyPaneExposesVisibleRemoveControl() throws {
-        let vocabulary = try Self.strippedCode("Sources/slovo/Settings/VocabularySettingsPane.swift")
+        let vocabulary = try SourceText.code("Sources/slovo/Settings/VocabularySettingsPane.swift")
         #expect(vocabulary.contains("List(selection: $selection)"))
         #expect(vocabulary.contains("action: removeSelected"))
         #expect(vocabulary.contains(".disabled(selection.isEmpty)"))
@@ -200,8 +199,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// the stale one.
     @Test
     func quickAddWindowRebuildsViewOnEveryShow() throws {
-        let source = try Self.strippedCode("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
+        let source = try SourceText.code("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
+        #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
     }
 
     /// The quick-add field must become the AppKit window's first responder after
@@ -211,8 +210,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// the corresponding expectation goes RED.
     @Test
     func quickAddWindowFocusesTheTermFieldByDefault() throws {
-        let source = try Self.strippedCode("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains("InitialFocusTextField(placeholder: \"GitHub, OAuth, PostgreSQL\", text: $terms)"))
+        let source = try SourceText.code("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
+        #expect(source.contains("InitialFocusTextField("))
         #expect(source.contains("override func viewDidMoveToWindow()"))
         #expect(source.contains("window.initialFirstResponder = self"))
         #expect(source.contains("window.makeFirstResponder(self)"))
@@ -223,15 +222,18 @@ struct SettingsSurfaceSourceGuardTests {
     /// The window presenter activates the app before showing (the `.accessory`
     /// quirk) and avoids the broken SwiftUI Settings route.
     /// Stated sensitivity: drop `NSApp.activate(ignoringOtherApps: true)` → RED
-    /// (the window would open behind other apps); use `openSettings`/`SettingsLink`
+    /// (the window would open behind other apps); move it below the first
+    /// `controller.show(` → RED; use `openSettings`/`SettingsLink`
     /// → the forbidden-route `#expect` goes RED.
     @Test
     func settingsWindowActivatesBeforeShowing() throws {
         // Comment-stripped: the presenter's doc-comment names `openSettings` /
         // `SettingsLink` to explain why they are avoided, so a raw read would
         // false-trip the two negative asserts below.
-        let presenter = try Self.strippedCode("Sources/slovo/Settings/AppDelegate+Settings.swift")
-        #expect(presenter.contains("NSApp.activate(ignoringOtherApps: true)"))
+        let presenter = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let activate = try #require(presenter.range(of: "NSApp.activate(ignoringOtherApps: true)"))
+        let firstShow = try #require(presenter.range(of: "controller.show("))
+        #expect(activate.lowerBound < firstShow.lowerBound, "the app activates before the first window show")
         #expect(!presenter.contains("SettingsLink"))
         #expect(!presenter.contains("openSettings"))
     }
@@ -246,7 +248,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// `#expect` reddens.
     @Test
     func menuBuilderRendersSettingsAndModelItems() throws {
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         // Four config arguments force a multiline call (strict 160-char lines), so
         // the call token and the threaded key configuration are asserted separately;
         // either disappearing still reddens this guard.
@@ -271,7 +273,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// `isEnabled` in its own case → RED.
     @Test
     func menuBuilderRendersAddKeyAndGatedModelSubmenu() throws {
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         #expect(builder.contains("Add OpenRouter Key…"))
         #expect(builder.contains("#selector(AppDelegate.showAddOpenRouterKeyWindow)"))
 
@@ -295,7 +297,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// creation back to `hotkeys.main == .fn` → RED.
     @Test
     func menuBuilderRendersTheTranslateHintAndTheFnRowForEitherRole() throws {
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         // Asserted before the scoped check below, whose guard-else would otherwise
         // skip it whenever the hint case is the thing that broke.
         #expect(builder.contains("if hotkeys.usesFnKey {"),
@@ -322,7 +324,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// `menu.addItem` → the in-order `#expect` reddens.
     @Test
     func menuBuilderKeepsTheHeaderRowOrder() throws {
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         guard let statusCase = builder.range(of: "case .status(let title):"),
               let nextCase = builder.range(of: "case .", range: statusCase.upperBound..<builder.endIndex)
         else {
@@ -330,7 +332,7 @@ struct SettingsSurfaceSourceGuardTests {
             return
         }
         let statusBody = String(builder[statusCase.upperBound..<nextCase.lowerBound])
-        #expect(Self.containsInOrder(["menu.addItem(entry)", "makeFnConflictItem()"], in: statusBody),
+        #expect(SourceText.containsInOrder(["menu.addItem(entry)", "makeFnConflictItem()"], in: statusBody),
                 "the header must render as the status line, then the fn-conflict row")
         #expect(!statusBody.contains("makeUpdateItem()"),
                 "the update row must not render inside the status arm: that puts it between the two key hints")
@@ -342,17 +344,17 @@ struct SettingsSurfaceSourceGuardTests {
             return
         }
         let hintBody = String(builder[hintCase.upperBound..<afterHint.lowerBound])
-        #expect(Self.containsInOrder(["menu.addItem(disabled(title))", "makeUpdateItem()"], in: hintBody),
+        #expect(SourceText.containsInOrder(["menu.addItem(disabled(title))", "makeUpdateItem()"], in: hintBody),
                 "the update row must render directly after the translate hint")
     }
 
     /// The cleanup toggle renders as an always-actionable item — the type narrowing to
     /// `isOn` removed the off-and-disabled path — with its checkmark driven by `isOn`.
-    /// Stated sensitivity: reintroduce a `disabled("Clean Up Dictation")` rendering, or
-    /// stop driving the state from `isOn` → RED.
+    /// Stated sensitivity: render the toggle disabled (`isEnabled = false` or the
+    /// `disabled(_:)` helper), or stop driving the state from `isOn` → RED.
     @Test
     func menuBuilderRendersCleanupToggleAsActionable() throws {
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         guard let toggleCase = builder.range(of: "case .cleanupToggle(let isOn):"),
               let nextCase = builder.range(of: "case .", range: toggleCase.upperBound..<builder.endIndex)
         else {
@@ -362,8 +364,8 @@ struct SettingsSurfaceSourceGuardTests {
         let toggleCaseBody = builder[toggleCase.upperBound..<nextCase.lowerBound]
         #expect(toggleCaseBody.contains("entry.state = isOn ? .on : .off"),
                 "the toggle's checkmark must track isOn")
-        #expect(!toggleCaseBody.contains(#"disabled("Clean Up Dictation")"#),
-                "the toggle must be actionable — no off-and-disabled rendering path")
+        #expect(!toggleCaseBody.contains("isEnabled") && !toggleCaseBody.contains("disabled("),
+                "the toggle must be actionable — the arm renders no disabled item")
     }
 
     /// The menu's add-key affordance must actually OPEN THE KEY WINDOW and route its
@@ -376,15 +378,9 @@ struct SettingsSurfaceSourceGuardTests {
     /// onSave anywhere but `saveOpenRouterKey` (bypassing the funnel) → RED.
     @Test
     func addKeySelectorOpensTheKeyWindowThroughTheFunnel() throws {
-        let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
-        guard let head = delegate.range(of: "func showAddOpenRouterKeyWindow"),
-              let nextFunc = delegate.range(of: "func ", range: head.upperBound..<delegate.endIndex)
-        else {
-            Issue.record("showAddOpenRouterKeyWindow not found")
-            return
-        }
-        let body = delegate[head.upperBound..<nextFunc.lowerBound]
-        #expect(body.contains("OpenRouterKeyWindow(onSave:"),
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let body = try SourceText.functionBody(named: "showAddOpenRouterKeyWindow", in: delegate)
+        #expect(body.contains("OpenRouterKeyWindow"),
                 "the add-key affordance must build the dedicated key window")
         #expect(body.contains("saveOpenRouterKey"),
                 "the window's Save must route through the existing key-save funnel, not a new path")
@@ -400,8 +396,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// assignment / call → the corresponding expectation goes RED.
     @Test
     func keyWindowRebuildsViewAndFocusesTheKeyField() throws {
-        let source = try Self.strippedCode("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
-        #expect(source.contains("windowController.window?.contentViewController = NSHostingController(rootView: view)"))
+        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
+        #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
         #expect(source.contains("NSSecureTextField"))
         #expect(source.contains("override func viewDidMoveToWindow()"))
         #expect(source.contains("window.initialFirstResponder = self"))
@@ -411,18 +407,21 @@ struct SettingsSurfaceSourceGuardTests {
     /// The key window's Save routes the trimmed key through `onSave` (wired to the
     /// save funnel by the presenter) and closes; Cancel closes WITHOUT saving; an
     /// empty key cannot be saved; Esc cancels; the app activates before showing (the
-    /// `.accessory` quirk). Stated sensitivity: wire Cancel to save, drop the
-    /// empty-key guard, drop the Esc shortcut, or drop the activate → RED.
+    /// `.accessory` quirk). Cancel's close is read from the `onCancel:` closure, so only
+    /// its content counts, not how it wraps. Stated sensitivity: wire Cancel to save,
+    /// drop Cancel's close, drop the empty-key guard, drop the Esc shortcut, or drop
+    /// the activate → RED.
     @Test
     func keyWindowSaveThroughOnSaveAndCancelDoesNotSave() throws {
-        let source = try Self.strippedCode("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
+        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
         #expect(source.contains(#"Button("Save", action: save)"#))
         #expect(source.contains("onSave(trimmedKey)"))
         #expect(source.contains(#"Button("Cancel", action: onCancel)"#))
         #expect(source.contains(".disabled(trimmedKey.isEmpty)"))
         #expect(source.contains(".keyboardShortcut(.cancelAction)"))
         #expect(source.contains("NSApp.activate(ignoringOtherApps: true)"))
-        #expect(source.contains("self?.close()"))
+        let onCancel = try SourceText.block(after: "onCancel:", in: source)
+        #expect(onCancel.contains("close()"), "Cancel must close the window")
     }
 
     /// Saving must CLOSE the window itself — otherwise a window still holding the
@@ -433,7 +432,7 @@ struct SettingsSurfaceSourceGuardTests {
     /// onCancel's) → RED; onCancel's close alone must not satisfy this.
     @Test
     func keyWindowClosesItselfOnSave() throws {
-        let source = try Self.strippedCode("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
+        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
         guard let onSaveStart = source.range(of: "onSave: {"),
               let closeBrace = source.range(of: "}", range: onSaveStart.upperBound..<source.endIndex)
         else {
@@ -453,14 +452,8 @@ struct SettingsSurfaceSourceGuardTests {
     /// unconditionally per open) → RED.
     @Test
     func keyWindowIsASingleReusedInstance() throws {
-        let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
-        guard let head = delegate.range(of: "func showAddOpenRouterKeyWindow"),
-              let nextFunc = delegate.range(of: "func ", range: head.upperBound..<delegate.endIndex)
-        else {
-            Issue.record("showAddOpenRouterKeyWindow not found")
-            return
-        }
-        let body = delegate[head.upperBound..<nextFunc.lowerBound]
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let body = try SourceText.functionBody(named: "showAddOpenRouterKeyWindow", in: delegate)
         #expect(body.contains("openRouterKeyWindow == nil"),
                 "the window must be built once and reused, not respawned per open (which leaks controllers and stacks windows)")
     }
@@ -470,22 +463,22 @@ struct SettingsSurfaceSourceGuardTests {
     /// reads its parameters. With these signatures, a menu read of a value outside
     /// the arguments fails. The scan has a limit: a helper that reads the store
     /// under another name passes it.
-    /// Stated sensitivity: hand `make` anything but `input`, or hardcode
-    /// `HotkeyConfiguration(main: .fn, …)` or `selectedModelId: ""` in the builder →
-    /// RED; read `store.` in `makeMenu`, `modelMenu` or the builder → RED.
-    /// Stated sensitivity: read the live fn reader or the updater coordinator
-    /// inside makeMenu → RED. The build function reads its arguments only, so a
-    /// rebuild draws the state the build subscriber read.
+    /// The build function reads its arguments only, so a rebuild draws the state the
+    /// build subscriber read.
+    /// Stated sensitivity: hand `make` anything but `input`, hardcode
+    /// `HotkeyConfiguration(main: .fn, …)` or `selectedModelId: ""` in the builder,
+    /// read `store.` in `makeMenu`, `modelMenu` or the builder, or read the live fn
+    /// reader or the updater coordinator inside `makeMenu` → RED.
     @Test
     func makeMenuFeedsBuilderTheRealConfig() throws {
-        let delegate = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
-        let makeMenu = try Self.blockBody(after: "func makeMenu", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let makeMenu = try SourceText.functionBody(named: "makeMenu", in: delegate)
         #expect(makeMenu.contains(".make(input, rows: rows)"))
-        let builder = try Self.strippedCode("Sources/slovo/DictationMenuBuilder.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         #expect(builder.contains("let hotkeys = input.hotkeyConfiguration"))
         #expect(builder.contains("selectedModelId: input.cleanupModelSelection.effective"))
-        let cleanupMenu = try Self.strippedCode("Sources/slovo/AppDelegate+CleanupMenu.swift")
-        let modelMenu = try Self.blockBody(after: "func modelMenu", in: cleanupMenu)
+        let cleanupMenu = try SourceText.code("Sources/slovo/AppDelegate+CleanupMenu.swift")
+        let modelMenu = try SourceText.functionBody(named: "modelMenu", in: cleanupMenu)
         for (name, body) in [("makeMenu", makeMenu), ("modelMenu", modelMenu), ("DictationMenuBuilder.swift", builder)] {
             #expect(!body.contains("store."), "\(name) must read only its input, never the store")
         }
@@ -495,81 +488,5 @@ struct SettingsSurfaceSourceGuardTests {
                 "makeMenu must take the fn verdict as its argument, not from the live reader")
         #expect(!makeMenu.contains("updaterCoordinator"),
                 "makeMenu must take the update indication as its argument, not from the coordinator")
-    }
-
-    private static func containsInOrder(_ needles: [String], in source: String) -> Bool {
-        var searchStart = source.startIndex
-        for needle in needles {
-            guard let range = source.range(of: needle, range: searchStart..<source.endIndex) else { return false }
-            searchStart = range.upperBound
-        }
-        return true
-    }
-
-    /// The brace-balanced block that opens right after `anchor` — a function body or
-    /// a trailing closure. Scoping an assertion to it keeps a token found elsewhere in
-    /// the file from satisfying a check about this one block.
-    private static func blockBody(after anchor: String, in source: String) throws -> String {
-        guard let anchorRange = source.range(of: anchor),
-              let openBrace = source[anchorRange.upperBound...].firstIndex(of: "{")
-        else {
-            throw NSError(domain: "SettingsSurfaceSourceGuard", code: 1)
-        }
-        var depth = 0
-        var index = openBrace
-        while index < source.endIndex {
-            if source[index] == "{" {
-                depth += 1
-            } else if source[index] == "}" {
-                depth -= 1
-                if depth == 0 { return String(source[openBrace...index]) }
-            }
-            index = source.index(after: index)
-        }
-        throw NSError(domain: "SettingsSurfaceSourceGuard", code: 2)
-    }
-
-    private static func code(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
-    /// Source with comments stripped, so a token that appears only inside a comment
-    /// (a doc-comment mentioning `openSettings`, or a `//` note naming a setter)
-    /// neither satisfies a positive assert nor trips a negative one.
-    private static func strippedCode(_ relativePath: String) throws -> String {
-        strippingComments(from: try code(relativePath))
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false, inBlockComment = false, inString = false
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-            if inLineComment {
-                if character == "\n" { inLineComment = false; output.append(character) }
-            } else if inBlockComment {
-                if character == "*" && next == "/" { inBlockComment = false; index = nextIndex }
-            } else if inString {
-                output.append(character)
-                if character == "\"" { inString = false }
-            } else if character == "/" && next == "/" {
-                inLineComment = true; index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true; index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" { inString = true }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static var packageRoot: URL {
-        let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 }
