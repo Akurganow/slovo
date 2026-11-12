@@ -150,7 +150,7 @@ struct PromptBuilderTests {
     /// Stated sensitivity: send the input without its `<transcript>` wrapper, or
     /// drop the short-dictation example or let its output echo the raw input → RED.
     @Test
-    func promptRequiresTransformOnlyReplyForShortDictation() {
+    func shortDictationInputIsWrappedAndTaughtByAnExample() {
         let raw = "1 2 3 проверяем 1 2 3"
         let prompt = PromptBuilder().buildPrompt(
             raw: raw,

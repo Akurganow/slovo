@@ -31,7 +31,8 @@ struct OpenRouterCleanerTests {
     /// the configured routed model, sending an unauthenticated request, letting
     /// the provider's default reasoning mode stand (no `reasoning.effort: none` in
     /// the body), or sending any `max_tokens` in the body makes the recorded
-    /// request-shape assertions go RED.
+    /// request-shape assertions go RED. Adding any body field (a device or user
+    /// identifier, say) or any request header makes the exact key-set assertions RED.
     @Test
     func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
         let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
@@ -51,8 +52,15 @@ struct OpenRouterCleanerTests {
         #expect(request.value(forHTTPHeaderField: "content-type") == "application/json")
         #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/Akurganow/slovo")
         #expect(request.value(forHTTPHeaderField: "X-Title") == "Slovo")
+        // URLSession adds Content-Length to a request with a body; the stub adds its routing header.
+        let sentHeaders = Set((request.allHTTPHeaderFields ?? [:]).keys.map { $0.lowercased() })
+            .subtracting(["content-length", StubURLProtocol.scenarioHeader.lowercased()])
+        #expect(sentHeaders == ["authorization", "content-type", "http-referer", "x-title"],
+                "the request carries exactly the headers the cleaner sets, got \(sentHeaders.sorted())")
 
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(Set(json.keys) == ["model", "messages", "temperature", "reasoning"],
+                "the body carries exactly these fields, got \(json.keys.sorted())")
         #expect(json["model"] as? String == "openai/gpt-6-luna")
         #expect(json["temperature"] as? Double == 0)
         #expect(json["max_tokens"] == nil,
@@ -62,14 +70,16 @@ struct OpenRouterCleanerTests {
             "reasoning must be pinned off; provider defaults enable it on some models"
         )
         #expect(reasoning["effort"] as? String == "none")
+        #expect(Set(reasoning.keys) == ["effort"])
         let messages = try #require(json["messages"] as? [[String: String]])
+        #expect(messages.allSatisfy { Set($0.keys) == ["role", "content"] })
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
         #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
     }
 
     /// Stated sensitivity: pass `.shared` or any other session from the public init,
-    /// or drop the resource-timeout line -> RED.
+    /// drop the resource-timeout line, or build it from the default configuration -> RED.
     @Test
     func cleanupSessionEndsEveryRequestAfterTenSeconds() {
         let cleaner = OpenRouterCleaner(
@@ -77,6 +87,8 @@ struct OpenRouterCleanerTests {
             promptBuilder: PromptBuilder()
         )
         #expect(cleaner.session.configuration.timeoutIntervalForResource == 10)
+        // Only the ephemeral configuration keeps no disk cache; a cleanup reply holds the user's words.
+        #expect((cleaner.session.configuration.urlCache?.diskCapacity ?? 0) == 0)
     }
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
@@ -151,6 +163,29 @@ struct OpenRouterCleanerTests {
                 "expected the log to name the transport cause \(token), got \(captured)")
     }
 
+    /// Stated sensitivity: logging the non-HTTP branch under another token
+    /// (`offline`, say) -> RED, because the log loses the cause. The thrown error
+    /// stays `.offline`.
+    @Test
+    func nonHTTPResponseLogsBadResponseAndThrowsOffline() async {
+        let scenario = StubScenario(response: .nonHTTP)
+        var captured: [String] = []
+        let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder(),
+            log: log
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .offline = error else { return "expected .offline, got \(error)" }
+            return nil
+        }
+        #expect(captured.contains("cleanup failed: badResponse"),
+                "expected the log to name badResponse, got \(captured)")
+    }
+
     /// Stated sensitivity: mapping 429 to generic apiError makes the fallback
     /// chain lose throttling information.
     @Test
@@ -170,13 +205,11 @@ struct OpenRouterCleanerTests {
     }
 
     /// Stated sensitivity: letting a raw DecodingError escape on malformed 2xx
-    /// bypasses `FallbackCleaner`'s CleanupError degradation path. Accepting a
-    /// reply that is only whitespace (`!content.isEmpty` instead of a visible
-    /// character) turns the `"\n"` and `" \n\t"` rows RED: they return instead of throwing.
+    /// bypasses `FallbackCleaner`'s CleanupError degradation path. Bypassing the
+    /// visible-character predicate in `firstText` (back to `!content.isEmpty`) turns
+    /// the whitespace row RED: it returns instead of throwing.
     @Test(arguments: [
         #"{}"#,
-        #"{"choices":[{"message":{"role":"assistant","content":""}}]}"#,
-        #"{"choices":[{"message":{"role":"assistant","content":"\n"}}]}"#,
         #"{"choices":[{"message":{"role":"assistant","content":" \n\t"}}]}"#,
     ])
     func malformed200MapsToCleanupError(body: String) async {
