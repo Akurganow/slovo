@@ -4,13 +4,6 @@ import AVFAudio
 // plain data carriers shared across the seam protocols; behavior lives in the
 // conforming implementations, not here.
 
-/// The single persisted ASR backend wire value for the shipped WhisperKit runtime.
-/// Apple Speech left the runtime and FluidAudio was refuted (no adapter); raw-value
-/// additivity keeps any future case wire-safe.
-public enum AsrBackend: String, Codable, Equatable, Sendable {
-    case whisperKit = "whisperkit"
-}
-
 /// The language a transcript or term is in, carried as a bare WhisperKit language
 /// code. `auto` chooses the best supported system locale and enables per-utterance
 /// detection; any other value pins one specific code (e.g. "ru", "ja").

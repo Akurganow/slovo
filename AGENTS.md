@@ -83,6 +83,12 @@ Clarifications:
   moment it was made, so a press made an instant before the previous dictation
   finished is refused too. A cancelled hold leaves the same brief wind-down.
   The next press dictates normally.
+- **A press made before the speech model is loaded is refused too.**
+  Nothing happens: no microphone, no mute, no cues, and no change to
+  the glyph or the status line. The loading glyph keeps pulsing and the
+  status line keeps "Preparing Speech Model" until the model loads.
+  After a failed load Slovo retries on its own, with growing pauses, and
+  shows no separate failure state.
 - **Translate hold.** Translation is driven by a configurable **translate key**
   (Control by default), drawn from the same pool as the push-to-talk key and
   never the same key — the two settings are mutually exclusive. By default it is
@@ -125,9 +131,8 @@ Clarifications:
     plays late, fails, or never reports completion must never delay the microphone,
     the key-up, or the text pipeline — while still playing reliably itself.
   - Once capture and recognition are ready, Start plays. Recognition receives
-    every captured sample from the first callback, including speech before the cue
-    and while the speech model loads. Nothing is withheld, blanked or cut for a
-    cue.
+    every captured sample from the first callback, including speech before the cue.
+    Nothing is withheld, blanked or cut for a cue.
   - A cue the microphone hears can reach recognition. The accepted cost: in a quiet
     room, a press with no speech can insert a stray phrase. Turning
     Sound Cues off avoids it.

@@ -31,16 +31,16 @@ struct DictationSoundCueConfigTests {
     }
 
     /// Sensitivity: decoding the missing field as false disables cues on every
-    /// pre-feature install; requiring it rejects the fixture and loses keep-warm.
+    /// pre-feature install; requiring it rejects the fixture and loses the stored language.
     @Test
     func legacyConfigWithoutTheWireKeyDefaultsOnWithoutResettingOtherFields() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 45),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(),
         ])
 
         let loaded = ConfigStore.load(from: defaults)
 
         #expect(loaded.playsDictationSoundCues)
-        #expect(loaded.keepWarmSeconds == 45, "the legacy blob must decode instead of falling back to all defaults")
+        #expect(loaded.language == .ru, "the legacy blob must decode instead of falling back to all defaults")
     }
 }

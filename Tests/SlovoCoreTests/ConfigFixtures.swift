@@ -9,7 +9,6 @@ enum ConfigFixtures {
     static func configData(
         trigger: String? = "fn",
         language: String = "ru",
-        keepWarmSeconds: Int? = 45,
         backend: String = "whisperkit",
         asrModel: String = "large-v3-v20240930_turbo_632MB",
         legacyEnabledField: Bool = true,
@@ -35,9 +34,6 @@ enum ConfigFixtures {
             "asr": ["backend": backend, "model": asrModel],
             "cleanup": cleanup,
         ]
-        if let keepWarmSeconds {
-            object["keepWarmSeconds"] = keepWarmSeconds
-        }
         if let trigger {
             object["trigger"] = trigger
         }
@@ -72,7 +68,6 @@ enum ConfigFixtures {
     static func witnessObject() -> [String: Any] {
         [
             "language": "ja",
-            "keepWarmSeconds": 45,
             "trigger": "right-command",
             "translateTrigger": "left-shift",
             "translateKeyIsAdditional": false,
@@ -102,7 +97,6 @@ enum ConfigFixtures {
 
     static let witnessConfig = Config(
         language: Language(rawValue: "ja"),
-        keepWarmSeconds: 45,
         trigger: .rightCommand,
         translateTrigger: .leftShift,
         translateKeyIsAdditional: false,

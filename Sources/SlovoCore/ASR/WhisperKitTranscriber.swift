@@ -6,72 +6,37 @@ import Foundation
 /// `begin` (key-down) loads the model and starts native streaming recognition;
 /// `feed` converts and immediately forwards each live chunk; `finish` (key-up)
 /// finalizes only the unfinished tail and returns the trimmed transcript;
-/// `cancel` tears the session down without a result. It builds and owns its
-/// `ModelLifecycle` internally — after each use the model is kept per
-/// `configuration.keepWarmSeconds` (resident by default, an idle window, or
-/// released immediately). `warmUp` preloads the model without opening a session.
+/// `cancel` tears the session down without a result. The model loads once and
+/// stays loaded; `warmUp` preloads it without opening a session.
 ///
 /// No WhisperKit SDK type crosses this seam: the engine is injected as a
-/// `ModelLoading & SpeechStreamingSessionCreating` value, the resampler as `AudioConverting`, and
-/// the idle-timing source as `Clock`, so the whole session is driven by fakes in
-/// tests. Bias-prompt EFFICACY is verified on-device (docs/release-checklist.md),
-/// not here.
+/// `ModelLoading & SpeechStreamingSessionCreating` value and the resampler as
+/// `AudioConverting`, so the whole session is driven by fakes in tests.
+/// Bias-prompt EFFICACY is verified on-device (docs/release-checklist.md), not here.
 public actor WhisperKitTranscriber: Transcriber {
-    public struct Configuration: Equatable, Sendable {
-        public static let defaults = Configuration()
-
-        /// Model retention: `nil` keeps the model resident (fastest first word),
-        /// `0` releases immediately on key-up, a positive value is the idle-seconds
-        /// window before release.
-        public var keepWarmSeconds: Int?
-
-        /// The recognition language the first session decodes with. Later changes
-        /// arrive through `setRecognitionLanguage`, never through a new transcriber.
-        public var language: Language
-
-        public init(
-            keepWarmSeconds: Int? = Config.defaults.keepWarmSeconds,
-            language: Language = Config.defaults.language
-        ) {
-            self.keepWarmSeconds = keepWarmSeconds
-            self.language = language
-        }
-    }
-
-    private let configuration: Configuration
     private let engine: any ModelLoading & SpeechStreamingSessionCreating & Sendable
     private let converter: any AudioConverting
-    private let clock: any Clock
-    private let lifecycle: ModelLifecycle
 
     private var recognitionLanguage: Language
     private var speechSession: (any SpeechStreamingSession)?
-    private var releaseTask: Task<Void, Never>?
-    private var releaseGeneration = 0
     private var loadTask: Task<Void, Error>?
 
+    /// `language` is the recognition language the first session decodes with. Later
+    /// changes arrive through `setRecognitionLanguage`, never through a new transcriber.
     public init(
-        configuration: Configuration = .defaults,
+        language: Language = Config.defaults.language,
         engine: some ModelLoading & SpeechStreamingSessionCreating & Sendable,
-        converter: sending some AudioConverting,
-        clock: some Clock
+        converter: sending some AudioConverting
     ) {
-        self.configuration = configuration
-        self.recognitionLanguage = configuration.language
+        self.recognitionLanguage = language
         self.engine = engine
         self.converter = converter
-        self.clock = clock
-        self.lifecycle = ModelLifecycle(
-            model: engine,
-            keepWarmSeconds: configuration.keepWarmSeconds.map(TimeInterval.init),
-            clock: clock
-        )
     }
 
     /// Whether `begin` would reuse an already-loaded model. Read straight from the
-    /// lifecycle, so it cannot drift from what `begin` will actually do.
+    /// engine, so it cannot drift from what `begin` will actually do.
     public var isModelResident: Bool {
-        lifecycle.isModelLoaded
+        engine.isLoaded
     }
 
     /// Preloads the model without opening a session, so the first dictation skips
@@ -100,7 +65,6 @@ public actor WhisperKitTranscriber: Transcriber {
         // whole cold load, and the actor admits `setRecognitionLanguage` there — read
         // afterwards, a push would silently redefine the session already opening.
         let sessionLanguage = recognitionLanguage
-        supersedePendingRelease()
         if let speechSession {
             self.speechSession = nil
             await speechSession.cancel()
@@ -119,7 +83,6 @@ public actor WhisperKitTranscriber: Transcriber {
             try await speechSession.start()
             self.speechSession = speechSession
         } catch {
-            endUse()
             throw Self.mapSessionFailure(error)
         }
     }
@@ -148,13 +111,10 @@ public actor WhisperKitTranscriber: Transcriber {
         self.speechSession = nil
         do {
             let transcript = try await speechSession.finish()
-            endUse()
             return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch let error as TranscriptionError {
-            endUse()
             throw error
         } catch {
-            endUse()
             throw TranscriptionError.engineFailure(underlying: error)
         }
     }
@@ -163,7 +123,6 @@ public actor WhisperKitTranscriber: Transcriber {
         guard let speechSession else { return }
         self.speechSession = nil
         await speechSession.cancel()
-        endUse()
     }
 
     /// Single-flight model load: concurrent `warmUp()`/`begin()` join ONE in-flight
@@ -175,8 +134,8 @@ public actor WhisperKitTranscriber: Transcriber {
             try await loadTask.value
             return
         }
-        let loadTask = Task { [lifecycle] in
-            try await lifecycle.willUse()
+        let loadTask = Task { [engine] in
+            if !engine.isLoaded { try await engine.load() }
         }
         self.loadTask = loadTask
         do {
@@ -186,39 +145,6 @@ public actor WhisperKitTranscriber: Transcriber {
             throw error
         }
         self.loadTask = nil
-    }
-
-    /// Finalizes the lifecycle exactly once per session and clears live state.
-    private func endUse() {
-        lifecycle.didFinishUse()
-        scheduleRelease()
-    }
-
-    /// With a positive keep-warm window, schedules a generation-guarded release
-    /// that fires `tick()` after the idle window; a new `begin` supersedes it. A
-    /// resident (`nil`) or zero window schedules nothing — the lifecycle already
-    /// kept the model resident or released it inside `didFinishUse()`.
-    private func scheduleRelease() {
-        supersedePendingRelease()
-        guard let keepWarmSeconds = configuration.keepWarmSeconds, keepWarmSeconds > 0 else { return }
-
-        let generation = releaseGeneration
-        releaseTask = Task { [weak self, clock] in
-            try? await clock.sleep(for: TimeInterval(keepWarmSeconds))
-            await self?.releaseIfIdle(generation: generation)
-        }
-    }
-
-    private func releaseIfIdle(generation: Int) {
-        guard generation == releaseGeneration else { return }
-        lifecycle.tick()
-        releaseTask = nil
-    }
-
-    private func supersedePendingRelease() {
-        releaseTask?.cancel()
-        releaseTask = nil
-        releaseGeneration += 1
     }
 
     private static func mapLoadFailure(_ error: Error) -> TranscriptionError {

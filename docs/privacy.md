@@ -9,7 +9,7 @@ everything Slovo sends off the Mac.
 | Data | Location | Network |
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
-| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Checked with Hugging Face at each model load, and downloaded where missing or changed — see Speech Model |
+| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request, except that a tokenizer file missing from the cache is fetched from Hugging Face inside that load; the download path asks Hugging Face only when the local load fails — see Speech Model |
 | Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, while cleanup is on — see Cloud Cleanup |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Only in the cleanup request; never logged |
 | Key-scope request: `GET /api/v1/models/user`, carrying the API key and no dictated content | — | Sent to OpenRouter on each occasion listed under Cloud Cleanup |
@@ -89,11 +89,11 @@ what is on disk, never from a log.
 
 ## Local Files
 
-Slovo caches the WhisperKit (Whisper) model under Application Support, in
-app-owned storage. It must not download the model into the user's Documents or
-the Argmax OSS SDK's (formerly WhisperKit) default home Hugging Face cache;
-`WhisperKitEngine` pins the download base to Application Support for exactly
-this reason.
+Slovo reads and writes the WhisperKit (Whisper) model only under
+`~/Library/Application Support/slovo/models`, in app-owned storage, and never in
+the user's Documents folder. `WhisperKitEngine` pins the download base there, and
+fails the load rather than use another folder when Application Support cannot be
+created.
 
 The `.gitignore` rules make these categories uncommittable, whether or not a
 matching file exists on disk today:
@@ -108,18 +108,28 @@ The checked-in schema is safe; user data and seed content are not.
 
 ## Speech Model
 
-Slovo loads the speech model through WhisperKit at launch. A load that failed
-runs again at the next attempt: the next dictation, **Retry Setup**, or the
-rebuild after a permission is granted. Every load asks Hugging Face
-(`huggingface.co`) for the model repository's file list twice, then for the
-metadata of each model file, before it loads the cached copy. The first load
-downloads the model files and a tokenizer; a later load downloads only the files
-that changed. A later load reads the cached tokenizer from disk, and asks Hugging
-Face for it again only when that file is missing or cannot be loaded. The
-requests name the model's repository and files and carry no dictated content.
+Slovo loads the speech model through WhisperKit at launch. Each attempt loads it
+from the app cache first. An attempt whose local load succeeds sends nothing to
+Hugging Face, except that a tokenizer file missing from the cache, or one that
+cannot be loaded, is requested from Hugging Face inside that load, which then
+succeeds. WhisperKit's download path runs only when the local load fails: the
+first run, or a cached copy missing a file the load needs. It downloads the
+files that are missing or whose upstream version changed; a file present but
+damaged in place is kept. A newer model published upstream is not fetched while
+the cached copy loads. Slovo retries a failed attempt on its own, after 1
+second, then after pauses that double up to 60 seconds, until the model loads.
+An attempt that falls back to the download path makes the requests described
+next; offline, its first file-list request fails and nothing is sent. The
+download path asks Hugging Face (`huggingface.co`) for the model repository's
+file list twice, then for the metadata of each model file, before it downloads
+what is missing or changed. The first run downloads the model files and a
+tokenizer. A local load reads the cached tokenizer from disk. The requests name
+the model's repository and files and carry no dictated content.
 
-Source: `argmax-oss-swift` 1.1.1 at commit `1bbc57cb`, read, not run. The first
-file list and the call to `snapshot`:
+Source: `argmax-oss-swift` 1.1.1 at commit `1bbc57cb`, read, not run. The local
+load, with no request when a model folder is given:
+[`WhisperKit.setupModels`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Core/WhisperKit.swift#L322-L325).
+The first file list and the call to `snapshot`:
 [`WhisperKit.download`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Core/WhisperKit.swift#L262-L303).
 The second file list:
 [`HubApi.snapshot`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/ArgmaxCore/External/Hub/HubApi.swift#L640).
@@ -149,11 +159,12 @@ Logs must not contain:
 
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
 In the clear it carries elapsed times in milliseconds, the model-load state token,
-and the Error cue's reason token. It also carries three numbers about each
-dictation: the transcript's length in characters, the captured audio's sample
-count, and how far into the recording, in seconds, recognition had confirmed text
-at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,
-and a 0 or 1 flag for a retry without vocabulary bias. Five cue lines carry the
+the model-load source token (`cache` or `download`), and the Error cue's reason
+token. It also carries three numbers about each dictation: the transcript's
+length in characters, the captured audio's sample count, and how far into the
+recording, in seconds, recognition had confirmed text at key-up. The key-up
+decode adds two fixed tokens: its plan, one of four names, and a 0 or 1 flag for
+a retry without vocabulary bias. Five cue lines carry the
 cue's name (one of three), and two of them also its elapsed milliseconds. They
 carry dictation timing and no user text. A cleanup failure adds its kind and the
 provider's HTTP status. A failed mute of system output adds the name of its
