@@ -259,7 +259,8 @@ Slovo has two different data paths:
 In both modes the final text is inserted with a clipboard-based paste: Slovo
 snapshots the clipboard, writes the text with conceal markers that ask
 clipboard managers not to record it, pastes, and restores the previous
-clipboard contents afterward.
+clipboard contents afterward unless the clipboard changed in the meantime
+([docs/privacy.md](docs/privacy.md), "Clipboard").
 
 Secrets are not stored in the repository. The OpenRouter API key is stored
 as a macOS Keychain item. The personalization database is encrypted at rest

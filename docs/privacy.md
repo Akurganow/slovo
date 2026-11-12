@@ -162,9 +162,11 @@ and keys never reach the log.
 ## Clipboard
 
 Text insertion uses clipboard paste because it is reliable for mixed Cyrillic and
-Latin text. The injector checks secure input before touching the pasteboard,
-restores the previous clipboard contents on exit, and fails closed for secure
-fields.
+Latin text. The injector checks secure input before touching the pasteboard and
+fails closed for secure fields. The previous clipboard contents are put back
+after the paste unless the clipboard changed in the meantime, so a copy made
+during that wait is kept. Until then Slovo holds the previous contents in its
+memory, and drops them once the restore runs or is skipped.
 
 ## Cloud Cleanup
 

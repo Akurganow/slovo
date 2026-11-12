@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 
 /// Real `NSPasteboard.general` implementation of `Pasteboard` (ref
 /// `text-injection.md`).
@@ -10,7 +11,14 @@ import Foundation
 /// conformance is safe: the adapter is stateless and `NSPasteboard.general` is the
 /// process-wide clipboard.
 public struct NSPasteboardAdapter: Pasteboard, Sendable {
+    /// Static text only: the restored clipboard content must never reach the log.
+    private static let log = Logger(subsystem: "com.slovo.app", category: "dictation")
+
     public init() {}
+
+    public var changeCount: Int {
+        NSPasteboard.general.changeCount
+    }
 
     /// Deep-copies each item's types→data, because `NSPasteboardItem` instances
     /// are invalidated by `clearContents()` (ref gotcha) — we must capture the
@@ -18,13 +26,11 @@ public struct NSPasteboardAdapter: Pasteboard, Sendable {
     public func snapshot() -> [PasteboardSnapshotItem] {
         let items = NSPasteboard.general.pasteboardItems ?? []
         return items.map { item in
-            var typedData: [String: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    typedData[type.rawValue] = data
-                }
+            let representations = item.types.compactMap { type -> PasteboardSnapshotItem.Representation? in
+                guard let data = item.data(forType: type) else { return nil }
+                return PasteboardSnapshotItem.Representation(type: type.rawValue, data: data)
             }
-            return PasteboardSnapshotItem(typedData: typedData)
+            return PasteboardSnapshotItem(representations: representations)
         }
     }
 
@@ -32,18 +38,18 @@ public struct NSPasteboardAdapter: Pasteboard, Sendable {
         NSPasteboard.general.clearContents()
     }
 
-    public func write(_ item: PasteboardWriteItem) {
+    public func write(_ item: PasteboardWriteItem) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
         let pasteboardItem = NSPasteboardItem()
-        pasteboardItem.setString(item.string, forType: .string)
+        guard pasteboardItem.setString(item.string, forType: .string) else { return false }
         // Conceal markers carry an EMPTY payload — the presence of the type is the
         // signal to clipboard managers (nspasteboard.org convention).
         for marker in item.markerTypes {
             pasteboardItem.setData(Data(), forType: .init(marker))
         }
-        pasteboard.writeObjects([pasteboardItem])
+        return pasteboard.writeObjects([pasteboardItem])
     }
 
     public func restore(_ items: [PasteboardSnapshotItem]) {
@@ -53,11 +59,13 @@ public struct NSPasteboardAdapter: Pasteboard, Sendable {
 
         let restored = items.map { snapshot -> NSPasteboardItem in
             let pasteboardItem = NSPasteboardItem()
-            for (type, data) in snapshot.typedData {
-                pasteboardItem.setData(data, forType: .init(type))
+            for representation in snapshot.representations {
+                pasteboardItem.setData(representation.data, forType: .init(representation.type))
             }
             return pasteboardItem
         }
-        pasteboard.writeObjects(restored)
+        if !pasteboard.writeObjects(restored) {
+            Self.log.error("injection.restoreFailed")
+        }
     }
 }
