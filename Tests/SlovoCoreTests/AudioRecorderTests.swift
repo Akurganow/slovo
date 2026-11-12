@@ -2,25 +2,30 @@ import AVFoundation
 import Foundation
 import Testing
 
-// `@testable` only for `AVAudioEngineRecorder.detachedChunk`, the one recorder step that
-// can run without a microphone.
+// `@testable` only for `AVAudioEngineRecorder.detachedChunk`, an internal helper that
+// runs without a microphone.
 @testable import SlovoCore
 import SlovoTestSupport
 
 // Three kinds of coverage, none a substitute for another. The first suite executes
-// `FakeAudioRecorder` — the seam's SHAPE, not the hardware. The second reads
-// `AVAudioEngineRecorder`'s source text, the only check available for a class CI never
-// runs: it proves the wiring is present and ordered, never that it behaves. The third
-// executes the helper that detaches each chunk from the tap's buffer; a `yield` that
-// bypasses it, or hands it another pair than the session's, is caught only on hardware.
-@Suite("AudioRecorder seam (FakeAudioRecorder)")
-struct AudioRecorderSeamTests {
+// `AVAudioEngineRecorder.start()` on its denied-microphone path, which throws before any
+// engine work, so it needs no hardware. The second reads `AVAudioEngineRecorder`'s source
+// text, the only check available for a class CI never runs: it proves the wiring is
+// present and ordered, never that it behaves. The third executes the helper that detaches
+// each chunk from the tap's buffer; a `yield` that bypasses it, or hands it another pair
+// than the session's, is caught only on hardware.
+@Suite("AVAudioEngineRecorder authorization")
+struct AVAudioEngineRecorderAuthorizationTests {
 
-    /// A denied mic throws, and the engine is never started.
-    /// Sensitivity: check permission after starting the engine → RED.
+    /// A denied authorizer makes `AVAudioEngineRecorder.start()` throw `.microphoneDenied`.
+    /// Stated sensitivity: delete the authorization guard at the top of
+    /// `AVAudioEngineRecorder.start()` → RED.
     @Test
-    func deniedMicThrowsAndNeverStartsEngine() async {
-        let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: false))
+    func deniedMicThrowsMicrophoneDenied() async {
+        let recorder = AVAudioEngineRecorder(
+            authorizer: FakeMicrophoneAuthorizer(authorized: false),
+            preferredInputDevice: nil
+        )
 
         do {
             _ = try await recorder.start()
@@ -31,9 +36,6 @@ struct AudioRecorderSeamTests {
         } catch {
             #expect(Bool(false), "must throw AudioCaptureError, got \(error)")
         }
-
-        #expect(recorder.engineStartCount == 0,
-                "the engine must NEVER be started when the mic is denied, got \(recorder.engineStartCount) starts")
     }
 }
 

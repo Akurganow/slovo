@@ -1,10 +1,12 @@
 import AVFAudio
 import CoreAudio
 import Foundation
+import os
 import SlovoObjC
 
 /// Real `AVAudioEngine`-backed microphone recorder, built and verified on
-/// device, not exercised in CI.
+/// device. CI executes only the denied-microphone path of `start()` and
+/// `detachedChunk`; neither touches an engine.
 ///
 /// Each `start()` builds a FRESH engine so an audio device/route change since the
 /// previous dictation (e.g. unplugging headphones) cannot leave a stale input
@@ -21,6 +23,7 @@ import SlovoObjC
 public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     private let authorizer: MicrophoneAuthorizer
     private let log: RedactionSafeLog
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private final class SessionToken: @unchecked Sendable {}
 
@@ -77,10 +80,16 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
         let choice = preference.map { InputDeviceChoice.derive(preference: $0, devices: devices.inputDevices()) }
         // A device that leaves between the read above and this translation is absent.
         if var deviceID = choice?.captureUID.flatMap(devices.deviceID(forUID:)) {
-            guard let audioUnit = inputNode.audioUnit else { throw AudioCaptureError.engineStartFailed }
+            guard let audioUnit = inputNode.audioUnit else {
+                Self.diagnosticLog.error("audio.deviceAssign failed noAudioUnit")
+                throw AudioCaptureError.engineStartFailed
+            }
             let status = AudioUnitSetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
                                               &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size))
-            guard status == noErr else { throw AudioCaptureError.engineStartFailed }
+            guard status == noErr else {
+                Self.diagnosticLog.error("audio.deviceAssign failed status=\(status)")
+                throw AudioCaptureError.engineStartFailed
+            }
             assignedDeviceID = deviceID
         } else if choice != nil {
             log.event("input device unavailable, using the system default")
@@ -145,6 +154,7 @@ public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
             // Obj-C exception), so a plain do/catch is enough here.
             try engine.start()
         } catch {
+            Self.diagnosticLog.error("audio.engineStart failed code=\((error as NSError).code)")
             teardown(sessionToken: sessionToken)
             throw AudioCaptureError.engineStartFailed
         }

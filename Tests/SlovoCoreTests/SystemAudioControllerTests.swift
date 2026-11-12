@@ -1,53 +1,71 @@
-import Foundation
 import Testing
 
-import SlovoCore
-import SlovoTestSupport
+@testable import SlovoCore
 
-// Restore targets the EXACT pinned device, and wasAlreadyMuted ⇒ restore is a
-// no-op.
-//
-// Contract under test (the seam lives in `Sources/SlovoCore/Audio/`, the fake in
-// `Sources/SlovoTestSupport/`):
-//
-//     struct PriorAudioState { deviceID; method; wasAlreadyMuted; priorVolumeScalar }
-//     protocol SystemAudioController {
-//         func muteSystemOutput() throws -> PriorAudioState
-//         func restoreSystemOutput(_ state: PriorAudioState) throws
-//     }
-@Suite("System audio controller")
+// The restore decision: which device write undoes a mute, and with what value.
+// Applying that write to the HAL is checked only on hardware.
+@Suite("System audio restore decision")
 struct SystemAudioControllerTests {
 
-    /// AirPods-connect-mid-dictation: restore must target the device
-    /// PINNED at mute time (`state.deviceID`), never the then-current default.
-    /// Stated sensitivity: make restore target the current default (id 99) → the
-    /// recorded device ≠ 42 → RED.
+    /// Never un-mute what the user silenced: a device muted before dictation needs
+    /// no restore write, whichever lever is in use.
+    /// Stated sensitivity: delete the `wasAlreadyMuted` guard in `restoreWrite` → a write is returned for both methods → RED.
     @Test
-    func restoreTargetsThePinnedDevice() throws {
-        let pinned = PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
-        let controller = FakeSystemAudioController(muteReturns: pinned)
+    func restoreWriteIsNilWhenAlreadyMuted() {
+        let muteLever = PriorAudioState(deviceID: 7, method: .mute, wasAlreadyMuted: true, priorVolumeScalar: nil)
+        let volumeLever = PriorAudioState(deviceID: 7, method: .virtualMasterVolume, wasAlreadyMuted: true, priorVolumeScalar: 0)
 
-        let state = try controller.muteSystemOutput()
-        try controller.restoreSystemOutput(state)
-
-        #expect(controller.restoredDeviceIDs == [42],
-                "restore must target the pinned deviceID 42, got \(controller.restoredDeviceIDs)")
+        #expect(CoreAudioOutputMute.restoreWrite(for: muteLever) == nil)
+        #expect(CoreAudioOutputMute.restoreWrite(for: volumeLever) == nil)
     }
 
-    /// Never un-mute what the user silenced: when the device was
-    /// ALREADY muted at mute time, restore performs NO device write.
-    /// Stated sensitivity: make restore always un-mute regardless of
-    /// `wasAlreadyMuted` → a device write is recorded for the already-muted case
-    /// → RED.
+    /// The mute lever is undone by unmuting the device pinned at mute time.
+    /// Stated sensitivity: use another device ID, or `muted: true`, in the `.mute` arm → RED.
     @Test
-    func restoreIsNoOpWhenWasAlreadyMuted() throws {
-        let alreadyMuted = PriorAudioState(deviceID: 7, method: .mute, wasAlreadyMuted: true, priorVolumeScalar: nil)
-        let controller = FakeSystemAudioController(muteReturns: alreadyMuted)
+    func restoreMuteUnmutesThePinnedDevice() {
+        let state = PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
 
-        let state = try controller.muteSystemOutput()
-        try controller.restoreSystemOutput(state)
+        #expect(CoreAudioOutputMute.restoreWrite(for: state) == .mute(deviceID: 42, muted: false))
+    }
 
-        #expect(controller.restoreDeviceWrites == [false],
-                "restore must be a no-op (no device write) when wasAlreadyMuted, got writes=\(controller.restoreDeviceWrites)")
+    /// The volume fallback puts back the exact scalar saved at mute time.
+    /// Stated sensitivity: ignore the saved scalar, or swap the method arms → RED.
+    @Test
+    func restoreVirtualVolumeReturnsThePriorScalar() {
+        let state = PriorAudioState(deviceID: 42, method: .virtualMasterVolume, wasAlreadyMuted: false, priorVolumeScalar: 0.4)
+
+        #expect(CoreAudioOutputMute.restoreWrite(for: state) == .volume(deviceID: 42, scalar: 0.4))
+    }
+
+    /// With no saved scalar, the volume fallback restores full volume.
+    /// Stated sensitivity: change `?? 1` in `restoreWrite` → RED.
+    @Test
+    func restoreVirtualVolumeDefaultsToFullWhenScalarUnknown() {
+        let state = PriorAudioState(deviceID: 42, method: .virtualMasterVolume, wasAlreadyMuted: false, priorVolumeScalar: nil)
+
+        #expect(CoreAudioOutputMute.restoreWrite(for: state) == .volume(deviceID: 42, scalar: 1))
+    }
+
+    /// A device with neither a settable mute nor a settable volume has no lever. The mute path
+    /// maps this nil to a throw that is never logged, so the failure log switch cannot receive it.
+    /// Stated sensitivity: return `.virtualMasterVolume` instead of nil when neither is settable → RED.
+    @Test
+    func muteLeverIsNilWithoutAnySettableControl() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: false, hasSettableVolume: false) == nil)
+    }
+
+    /// A settable mute wins, whether or not the volume is settable.
+    /// Stated sensitivity: prefer the volume when both are settable, or drop the mute arm → RED.
+    @Test
+    func muteLeverPrefersASettableMute() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: true, hasSettableVolume: false) == .mute)
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: true, hasSettableVolume: true) == .mute)
+    }
+
+    /// Without a settable mute, a settable volume is the lever.
+    /// Stated sensitivity: return nil, or `.mute`, for a settable volume alone → RED.
+    @Test
+    func muteLeverFallsBackToASettableVolume() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: false, hasSettableVolume: true) == .virtualMasterVolume)
     }
 }
