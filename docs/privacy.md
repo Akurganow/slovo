@@ -156,7 +156,9 @@ at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,
 and a 0 or 1 flag for a retry without vocabulary bias. Five cue lines carry the
 cue's name (one of three), and two of them also its elapsed milliseconds. They
 carry dictation timing and no user text. A cleanup failure adds its kind and the
-provider's HTTP status. Error text is logged privately; transcripts, cleaned text
+provider's HTTP status. A launch that finds stored settings it cannot read logs
+how many it returned to their defaults, with no setting names or values. Error
+text is logged privately; transcripts, cleaned text
 and keys never reach the log.
 
 ## Clipboard
