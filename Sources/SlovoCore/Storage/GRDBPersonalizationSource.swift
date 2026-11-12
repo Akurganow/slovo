@@ -6,15 +6,12 @@ import GRDB
 ///
 /// SECURITY: a DB-row value (a term, expansion, …) must NEVER reach the
 /// log. Only coarse counts cross into `RedactionSafeLog` — never a row payload.
-///
-/// It constructs its own `GRDBTermMissStore` over the shared pool rather than
-/// receiving one (`AppComposition` builds a second for the recording seam):
-/// both are stateless structs over the same `DatabasePool`, so there is no
-/// shared instance to inject and no injection point to look for.
 public struct GRDBPersonalizationSource: PersonalizationSource {
     private let database: DatabasePool
     private let log: RedactionSafeLog
-    private let missStore: GRDBTermMissStore
+    /// The miss store over the same pool: the ranking reads it, and the pipeline
+    /// records misses through it.
+    public let missStore: GRDBTermMissStore
 
     public init(
         database: DatabasePool,

@@ -1,5 +1,6 @@
 import Foundation
 import SlovoCore
+import os
 
 enum AppComposition {
     struct Live {
@@ -8,27 +9,43 @@ enum AppComposition {
         let onboardingSteps: [OnboardingStep]
         let permissionRequester: any PermissionRequester
         let modelWarmUp: Task<Void, Never>
-        let personalization: GRDBPersonalizationSource
         let cueController: any DictationCueController
         let recorder: AVAudioEngineRecorder
+    }
+
+    private static let storageLog = Logger(subsystem: "com.slovo.app", category: "storage")
+
+    /// Opens the personalization database for the life of the process; every
+    /// composition reads through the one source it returns. Nil when the
+    /// database does not open: dictation then runs without vocabulary until the
+    /// next launch. The log line names no path and no error: a database error's
+    /// text carries SQLite's message and the SQL statement.
+    static func openPersonalization() -> GRDBPersonalizationSource? {
+        do {
+            let database = try PersonalizationDatabase.open(
+                at: personalizationDatabasePath().path,
+                passphrase: PersonalizationDatabasePassphrase.derive
+            )
+            let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
+            return GRDBPersonalizationSource(database: database, log: log)
+        } catch {
+            storageLog.error("personalization database unavailable")
+            return nil
+        }
     }
 
     static func makeLive(
         state: AppState,
         openRouterKeyProvider: KeychainOpenRouterKeyProvider,
         speechModel: SharedSpeechModel,
-        fileManager: FileManager = .default,
+        personalization: GRDBPersonalizationSource?,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         onCleanupFailure: (@Sendable (CleanupError) -> Void)? = nil
-    ) throws -> Live {
+    ) -> Live {
         let config = state.config
         let log = RedactionSafeLog(subsystem: "com.slovo.app", category: "pipeline")
         let permissionPreflighter = SystemPermissionPreflighter()
-        let database = try PersonalizationDatabase.open(
-            at: personalizationDatabasePath(fileManager: fileManager).path,
-            passphrase: PersonalizationDatabasePassphrase.derive
-        )
-        let source = GRDBPersonalizationSource(database: database, log: log)
+        let vocabulary: any PersonalizationSource = personalization ?? EmptyPersonalizationSource()
         // Every composition preloads the ONE speech model it was handed, so this
         // rebuild joins a load already in flight or retries a failed one, and the
         // app can gate dictation on its own warm-up either way.
@@ -58,7 +75,7 @@ enum AppComposition {
             transcriber: transcriber,
             cleaner: cleaner,
             injector: injector,
-            personalization: source,
+            personalization: vocabulary,
             audio: CoreAudioOutputMute(),
             recorder: recorder,
             cueController: cueController,
@@ -66,7 +83,7 @@ enum AppComposition {
             statusReporter: statusReporter,
             inputSourceLanguage: SystemInputSourceLanguageReader(),
             spellCheckHints: SystemSpellCheckHintProvider(),
-            termMissRecorder: GRDBTermMissStore(database: database, log: log)
+            termMissRecorder: personalization?.missStore
         )
         dependencies.onCleanupFailure = onCleanupFailure
 
@@ -85,13 +102,13 @@ enum AppComposition {
             ),
             permissionRequester: permissionPreflighter,
             modelWarmUp: modelWarmUp,
-            personalization: source,
             cueController: cueController,
             recorder: recorder
         )
     }
 
-    private static func personalizationDatabasePath(fileManager: FileManager) throws -> URL {
+    private static func personalizationDatabasePath() throws -> URL {
+        let fileManager = FileManager.default
         let applicationSupport = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
