@@ -184,8 +184,9 @@ If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
 unusable response, Slovo falls back to the direct, untranslated transcript and
 shows a transient error glyph instead of dropping the dictation.
 
-While cleanup is on, Slovo also sends OpenRouter the key-scope request, so the
-model pickers offer only the models your key can call. Slovo sends it:
+Slovo also sends OpenRouter the key-scope request, so the model pickers offer
+only the models your key can call. On each of these occasions it is sent only
+while cleanup is on and once the hotkey is ready:
 
 - once the hotkey is ready after launch, and again after each setup retry (a
   permission granted, or **Retry Setup**) while the list is still unknown;

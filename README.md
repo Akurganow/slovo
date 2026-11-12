@@ -367,7 +367,8 @@ not implement:
 - **No history.** Slovo keeps no transcript or cleaned text after the text is
   inserted — no transcript log to browse, search, or leak. When cleanup corrects
   one of your vocabulary terms, Slovo records which term and when, encrypted on
-  your Mac, never sent, and kept 90 days ([docs/privacy.md](docs/privacy.md)).
+  your Mac and never sent. Records older than 90 days are ignored and are deleted
+  when the next one is written ([docs/privacy.md](docs/privacy.md)).
 - **No main window.** No overlay, no visible live transcript — only the
   menu-bar icon and the on-demand Settings and Add Vocabulary panels.
 - **No features beyond the loop.** No meeting recording or file

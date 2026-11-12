@@ -170,8 +170,9 @@ Slovo uses SQLite through GRDB for local personalization data:
 - `vocabulary` stores spelling anchors and term weights.
 - `term_misses` records which vocabulary term a plain (not translated) cleanup
   corrected, and when: the folded term and a timestamp, no transcript or
-  cleaned text. The rows are encrypted with the rest of the store, never sent,
-  and kept 90 days ([docs/privacy.md](privacy.md), "Data Paths").
+  cleaned text. The rows are encrypted with the rest of the store and never
+  sent; rows older than 90 days are ignored and are deleted when the next one is
+  written ([docs/privacy.md](privacy.md), "Data Paths").
   `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
