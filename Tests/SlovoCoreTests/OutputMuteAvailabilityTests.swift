@@ -6,20 +6,18 @@ import SlovoCore
 // Settings toggle both read this value instead of re-deriving it.
 @Suite("OutputMuteAvailability")
 struct OutputMuteAvailabilityTests {
-    /// Disabled only when both levers are absent; an unreadable name falls back to
+    /// Disabled only when the device has no lever; an unreadable name falls back to
     /// a neutral subject.
-    /// Stated sensitivity: let either lever alone disable the switch (`||` in place
-    /// of the two-sided guard), flip a row, or drop the name fallback → RED. The
-    /// `?? true` collapse in `CoreAudioOutputMute.outputMuteAvailability()` is not
-    /// covered here.
+    /// Stated sensitivity: report `.available` for a nil lever, report `.unavailable` for
+    /// either method, or drop the name fallback → RED. The `?? true` collapse in
+    /// `CoreAudioOutputMute.outputMuteAvailability()` is not covered here.
     @Test
     func derivationTable() {
-        #expect(OutputMuteAvailability.derive(hasSettableMute: false, hasSettableVolume: false, deviceName: "Example Output")
+        #expect(OutputMuteAvailability.derive(lever: nil, deviceName: "Example Output")
             == .unavailable(deviceName: "Example Output"))
-        #expect(OutputMuteAvailability.derive(hasSettableMute: true, hasSettableVolume: false, deviceName: "Example Output") == .available)
-        #expect(OutputMuteAvailability.derive(hasSettableMute: false, hasSettableVolume: true, deviceName: "Example Output") == .available)
-        #expect(OutputMuteAvailability.derive(hasSettableMute: true, hasSettableVolume: true, deviceName: "Example Output") == .available)
-        let unnamed = OutputMuteAvailability.derive(hasSettableMute: false, hasSettableVolume: false, deviceName: nil)
+        #expect(OutputMuteAvailability.derive(lever: .mute, deviceName: "Example Output") == .available)
+        #expect(OutputMuteAvailability.derive(lever: .virtualMasterVolume, deviceName: "Example Output") == .available)
+        let unnamed = OutputMuteAvailability.derive(lever: nil, deviceName: nil)
         #expect(unnamed == .unavailable(deviceName: "This output device"))
         #expect(unnamed.unavailableHint == "This output device has no volume control macOS can set.")
     }

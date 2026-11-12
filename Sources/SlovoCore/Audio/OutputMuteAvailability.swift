@@ -12,14 +12,10 @@ public enum OutputMuteAvailability: Equatable, Sendable {
         return "\(deviceName) has no volume control macOS can set."
     }
 
-    /// The one decision: unavailable only on positive evidence that neither lever
-    /// exists. An unreadable name falls back to a neutral subject.
-    public static func derive(
-        hasSettableMute: Bool,
-        hasSettableVolume: Bool,
-        deviceName: String?
-    ) -> OutputMuteAvailability {
-        guard !hasSettableMute, !hasSettableVolume else { return .available }
+    /// Unavailable exactly when the device has no mute lever (`CoreAudioOutputMute.muteLever`
+    /// decides that). An unreadable name falls back to a neutral subject.
+    public static func derive(lever: PriorAudioState.Method?, deviceName: String?) -> OutputMuteAvailability {
+        guard lever == nil else { return .available }
         return .unavailable(deviceName: deviceName ?? "This output device")
     }
 }

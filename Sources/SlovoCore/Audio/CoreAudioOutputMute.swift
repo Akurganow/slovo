@@ -9,19 +9,25 @@ import os
 /// to zero (and restoring the saved scalar) for devices that do not expose a
 /// settable mute (e.g. some Bluetooth/USB DACs). The `AudioDeviceID` is pinned
 /// at mute time so a device change mid-dictation cannot misdirect the restore.
+/// A device with neither lever makes `muteSystemOutput` throw `NoOutputControl`.
 ///
-/// The availability read checks the same two levers `muteSystemOutput` uses, in
-/// the same way: a settable mute, else a settable virtual main volume.
+/// `muteLever` is the one decision of which lever a device has: `muteSystemOutput`
+/// and the availability read both call it.
 ///
-/// The HAL calls run only on real hardware; CI tests the pure restore decision,
-/// `restoreWrite(for:)`.
+/// The HAL calls run only on real hardware; CI tests the pure decisions,
+/// `muteLever(hasSettableMute:hasSettableVolume:)` and `restoreWrite(for:)`.
 public struct CoreAudioOutputMute: SystemAudioController {
-    /// The HAL helpers throw this and never log: the availability probe reads
-    /// through them, where a failure is an expected answer.
+    /// A HAL call that returned an error status. The helpers throw it and never log:
+    /// the availability probe reads through them, where a failure is an expected
+    /// answer. `muteSystemOutput` logs it.
     private struct HALFailure: Error {
         let call: HALCall
         let status: OSStatus
     }
+
+    /// Thrown by `muteSystemOutput` for a device with no settable control. That is not
+    /// a failure, so it is never logged.
+    private struct NoOutputControl: Error {}
 
     /// The device write a restore issues.
     enum OutputWrite: Equatable {
@@ -49,11 +55,11 @@ public struct CoreAudioOutputMute: SystemAudioController {
         guard let deviceID = try? defaultOutputDeviceID(), deviceID != kAudioObjectUnknown else {
             return .available
         }
-        return .derive(
+        let lever = Self.muteLever(
             hasSettableMute: (try? isPropertySettable(deviceID, muteAddress())) ?? true,
-            hasSettableVolume: (try? isPropertySettable(deviceID, virtualMasterVolumeAddress())) ?? true,
-            deviceName: readDeviceString(deviceID, selector: kAudioObjectPropertyName)
+            hasSettableVolume: (try? isPropertySettable(deviceID, virtualMasterVolumeAddress())) ?? true
         )
+        return .derive(lever: lever, deviceName: readDeviceString(deviceID, selector: kAudioObjectPropertyName))
     }
 
     /// Calls `handler` with a fresh reading after every change of the default output
@@ -75,8 +81,9 @@ public struct CoreAudioOutputMute: SystemAudioController {
     }
 
     public func muteSystemOutput() throws -> PriorAudioState {
+        let state: PriorAudioState?
         do {
-            return try muteDefaultOutput()
+            state = try muteDefaultOutput()
         } catch {
             switch error.call {
             case .getDefaultDevice:
@@ -94,12 +101,22 @@ public struct CoreAudioOutputMute: SystemAudioController {
             }
             throw error
         }
+        guard let state else { throw NoOutputControl() }
+        return state
     }
 
-    private func muteDefaultOutput() throws(HALFailure) -> PriorAudioState {
+    private func muteDefaultOutput() throws(HALFailure) -> PriorAudioState? {
         let deviceID = try defaultOutputDeviceID()
+        let hasSettableMute = try isPropertySettable(deviceID, muteAddress())
+        // A settable mute already decides the lever; a failing volume check must not fail a mute that works.
+        var hasSettableVolume = false
+        if !hasSettableMute {
+            hasSettableVolume = try isPropertySettable(deviceID, virtualMasterVolumeAddress())
+        }
+        let lever = Self.muteLever(hasSettableMute: hasSettableMute, hasSettableVolume: hasSettableVolume)
 
-        if try isPropertySettable(deviceID, muteAddress()) {
+        switch lever {
+        case .mute:
             let wasAlreadyMuted = try currentMute(deviceID)
             if !wasAlreadyMuted {
                 try setMute(deviceID, muted: true)
@@ -110,21 +127,23 @@ public struct CoreAudioOutputMute: SystemAudioController {
                 wasAlreadyMuted: wasAlreadyMuted,
                 priorVolumeScalar: nil
             )
+        case .virtualMasterVolume:
+            // Fallback: drive the virtual master volume to zero, saving the prior
+            // scalar so restore can put it back exactly.
+            let priorScalar = try currentVirtualMasterVolume(deviceID)
+            let wasAlreadyMuted = priorScalar == 0
+            if !wasAlreadyMuted {
+                try setVirtualMasterVolume(deviceID, scalar: 0)
+            }
+            return PriorAudioState(
+                deviceID: deviceID,
+                method: .virtualMasterVolume,
+                wasAlreadyMuted: wasAlreadyMuted,
+                priorVolumeScalar: priorScalar
+            )
+        case nil:
+            return nil
         }
-
-        // Fallback: drive the virtual master volume to zero, saving the prior
-        // scalar so restore can put it back exactly.
-        let priorScalar = try currentVirtualMasterVolume(deviceID)
-        let wasAlreadyMuted = priorScalar == 0
-        if !wasAlreadyMuted {
-            try setVirtualMasterVolume(deviceID, scalar: 0)
-        }
-        return PriorAudioState(
-            deviceID: deviceID,
-            method: .virtualMasterVolume,
-            wasAlreadyMuted: wasAlreadyMuted,
-            priorVolumeScalar: priorScalar
-        )
     }
 
     public func restoreSystemOutput(_ state: PriorAudioState) throws {
@@ -140,6 +159,14 @@ public struct CoreAudioOutputMute: SystemAudioController {
             Self.diagnosticLog.error("output.restore failed status=\(error.status)")
             throw error
         }
+    }
+
+    /// The one decision of which lever a device has: a settable mute, else a settable
+    /// volume, else nil. `muteDefaultOutput()` and `outputMuteAvailability()` both call it,
+    /// so the probe and the mute path cannot disagree.
+    static func muteLever(hasSettableMute: Bool, hasSettableVolume: Bool) -> PriorAudioState.Method? {
+        if hasSettableMute { return .mute }
+        return hasSettableVolume ? .virtualMasterVolume : nil
     }
 
     /// The write that undoes a mute, or nil when there is nothing to undo.

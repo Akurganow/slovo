@@ -45,4 +45,27 @@ struct SystemAudioControllerTests {
 
         #expect(CoreAudioOutputMute.restoreWrite(for: state) == .volume(deviceID: 42, scalar: 1))
     }
+
+    /// A device with neither a settable mute nor a settable volume has no lever. The mute path
+    /// maps this nil to a throw that is never logged, so the failure log switch cannot receive it.
+    /// Stated sensitivity: return `.virtualMasterVolume` instead of nil when neither is settable → RED.
+    @Test
+    func muteLeverIsNilWithoutAnySettableControl() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: false, hasSettableVolume: false) == nil)
+    }
+
+    /// A settable mute wins, whether or not the volume is settable.
+    /// Stated sensitivity: prefer the volume when both are settable, or drop the mute arm → RED.
+    @Test
+    func muteLeverPrefersASettableMute() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: true, hasSettableVolume: false) == .mute)
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: true, hasSettableVolume: true) == .mute)
+    }
+
+    /// Without a settable mute, a settable volume is the lever.
+    /// Stated sensitivity: return nil, or `.mute`, for a settable volume alone → RED.
+    @Test
+    func muteLeverFallsBackToASettableVolume() {
+        #expect(CoreAudioOutputMute.muteLever(hasSettableMute: false, hasSettableVolume: true) == .virtualMasterVolume)
+    }
 }
