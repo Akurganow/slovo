@@ -7,7 +7,7 @@ enum AppComposition {
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
         let permissionRequester: any PermissionRequester
-        let modelWarmUp: Task<Void, Never>
+        let modelWarmUp: Task<Void, any Error>
         let personalization: GRDBPersonalizationSource
         let cueController: any DictationCueController
         let recorder: AVAudioEngineRecorder

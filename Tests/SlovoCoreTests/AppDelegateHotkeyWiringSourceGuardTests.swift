@@ -199,11 +199,14 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// The model warm-up must be an observable gate end to end: the composition
     /// exposes the preload as an awaitable task; the delegate enters the loading
-    /// state in startPipeline and opens the gate (stopping the pulse) when the
-    /// warm-up completes — and only for the composition still wired, so a
-    /// superseded preload's outcome cannot answer for the current one.
+    /// state in startPipeline and opens the gate (stopping the pulse) only when the
+    /// warm-up task succeeds, which it does only on a loaded model — and only for the
+    /// composition still wired, so a superseded preload's outcome cannot answer for
+    /// the current one.
     /// Killing mutation: return to fire-and-forget preload, never flip
-    /// isModelReady, or delete the currency comparison from the gate task -> RED.
+    /// isModelReady, open the gate on any completion (`_ = await
+    /// live.modelWarmUp.result`, which also passes a cancelled warm-up), or delete
+    /// the currency comparison from the gate task -> RED.
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
         let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
@@ -218,7 +221,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let gate = try SourceText.code("Sources/slovo/AppDelegate+ModelGate.swift")
         #expect(SourceText.containsInOrder([
             "showModelLoadingState",
-            "modelWarmUp",
+            "try? await live.modelWarmUp.value",
             "composition?.modelWarmUp",
             "isModelReady = true",
             "stopModelLoadingPulse",

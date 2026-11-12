@@ -56,7 +56,8 @@ struct WhisperKitTranscriberLifecycleTests {
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
         async let warmed: Void = transcriber.warmUp()
-        await engine.waitForLoadSuspended()             // warmUp is parked inside load()
+        let parked = await engine.waitForLoadSuspended()
+        #expect(parked, "warmUp must park inside load()")
 
         async let begun: Void = transcriber.begin(biasTerms: [])
         await engine.waitForGatedLoadCountOrRelent(2)    // buggy path parks a 2nd load; correct path relents
@@ -83,7 +84,8 @@ struct WhisperKitTranscriberLifecycleTests {
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
         async let begun: Void = transcriber.begin(biasTerms: [])
-        await engine.waitForLoadSuspended()          // begin is parked inside load()
+        let parked = await engine.waitForLoadSuspended()
+        #expect(parked, "begin must park inside load()")
         await transcriber.setRecognitionLanguage(.ru)
         engine.releaseLoad()
         try await begun

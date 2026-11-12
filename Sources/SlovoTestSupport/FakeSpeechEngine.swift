@@ -34,7 +34,6 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
         var loaded = false
         var loadGateArmed = false
         var loadWaiters: [CheckedContinuation<Void, Never>] = []
-        var loadSuspendedSignals: [CheckedContinuation<Void, Never>] = []
         var streamSamples: [Float] = []
         var sessionBiasTerms: [[Term]] = []
         var sessionLanguages: [Language] = []
@@ -119,13 +118,7 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
             // Park until releaseLoad(); `loaded` stays false while in flight so a
             // concurrent begin models the real "load not yet complete" race.
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                let signals: [CheckedContinuation<Void, Never>] = state.withLock { current in
-                    current.loadWaiters.append(continuation)
-                    let pending = current.loadSuspendedSignals
-                    current.loadSuspendedSignals = []
-                    return pending
-                }
-                signals.forEach { $0.resume() }
+                state.withLock { $0.loadWaiters.append(continuation) }
             }
         }
         if loadSucceeds && attempt > loadFailuresBeforeSuccess {
@@ -151,20 +144,18 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
         waiters.forEach { $0.resume() }
     }
 
-    /// Suspends until at least one `load()` has parked on the gate.
-    public func waitForLoadSuspended() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let resumeNow: Bool = state.withLock { current in
-                if current.loadWaiters.isEmpty {
-                    current.loadSuspendedSignals.append(continuation)
-                    return false
-                }
+    /// Waits until at least one `load()` has parked on the gate and returns `true`, or
+    /// returns `false` when the yield budget runs out (a load that never parks, such as
+    /// a warm-up that never loads, ends the wait instead of hanging the suite). The
+    /// budget is large so a slow scheduler never ends a wait that would succeed.
+    public func waitForLoadSuspended(maxYields: Int = 1_000_000) async -> Bool {
+        for _ in 0..<maxYields {
+            if state.withLock({ !$0.loadWaiters.isEmpty }) {
                 return true
             }
-            if resumeNow {
-                continuation.resume()
-            }
+            await Task.yield()
         }
+        return false
     }
 
     /// Waits until `target` loads have parked on the gate, or relents after a bounded
