@@ -1,7 +1,7 @@
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // Removing the key must erase BOTH presence channels the provider owns — the
 // backing store and the process-local cache — or stale state resurrects the
@@ -16,7 +16,7 @@ struct KeychainKeyRemovalTests {
     @Test
     func removeKeyClearsStoreAndCache() throws {
         let stored = Mutex<String?>(nil)
-        let provider = KeychainAPIKeyProvider(
+        let provider = KeychainOpenRouterKeyProvider(
             readKey: { stored.withLock { $0 } },
             keyExists: { stored.withLock { $0 != nil } },
             writeKey: { key in stored.withLock { $0 = key } },
@@ -49,7 +49,7 @@ struct KeychainKeyRemovalTests {
         struct DeleteFailure: Error {}
         let stored = Mutex<String?>(nil)
         let reads = Mutex<Int>(0)
-        let provider = KeychainAPIKeyProvider(
+        let provider = KeychainOpenRouterKeyProvider(
             readKey: {
                 reads.withLock { $0 += 1 }
                 return stored.withLock { $0 }
@@ -67,25 +67,5 @@ struct KeychainKeyRemovalTests {
         #expect(try provider.apiKey() == "synthetic-openrouter-key")
         #expect(reads.withLock { $0 } == 0,
                 "the cache must survive a failed delete — the read never falls through to the store")
-    }
-
-    /// Stated sensitivity: KeychainOpenRouterKeyProvider.removeKey() not
-    /// forwarding to its storage (an empty body) → the store keeps the key and
-    /// hasConfiguredKey() stays true → RED.
-    @Test
-    func openRouterProviderForwardsRemoveKey() throws {
-        let stored = Mutex<String?>("synthetic-openrouter-key")
-        let provider = KeychainOpenRouterKeyProvider(
-            readKey: { stored.withLock { $0 } },
-            keyExists: { stored.withLock { $0 != nil } },
-            writeKey: { key in stored.withLock { $0 = key } },
-            deleteKey: { stored.withLock { $0 = nil } }
-        )
-        #expect(provider.hasConfiguredKey())
-
-        try provider.removeKey()
-
-        #expect(!provider.hasConfiguredKey())
-        #expect(stored.withLock { $0 } == nil, "the backing store must be emptied through the forwarded delete")
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 @Suite("Cleanup provider OpenRouter cleaner")
@@ -21,11 +21,9 @@ struct OpenRouterCleanerTests {
         PersonalizationContext(vocabulary: [])
     }
 
-    private static func successBody(text: String) -> Data {
-        Data(
-            """
-            {"choices":[{"message":{"role":"assistant","content":"\(text)"}}]}
-            """.utf8
+    private static func successBody(text: String) throws -> Data {
+        try JSONSerialization.data(
+            withJSONObject: ["choices": [["message": ["role": "assistant", "content": text]]]]
         )
     }
 
@@ -33,10 +31,11 @@ struct OpenRouterCleanerTests {
     /// the configured routed model, sending an unauthenticated request, letting
     /// the provider's default reasoning mode stand (no `reasoning.effort: none` in
     /// the body), or sending any `max_tokens` in the body makes the recorded
-    /// request-shape assertions go RED.
+    /// request-shape assertions go RED. Adding any body field (a device or user
+    /// identifier, say) or any request header makes the exact key-set assertions RED.
     @Test
     func outboundRequestUsesOpenRouterChatCompletionsShapeAndConfiguredModel() async throws {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned")))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -53,9 +52,15 @@ struct OpenRouterCleanerTests {
         #expect(request.value(forHTTPHeaderField: "content-type") == "application/json")
         #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/Akurganow/slovo")
         #expect(request.value(forHTTPHeaderField: "X-Title") == "Slovo")
-        #expect(request.timeoutInterval == 30)
+        // URLSession adds Content-Length to a request with a body; the stub adds its routing header.
+        let sentHeaders = Set((request.allHTTPHeaderFields ?? [:]).keys.map { $0.lowercased() })
+            .subtracting(["content-length", StubURLProtocol.scenarioHeader.lowercased()])
+        #expect(sentHeaders == ["authorization", "content-type", "http-referer", "x-title"],
+                "the request carries exactly the headers the cleaner sets, got \(sentHeaders.sorted())")
 
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(Set(json.keys) == ["model", "messages", "temperature", "reasoning"],
+                "the body carries exactly these fields, got \(json.keys.sorted())")
         #expect(json["model"] as? String == "openai/gpt-6-luna")
         #expect(json["temperature"] as? Double == 0)
         #expect(json["max_tokens"] == nil,
@@ -65,17 +70,34 @@ struct OpenRouterCleanerTests {
             "reasoning must be pinned off; provider defaults enable it on some models"
         )
         #expect(reasoning["effort"] as? String == "none")
+        #expect(Set(reasoning.keys) == ["effort"])
         let messages = try #require(json["messages"] as? [[String: String]])
+        #expect(messages.allSatisfy { Set($0.keys) == ["role", "content"] })
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
         #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
     }
 
+    /// Stated sensitivity: pass `.shared` or any other session from the public init,
+    /// drop the resource-timeout line, or build it from the default configuration -> RED.
+    @Test
+    func cleanupSessionEndsEveryRequestAfterTenSeconds() {
+        let cleaner = OpenRouterCleaner(
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder()
+        )
+        #expect(cleaner.session.configuration.timeoutIntervalForResource == 10)
+        // No disk cache: a cleanup reply holds the user's words.
+        #expect((cleaner.session.configuration.urlCache?.diskCapacity ?? 0) == 0)
+    }
+
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
     /// reading the wrong Chat Completions field, returns no cleaned text.
-    @Test
-    func success200ReturnsAssistantMessageContent() async throws {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "cleaned prose")))
+    /// Trimming the returned content (`.trimmingCharacters(in: .whitespacesAndNewlines)`)
+    /// turns the `"Hello\n"` and leading-space rows RED: the reply must come back as sent.
+    @Test(arguments: ["cleaned prose", "Hello\n", " leading space"])
+    func success200ReturnsAssistantMessageContent(reply: String) async throws {
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: reply)))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -84,7 +106,7 @@ struct OpenRouterCleanerTests {
 
         let output = try await cleaner.clean("raw", config: Self.config, context: Self.context)
 
-        #expect(output == "cleaned prose")
+        #expect(output == reply)
     }
 
     /// Stated sensitivity: add a retry loop on transport failure -> the transcript
@@ -102,6 +124,66 @@ struct OpenRouterCleanerTests {
 
         #expect(scenario.recordedRequests.count == 1,
                 "fail-closed: exactly one outbound POST, got \(scenario.recordedRequests.count)")
+    }
+
+    /// Stated sensitivity: mapping every code to `offline` -> the rows other than
+    /// `offline` go RED, because the log loses the transport cause. The thrown
+    /// error stays `.offline` in every row.
+    @Test(arguments: [
+        (URLError.Code.timedOut, "timedOut"),
+        (.notConnectedToInternet, "offline"),
+        (.networkConnectionLost, "offline"),
+        (.dataNotAllowed, "offline"),
+        (.internationalRoamingOff, "offline"),
+        (.callIsActive, "offline"),
+        (.secureConnectionFailed, "tls"),
+        (.serverCertificateHasBadDate, "tls"),
+        (.serverCertificateUntrusted, "tls"),
+        (.serverCertificateHasUnknownRoot, "tls"),
+        (.serverCertificateNotYetValid, "tls"),
+        (.clientCertificateRejected, "tls"),
+        (.cannotFindHost, "transport"),
+    ])
+    func transportFailureLogsItsCauseAndThrowsOffline(code: URLError.Code, token: String) async {
+        let scenario = StubScenario(response: .transportError(URLError(code)))
+        var captured: [String] = []
+        let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder(),
+            log: log
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .offline = error else { return "expected .offline, got \(error)" }
+            return nil
+        }
+        #expect(captured.contains("cleanup failed: \(token)"),
+                "expected the log to name the transport cause \(token), got \(captured)")
+    }
+
+    /// Stated sensitivity: logging the non-HTTP branch under another token
+    /// (`offline`, say) -> RED, because the log loses the cause. The thrown error
+    /// stays `.offline`.
+    @Test
+    func nonHTTPResponseLogsBadResponseAndThrowsOffline() async {
+        let scenario = StubScenario(response: .nonHTTP)
+        var captured: [String] = []
+        let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder(),
+            log: log
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .offline = error else { return "expected .offline, got \(error)" }
+            return nil
+        }
+        #expect(captured.contains("cleanup failed: badResponse"),
+                "expected the log to name badResponse, got \(captured)")
     }
 
     /// Stated sensitivity: mapping 429 to generic apiError makes the fallback
@@ -123,10 +205,15 @@ struct OpenRouterCleanerTests {
     }
 
     /// Stated sensitivity: letting a raw DecodingError escape on malformed 2xx
-    /// bypasses `FallbackCleaner`'s CleanupError degradation path.
-    @Test
-    func malformed200MapsToCleanupError() async {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data("{}".utf8)))
+    /// bypasses `FallbackCleaner`'s CleanupError degradation path. Bypassing the
+    /// visible-character predicate in `firstText` (back to `!content.isEmpty`) turns
+    /// the whitespace row RED: it returns instead of throwing.
+    @Test(arguments: [
+        #"{}"#,
+        #"{"choices":[{"message":{"role":"assistant","content":" \n\t"}}]}"#,
+    ])
+    func malformed200MapsToCleanupError(body: String) async {
+        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Data(body.utf8)))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
@@ -139,11 +226,10 @@ struct OpenRouterCleanerTests {
         }
     }
 
-    /// Stated sensitivity: a key-sourcing error must not become offline/apiError
-    /// or carry the key value into the thrown error.
+    /// Stated sensitivity: a key-sourcing error must not become offline/apiError.
     @Test
-    func keySourcingFailureMapsToMissingKey() async {
-        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))
+    func keySourcingFailureMapsToMissingKey() async throws {
+        let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))
         let cleaner = OpenRouterCleaner(
             session: scenario.makeSession(),
             keyProvider: FakeOpenRouterKeyProvider(.failure(.missingKey)),
@@ -170,8 +256,8 @@ struct OpenRouterCleanerTests {
             writeKey: { _ in },
             deleteKey: { }
         )
-        let first = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
-        let second = StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))
+        let first = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "one")))
+        let second = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "two")))
 
         _ = try await OpenRouterCleaner(
             session: first.makeSession(),
@@ -191,9 +277,9 @@ struct OpenRouterCleanerTests {
     /// Stated sensitivity: logging the request body, response body, output, or
     /// bearer key makes the matching synthetic sentinel reach the capturing sink.
     @Test
-    func openRouterPayloadChannelsNeverReachLog() async {
+    func openRouterPayloadChannelsNeverReachLog() async throws {
         let body = Data(#"{"error":{"message":"\#(Self.sentinelBody)"}}"#.utf8)
-        let cases: [(String, FakeOpenRouterKeyProvider.Outcome, StubResponse, String, [Term])] = [
+        let cases: [(String, FakeOpenRouterKeyProvider.Outcome, StubResponse, String, [Term])] = try [
             (
                 "transcript",
                 .success("synthetic-openrouter-key"),

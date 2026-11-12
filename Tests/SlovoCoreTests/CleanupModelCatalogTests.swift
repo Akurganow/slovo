@@ -4,14 +4,6 @@ import SlovoCore
 
 @Suite("Cleanup model catalog")
 struct CleanupModelCatalogTests {
-    /// Stated sensitivity: keep model choice stringly typed or omit the default
-    /// model from the provider catalog -> the selectable option lookup goes RED.
-    @Test
-    func defaultsAreBackedByTypedProviderModelOptions() {
-        #expect(CleanupModelCatalog.options.contains { $0.id == Config.defaultOpenRouterModel })
-        #expect(CleanupModelCatalog.options.allSatisfy { !$0.id.isEmpty && !$0.displayName.isEmpty })
-    }
-
     /// Pins the curated shortlist exactly, so a stale or typo'd id surfaces here
     /// instead of as a runtime OpenRouter apiError.
     /// Stated sensitivity: re-adding a retired id, dropping/typo'ing an entry, or

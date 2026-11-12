@@ -14,6 +14,7 @@ import Foundation
 enum StubResponse {
     case http(status: Int, headers: [String: String], body: Data)
     case transportError(URLError)
+    case nonHTTP
 }
 
 /// One test's isolated stub state: the response it returns + the requests it saw.
@@ -93,6 +94,12 @@ final class StubURLProtocol: URLProtocol {
             client?.urlProtocolDidFinishLoading(self)
         case .transportError(let error):
             client?.urlProtocol(self, didFailWithError: error)
+        case .nonHTTP:
+            let response = URLResponse(
+                url: request.url!, mimeType: nil, expectedContentLength: 0, textEncodingName: nil
+            )
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocolDidFinishLoading(self)
         }
     }
 

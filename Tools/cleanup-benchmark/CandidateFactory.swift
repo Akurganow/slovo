@@ -15,7 +15,6 @@ public enum CleanupBenchmarkCandidateFactory {
                 provider: spec.provider.rawValue,
                 model: spec.model,
                 cleaner: OpenRouterCleaner(
-                    session: .shared,
                     keyProvider: keyProvider,
                     promptBuilder: PromptBuilder()
                 )

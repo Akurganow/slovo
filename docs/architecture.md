@@ -136,7 +136,7 @@ storage, cleanup, transcription, and injection behavior.
 Cleanup has one runtime provider: the OpenRouter Chat Completions API. The app
 stores one OpenRouter key in Keychain and exposes model selection as curated
 OpenRouter model ids and a custom id entry. Selecting a model changes only the
-model id. `KeychainAPIKeyProvider` reads the key's value from Keychain on the
+model id. `KeychainOpenRouterKeyProvider` reads the key's value from Keychain on the
 first request that needs it and keeps it in memory; a successful save replaces
 the copy, and a failed save or a successful removal drops it. The key-scope
 request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
@@ -163,6 +163,9 @@ the examples; no prompt text is assembled from string literals scattered in code
 
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
+
+`OpenRouterCleaner` owns its network session, and one deadline bounds the whole
+request, so one cleanup request holds a dictation for at most 10 seconds.
 
 ## Storage
 

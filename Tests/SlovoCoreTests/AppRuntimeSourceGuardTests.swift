@@ -83,16 +83,15 @@ struct AppRuntimeSourceGuardTests {
         #expect(composition.contains("passphrase: PersonalizationDatabasePassphrase.derive"))
     }
 
-    /// The SlovoCore half reads `KeychainAPIKeyProvider` as text. `keychainItemExists` is
-    /// a private call into the real Keychain, which no hermetic test can drive.
-    /// `hasConfiguredKey` could be driven through the public closure initializer, but
-    /// this guard pins it as text beside the lookup it delegates to.
+    /// The SlovoCore half reads `KeychainOpenRouterKeyProvider` as text. `keychainItemExists`
+    /// is a private call into the real Keychain, which no hermetic test can drive.
+    /// `hasConfiguredKey` is driven through the closure initializer by
+    /// `KeychainKeySourceTests.hasConfiguredKeyNeverReadsTheSecret`.
     @Test
     func readinessCheckUsesKeyPresenceWithoutDecryptingSecret() throws {
         let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
-        let keyProvider = try SourceText.code("Sources/SlovoCore/Cleaner/KeychainAPIKeyProvider.swift")
+        let keyProvider = try SourceText.code("Sources/SlovoCore/Cleaner/KeychainOpenRouterKeyProvider.swift")
         let makeLiveBody = try SourceText.functionBody(named: "makeLive", in: composition)
-        let hasConfiguredKeyBody = try SourceText.functionBody(named: "hasConfiguredKey", in: keyProvider)
         let keychainItemExistsBody = try SourceText.functionBody(named: "keychainItemExists", in: keyProvider)
 
         #expect(makeLiveBody.contains("FirstRunFlow.pendingSteps("))
@@ -101,11 +100,6 @@ struct AppRuntimeSourceGuardTests {
         #expect(!makeLiveBody.contains("hasConfiguredKey"),
                 "the composition takes key presence from the state it is handed, never from the Keychain")
         #expect(!SourceText.withoutStringLiterals(makeLiveBody).contains("apiKey()"))
-        #expect(hasConfiguredKeyBody.contains("keyExists()"))
-        for forbidden in ["apiKey()", "readKey(", "kSecReturnData"] {
-            #expect(!SourceText.withoutStringLiterals(hasConfiguredKeyBody).contains(forbidden),
-                    "hasConfiguredKey must not read or decrypt the stored secret via \(forbidden)")
-        }
         #expect(keychainItemExistsBody.contains("kSecReturnAttributes as String: true"))
         #expect(keychainItemExistsBody.contains("kSecMatchLimit as String: kSecMatchLimitOne"))
         #expect(SourceText.containsInOrder(["SecItemCopyMatching(query as CFDictionary", "== errSecSuccess"], in: keychainItemExistsBody))
