@@ -172,9 +172,11 @@ public final class CGEventTapHotkeyMonitor: Sendable {
             // No tap once `stop()` has run: nothing is re-enabled, so nothing is logged.
             if let tap {
                 CGEvent.tapEnable(tap: tap.port, enable: true)
-                // The unified log keeps scalars such as this Bool unredacted and redacts
-                // dynamic strings (man page `os_log(3)`, revision "June 2, 2016"), so
-                // the cause is a literal of its own arm.
+                // The unified log collects numbers automatically and treats dynamic
+                // strings as private (man page `os_log(3)`, revision "June 2, 2016").
+                // `Logger` passes a Bool as an `Int32` (source: the `os` module
+                // interface, macOS 27.2 SDK), so the flag is a number; the cause is a
+                // literal of its own arm.
                 let releasedHold = synthesizedStop != nil
                 if type == .tapDisabledByTimeout {
                     Self.diagnosticLog.notice("key tap disabled by timeout, re-enabled; open hold released: \(releasedHold)")
