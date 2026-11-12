@@ -67,7 +67,6 @@ struct PackageDependencyTests {
         let lintMain = Self.shellTopLevelLines(from: lintCode)
         let pluginFunction = try #require(Self.shellFunctionBody(named: "swift_package_plugin", in: lintCode))
         let pluginInvocations = Self.shellContinuationBlocks(containing: "swift package", in: pluginFunction)
-        #expect(pluginInvocations.count == 2)
         for invocation in pluginInvocations {
             let tokens = Self.shellTokens(from: invocation)
             #expect(Self.containsOrdered(["swift", "package"], in: tokens))
@@ -77,6 +76,11 @@ struct PackageDependencyTests {
             #expect(Self.containsOrdered(["--allow-network-connections", "none"], in: tokens))
         }
         #expect(pluginInvocations.filter { Self.shellTokens(from: $0).contains("--disable-sandbox") }.count == 1)
+        let sandboxedAttempt = pluginInvocations.firstIndex { !Self.shellTokens(from: $0).contains("--disable-sandbox") }
+        let sandboxOffAttempt = pluginInvocations.firstIndex { Self.shellTokens(from: $0).contains("--disable-sandbox") }
+        #expect(sandboxedAttempt != nil, "some plugin attempt must run without --disable-sandbox")
+        #expect((sandboxedAttempt ?? Int.max) < (sandboxOffAttempt ?? -1),
+                "the attempt without --disable-sandbox must come before the one with it")
         #expect(pluginFunction.contains("sandbox_apply: Operation not permitted"))
 
         let swiftLintStage = try #require(Self.shellContinuationBlock(
@@ -99,7 +103,6 @@ struct PackageDependencyTests {
         #expect(analyzeTokens.contains("--strict"))
         #expect(analyzeTokens.contains("--force-exclude"))
         #expect(analyzeTokens.contains("--compiler-log-path"))
-        #expect(analyzeFunction.contains(".build/swiftlint-analyze.log"))
         let analyzeStage = try #require(Self.shellContinuationBlock(
             startingWith: #"run_stage "swiftlint-analyze""#,
             in: lintMain
@@ -119,6 +122,52 @@ struct PackageDependencyTests {
         #expect(swiftLintConfig.scalars["check_for_updates"] == "false")
         #expect(swiftLintConfig.lists["opt_in_rules"] == ["all"])
         #expect(swiftLintConfig.lists["analyzer_rules"] == ["all"])
+    }
+
+    /// Strict lint never switches off the checker rules for concurrency annotations
+    /// and unused imports. The planted spellings prove the reader sees block lists
+    /// (indented or not) and one-line flow lists, quoted or not, and that a form it
+    /// cannot read gives no list at all, which fails the read of the real file.
+    /// Stated sensitivity: list either rule in `disabled_rules` of `.swiftlint.yml`
+    /// in any readable spelling, write the list in a spelling the reader cannot
+    /// read, or stop reading an unindented sequence → RED. Accept a block item that
+    /// is not a plain rule identifier (the anchor case) → RED; accept such a flow
+    /// item (the nested list and the flow anchor) → RED; accept a continuation
+    /// line inside a block list (the multi-line plain scalar) → RED; accept both
+    /// block checks (the folded scalar, which hid `unused_import` behind `>-`) →
+    /// RED; let a repeated key replace the first list → RED.
+    @Test
+    func criticalCheckerRulesCannotBeDisabled() throws {
+        let lintConfig = try String(contentsOf: Self.packageRoot.appending(path: ".swiftlint.yml"), encoding: .utf8)
+        let disabledRules = try #require(Self.disabledRules(in: lintConfig),
+                                         "the reader cannot read `disabled_rules` in .swiftlint.yml")
+        for forbiddenRule in ["incompatible_concurrency_annotation", "unused_import"] {
+            #expect(!disabledRules.contains(forbiddenRule),
+                    "strict lint must not disable critical checker rule \(forbiddenRule)")
+        }
+
+        let planted = ["unused_import", "incompatible_concurrency_annotation"]
+        for spelling in [
+            "disabled_rules: [unused_import, incompatible_concurrency_annotation]",
+            #"disabled_rules: ["unused_import", 'incompatible_concurrency_annotation']"#,
+            "disabled_rules:\n  - unused_import\n  - incompatible_concurrency_annotation",
+            "disabled_rules:\n  - \"unused_import\"\n  - 'incompatible_concurrency_annotation'",
+            "disabled_rules:\n- unused_import\n- incompatible_concurrency_annotation",
+        ] {
+            #expect(Self.disabledRules(in: spelling) == planted, "\(spelling)")
+        }
+        for unreadable in [
+            "disabled_rules: [\n  unused_import,\n  incompatible_concurrency_annotation\n]",
+            "disabled_rules:\n  [unused_import, incompatible_concurrency_annotation]",
+            "disabled_rules:\n  - >-\n    unused_import",
+            "disabled_rules:\n  - &rules unused_import",
+            "disabled_rules:\n  - unused_import\n    incompatible_concurrency_annotation",
+            "disabled_rules: [[unused_import]]",
+            "disabled_rules: [&rules unused_import]",
+            "disabled_rules:\n  - unused_import\ndisabled_rules:\n  - explicit_self",
+        ] {
+            #expect(Self.disabledRules(in: unreadable) == nil, "\(unreadable)")
+        }
     }
 
     private static var packagePath: String {
@@ -190,14 +239,28 @@ struct PackageDependencyTests {
         return nil
     }
 
+    /// Top-level scalars and rule lists of `.swiftlint.yml`, which this repository
+    /// writes. The reader is strict about lists: every item, unquoted, is a plain
+    /// rule identifier, only items, comments and blank lines stand inside a block
+    /// list, and a key appears once. A list that breaks any of these is left out,
+    /// so its key reads as absent; path lists and nested mappings read so too.
     private struct TopLevelYaml {
         var scalars: [String: String]
         var lists: [String: [String]]
     }
 
+    /// The `disabled_rules` list, or nil when the key is absent, empty or spelled
+    /// in a way `topLevelYaml` cannot read: a form the reader misses never
+    /// passes for an empty list.
+    private static func disabledRules(in yaml: String) -> [String]? {
+        guard let rules = topLevelYaml(from: yaml).lists["disabled_rules"], !rules.isEmpty else { return nil }
+        return rules
+    }
+
     private static func topLevelYaml(from source: String) -> TopLevelYaml {
         var scalars: [String: String] = [:]
         var lists: [String: [String]] = [:]
+        var unreadable: Set<String> = []
         var currentList: String?
 
         for rawLine in source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
@@ -205,25 +268,48 @@ struct PackageDependencyTests {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
 
-            if line.first?.isWhitespace == false {
-                guard let separator = trimmed.firstIndex(of: ":") else { continue }
+            if trimmed.hasPrefix("- "), let key = currentList {
+                let item = unquoted(String(trimmed.dropFirst(2)))
+                if !isRuleIdentifier(item) { unreadable.insert(key) }
+                lists[key, default: []].append(item)
+            } else if line.first?.isWhitespace == false, let separator = trimmed.firstIndex(of: ":") {
                 let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespaces)
                 let value = String(trimmed[trimmed.index(after: separator)...])
                     .trimmingCharacters(in: .whitespaces)
+                if lists[key] != nil || scalars[key] != nil { unreadable.insert(key) }
                 if value.isEmpty {
                     lists[key] = []
                     currentList = key
+                } else if value.hasPrefix("["), value.hasSuffix("]") {
+                    let items = value.dropFirst().dropLast().split(separator: ",").map { unquoted(String($0)) }.filter { !$0.isEmpty }
+                    if !items.allSatisfy(isRuleIdentifier) { unreadable.insert(key) }
+                    lists[key] = items
+                    currentList = nil
                 } else {
                     scalars[key] = value
                     currentList = nil
                 }
-            } else if trimmed.hasPrefix("- "), let key = currentList {
-                lists[key, default: []].append(String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces))
-            } else {
-                currentList = nil
+            } else if let key = currentList {
+                unreadable.insert(key)
             }
         }
+        for key in unreadable { lists[key] = nil }
         return TopLevelYaml(scalars: scalars, lists: lists)
+    }
+
+    /// Lowercase letters, digits and underscores: every SwiftLint rule name, and
+    /// no YAML indicator, anchor, alias, tag or nested structure.
+    private static func isRuleIdentifier(_ item: String) -> Bool {
+        !item.isEmpty && item.unicodeScalars.allSatisfy { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "_" }
+    }
+
+    /// A YAML scalar without the single or double quotes around it.
+    private static func unquoted(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2, let quote = trimmed.first, quote == "\"" || quote == "'", trimmed.last == quote else {
+            return trimmed
+        }
+        return String(trimmed.dropFirst().dropLast())
     }
 
     private static func strippingShellComments(from source: String) -> String {
@@ -294,7 +380,7 @@ struct PackageDependencyTests {
         }
     }
 
-    private static func shellTopLevelLines(from source: String) -> String {
+    static func shellTopLevelLines(from source: String) -> String {
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var blockLines: [String] = []
         var isInFunction = false

@@ -4,19 +4,25 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="Slovo"
 PROCESS_NAME="slovo"
-BUNDLE_ID="com.slovo.app"
 SUBSYSTEM="com.slovo.app"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_CACHE_DIR="$ROOT_DIR/.build/swiftpm-cache"
-BUILD_CONFIG_DIR="$ROOT_DIR/.build/swiftpm-config"
-BUILD_SECURITY_DIR="$ROOT_DIR/.build/swiftpm-security"
-RUN_DIR="$ROOT_DIR/.build/dev-run"
+# Physical path: the process check below compares it with what ps reports.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$ROOT"
+BUILD_CACHE_DIR="$ROOT/.build/swiftpm-cache"
+BUILD_CONFIG_DIR="$ROOT/.build/swiftpm-config"
+BUILD_SECURITY_DIR="$ROOT/.build/swiftpm-security"
+RUN_DIR="$ROOT/.build/dev-run"
 APP_BUNDLE="$RUN_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$PROCESS_NAME"
+
+# The staging and framework-signing steps the release script runs too.
+DRY_RUN=0
+run() { "$@"; }
+source "$ROOT/Scripts/app-bundle.sh"
 
 build_app() {
   mkdir -p "$BUILD_CACHE_DIR" "$BUILD_CONFIG_DIR" "$BUILD_SECURITY_DIR"
@@ -26,35 +32,6 @@ build_app() {
     --security-path "$BUILD_SECURITY_DIR" \
     --disable-automatic-resolution \
     --product "$PROCESS_NAME"
-}
-
-# Locate the single Sparkle.framework SwiftPM unpacks under .build/artifacts.
-# Mirrors the release script's discovery (Scripts/sign-and-notarize.sh) minus its
-# DRY_RUN fallback — the dev launcher always stages for real — and uses the same
-# count-and-fail idiom as resolve_signing_identity.
-sparkle_framework_path() {
-  local found count
-  found="$(find "$ROOT_DIR/.build/artifacts" -type d -name "Sparkle.framework" 2>/dev/null || true)"
-  count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
-  if [[ "$count" != "1" ]]; then
-    echo "expected exactly one Sparkle.framework under .build/artifacts, found $count (run swift build first / clear stale artifacts)" >&2
-    exit 65
-  fi
-  printf '%s\n' "$found"
-}
-
-# Locate the macOS slice of SQLCipher.xcframework. Every platform slice carries
-# a SQLCipher.framework, so the path filter picks the macOS one — the
-# maccatalyst slice has no "macos-" path component and is excluded by it.
-sqlcipher_framework_path() {
-  local found count
-  found="$(find "$ROOT_DIR/.build/artifacts" -type d -path "*/macos-*/*" -name "SQLCipher.framework" 2>/dev/null || true)"
-  count="$(printf '%s\n' "$found" | sed '/^$/d' | wc -l | tr -d ' ')"
-  if [[ "$count" != "1" ]]; then
-    echo "expected exactly one macOS SQLCipher.framework under .build/artifacts, found $count (run swift build first / clear stale artifacts)" >&2
-    exit 65
-  fi
-  printf '%s\n' "$found"
 }
 
 stage_bundle() {
@@ -71,7 +48,7 @@ stage_bundle() {
   mkdir -p "$APP_MACOS" "$APP_CONTENTS/Resources"
   cp "$build_binary" "$APP_BINARY"
   chmod +x "$APP_BINARY"
-  cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+  cp "$ROOT/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
 
   # Mark the staged copy — never the committed plist — as a dev build; the About
   # header version line renders this as the Dobro suffix. Release packaging
@@ -79,41 +56,8 @@ stage_bundle() {
   # artifact.
   /usr/libexec/PlistBuddy -c "Add :SlovoDevBuild bool true" "$APP_CONTENTS/Info.plist"
 
-  # SwiftPM resource bundle for SlovoCore (bundled prompt examples).
-  # PromptExampleCatalog resolves it from Contents/Resources; a missing bundle
-  # degrades every prompt to example-free, so staging it is part of the product.
-  ditto "$bin_path/slovo_SlovoCore.bundle" "$APP_CONTENTS/Resources/slovo_SlovoCore.bundle"
-
-  # Compile the theme-adaptive app icon (.icon -> Assets.car + legacy .icns).
-  local icon_build="$RUN_DIR/icon"
-  rm -rf "$icon_build"
-  mkdir -p "$icon_build"
-  xcrun actool "$ROOT_DIR/Resources/Slovo.icon" --app-icon "$APP_NAME" --compile "$icon_build" \
-    --output-partial-info-plist "$icon_build/partial.plist" \
-    --minimum-deployment-target 15.0 --platform macosx --target-device mac \
-    --output-format human-readable-text >/dev/null
-  cp "$icon_build/Assets.car" "$APP_CONTENTS/Resources/Assets.car"
-  cp "$icon_build/$APP_NAME.icns" "$APP_CONTENTS/Resources/$APP_NAME.icns"
-
-  # Ship the third-party license notices with the binary, matching the release
-  # bundle shape. Staged here (before sign_bundle) so the signature seals it in.
-  cp "$ROOT_DIR/THIRD-PARTY-NOTICES.md" "$APP_CONTENTS/Resources/THIRD-PARTY-NOTICES.md"
-
-  # Embed Sparkle so the dev bundle matches the release bundle shape. ditto
-  # preserves the framework's symlinks and exec bits (a flattening copy breaks
-  # it); the unused XPC services are stripped just as the release script does.
-  local sparkle_framework
-  sparkle_framework="$(sparkle_framework_path)"
-  ditto "$sparkle_framework" "$APP_CONTENTS/Frameworks/Sparkle.framework"
-  rm -r "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/XPCServices"
-  rm "$APP_CONTENTS/Frameworks/Sparkle.framework/XPCServices"
-
-  # SQLCipher is a dynamic framework the binary loads through
-  # @executable_path/../Frameworks; without the embedded copy the staged app
-  # only launches next to a development checkout.
-  local sqlcipher_framework
-  sqlcipher_framework="$(sqlcipher_framework_path)"
-  ditto "$sqlcipher_framework" "$APP_CONTENTS/Frameworks/SQLCipher.framework"
+  rm -rf "$RUN_DIR/icon"
+  stage_bundle_contents "$bin_path" "$APP_CONTENTS" "$RUN_DIR/icon"
 }
 
 available_signing_identities() {
@@ -147,18 +91,12 @@ resolve_signing_identity() {
 sign_bundle() {
   local identity
   identity="$(resolve_signing_identity)"
-  # Inside-out: Sparkle's nested helpers, then the frameworks, before the app.
-  # Never deep-sign — it mis-signs the Autoupdate helper (Sparkle #1641).
-  # Framework code carries no entitlements; dev keeps the existing no-timestamp
-  # signing.
-  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Autoupdate"
-  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework/Versions/Current/Updater.app"
-  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/Sparkle.framework"
-  codesign --force --options runtime --sign "$identity" "$APP_CONTENTS/Frameworks/SQLCipher.framework"
+  # Dev signing carries no timestamp.
+  sign_bundle_frameworks "$APP_CONTENTS" --force --options runtime --sign "$identity"
   codesign \
     --force \
     --options runtime \
-    --entitlements "$ROOT_DIR/slovo.entitlements" \
+    --entitlements "$ROOT/slovo.entitlements" \
     --sign "$identity" \
     "$APP_BUNDLE"
 }
@@ -169,17 +107,6 @@ stop_app() {
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
-}
-
-# SwiftPM's resource bundle is flat under the native build system and a macOS
-# bundle with Contents/Resources under Swift Build, its default from
-# swift-6.4.0-RELEASE (swift-package-manager, Sources/CoreCommands/Options.swift).
-bundle_resource_dir() {
-  if [[ -d "$1/Contents/Resources" ]]; then
-    printf '%s\n' "$1/Contents/Resources"
-  else
-    printf '%s\n' "$1"
-  fi
 }
 
 verify_app() {
@@ -209,14 +136,21 @@ verify_app() {
     return 1
   fi
   local attempts=20
+  local pid
   while (( attempts > 0 )); do
-    if pgrep -x "$PROCESS_NAME" >/dev/null; then
-      return 0
-    fi
+    for pid in $(pgrep -x "$PROCESS_NAME" || true); do
+      if [[ "$(ps -o comm= -p "$pid")" == "$APP_BINARY" ]]; then
+        return 0
+      fi
+    done
     sleep 0.25
     attempts=$((attempts - 1))
   done
-  echo "$APP_NAME did not stay running as process $PROCESS_NAME" >&2
+  if pgrep -x "$PROCESS_NAME" >/dev/null; then
+    echo "a $PROCESS_NAME process runs, but not from $APP_BINARY" >&2
+  else
+    echo "$APP_NAME did not stay running as process $PROCESS_NAME" >&2
+  fi
   return 1
 }
 

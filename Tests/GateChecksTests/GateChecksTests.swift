@@ -2,23 +2,39 @@ import Foundation
 import Testing
 
 // `.gitignore` ignores build artifacts, the seed/db globs, and key
-// material. Same engine: `git check-ignore` against an ISOLATED temp
+// material. The probe: `git check-ignore` against an ISOLATED temp
 // repo seeded with the REAL `.gitignore` (touches nothing real).
 //
 // Stated sensitivity: drop ANY required pattern from `.gitignore` → that probe is
 // no longer ignored → RED. Reverting the glob to the literal list re-breaks the
-// `data/seed.dev.sql` / `data/slovo.db.x` probes specifically.
+// `data/seed.dev.sql` / `data/slovo.db.x` probes specifically. Narrowing `data/seed*.sql`
+// to `data/seed.*.sql` re-breaks `data/seed.sql`; narrowing `data/*.db*` to `data/*.db.*`
+// re-breaks `data/slovo.db` and `data/slovo.db-shm`. A re-admit (`!data/seed.2.sql`,
+// `!data/slovo.db`) re-breaks its probe. Narrowing `credentials*.json` to
+// `credentials.json` re-breaks `credentials-prod.json`; narrowing `id_rsa*` to `id_rsa`
+// re-breaks `id_rsa.pub`. Narrowing `data/*.db*` to `data/slovo.db*` re-breaks
+// `data/other.db` and `data/other.db-wal`.
 @Suite(".gitignore hardening")
 struct GitignoreHardeningTests {
     /// Each probe must be IGNORED by the hardened `.gitignore`. Build artifacts
     /// are already covered; the seed/db globs and key material are what hardening
-    /// adds. Probes deliberately use glob-only seed/db names (not literals).
+    /// adds. Glob-only seed/db names catch a revert to the literal list; the literal
+    /// names `data/seed.sql` and `data/slovo.db` catch a glob narrowed past them.
     private static let mustBeIgnored = [
         ".build/some-artifact.o",
         "DerivedData/Index/index.db",
         "data/seed.dev.sql",     // glob data/seed*.sql, missed by the literal list
-        "data/slovo.db.x",       // glob data/slovo.db*, missed by the literal list
+        "data/slovo.db.x",       // glob data/*.db*, missed by the literal list
+        "data/seed.sql",         // the literal seed name: the glob must still match it
+        "data/seed.2.sql",       // alone caught by a re-admit: !data/seed.2.sql
+        "data/slovo.db-shm",     // a SQLite sidecar: data/*.db* must match it
+        "data/slovo.db",         // alone caught by a re-admit: !data/slovo.db
+        "data/other.db",         // alone caught by narrowing data/*.db* to data/slovo.db*
+        "data/other.db-wal",     // alone caught by the same narrowing, for a sidecar of another name
         "secrets/anthropic.key",  // key material must be ignored
+        "secrets/notes.txt",      // only secrets/ ignores it
+        "signing.key",            // only *.key ignores it
+        "signing.pem",            // only *.pem ignores it
         // Env files and credential bundles: the `.gitignore` must cover dotenv
         // files, PKCS#12 / PEM-8 signing keys, opaque token files, dropped
         // credential JSON, and SSH private keys.
@@ -28,7 +44,9 @@ struct GitignoreHardeningTests {
         "signing.p8",
         "session.token",
         "credentials.json",
+        "credentials-prod.json",  // alone caught by narrowing credentials*.json to credentials.json
         "id_rsa",
+        "id_rsa.pub",             // alone caught by narrowing id_rsa* to id_rsa
     ]
 
     @Test
@@ -44,7 +62,8 @@ struct GitignoreHardeningTests {
             )
             FileManager.default.createFile(atPath: full, contents: Data())
 
-            let check = try Self.run("/usr/bin/git", ["-C", repo, "check-ignore", "-q", probe])
+            // No global excludes file: the host's own ignore rules must not make a probe pass.
+            let check = try Self.run("/usr/bin/git", ["-c", "core.excludesFile=/dev/null", "-C", repo, "check-ignore", "-q", probe])
             #expect(check.exitCode == 0, "\(probe) is NOT ignored by .gitignore")
         }
     }

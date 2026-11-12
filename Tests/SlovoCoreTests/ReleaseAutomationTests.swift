@@ -142,12 +142,13 @@ struct DevBuildMarkerGuardTests {
         ))
     }
 
-    /// The release path must never learn the key: the packaging script and the
-    /// release workflow are the only ways a shipped artifact is produced.
-    /// Stated sensitivity: mention `SlovoDevBuild` in either file → RED.
+    /// The release path must never learn the key: the packaging script, the bundle
+    /// steps it shares with the dev launcher and the release workflow are the only
+    /// ways a shipped artifact is produced.
+    /// Stated sensitivity: mention `SlovoDevBuild` in any of the three files → RED.
     @Test
     func releasePackagingNeverMentionsTheDevMarker() throws {
-        for path in ["Scripts/sign-and-notarize.sh", ".github/workflows/release.yml"] {
+        for path in ["Scripts/sign-and-notarize.sh", "Scripts/app-bundle.sh", ".github/workflows/release.yml"] {
             let contents = try String(
                 contentsOf: ReleaseScriptRunner.packageRoot.appending(path: path),
                 encoding: .utf8

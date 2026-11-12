@@ -336,7 +336,8 @@ SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 
 The script rebuilds the `slovo` product, stages `.build/dev-run/Slovo.app`,
 signs it with a stable local code-signing identity and the app
-entitlements, opens it, and verifies that the `slovo` process is running.
+entitlements, opens it, and verifies that the `slovo` process runs from the
+staged bundle.
 Stable signing is required for macOS TCC permission persistence; pass the
 identity explicitly so a different certificate cannot be selected implicitly.
 

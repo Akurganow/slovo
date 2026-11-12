@@ -4,9 +4,11 @@ Slovo releases itself. A push to `main` runs one pipeline
 ([.github/workflows/release.yml](../.github/workflows/release.yml)) that decides on
 its own whether a release is due, computes the next version, builds, signs,
 notarizes, staples, tags, and publishes the GitHub Release with the stapled
-artifacts. **Nobody runs a release command, edits a version, or pushes a tag by
-hand — there is no supported manual path.** Stapling contacts Apple over the
-network, and CI runs the full signing chain end to end.
+artifacts. **Nobody edits a version or pushes a tag by hand.** A person runs the
+pipeline in two ways: dispatch it on `main`, which decides as a push does, or re-run
+a failed `publish` job ([When `publish` fails](#when-publish-fails)).
+Stapling contacts Apple over the network, and CI runs the full signing chain end
+to end.
 
 ## How the pipeline decides
 
@@ -46,11 +48,9 @@ this way — a one-commit branch whose commit carried `docs:`.
 | pushing a `v*` tag | — the workflow has no tag trigger; tags are created only by the pipeline | | | |
 | `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch, or labeling a PR `dev-build` | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
 
-The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow
-(the same one that guards pull requests), which runs the full local gate,
-`Scripts/diagnose.sh` — build, tests, the cleanup-benchmark smoke check, and
-every `Scripts/lint.sh` stage — so every packaged build passes the same gate
-stages a contributor runs before a pull request. The pipeline never runs on
+The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow,
+the same one that guards pull requests. What the gate runs, and how CI uses it, is
+in [docs/development.md](development.md), "Full Gate". The pipeline never runs on
 `pull_request`, so fork code never sees signing secrets.
 
 ## Jobs and least privilege
@@ -59,7 +59,7 @@ stages a contributor runs before a pull request. The pipeline never runs on
 | --- | --- | --- | --- | --- |
 | `test` | macOS | `contents: read` | none | reusable gate (`Scripts/diagnose.sh`) |
 | `decide` | Linux | `contents: read` | none | run git-cliff: is a release due, and at which version |
-| `package` | macOS | `contents: read`, `environment: release` | signing secrets | stamp version, build, sign, notarize, staple, verify, upload artifact |
+| `package` | macOS | `contents: read`, `environment: release` | signing secrets, and the Sparkle EdDSA key `SPARKLE_ED_PRIVATE_KEY` | stamp version, import the signing certificate into an ephemeral keychain ([`Scripts/import-signing-certificate.sh`](../Scripts/import-signing-certificate.sh)), build, sign, notarize, staple, verify, generate the Sparkle appcast, upload artifact |
 | `publish` | macOS | `contents: write`, `environment: release-push` | the push deploy key only (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
 Signing secrets live only in the protected `release` environment and are reachable
@@ -72,6 +72,22 @@ CI bakes in the strict release checks: `codesign --verify --strict --deep`, bund
 identifier `com.slovo.app`, team identifier `ZN8H5SF4R7`, `stapler validate` on
 both the app and the DMG, and a Gatekeeper assessment
 (`spctl --assess --type execute`).
+
+Every job that runs steps sets `timeout-minutes` in its workflow file. A job that calls
+the reusable gate has no steps of its own, so the called job in
+[swift.yml](../.github/workflows/swift.yml) sets the timeout.
+
+Every outside action in the workflows is pinned to a full commit SHA, with its version
+in a trailing comment such as `# v2.90.3`. GitHub's security guide,
+[Using third-party actions](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions)
+(`github/docs` revision `ecafe7144a016cab7a88e3e77437f38ce1a4ee73`), advises a commit
+SHA, and a tag only for creators one trusts, because a tag can be moved or deleted if a
+bad actor gains access to the repository storing the action. The `github-actions`
+ecosystem entry in [`.github/dependabot.yml`](../.github/dependabot.yml) runs weekly.
+GitHub's Dependabot guide,
+[Keeping your actions up to date with Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/auto-update-actions)
+(`github/docs` revision `741a335e09c4a2e47c1fb20643833c3d35e72b90`), says it keeps
+action references in workflow files up to date.
 
 ## Dev builds on demand
 
@@ -92,9 +108,25 @@ is **not** a distribution channel.
   trigger is the owner's approval of the code being signed.
 - **What it does:** run the full reusable test gate, stamp a run-scoped dev
   version (`<last-release>-dev.<run-number>` — the same never-masquerade idiom
-  as the trunk `-ci.N` stamp), build, sign the app and a DMG with the stable
+  as the trunk `-ci.N` stamp), import the Developer ID certificate with the same
+  script as `package`, build, sign the app and a DMG with the stable
   Developer ID, verify the signatures, and upload the DMG as a `slovo-dev`
   artifact with 7-day retention.
+- **Permissions of the comment job:** `announce` holds only `pull-requests: write`.
+  The REST reference lists the "Pull requests" repository permission as an accepted
+  permission set for each of its four calls (list, create and update an issue
+  comment; remove a label from an issue), at `write`, or `read` for the list,
+  and marks each as available to installation tokens such as the `GITHUB_TOKEN`
+  (`serverToServer: true`; `github/docs` revision
+  `5857578e1688ae994c2f2062266414e3583cdf55`,
+  `src/rest/data/fpt-2022-11-28/issues.json`, the data behind the pages
+  [Issue comments](https://docs.github.com/en/rest/issues/comments) and
+  [Labels](https://docs.github.com/en/rest/issues/labels)). The same pages require
+  "at least one of the following permission sets" (`data/ui.yml`, revision
+  `1036ae83e445f8c725b5e01a1f34df036db87dfb`).
+- **Concurrency:** a newer dev build for the same ref and label cancels one still
+  running; a run started by another label does not cancel it
+  ([dev-build.yml](../.github/workflows/dev-build.yml), `concurrency` block).
 - **What it deliberately cannot do:** notarize, staple, tag, or release. The
   `dev-signing` environment holds only the two certificate secrets
   — no App Store Connect key, no Sparkle key — so even a dispatched run cannot
@@ -130,9 +162,13 @@ is **not** a distribution channel.
 
 ## Why one run does everything (no PAT, no double-fire)
 
-The `publish` job pushes the version-bump commit and the tag over SSH with a
-write-access deploy key, `RELEASE_DEPLOY_KEY`. The `main` ruleset requires a pull
-request, and deploy keys are on its bypass list. The built-in `GITHUB_TOKEN`
+The `publish` job pushes the version-bump commit and the tag in one
+`git push --atomic`, over SSH, with a write-access deploy key, `RELEASE_DEPLOY_KEY`.
+git v2.56.1 (commit `03b41523c576f26ad34085378717a0c1b287470f`,
+`Documentation/git-push.adoc`, lines 205-209) documents the atomic guarantee: either
+all refs are updated, or on error no refs are updated. The same text says the push
+fails when the server does not support atomic pushes. The `main` ruleset requires a
+pull request, and deploy keys are on its bypass list. The built-in `GITHUB_TOKEN`
 pushes as the GitHub Actions app, which the ruleset does not list. `gh release
 create` still uses the `GITHUB_TOKEN`, since creating a release is not a branch
 push.
@@ -142,15 +178,15 @@ outside GitHub runs while the key is on disk.
 A deploy-key push starts workflow runs. GitHub's loop protection covers only
 events the `GITHUB_TOKEN` triggers
 ([GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)).
-Two facts keep the release's two pushes from starting any:
+Two facts keep the release push, which carries both refs, from starting any workflow run:
 
 - **The bump commit.** Two workflows trigger on a push to `main`: `release.yml`
   and [codeql.yml](../.github/workflows/codeql.yml). The commit carries
   `[skip ci]`, which skips every `push` and `pull_request` run its own push would
   start
   ([Skipping workflow runs](https://docs.github.com/en/actions/how-tos/managing-workflow-runs-and-deployments/managing-workflow-runs/skipping-workflow-runs)).
-  It is the only commit in that push: a `main` that moved meanwhile rejects the
-  push as non-fast-forward.
+  It is the only commit in that push. A `main` that moved meanwhile rejects the
+  whole push, tag included, as non-fast-forward.
 - **The `v<version>` tag.** Both workflows filter `push` by branch only, and such
   a workflow never runs for a tag push
   ([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)).
@@ -159,6 +195,69 @@ Two facts keep the release's two pushes from starting any:
 That is why the whole release finishes in the single run that a human's push
 started, with no personal access token and no second, tag-triggered run. A
 workflow that later triggers on tags or on `create` starts on every release.
+
+## When `publish` fails
+
+Finish a failed release with **Re-run failed jobs** on that run, within 30 days of
+the run (GitHub docs, [Re-running workflows and jobs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs),
+`github/docs` revision `6abed3d818a57eeb80b1a9275b96a5446cb16d23`). The page says a
+re-run uses the run's commit and ref, and that re-running failed jobs also re-runs the
+jobs that depend on them while the other jobs keep their outputs. Do not choose
+**Re-run all jobs**. It re-runs `package`, which already succeeded, and that job's
+upload of `slovo-macos` fails if an artifact of that name already exists:
+`actions/upload-artifact` v7.0.2 (commit `cf430e030ddbb5b0abf93d22962f4752f3646cd9`),
+`README.md` line 101, says: "If false, the action will fail if an artifact for the given
+name already exists." The workflow does not set `overwrite`, so the default `'false'`
+applies (`README.md` line 103).
+
+A `package` that failed or timed out before its upload step is finished the same way,
+because the upload is its last step and the only one that creates `slovo-macos`; a
+failure inside the upload step is not covered.
+
+The step "Bump, tag, and push the release unless its tag exists" in
+[release.yml](../.github/workflows/release.yml) does nothing when `v<version>` already
+exists on a commit whose parent is the one packaged. The `Publish GitHub Release` step
+passes `--latest` only when `v<version>` is the highest `v[0-9]*` tag by version order
+(`git tag --list 'v[0-9]*' --sort=-version:refname`). Otherwise it passes
+`--latest=false`. The flag marks the release as Latest, and `--latest=false` keeps it
+from being Latest (`gh` flag help, `cli/cli` v2.103.3,
+`pkg/cmd/release/create/create.go:221`).
+
+When `v<version>` is already published, a re-run fails at `gh release create` with
+"a release with the same tag name already exists" (`cli/cli` v2.103.3,
+`pkg/cmd/release/create/create.go:503-511`, which runs for a call with assets and no
+`--draft`). Nothing is left to do.
+
+A run cancelled, timed out, or lost to its runner during `gh release create` can leave a
+draft release with the tag. With assets, `gh` creates the release as a draft first and
+deletes that draft only when one of its calls returns an error (`cli/cli` v2.103.3,
+`pkg/cmd/release/create/create.go:512-514` and `:536-566`). Its existence check looks
+at published releases (`publishedReleaseExists`,
+`pkg/cmd/release/create/http.go:110-138`). Delete the leftover draft on the Releases
+page.
+
+A re-run does not fix these failures:
+
+- **A push refused because `main` moved.** The re-run checks out the old commit and
+  is refused again. The next push to `main` starts a run that decides again and
+  releases.
+- **The tag `v<version>` exists, but its parent is not the commit this run packaged.**
+  The bump step fails on purpose, before it stamps, commits or pushes. A re-run fails
+  the same way, since it packages the same commit. The pipeline does not move or
+  delete tags.
+
+A push refused for another reason, such as a missing deploy key, is fixed by a re-run
+once the key works, as long as `main` has not moved. See
+[The `main` ruleset](#the-main-ruleset).
+
+By default, a run queued while another run of the group is in progress is `pending`,
+and a newly queued run cancels the existing pending run and takes its place (GitHub docs,
+[Control the concurrency of workflows and jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency),
+`data/reusables/actions/actions-group-concurrency.md`, included through
+`data/reusables/actions/jobs/section-using-concurrency-jobs.md`, `github/docs`
+revision `336b7f546d9443dab4e1fa4f0f470e45448c7abc`). If a pending release run was
+cancelled, dispatch the pipeline on `main`. It decides again over every commit since the
+last tag.
 
 ## Changelog
 
@@ -205,7 +304,7 @@ second opinion.
   at minor and major, also while the version is still 0.x.
 
 git-cliff reports the version with the tag's `v` prefix; the job strips it, since
-the stamp script and the tag step each add their own.
+the stamp script and the bump step each add their own.
 
 The pin is exact — one `GIT_CLIFF` value at the top of the workflow, used by both
 `decide` and `publish` — and outside the update bot's reach: a new git-cliff may
@@ -320,7 +419,7 @@ bump. The bypass covers every rule in the ruleset, so whoever holds the private
 key can also rewrite `main`. Only `publish`, running on `main`, can read it.
 
 Without the key, or with deploy keys off the bypass list, a release packages its
-artifacts and then fails at the commit push, before any tag or GitHub Release
+artifacts and then fails at the release push, before any tag or GitHub Release
 exists.
 
 ## What you observe

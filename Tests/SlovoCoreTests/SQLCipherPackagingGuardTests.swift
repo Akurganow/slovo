@@ -4,12 +4,13 @@ import Testing
 // Packaging guards for the SQLCipher dynamic framework (design spec:
 // docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md,
 // Decision 6). SQLCipher enters the dependency graph TRANSITIVELY (via the
-// GRDB fork), so no manifest pin exists to scan — these guards watch the two
+// GRDB fork), so no manifest pin exists to scan — these guards watch the
 // packaging scripts, in the SparklePackagingGuardTests style.
 @Suite("SQLCipher packaging guards")
 struct SQLCipherPackagingGuardTests {
     /// The release `app` phase embeds SQLCipher.framework into
-    /// Contents/Frameworks and signs it before the app codesign (the only one
+    /// Contents/Frameworks, through the bundle steps the dev launcher shares,
+    /// and signs it before the app codesign (the only one
     /// carrying slovo.entitlements) — an unembedded dynamic framework leaves
     /// the notarized app with a dangling @rpath load command that only
     /// resolves next to a development checkout. The copy SOURCE is pinned to
@@ -23,9 +24,9 @@ struct SQLCipherPackagingGuardTests {
     /// pin → RED.
     @Test
     func appPhaseEmbedsAndSignsSQLCipher() throws {
-        let releaseScript = Self.strippingShellComments(from: try Self.source("Scripts/sign-and-notarize.sh"))
-        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: releaseScript),
-                                     "the release script must discover the framework, not hardcode a path")
+        let sharedSteps = Self.strippingShellComments(from: try Self.source("Scripts/app-bundle.sh"))
+        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: sharedSteps),
+                                     "the bundle steps must discover the framework, not hardcode a path")
         #expect(discovery.contains("SQLCipher.framework"), Comment(rawValue: discovery))
 
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunSQLCipher-\(UUID().uuidString)", notary: true)
@@ -35,34 +36,6 @@ struct SQLCipherPackagingGuardTests {
             "DRY-RUN codesign", "SQLCipher.framework",
             "DRY-RUN codesign", "slovo.entitlements",
         ]), Comment(rawValue: appPlan.output))
-    }
-
-    /// The dev launcher must stage and sign the same bundle shape as the
-    /// release pipeline, or dev runs diverge from what ships. The staged copy
-    /// is pinned to the discovery function's own variable, so a ditto reading
-    /// another framework cannot satisfy it.
-    /// Stated sensitivity: drop the embed from stage_bundle, copy a different
-    /// source, drop the framework sign, or reorder it after the app → the
-    /// body-scoped ordered scans → RED; delete or rename
-    /// sqlcipher_framework_path → the discovery pin → RED.
-    @Test
-    func devLauncherStagesAndSignsSQLCipher() throws {
-        let launcher = try Self.source("Scripts/build_and_run.sh")
-        let script = Self.strippingShellComments(from: launcher)
-        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: script),
-                                     "the dev launcher must discover the framework, not hardcode a path")
-        #expect(discovery.contains("SQLCipher.framework"), Comment(rawValue: discovery))
-
-        let stage = try #require(Self.shellFunctionBody(named: "stage_bundle", in: script))
-        #expect(Self.output(stage, containsInOrder: [
-            "ditto", "\"$sqlcipher_framework\"", "Frameworks/SQLCipher.framework",
-        ]), Comment(rawValue: stage))
-
-        let sign = try #require(Self.shellFunctionBody(named: "sign_bundle", in: script))
-        #expect(Self.output(sign, containsInOrder: [
-            "codesign", "SQLCipher.framework",
-            "codesign", "$APP_BUNDLE",
-        ]), Comment(rawValue: sign))
     }
 
     // MARK: - Manifest scanning (copies of the PackageDependencyTests helpers)

@@ -41,12 +41,12 @@ struct SparklePackagingGuardTests {
     /// uses, and signs inside-out: Autoupdate, then Updater.app, then the
     /// framework, then the app (the only codesign carrying slovo.entitlements).
     /// Deep SIGNING mis-signs Sparkle's helpers and fails only at notarization
-    /// (Sparkle #1641), so `--deep` must stay verification-only in both
-    /// packaging scripts — that pin is a tripwire, vacuously green until a
-    /// `--deep` enters either script.
+    /// (Sparkle #1641), so `--deep` must stay verification-only in every
+    /// packaging script — that pin is a tripwire, vacuously green until a
+    /// `--deep` enters one.
     /// Stated sensitivity: missing embed or strip, a dropped nested sign, or
     /// the app signed before the framework → the ordered-needle scan → RED;
-    /// add `codesign --deep --sign` to either script → RED.
+    /// add `codesign --deep --sign` to any packaging script → RED.
     @Test
     func appPhaseEmbedsSparkleAndSignsInsideOut() throws {
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunSparkle-\(UUID().uuidString)", notary: true)
@@ -60,7 +60,7 @@ struct SparklePackagingGuardTests {
             "DRY-RUN codesign", "slovo.entitlements",
         ]), Comment(rawValue: appPlan.output))
 
-        for script in ["Scripts/sign-and-notarize.sh", "Scripts/build_and_run.sh"] {
+        for script in ["Scripts/sign-and-notarize.sh", "Scripts/build_and_run.sh", "Scripts/app-bundle.sh"] {
             let lines = try Self.source(script).split(separator: "\n")
             for line in lines where line.contains("--deep") {
                 #expect(line.contains("--verify"), "--deep is verification-only in \(script): \(line)")
@@ -68,30 +68,27 @@ struct SparklePackagingGuardTests {
         }
     }
 
-    /// The dev launcher must stage and sign the same bundle shape as the
-    /// release pipeline, or dev runs diverge from what ships: `stage_bundle`
-    /// embeds Sparkle.framework with a symlink-preserving `ditto` and strips
-    /// the unused XPC services; `sign_bundle` signs inside-out and ends at the
-    /// app bundle.
-    /// Stated sensitivity: drop the embed or strip from staging, drop a nested
-    /// sign, or reorder signing (app before framework) → the body-scoped
-    /// ordered scans → RED.
+    /// The dev launcher stages and signs through the release script's own
+    /// steps (`Scripts/app-bundle.sh`), so the two bundles cannot diverge and
+    /// the release `DRY_RUN` plan covers both.
+    /// Stated sensitivity: drop either call, or sign the app before the
+    /// frameworks → RED; drop the launcher's top-level `sign_bundle` line, or
+    /// call it before `stage_bundle` → RED.
     @Test
-    func devLauncherStagesAndSignsSparkleInsideOut() throws {
-        let launcher = try Self.source("Scripts/build_and_run.sh")
-        let script = Self.strippingShellComments(from: launcher)
-
+    func devLauncherStagesAndSignsThroughTheSharedBundleSteps() throws {
+        let script = Self.strippingShellComments(from: try Self.source("Scripts/build_and_run.sh"))
+        #expect(script.contains("Scripts/app-bundle.sh"))
         let stage = try #require(Self.shellFunctionBody(named: "stage_bundle", in: script))
-        #expect(Self.output(stage, containsInOrder: ["ditto", "Frameworks/Sparkle.framework"]), Comment(rawValue: stage))
-        #expect(stage.contains("XPCServices"), "staging must strip the unused Sparkle XPC services")
-
+        #expect(stage.contains("stage_bundle_contents"), Comment(rawValue: stage))
         let sign = try #require(Self.shellFunctionBody(named: "sign_bundle", in: script))
-        #expect(Self.output(sign, containsInOrder: [
-            "codesign", "Autoupdate",
-            "codesign", "Updater.app",
-            "codesign", "Sparkle.framework",
-            "codesign", "$APP_BUNDLE",
-        ]), Comment(rawValue: sign))
+        #expect(Self.output(sign, containsInOrder: ["sign_bundle_frameworks", "codesign", "$APP_BUNDLE"]),
+                Comment(rawValue: sign))
+        let launcherCalls = PackageDependencyTests.shellTopLevelLines(from: script)
+            .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let stageCall = launcherCalls.firstIndex(of: "stage_bundle")
+        let signCall = launcherCalls.firstIndex(of: "sign_bundle")
+        #expect(stageCall != nil && signCall != nil, "the launcher must call stage_bundle and sign_bundle")
+        #expect((stageCall ?? Int.max) < (signCall ?? -1), "stage_bundle must run before sign_bundle")
     }
 
     /// Sparkle's whole silent-update contract is declared in Info.plist: the

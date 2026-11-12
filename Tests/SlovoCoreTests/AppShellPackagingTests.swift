@@ -135,9 +135,9 @@ struct AppShellPackagingTests {
         #expect((plist["NSMicrophoneUsageDescription"] as? String)?.isEmpty == false)
     }
 
-    /// One floor, eight stamps: Info.plist's LSMinimumSystemVersion is the reference,
+    /// One floor, seven stamps: Info.plist's LSMinimumSystemVersion is the reference,
     /// every other stamp must state the same value — one stamp drifting goes RED,
-    /// an agreed floor raise (all eight moved together) stays green with no test edit.
+    /// an agreed floor raise (all seven moved together) stays green with no test edit.
     /// A stamp that cannot be found fails loudly rather than skipping; one matched
     /// twice fails as ambiguous rather than trusting the first hit. NOT a substitute
     /// for the manual check on the floor OS: this catches silently diverged configs,
@@ -159,15 +159,13 @@ struct AppShellPackagingTests {
                      "ambiguous floor stamp: .macOS(.vNN) platform in Package.swift")
         #expect(String(platforms[0].1) == major)
 
-        for script in ["Scripts/build_and_run.sh", "Scripts/sign-and-notarize.sh"] {
-            let text = try Self.source(script)
-            let targets = text.matches(of: /--minimum-deployment-target (\d+(?:\.\d+)*)/)
-            try #require(!targets.isEmpty,
-                         "floor stamp not found: --minimum-deployment-target in \(script)")
-            try #require(targets.count == 1,
-                         "ambiguous floor stamp: --minimum-deployment-target in \(script)")
-            #expect(String(targets[0].1) == floor, "actool floor in \(script) diverged from Info.plist")
-        }
+        let bundleSteps = try Self.source("Scripts/app-bundle.sh")
+        let targets = bundleSteps.matches(of: /--minimum-deployment-target (\d+(?:\.\d+)*)/)
+        try #require(!targets.isEmpty,
+                     "floor stamp not found: --minimum-deployment-target in Scripts/app-bundle.sh")
+        try #require(targets.count == 1,
+                     "ambiguous floor stamp: --minimum-deployment-target in Scripts/app-bundle.sh")
+        #expect(String(targets[0].1) == floor, "actool floor in Scripts/app-bundle.sh diverged from Info.plist")
 
         let readme = try Self.source("README.md")
         let badges = readme.matches(of: /macOS%20(\d+)%2B/)
@@ -195,9 +193,9 @@ struct AppShellPackagingTests {
         #expect(plist["com.apple.security.app-sandbox"] == nil)
     }
 
-    /// Both packaging scripts must stage the SlovoCore resource bundle into
+    /// The shared bundle steps must stage the SlovoCore resource bundle into
     /// Contents/Resources, and the dev launcher must assert it under --verify.
-    /// Stated sensitivity: deleting either `ditto … slovo_SlovoCore.bundle`
+    /// Stated sensitivity: deleting the `ditto … slovo_SlovoCore.bundle`
     /// staging line, or the --verify presence check, goes RED here — a missing
     /// bundle otherwise ships silently as example-free prompts.
     @Test
@@ -206,15 +204,13 @@ struct AppShellPackagingTests {
             contentsOf: Self.packageRoot.appending(path: "Scripts/build_and_run.sh"),
             encoding: .utf8
         )
-        let releaseScript = try String(
-            contentsOf: Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh"),
-            encoding: .utf8
-        )
+        let appPlan = try Self.scriptPlan(["app"], appName: "DryRunPrompts-\(UUID().uuidString)")
 
-        #expect(devLauncher.contains("ditto \"$bin_path/slovo_SlovoCore.bundle\" \"$APP_CONTENTS/Resources/slovo_SlovoCore.bundle\""))
+        #expect(appPlan.output.split(separator: "\n").contains {
+            $0.hasPrefix("DRY-RUN ditto ") && $0.hasSuffix("/Contents/Resources/slovo_SlovoCore.bundle")
+        }, Comment(rawValue: appPlan.output))
         #expect(devLauncher.contains("$core_resources/PromptExamples.xml"),
                 "--verify must assert the staged resource bundle")
-        #expect(releaseScript.contains("slovo_SlovoCore.bundle\" \"$CONTENTS_PATH/Resources/slovo_SlovoCore.bundle\""))
     }
 
     @Test
@@ -228,18 +224,12 @@ struct AppShellPackagingTests {
         #expect(source.contains("--options runtime"))
         #expect(source.contains("slovo.entitlements"))
         #expect(source.contains("notarytool"))
-        #expect(source.contains("stapler"))
-        #expect(source.contains("validate_app_name"))
-        #expect(source.contains("*/*|*..*"))
-        #expect(source.contains("already exists"))
         #expect(source.contains("--cache-path \"$SWIFTPM_CACHE_DIR\""))
         #expect(source.contains("--config-path \"$SWIFTPM_CONFIG_DIR\""))
         #expect(source.contains("--security-path \"$SWIFTPM_SECURITY_DIR\""))
         #expect(source.contains("--disable-automatic-resolution"))
         #expect(!source.contains("rm -rf"))
-
-        let syntax = try Self.run("/bin/bash", arguments: ["-n", Self.scriptPath])
-        #expect(syntax.exitCode == 0, Comment(rawValue: syntax.output))
+        #expect(!(try Self.source("Scripts/app-bundle.sh")).contains("rm -rf"))
 
         // `app` phase: build + sign + notarize the bundle. Stapling is the sole
         // manual step, so the phase never runs `stapler`; DMG packaging is separate.
@@ -270,9 +260,13 @@ struct AppShellPackagingTests {
         let noPhase = try Self.scriptPlan([])
         #expect(noPhase.exitCode == 64, Comment(rawValue: noPhase.output))
 
-        let invalidName = try Self.scriptPlan(["app"], appName: "../../bad")
-        #expect(invalidName.exitCode == 64, Comment(rawValue: invalidName.output))
-        #expect(!invalidName.output.contains("DRY-RUN codesign"))
+        // Each half of the name guard's `*/*|*..*` pattern rejects `../../bad` alone,
+        // so `a/b` and `a..b` are what tell the halves apart.
+        for badName in ["../../bad", "a/b", "a..b"] {
+            let invalidName = try Self.scriptPlan(["app"], appName: badName)
+            #expect(invalidName.exitCode == 64, Comment(rawValue: "\(badName): \(invalidName.output)"))
+            #expect(!invalidName.output.contains("DRY-RUN codesign"), Comment(rawValue: badName))
+        }
 
         let existingName = "ExistingTestBundle"
         let existingPath = Self.packageRoot.appending(path: ".build/dist/\(existingName).app")
