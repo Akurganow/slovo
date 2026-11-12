@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           context="$(git-cliff --bump --context)"
           # `.[0]` is the unreleased range when something bumps, else the last tag.
-          # The tag carries a `v`; the stamp script and the tag step add their own.
+          # The tag carries a `v`; the stamp script and the bump step add their own.
           jq -r '.[0] | "bump_type=\(.bump_type)", "version=\(.version | ltrimstr("v"))"' \
             <<<"$context" | tee -a "$GITHUB_OUTPUT"
 
@@ -248,8 +248,12 @@ jobs:
           # bump commit and tag push over SSH as the deploy key. gh release create
           # below stays on GITHUB_TOKEN: creating a release is not a branch push.
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-      - name: Check whether the release tag already exists
-        id: tag
+      - name: Download signed artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: slovo-macos
+          path: dist
+      - name: Bump, tag, and push the release unless its tag exists
         env:
           RELEASE_VERSION: ${{ needs.decide.outputs.version }}
         run: |
@@ -261,50 +265,27 @@ jobs:
               echo "::error::${tag} exists, but its parent is not ${GITHUB_SHA}, the commit this run packaged"
               exit 1
             fi
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            # An earlier attempt already pushed the bump and the tag.
+            exit 0
           fi
-      - name: Download signed artifacts
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: slovo-macos
-          path: dist
-      - name: Stamp the release version and write its changelog section
-        if: steps.tag.outputs.exists == 'false'
-        env:
-          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
-        run: |
-          set -euo pipefail
           build_number="$(git rev-list --count HEAD)"
           Scripts/stamp-app-version.sh "$RELEASE_VERSION" "$build_number"
-          git-cliff --unreleased --tag "v${RELEASE_VERSION}" --prepend CHANGELOG.md
-      - name: Commit, tag, and push the release bump
-        if: steps.tag.outputs.exists == 'false'
-        env:
-          RELEASE_VERSION: ${{ needs.decide.outputs.version }}
-        run: |
-          set -euo pipefail
+          git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Resources/Info.plist CHANGELOG.md
           git commit -m "chore(release): v${RELEASE_VERSION} [skip ci]"
-          git tag "v${RELEASE_VERSION}"
+          git tag "$tag"
           # One atomic push of the bump commit and its tag. git v2.56.1,
           # Documentation/git-push.adoc: "Either all refs are updated, or on error,
           # no refs are updated." A refused push, such as a moved main, leaves no tag.
-          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "v${RELEASE_VERSION}"
+          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "$tag"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.decide.outputs.version }}
         run: |
           set -euo pipefail
-          # Already published by an earlier attempt: nothing left to create.
-          if [ "$(gh release view "v${RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = "false" ]; then
-            echo "v${RELEASE_VERSION} is already published."
-            exit 0
-          fi
           # Set explicitly: a re-run of an older release must not take Latest from a newer one.
           latest=--latest=false
           if [ "$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)" = "v${RELEASE_VERSION}" ]; then

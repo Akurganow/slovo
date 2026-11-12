@@ -59,7 +59,7 @@ in [docs/development.md](development.md), "Full Gate". The pipeline never runs o
 | --- | --- | --- | --- | --- |
 | `test` | macOS | `contents: read` | none | reusable gate (`Scripts/diagnose.sh`) |
 | `decide` | Linux | `contents: read` | none | run git-cliff: is a release due, and at which version |
-| `package` | macOS | `contents: read`, `environment: release` | signing secrets, and the Sparkle EdDSA key `SPARKLE_ED_PRIVATE_KEY` | stamp version, build, sign, notarize, staple, verify, generate the Sparkle appcast, upload artifact |
+| `package` | macOS | `contents: read`, `environment: release` | signing secrets, and the Sparkle EdDSA key `SPARKLE_ED_PRIVATE_KEY` | stamp version, import the signing certificate into an ephemeral keychain ([`Scripts/import-signing-certificate.sh`](../Scripts/import-signing-certificate.sh)), build, sign, notarize, staple, verify, generate the Sparkle appcast, upload artifact |
 | `publish` | macOS | `contents: write`, `environment: release-push` | the push deploy key only (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
 Signing secrets live only in the protected `release` environment and are reachable
@@ -75,10 +75,7 @@ both the app and the DMG, and a Gatekeeper assessment
 
 Every job that runs steps sets `timeout-minutes` in its workflow file. A job that calls
 the reusable gate has no steps of its own, so the called job in
-[swift.yml](../.github/workflows/swift.yml) sets the timeout. Both packaging jobs,
-`package` in `release.yml` and `package-dev` in `dev-build.yml`, import the Developer ID
-certificate into an ephemeral keychain through
-[`Scripts/import-signing-certificate.sh`](../Scripts/import-signing-certificate.sh).
+[swift.yml](../.github/workflows/swift.yml) sets the timeout.
 
 Every outside action in the workflows is pinned to a full commit SHA, with its version
 in a trailing comment such as `# v2.90.3`. GitHub's security guide,
@@ -111,9 +108,22 @@ is **not** a distribution channel.
   trigger is the owner's approval of the code being signed.
 - **What it does:** run the full reusable test gate, stamp a run-scoped dev
   version (`<last-release>-dev.<run-number>` — the same never-masquerade idiom
-  as the trunk `-ci.N` stamp), build, sign the app and a DMG with the stable
+  as the trunk `-ci.N` stamp), import the Developer ID certificate with the same
+  script as `package`, build, sign the app and a DMG with the stable
   Developer ID, verify the signatures, and upload the DMG as a `slovo-dev`
   artifact with 7-day retention.
+- **Permissions of the comment job:** `announce` holds only `pull-requests: write`.
+  The REST reference lists the "Pull requests" repository permission as an accepted
+  permission set for each of its four calls (list, create and update an issue
+  comment; remove a label from an issue), at `write`, or `read` for the list,
+  and marks each as available to installation tokens such as the `GITHUB_TOKEN`
+  (`serverToServer: true`; `github/docs` revision
+  `5857578e1688ae994c2f2062266414e3583cdf55`,
+  `src/rest/data/fpt-2022-11-28/issues.json`, the data behind the pages
+  [Issue comments](https://docs.github.com/en/rest/issues/comments) and
+  [Labels](https://docs.github.com/en/rest/issues/labels)). The same pages require
+  "at least one of the following permission sets" (`data/ui.yml`, revision
+  `1036ae83e445f8c725b5e01a1f34df036db87dfb`).
 - **Concurrency:** a newer dev build for the same ref and label cancels one still
   running; a run started by another label does not cancel it
   ([dev-build.yml](../.github/workflows/dev-build.yml), `concurrency` block).
@@ -157,10 +167,7 @@ The `publish` job pushes the version-bump commit and the tag in one
 git v2.56.1 (commit `03b41523c576f26ad34085378717a0c1b287470f`,
 `Documentation/git-push.adoc`, lines 205-209) documents the atomic guarantee: either
 all refs are updated, or on error no refs are updated. The same text says the push
-fails when the server does not support atomic pushes. No GitHub source cited here
-states that GitHub's server accepts atomic pushes. The first release after this change
-proves it, and a refusal fails every release at that push until the change is
-reverted. The `main` ruleset requires a
+fails when the server does not support atomic pushes. The `main` ruleset requires a
 pull request, and deploy keys are on its bypass list. The built-in `GITHUB_TOKEN`
 pushes as the GitHub Actions app, which the ruleset does not list. `gh release
 create` still uses the `GITHUB_TOKEN`, since creating a release is not a branch
@@ -193,23 +200,42 @@ workflow that later triggers on tags or on `create` starts on every release.
 
 Finish a failed release with **Re-run failed jobs** on that run, within 30 days of
 the run (GitHub docs, [Re-running workflows and jobs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs),
-`github/docs` revision `6abed3d818a57eeb80b1a9275b96a5446cb16d23`). Do not choose
-**Re-run all jobs**. It also re-runs `package`, and that job's upload of
-`slovo-macos` can fail if an earlier attempt's artifact still counts. The docs do not
-say whether one does. `actions/upload-artifact` v7.0.2 (commit
-`cf430e030ddbb5b0abf93d22962f4752f3646cd9`), `README.md` line 101, says: "If false,
-the action will fail if an artifact for the given name already exists." The workflow
-does not set `overwrite`, so the default `'false'` applies (`README.md` line 103).
+`github/docs` revision `6abed3d818a57eeb80b1a9275b96a5446cb16d23`). The page says a
+re-run uses the run's commit and ref, and that re-running failed jobs also re-runs the
+jobs that depend on them while the other jobs keep their outputs. Do not choose
+**Re-run all jobs**. It re-runs `package`, which already succeeded, and that job's
+upload of `slovo-macos` fails if an artifact of that name already exists:
+`actions/upload-artifact` v7.0.2 (commit `cf430e030ddbb5b0abf93d22962f4752f3646cd9`),
+`README.md` line 101, says: "If false, the action will fail if an artifact for the given
+name already exists." The workflow does not set `overwrite`, so the default `'false'`
+applies (`README.md` line 103).
 
-A re-run keeps the run's commit and the outputs of the jobs that succeeded (GitHub
-docs, same page). `publish` then does only what is missing: it writes no bump commit
-and no tag when `v<version>` already exists, and it creates no release when
-`v<version>` is already published. The `Publish GitHub Release` step in [release.yml](../.github/workflows/release.yml)
+A `package` that failed before its upload step is finished the same way, because the
+upload is its last step and the only one that creates `slovo-macos`.
+
+The step "Bump, tag, and push the release unless its tag exists" in
+[release.yml](../.github/workflows/release.yml) does nothing when `v<version>` already
+exists on a commit whose parent is the one packaged. The `Publish GitHub Release` step
 passes `--latest` only when `v<version>` is the highest `v[0-9]*` tag by version order
 (`git tag --list 'v[0-9]*' --sort=-version:refname`). Otherwise it passes
 `--latest=false`. The flag marks the release as Latest, and `--latest=false` keeps it
 from being Latest (`gh` flag help, `cli/cli` v2.103.3,
 `pkg/cmd/release/create/create.go:221`).
+
+When `v<version>` is already published, a re-run fails at `gh release create` with
+"a release with the same tag name already exists" (`cli/cli` v2.103.3,
+`pkg/cmd/release/create/create.go:503-511`, which runs for a call with assets and no
+`--draft`). Nothing is left to do.
+
+A run cancelled, timed out, or lost to its runner during `gh release create` can leave a
+draft release with the tag. `gh` deletes its draft only when one of its calls returns an
+error (`create.go:536-566`). Its existence check reads published releases only: it sends
+a `HEAD` request for the tag's release (`pkg/cmd/release/create/http.go:110-138`,
+`publishedReleaseExists`), and the REST operation it calls returns "a published release"
+([Get a release by tag name](https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name),
+`github/docs` revision `2c597b3367476d6a1ad0e79cec536af02505deb2`, data file
+`src/rest/data/fpt-2022-11-28/releases.json`). `gh`'s check does not see a draft.
+Delete the leftover draft on the Releases page.
 
 A re-run does not fix these failures:
 
@@ -217,27 +243,22 @@ A re-run does not fix these failures:
   is refused again. The next push to `main` starts a run that decides again and
   releases.
 - **The tag `v<version>` exists, but its parent is not the commit this run packaged.**
-  The step "Check whether the release tag already exists" fails on purpose, before the
-  stamp, commit and push steps. A re-run fails the same way, since it packages the same
-  commit. The pipeline does not move or delete tags.
-
-A run cancelled, timed out, or lost to its runner during `gh release create` can leave a
-draft release with the tag. `gh` deletes its draft only when one of its calls returns an
-error (`cli/cli` v2.103.3, `pkg/cmd/release/create/create.go:536-566`). A re-run can then
-create and publish the release while the earlier draft stays. No live call has confirmed
-this. `gh` checks for an existing release only among published releases
-(`publishedReleaseExists`, `create.go:500-512`). Delete the leftover draft on the
-Releases page.
+  The bump step fails on purpose, before it stamps, commits or pushes. A re-run fails
+  the same way, since it packages the same commit. The pipeline does not move or
+  delete tags.
 
 A push refused for another reason, such as a missing deploy key, is fixed by a re-run
 once the key works, as long as `main` has not moved. See
 [The `main` ruleset](#the-main-ruleset).
 
-Re-run only while no later release run is pending. A newly queued run in the same
-concurrency group cancels the pending run in it (GitHub docs,
+By default, a run queued while another run of the group is in progress is `pending`,
+and a newly queued run cancels the existing pending run and takes its place (GitHub docs,
 [Control the concurrency of workflows and jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency),
-`github/docs` revision `43b64585a65f44be5f56d872100da327d42c1546`). The docs do not
-say whether a re-run counts as such a run.
+`data/reusables/actions/actions-group-concurrency.md`, included through
+`data/reusables/actions/jobs/section-using-concurrency-jobs.md`, `github/docs`
+revision `336b7f546d9443dab4e1fa4f0f470e45448c7abc`). If a pending release run was
+cancelled, dispatch the pipeline on `main`. It decides again over every commit since the
+last tag.
 
 ## Changelog
 
@@ -284,7 +305,7 @@ second opinion.
   at minor and major, also while the version is still 0.x.
 
 git-cliff reports the version with the tag's `v` prefix; the job strips it, since
-the stamp script and the tag step each add their own.
+the stamp script and the bump step each add their own.
 
 The pin is exact — one `GIT_CLIFF` value at the top of the workflow, used by both
 `decide` and `publish` — and outside the update bot's reach: a new git-cliff may
