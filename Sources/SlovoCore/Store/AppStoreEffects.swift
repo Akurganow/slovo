@@ -43,8 +43,8 @@ public enum AppStoreEffects {
     @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
     @MainActor
     public static func wire(_ store: AppStore, to targets: AppStoreEffectTargets) {
-        // `listen`, never `subscribe`: a save at wire time would overwrite an
-        // invalid stored blob that `ConfigStore.load` failed closed on.
+        // `listen`, never `subscribe`: a save at wire time would overwrite the stored
+        // blob with its recovered form before any setting changed.
         store.listen(\.config) { config in
             do {
                 try ConfigStore.save(config, to: targets.defaults)

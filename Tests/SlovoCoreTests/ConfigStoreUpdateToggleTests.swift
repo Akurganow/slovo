@@ -27,8 +27,9 @@ struct ConfigStoreUpdateToggleTests {
 
     /// The persisted JSON must carry the key explicitly, so the stored blob is
     /// self-describing and the OFF state is a value, not an absence.
-    /// Stated sensitivity: drop the field from `encode(to:)` → the saved blob
-    /// has no such key → RED.
+    /// Stated sensitivity: drop the field from `StoredConfig`, or encode it only
+    /// when it differs from its default → the saved default-valued blob has no such
+    /// key → RED.
     @Test
     func savedConfigCarriesTheUpdateKeyOnTheWire() throws {
         let defaults = FakeUserDefaults()
@@ -36,15 +37,16 @@ struct ConfigStoreUpdateToggleTests {
         try ConfigStore.save(.defaults, to: defaults)
 
         let data = try #require(defaults.data(forKey: ConfigStore.defaultKey))
-        #expect(String(decoding: data, as: UTF8.self).contains("automaticallyInstallsUpdates"))
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["automaticallyInstallsUpdates"] as? Bool == true)
     }
 
     /// Backward compat: a config stored BEFORE the field existed decodes with
     /// updates ON and every other stored field intact — existing users keep
     /// their settings and gain silent updates.
-    /// Stated sensitivity: decode the field as required (`decode` instead of
-    /// `decodeIfPresent`) → the legacy blob fails to decode and the WHOLE config
-    /// resets to defaults → the keepWarmSeconds pin (45 ≠ default nil) → RED.
+    /// Stated sensitivity: default the absent field to `false`, or reset the WHOLE
+    /// config because a key is absent → updates read off, or the keepWarmSeconds
+    /// pin (45 ≠ default nil) is lost → RED.
     /// Born green on the current tree — flagged for the mutation demonstration.
     @Test
     func legacyConfigWithoutTheKeyDefaultsToOnKeepingOtherFields() throws {
