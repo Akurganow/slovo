@@ -107,6 +107,8 @@ public struct HotkeyDecisionCore {
     private let pushToTalkKey: TriggerRecognizer
     private let translateKey: TranslateRole
     private var hold: Hold?
+    /// A key change made while a hold was open. Non-nil only while `hold` is.
+    private var pendingConfiguration: HotkeyConfiguration?
 
     /// The live dictation, if the key that is down is still driving one.
     private var dictation: Session? {
@@ -120,13 +122,27 @@ public struct HotkeyDecisionCore {
     }
 
     /// Applies a live key change. A reconfigured core is a FRESH core: both roles are
-    /// rebuilt from the new configuration and any hold is dropped, live or cancelled,
-    /// so no state judged against the old keys can survive.
+    /// rebuilt from the new configuration, so no state judged against the old keys
+    /// survives. A change made while a key is down, live or cancelled, waits until
+    /// that hold closes: its release is judged against the keys that opened it, so a
+    /// live dictation still gets its stop.
     public mutating func reconfigure(to configuration: HotkeyConfiguration) {
+        guard hold == nil else {
+            pendingConfiguration = configuration
+            return
+        }
         self = HotkeyDecisionCore(configuration: configuration)
     }
 
     public mutating func handle(_ event: HotkeyInputEvent) -> HotkeyDecision {
+        let decision = decide(event)
+        if hold == nil, let pendingConfiguration {
+            self = HotkeyDecisionCore(configuration: pendingConfiguration)
+        }
+        return decision
+    }
+
+    private mutating func decide(_ event: HotkeyInputEvent) -> HotkeyDecision {
         switch event {
         case let .flagsChanged(keyCode, flags):
             return handleFlagsChanged(keyCode: keyCode, flags: flags)

@@ -242,16 +242,19 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.tapDisabled) == .resync(synthesizedStop: nil))
     }
 
-    /// Reconfiguring to a new trigger resets the held state, so a live key change
-    /// starts clean.
-    /// Stated sensitivity: keep the held bit across reconfigure → the next event is
-    /// judged against stale held state → RED.
+    /// A key change made while the key is held waits for that hold to close: the
+    /// release is judged against the key that opened it, so the dictation gets its
+    /// stop, and the new key works from the next press.
+    /// Stated sensitivity: apply the change at once (drop the hold) → the old key's
+    /// release passes through, the dictation never stops → RED. Never apply the
+    /// waiting change → the new key's press passes through → RED.
     @Test
-    func reconfigureResetsHeldState() {
+    func aKeyChangeDuringAHoldAppliesWhenTheHoldCloses() {
         var core = makeDecisionCore(main: .rightCommand)
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
         core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
-        #expect(!core.isTriggerHeld)
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain),
+                "the hold open at the key change must still stop on its own key's release")
         #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
     }
 

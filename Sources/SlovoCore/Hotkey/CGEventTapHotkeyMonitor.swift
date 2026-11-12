@@ -55,8 +55,9 @@ public final class CGEventTapHotkeyMonitor: Sendable {
     }
 
     /// Applies a live key change in place. The event mask is key-independent, so
-    /// only the decision core is swapped (held state reset) — no tap teardown, no
-    /// failure window, no pipeline rebuild.
+    /// only the decision core changes — no tap teardown, no failure window, no
+    /// pipeline rebuild. A change made during a hold applies when that hold closes,
+    /// so its release still reaches `onTrigger`.
     public func reconfigure(configuration: HotkeyConfiguration) {
         state.withLock { $0.decisionCore.reconfigure(to: configuration) }
     }
