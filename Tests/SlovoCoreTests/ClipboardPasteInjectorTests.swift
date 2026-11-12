@@ -26,7 +26,7 @@ struct ClipboardPasteInjectorTests {
     ) -> ClipboardPasteInjector {
         ClipboardPasteInjector(
             pasteboard: pasteboard, secureInput: secure, keystroke: keystroke,
-            restoreDelay: .milliseconds(0)
+            waitForPaste: { pasteboard.recordWait() }
         )
     }
 
@@ -94,6 +94,7 @@ struct ClipboardPasteInjectorTests {
     /// pasteboard/keystroke timeline no longer matches.
     /// Stated sensitivity: drop the markers (write markerTypes: []) → RED.
     /// Stated sensitivity: compare against the count read after `clearContents()` instead of after `write` → restore skipped → RED.
+    /// Stated sensitivity: restore before the wait → RED.
     @Test
     func normalFieldOrdersSnapshotClearWritePasteRestore() async throws {
         let pasteboard = FakePasteboard(initialSnapshot: Self.originalClip)
@@ -105,14 +106,15 @@ struct ClipboardPasteInjectorTests {
         )
         try await injector.insert(Self.transcript)
 
-        #expect(pasteboard.ops == [.snapshot, .clear, .write(Self.expectedItem), .paste, .restore(Self.originalClip)],
-                "ops must be exactly [snapshot, clear, write, paste, restore]; got \(pasteboard.ops)")
+        #expect(pasteboard.ops == [.snapshot, .clear, .write(Self.expectedItem), .paste, .wait, .restore(Self.originalClip)],
+                "ops must be exactly [snapshot, clear, write, paste, wait, restore]; got \(pasteboard.ops)")
     }
 
     /// Stated sensitivity: make the restore unconditional → `.restore(originalClip)` appended → RED.
+    /// Stated sensitivity: decide ownership before the wait → restore runs during the copy → RED.
     @Test
-    func copyAfterPasteKeepsTheNewClipboard() async throws {
-        let pasteboard = FakePasteboard(initialSnapshot: Self.originalClip, copiesDuringPaste: true)
+    func copyDuringWaitKeepsTheNewClipboard() async throws {
+        let pasteboard = FakePasteboard(initialSnapshot: Self.originalClip, copiesDuringWait: true)
         let injector = Self.injector(
             pasteboard: pasteboard,
             secure: FakeSecureInput(values: [false, false]),
@@ -120,8 +122,8 @@ struct ClipboardPasteInjectorTests {
         )
         try await injector.insert(Self.transcript)
 
-        #expect(pasteboard.ops == [.snapshot, .clear, .write(Self.expectedItem), .paste, .externalCopy],
-                "a copy made after the paste must survive, with no restore; ops=\(pasteboard.ops)")
+        #expect(pasteboard.ops == [.snapshot, .clear, .write(Self.expectedItem), .paste, .wait],
+                "a copy made during the wait must survive, with no restore; ops=\(pasteboard.ops)")
     }
 
     /// Stated sensitivity: swallow the denied state, and this no longer throws.
@@ -143,6 +145,7 @@ struct ClipboardPasteInjectorTests {
 
     /// Stated sensitivity: omit the secure-input check immediately before
     /// writing, and a focus race can leave the transcript in the pasteboard.
+    /// Stated sensitivity: read the owned count before `clearContents()` → restore skipped on this abort → RED.
     @Test
     func secureBeforeWriteWritesNoTranscriptAndDoesNotPaste() async {
         let pasteboard = FakePasteboard(initialSnapshot: Self.originalClip)

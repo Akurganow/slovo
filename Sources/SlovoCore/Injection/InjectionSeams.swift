@@ -1,8 +1,7 @@
 import Foundation
 
-/// A snapshot of one pasteboard item: every type→data pair it held, in the order
-/// the item lists them, so the user's original clipboard can be restored
-/// byte-for-byte.
+/// A snapshot of one pasteboard item: every readable type, in its order, with its
+/// data, so the original clipboard can be put back.
 public struct PasteboardSnapshotItem: Equatable, Sendable {
     public let representations: [Representation]
 
@@ -39,10 +38,10 @@ public protocol Pasteboard: Sendable {
     /// Captures the current contents so they can be restored later.
     func snapshot() -> [PasteboardSnapshotItem]
     func clearContents()
-    /// Replaces the pasteboard contents and may change `changeCount` even when it fails.
+    /// Replaces the pasteboard contents. `changeCount` may move even when it fails.
     /// Returns true only when the string and the item reached the pasteboard.
     func write(_ item: PasteboardWriteItem) -> Bool
-    /// Compared before the restore to see whether anyone wrote the clipboard since Slovo's own write.
+    /// The ownership token the injector compares before restoring; see `docs/references/text-injection.md`.
     var changeCount: Int { get }
     /// Restores a previously captured snapshot.
     func restore(_ items: [PasteboardSnapshotItem])
