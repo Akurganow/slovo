@@ -130,7 +130,12 @@ struct PackageDependencyTests {
     /// cannot read gives no list at all, which fails the read of the real file.
     /// Stated sensitivity: list either rule in `disabled_rules` of `.swiftlint.yml`
     /// in any readable spelling, write the list in a spelling the reader cannot
-    /// read, or stop reading an unindented sequence → RED.
+    /// read, or stop reading an unindented sequence → RED. Accept a block item that
+    /// is not a plain rule identifier (the anchor case) → RED; accept such a flow
+    /// item (the nested list and the flow anchor) → RED; accept a continuation
+    /// line inside a block list (the multi-line plain scalar) → RED; accept both
+    /// block checks (the folded scalar, which hid `unused_import` behind `>-`) →
+    /// RED; let a repeated key replace the first list → RED.
     @Test
     func criticalCheckerRulesCannotBeDisabled() throws {
         let lintConfig = try String(contentsOf: Self.packageRoot.appending(path: ".swiftlint.yml"), encoding: .utf8)
@@ -154,6 +159,12 @@ struct PackageDependencyTests {
         for unreadable in [
             "disabled_rules: [\n  unused_import,\n  incompatible_concurrency_annotation\n]",
             "disabled_rules:\n  [unused_import, incompatible_concurrency_annotation]",
+            "disabled_rules:\n  - >-\n    unused_import",
+            "disabled_rules:\n  - &rules unused_import",
+            "disabled_rules:\n  - unused_import\n    incompatible_concurrency_annotation",
+            "disabled_rules: [[unused_import]]",
+            "disabled_rules: [&rules unused_import]",
+            "disabled_rules:\n  - unused_import\ndisabled_rules:\n  - explicit_self",
         ] {
             #expect(Self.disabledRules(in: unreadable) == nil, "\(unreadable)")
         }
@@ -228,6 +239,11 @@ struct PackageDependencyTests {
         return nil
     }
 
+    /// Top-level scalars and rule lists of `.swiftlint.yml`, which this repository
+    /// writes. The reader is strict about lists: every item, unquoted, is a plain
+    /// rule identifier, only items, comments and blank lines stand inside a block
+    /// list, and a key appears once. A list that breaks any of these is left out,
+    /// so its key reads as absent; path lists and nested mappings read so too.
     private struct TopLevelYaml {
         var scalars: [String: String]
         var lists: [String: [String]]
@@ -244,6 +260,7 @@ struct PackageDependencyTests {
     private static func topLevelYaml(from source: String) -> TopLevelYaml {
         var scalars: [String: String] = [:]
         var lists: [String: [String]] = [:]
+        var unreadable: Set<String> = []
         var currentList: String?
 
         for rawLine in source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
@@ -252,27 +269,38 @@ struct PackageDependencyTests {
             guard !trimmed.isEmpty else { continue }
 
             if trimmed.hasPrefix("- "), let key = currentList {
-                lists[key, default: []].append(unquoted(String(trimmed.dropFirst(2))))
-            } else if line.first?.isWhitespace == false {
-                guard let separator = trimmed.firstIndex(of: ":") else { continue }
+                let item = unquoted(String(trimmed.dropFirst(2)))
+                if !isRuleIdentifier(item) { unreadable.insert(key) }
+                lists[key, default: []].append(item)
+            } else if line.first?.isWhitespace == false, let separator = trimmed.firstIndex(of: ":") {
                 let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespaces)
                 let value = String(trimmed[trimmed.index(after: separator)...])
                     .trimmingCharacters(in: .whitespaces)
+                if lists[key] != nil || scalars[key] != nil { unreadable.insert(key) }
                 if value.isEmpty {
                     lists[key] = []
                     currentList = key
                 } else if value.hasPrefix("["), value.hasSuffix("]") {
-                    lists[key] = value.dropFirst().dropLast().split(separator: ",").map { unquoted(String($0)) }.filter { !$0.isEmpty }
+                    let items = value.dropFirst().dropLast().split(separator: ",").map { unquoted(String($0)) }.filter { !$0.isEmpty }
+                    if !items.allSatisfy(isRuleIdentifier) { unreadable.insert(key) }
+                    lists[key] = items
                     currentList = nil
                 } else {
                     scalars[key] = value
                     currentList = nil
                 }
-            } else {
-                currentList = nil
+            } else if let key = currentList {
+                unreadable.insert(key)
             }
         }
+        for key in unreadable { lists[key] = nil }
         return TopLevelYaml(scalars: scalars, lists: lists)
+    }
+
+    /// Lowercase letters, digits and underscores: every SwiftLint rule name, and
+    /// no YAML indicator, anchor, alias, tag or nested structure.
+    private static func isRuleIdentifier(_ item: String) -> Bool {
+        !item.isEmpty && item.unicodeScalars.allSatisfy { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "_" }
     }
 
     /// A YAML scalar without the single or double quotes around it.
