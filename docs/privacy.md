@@ -157,10 +157,10 @@ Logs must not contain:
 
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
 In the clear it carries elapsed times in milliseconds, the model-load state token,
-the model-load source token (`cache` or `download`), and the Error cue's reason token. It also carries three numbers about each
-dictation: the transcript's length in characters, the captured audio's sample
-count, and how far into the recording, in seconds, recognition had confirmed text
-at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,
+the model-load source token (`cache` or `download`), and the Error cue's reason
+token. It also carries three numbers about each dictation: the transcript's length
+in characters, the captured audio's sample count, and how far into the
+recording, in seconds, recognition had confirmed text at key-up. The key-up decode adds two fixed tokens: its plan, one of four names,
 and a 0 or 1 flag for a retry without vocabulary bias. Five cue lines carry the
 cue's name (one of three), and two of them also its elapsed milliseconds. They
 carry dictation timing and no user text. A cleanup failure adds its kind and the
