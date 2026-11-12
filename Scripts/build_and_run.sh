@@ -146,8 +146,11 @@ verify_app() {
     sleep 0.25
     attempts=$((attempts - 1))
   done
-  pgrep -x "$PROCESS_NAME" >/dev/null && echo "a $PROCESS_NAME process runs, but not from $APP_BINARY" >&2
-  echo "$APP_NAME did not stay running as process $PROCESS_NAME" >&2
+  if pgrep -x "$PROCESS_NAME" >/dev/null; then
+    echo "a $PROCESS_NAME process runs, but not from $APP_BINARY" >&2
+  else
+    echo "$APP_NAME did not stay running as process $PROCESS_NAME" >&2
+  fi
   return 1
 }
 

@@ -210,8 +210,9 @@ upload of `slovo-macos` fails if an artifact of that name already exists:
 name already exists." The workflow does not set `overwrite`, so the default `'false'`
 applies (`README.md` line 103).
 
-A `package` that failed before its upload step is finished the same way, because the
-upload is its last step and the only one that creates `slovo-macos`.
+A `package` that failed or timed out before its upload step is finished the same way,
+because the upload is its last step and the only one that creates `slovo-macos`; a
+failure inside the upload step is not covered.
 
 The step "Bump, tag, and push the release unless its tag exists" in
 [release.yml](../.github/workflows/release.yml) does nothing when `v<version>` already
@@ -228,14 +229,12 @@ When `v<version>` is already published, a re-run fails at `gh release create` wi
 `--draft`). Nothing is left to do.
 
 A run cancelled, timed out, or lost to its runner during `gh release create` can leave a
-draft release with the tag. `gh` deletes its draft only when one of its calls returns an
-error (`create.go:536-566`). Its existence check reads published releases only: it sends
-a `HEAD` request for the tag's release (`pkg/cmd/release/create/http.go:110-138`,
-`publishedReleaseExists`), and the REST operation it calls returns "a published release"
-([Get a release by tag name](https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name),
-`github/docs` revision `2c597b3367476d6a1ad0e79cec536af02505deb2`, data file
-`src/rest/data/fpt-2022-11-28/releases.json`). `gh`'s check does not see a draft.
-Delete the leftover draft on the Releases page.
+draft release with the tag. With assets, `gh` creates the release as a draft first and
+deletes that draft only when one of its calls returns an error (`cli/cli` v2.103.3,
+`pkg/cmd/release/create/create.go:512-514` and `:536-566`). Its existence check looks
+at published releases (`publishedReleaseExists`,
+`pkg/cmd/release/create/http.go:110-138`). Delete the leftover draft on the Releases
+page.
 
 A re-run does not fix these failures:
 
