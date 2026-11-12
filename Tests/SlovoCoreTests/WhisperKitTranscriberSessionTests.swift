@@ -213,8 +213,9 @@ struct WhisperKitTranscriberSessionTests {
     /// A second finish on a closed session does not finalize again, and a cancel after
     /// a finish cancels no stream.
     /// Stated sensitivity: drop the session-open guard → the second finish
-    /// re-finalizes → count climbs past 1 → RED; finish leaves the session set → the
-    /// cancel after it cancels that stream → streamCancelCount 1 → RED.
+    /// re-finalizes → count climbs past 1 → RED. The `streamCancelCount == 0` line has
+    /// no mutation of its own (a finish that leaves the session set also finalizes
+    /// twice); it is kept as the direct statement of the cancel-after-finish contract.
     @Test
     func finishAfterFinishDoesNotFinalizeAgain() async throws {
         let engine = FakeSpeechEngine(finalize: .success("привет"))

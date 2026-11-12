@@ -205,7 +205,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// the current one.
     /// Killing mutation: return to fire-and-forget preload, never flip
     /// isModelReady, open the gate on any completion (`_ = await
-    /// live.modelWarmUp.result`, which also passes a cancelled warm-up), or delete
+    /// live.modelWarmUp.result`, which also passes a cancelled warm-up), discard the
+    /// result and open anyway (`_ = try? await live.modelWarmUp.value`), or delete
     /// the currency comparison from the gate task -> RED.
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
@@ -221,7 +222,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         let gate = try SourceText.code("Sources/slovo/AppDelegate+ModelGate.swift")
         #expect(SourceText.containsInOrder([
             "showModelLoadingState",
-            "try? await live.modelWarmUp.value",
+            "guard (try? await live.modelWarmUp.value) != nil",
             "composition?.modelWarmUp",
             "isModelReady = true",
             "stopModelLoadingPulse",

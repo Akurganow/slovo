@@ -30,7 +30,8 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
     /// Loads the model from the app cache first, with no request; the download path
     /// runs only when that load fails. It downloads the files that are missing or whose
     /// upstream version changed; a file present but damaged in place is kept
-    /// (argmax-oss-swift 1.1.1 at `1bbc57cb`, `HubApi.swift:469-526`, source).
+    /// (argmax-oss-swift 1.1.1 at `1bbc57cb`,
+    /// `Sources/ArgmaxCore/External/Hub/HubApi.swift:469-526`, source).
     ///
     /// Logged HERE rather than at the transcriber's single flight: this is the one
     /// place a model is really constructed (and, on a cold cache, downloaded), so a
@@ -115,15 +116,15 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
     /// folder plus the variant folder. Each citation is a source file of argmax-oss-swift 1.1.1
     /// at `1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4` (`Package.resolved`) unless marked.
     /// - The default repository is the literal `argmaxinc/whisperkit-coreml`
-    ///   (`WhisperKit.swift:327`).
+    ///   (`Sources/WhisperKit/Core/WhisperKit.swift:327`).
     /// - The repository folder is `<base>/models/<repository id>`
-    ///   (`ArgmaxCore/External/Hub/HubApi.swift:333-335`), the folder `snapshot` returns
-    ///   (`HubApi.swift:564-566`, `637`, `671`).
+    ///   (`Sources/ArgmaxCore/External/Hub/HubApi.swift:333-335`), the folder
+    ///   `snapshot` returns (same file, `564-566`, `637`, `671`).
     /// - The download appends the variant folder it takes from the Hub listing
-    ///   (`WhisperKit.swift:267-273`, `296-303`). The SDK README names that folder
-    ///   `openai_whisper-{MODEL}` (`README.md:247`, documentation), so a model id under
-    ///   another prefix, which only a hand edit can produce, misses the cache and loads
-    ///   through the download path.
+    ///   (`Sources/WhisperKit/Core/WhisperKit.swift:267-273`, `296-303`). The SDK
+    ///   README names that folder `openai_whisper-{MODEL}` (`README.md:247`,
+    ///   documentation), so a model id under another prefix, which only a hand edit can
+    ///   produce, misses the cache and loads through the download path.
     static func cachedModelFolder(model: String, base: URL) -> URL {
         HubApiWrapper(downloadBase: base)
             .localRepoLocation(HubApiWrapper.Repo(id: "argmaxinc/whisperkit-coreml"))
