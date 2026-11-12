@@ -4,8 +4,7 @@ import GRDB
 
 import SlovoCore
 
-// Dedup on (term, category), full ordering by weight, and idempotent re-adds
-// (corrections inert).
+// Dedup on (term, category) with corrections inert, and full ordering by weight.
 //
 // Contract under test lives in `Sources/SlovoCore/Storage/`.
 //
@@ -20,9 +19,12 @@ struct VocabularyStoreTests {
     }
 
     /// The same `term` under two DIFFERENT categories both survive; the same
-    /// `term` + same `category` dedups to one.
+    /// `term` + same `category` dedups to one, and adding vocabulary never
+    /// writes `corrections` (inert in v1).
     /// Stated sensitivity: declare `UNIQUE(term)` (drop `category`) → the
-    /// two-category case collapses to 1 → RED.
+    /// two-category case collapses to 1 → RED; insert without `INSERT OR
+    /// IGNORE` → the re-add throws SQLite-19 → RED; write to `corrections`
+    /// during the add → count > 0 → RED.
     @Test
     func dedupIsPerTermAndCategory() throws {
         let (pool, teardown) = try Self.openStore()
@@ -41,6 +43,9 @@ struct VocabularyStoreTests {
             try VocabularyRecord.filter(Column("term") == "GitHub" && Column("category") == "tool").fetchCount(db)
         }
         #expect(afterDuplicate == 1, "the same (term, category) must dedup to a single row; got \(afterDuplicate)")
+
+        let corrections = try pool.read { db in try Int.fetchOne(db, sql: "SELECT count(*) FROM corrections") ?? -1 }
+        #expect(corrections == 0, "adding vocabulary must never write to corrections (inert in v1); got \(corrections)")
     }
 
     /// `vocabulary()` returns EVERY stored term in descending weight order — the read
@@ -91,7 +96,8 @@ struct VocabularyStoreTests {
     /// comparator, and the two are deliberately not compared. `Bravo` makes the tie
     /// case-sensitive — the pair `Bravo`/`bravo` differs only in a byte. With
     /// `term_misses` readable, `BiasRanker.rank` sorts the result, so this pins the
-    /// ranker's term tie-break; `BiasRankerTests` uses lower-case terms only.
+    /// ranker's term tie-break; the tie-break cases in `BiasRankerTests` use
+    /// lower-case terms only.
     /// Stated sensitivity: make the ranker's term tie-break case-insensitive
     /// (compare `lowercased()` scalars) → `alpha` sorts before `Bravo` → RED.
     @Test
@@ -111,34 +117,5 @@ struct VocabularyStoreTests {
         let terms = GRDBPersonalizationSource(database: pool).vocabulary().map(\.term)
         #expect(terms == ["zulu", "Bravo", "alpha", "bravo", "charlie", "delta"],
                 "weight still leads; equal weights must break on the term ascending; got \(terms)")
-    }
-
-    /// Adding the same SYNTHETIC rows twice leaves `vocabulary` un-duplicated and
-    /// `corrections` empty throughout.
-    /// Stated sensitivity: insert without `INSERT OR IGNORE` → the re-add either
-    /// duplicates (no unique key) or throws SQLite-19 (unique key) → RED; write to
-    /// `corrections` during the add → count > 0 → RED.
-    @Test
-    func reAddIsIdempotentAndLeavesCorrectionsUntouched() throws {
-        let (pool, teardown) = try Self.openStore()
-        defer { teardown() }
-
-        // SYNTHETIC rows — public anchors only.
-        let rows = [
-            VocabularyRecord(term: "ExampleCorp", category: "org", weight: 9),
-            VocabularyRecord(term: "kubectl", category: "tech", weight: 5),
-            VocabularyRecord(term: "GitHub", category: "tool", weight: 7),
-        ]
-
-        try GRDBPersonalizationSource(database: pool).addVocabulary(rows)
-        let afterFirst = try pool.read { db in try VocabularyRecord.fetchCount(db) }
-        #expect(afterFirst == 3, "the first add must insert 3 rows; got \(afterFirst)")
-
-        try GRDBPersonalizationSource(database: pool).addVocabulary(rows)  // re-add
-        let afterSecond = try pool.read { db in try VocabularyRecord.fetchCount(db) }
-        #expect(afterSecond == 3, "re-adding the rows must NOT duplicate them (INSERT OR IGNORE); got \(afterSecond)")
-
-        let corrections = try pool.read { db in try Int.fetchOne(db, sql: "SELECT count(*) FROM corrections") ?? -1 }
-        #expect(corrections == 0, "adding vocabulary must never write to corrections (inert in v1); got \(corrections)")
     }
 }

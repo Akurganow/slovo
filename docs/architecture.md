@@ -181,7 +181,7 @@ Slovo uses SQLite through GRDB for local personalization data:
   `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
-- `vocabulary.created_at` and `vocabulary.source` are written and never read.
+- `vocabulary.created_at` and `vocabulary.source` are written and never used.
   They stay: removing a column takes a new migration on every user's database
   and buys no behavior.
 

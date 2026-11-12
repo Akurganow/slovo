@@ -2,7 +2,7 @@
 --
 -- This file documents the schema; `PersonalizationMigrations` in
 -- Sources/SlovoCore/Storage/Migrations.swift creates it and is the authority.
--- Statements and index names below are the ones the migrator creates.
+-- Tables, columns, constraints and index names below match the migrator.
 --
 -- Purpose:
 --   * `vocabulary` holds the user's terms: the cleanup prompt's glossary and the
@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS vocabulary (
     expansion  TEXT,                              -- optional meaning / full form
     lang       TEXT    NOT NULL DEFAULT 'en',     -- 'ru' | 'en' (any other value maps to auto in v1)
     category   TEXT    NOT NULL,                  -- product|service|domain|release|tech|person|org|term
-    source     TEXT    NOT NULL,                  -- where the row came from; written, never read
+    source     TEXT    NOT NULL,                  -- where the row came from; written, never used
     weight     INTEGER NOT NULL DEFAULT 1,        -- priority hint for prompt ordering
-    created_at TEXT    NOT NULL DEFAULT (datetime('now')), -- filled by default, never read
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')), -- filled by default, never used
     UNIQUE (term, category)
 );
 

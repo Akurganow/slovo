@@ -79,11 +79,9 @@ public enum PersonalizationDatabase {
     /// name is honest), the 16-byte SQLite header is definite, and every other
     /// file that reads — encrypted, empty, truncated, garbage — is `.opaque`:
     /// not-plaintext is all the sniff can know; whether the passphrase can read
-    /// it is the open attempt's job. A header read that fails throws instead:
-    /// as `.opaque`, a plaintext database would fail the keyed open with
-    /// `SQLITE_NOTADB` and be set aside. A file that cannot be opened for
-    /// reading stays `.opaque`, because the keyed open then fails with an open
-    /// error, which propagates.
+    /// it is the open attempt's job. A file that cannot be opened or read
+    /// throws instead: as `.opaque`, a plaintext database would fail the keyed
+    /// open with `SQLITE_NOTADB` and be set aside.
     enum FileState: Equatable {
         case missing
         case plaintext
@@ -94,7 +92,7 @@ public enum PersonalizationDatabase {
 
     static func fileState(at path: String) throws -> FileState {
         guard FileManager.default.fileExists(atPath: path) else { return .missing }
-        guard let handle = FileHandle(forReadingAtPath: path) else { return .opaque }
+        let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
         defer { try? handle.close() }
         let header = try handle.read(upToCount: 16) ?? Data()
         return header == plaintextHeader ? .plaintext : .opaque

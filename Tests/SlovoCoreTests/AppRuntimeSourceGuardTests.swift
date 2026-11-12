@@ -89,27 +89,28 @@ struct AppRuntimeSourceGuardTests {
     /// second pool on the same file, which GRDB's concurrency guide rules out
     /// ("Connect to any database file only once"). The opener and the delegate are
     /// in the executable target, which no test imports, so the wiring is read as text.
-    /// Killing mutation: open the database inside `makeLive` again, or call
-    /// `openPersonalization()` from `startPipeline` or a second site → RED.
+    /// Killing mutation: open the database inside `makeLive` or anywhere else in
+    /// the app again, or call `openPersonalization()` from `startPipeline` or a
+    /// second site → RED.
     @Test
     func thePersonalizationDatabaseIsOpenedOnceForTheProcessAndInjected() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
         let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
-        let makeLive = try SourceText.functionBody(named: "makeLive", in: composition)
-        let callSites = try SourceText.swiftFiles(under: "Sources/slovo").reduce(0) { count, file in
-            try count + SourceText.code(file).components(separatedBy: "AppComposition.openPersonalization(").count - 1
+        let appSources = try SourceText.swiftFiles(under: "Sources/slovo").map(SourceText.code)
+        func occurrences(of needle: String) -> Int {
+            appSources.reduce(0) { $0 + $1.components(separatedBy: needle).count - 1 }
         }
 
-        #expect(SourceText.statementCount(#"let personalization = AppComposition\.openPersonalization\(\)"#, in: delegate) == 1,
+        #expect(occurrences(of: "PersonalizationDatabase.open(") == 1,
+                "the app may open the database at exactly one site, the opener")
+        #expect(occurrences(of: "openPersonalization(") == 2,
+                "the opener must be declared once and called once")
+        #expect(SourceText.statementCount(#"(\w+ )*let personalization\b.*= AppComposition\.openPersonalization\(\)"#, in: delegate) == 1,
                 "the delegate must own the one opened database as a stored property")
-        #expect(callSites == 1, "the database may be opened at exactly one site; found \(callSites)")
         #expect(!startPipeline.contains("openPersonalization("),
                 "a rebuild must reuse the launch's database, never open it again")
         #expect(startPipeline.contains("personalization: personalization"),
                 "the app-owned database must be injected into AppComposition.makeLive")
-        #expect(!makeLive.contains("PersonalizationDatabase.open("),
-                "makeLive must receive the process's database, never open its own")
     }
 
     /// The SlovoCore half reads `KeychainAPIKeyProvider` as text. `keychainItemExists` is

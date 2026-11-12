@@ -1,7 +1,7 @@
 import GRDB
 
-/// The schema migrations for the personalization store (mirrors
-/// `data/schema.sql`). Idempotent by construction: GRDB's `DatabaseMigrator`
+/// The schema migrations for the personalization store, and its authority:
+/// `data/schema.sql` documents what they create. Idempotent by construction: GRDB's `DatabaseMigrator`
 /// tracks applied migration identifiers, so re-running `migrate` is a no-op — no
 /// unconditional `CREATE TABLE`.
 ///
@@ -42,8 +42,6 @@ public enum PersonalizationMigrations {
 
             try db.create(table: "profile") { t in
                 t.primaryKey("key", .text)
-                // NOT NULL to match the documented `data/schema.sql` (the migrator
-                // is the runtime authority; keep the real DB in sync with the doc).
                 t.column("value", .text).notNull()
             }
         }

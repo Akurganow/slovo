@@ -433,14 +433,16 @@ struct PersonalizationDatabaseEncryptionTests {
                 "a failed derivation must leave no database — at most an empty file; got \(String(describing: size)) bytes")
     }
 
-    /// Spec test 8: every on-disk state that reads maps to a defined case.
-    /// (`fileState` is internal; this test is its consumer.) The throw on a
-    /// failed header read is untested: no hermetic input fails the read after
-    /// the open succeeds, and a directory at the path does not even open.
+    /// Spec test 8: every on-disk state that reads maps to a defined case, and
+    /// a path that does not read throws. A directory at the path fails the
+    /// open. A read that fails after a successful open has no hermetic input,
+    /// so the `try` on the header read is not exercised here. (`fileState` is
+    /// internal; this test is its consumer.)
     /// Stated sensitivity: classify empty/short files as plaintext, or drop
-    /// the fileExists guard (missing ≠ unreadable) → RED.
+    /// the fileExists guard (missing ≠ unreadable) → RED; return `.opaque`
+    /// when the file does not open → the directory case does not throw → RED.
     @Test
-    func fileStateClassifiesEachReadableState() throws {
+    func fileStateClassifiesReadableFilesAndThrowsOnUnreadableOnes() throws {
         let path = TempDatabase.freshPath()
         defer { TempDatabase.remove(at: path) }
         #expect(try PersonalizationDatabase.fileState(at: path) == .missing)
@@ -453,5 +455,12 @@ struct PersonalizationDatabaseEncryptionTests {
 
         try Data("garbage".utf8).write(to: URL(fileURLWithPath: path))
         #expect(try PersonalizationDatabase.fileState(at: path) == .opaque)
+
+        let directory = TempDatabase.freshPath()
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(atPath: directory) }
+        #expect(throws: (any Error).self) {
+            _ = try PersonalizationDatabase.fileState(at: directory)
+        }
     }
 }
