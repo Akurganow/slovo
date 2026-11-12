@@ -95,8 +95,7 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - Holding the configured push-to-talk key (`fn` by default) starts capture,
   releasing it stops capture, restores audio, and inserts text into a normal
   text field.
-- A dictation leaves the previous clipboard in place, and a copy made right
-  after a dictation survives.
+- A dictation leaves the previous clipboard in place.
 - Nothing waits on a cue: the microphone opens without waiting for Start, and
   releasing the key stops recording immediately rather than after the sound.
 - Speaking while the speech model is still loading ("Preparing Speech Model" on a
