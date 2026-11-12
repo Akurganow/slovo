@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.5] - 2026-11-12
+
+### Fixed
+
+- Keep your other settings when one stored setting cannot be read (#216)
+
 ## [0.37.4] - 2026-11-12
 
 ### Fixed
