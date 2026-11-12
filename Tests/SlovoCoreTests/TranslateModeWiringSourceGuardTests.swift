@@ -52,42 +52,9 @@ struct TranslateModeWiringSourceGuardTests {
     // guard fails on its positive assert rather than throwing).
 
     private static func code(_ relativePath: String) -> String {
-        guard let raw = try? String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8) else {
+        guard let raw = try? SourceText.read(relativePath) else {
             return ""
         }
-        return strippingComments(from: raw)
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false, inBlockComment = false, inString = false
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-            if inLineComment {
-                if character == "\n" { inLineComment = false; output.append(character) }
-            } else if inBlockComment {
-                if character == "*" && next == "/" { inBlockComment = false; index = nextIndex }
-            } else if inString {
-                output.append(character)
-                if character == "\"" { inString = false }
-            } else if character == "/" && next == "/" {
-                inLineComment = true; index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true; index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" { inString = true }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static var packageRoot: URL {
-        let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        return SourceText.strippingComments(from: raw)
     }
 }

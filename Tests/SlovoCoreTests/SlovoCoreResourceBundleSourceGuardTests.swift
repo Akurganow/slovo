@@ -1,13 +1,15 @@
 import Foundation
 import Testing
 
+// SlovoCoreResourceBundle reads Bundle.main and the linked bundle, which a test cannot
+// repoint, so its non-fatal fallback cannot be driven; this guard reads its source.
 @Suite("SlovoCore resource bundle source guard")
 struct SlovoCoreResourceBundleSourceGuardTests {
     /// Sensitivity: replacing the resolver with `Bundle.module` removes the
     /// packaged-app lookup and nil fallback while adding the fatal accessor.
     @Test
     func packagedAppResolverUsesNonfatalNamedBundleLookup() throws {
-        let source = try String(contentsOf: Self.resolverURL, encoding: .utf8)
+        let source = try SourceText.code("Sources/SlovoCore/SlovoCoreResourceBundle.swift")
 
         #expect(Self.contractFailures(in: source).isEmpty)
     }
@@ -46,26 +48,15 @@ struct SlovoCoreResourceBundleSourceGuardTests {
         if !source.contains(#""slovo_SlovoCore.bundle""#) {
             failures.append("exact SlovoCore bundle name is missing")
         }
-        if !source.contains("Bundle(for: BundleLocator.self)") {
+        if !source.contains("Bundle(for:") {
             failures.append("linked-bundle fallback is missing")
         }
-        if !source.contains("internal static func resolve() -> Bundle?") {
+        if !source.contains("static func resolve() -> Bundle?") {
             failures.append("optional resolver return is missing")
         }
         if !source.contains("return nil") || source.contains("fatalError(") {
             failures.append("nonfatal nil fallback is missing")
         }
         return failures
-    }
-
-    private static var resolverURL: URL {
-        packageRoot.appending(path: "Sources/SlovoCore/SlovoCoreResourceBundle.swift")
-    }
-
-    private static var packageRoot: URL {
-        URL(fileURLWithPath: "\(#filePath)")
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
     }
 }

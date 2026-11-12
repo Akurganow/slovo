@@ -142,7 +142,7 @@ struct ThirdPartyNoticesTests {
     /// tooling stays exempt by construction; a dependency spelling outside
     /// these forms is not walked and would surface through the floor guard.
     private static func shippedProductPackages() throws -> Set<String> {
-        let manifest = AppRuntimeSourceGuardTests.strippingComments(from: try Self.source("Package.swift"))
+        let manifest = SourceText.strippingComments(from: try Self.source("Package.swift"))
         var pending: Set<String> = ["slovo"]
         var visited: Set<String> = []
         var packages: Set<String> = []

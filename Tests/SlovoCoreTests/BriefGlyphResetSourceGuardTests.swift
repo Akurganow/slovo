@@ -32,14 +32,14 @@ struct BriefGlyphResetSourceGuardTests {
     ///    dictation that began inside the window keeps its recording glyph instead of
     ///    being blanked to idle mid-hold.
     static func repairsSupersededReset(in helperBody: String) -> Bool {
-        guard let afterSleep = try? AppRuntimeSourceGuardTests.slice(of: helperBody, from: sleepStatement),
-              AppRuntimeSourceGuardTests.statementCount(abortPattern, in: afterSleep) == 1,
-              let abortToClear = try? AppRuntimeSourceGuardTests.slice(of: afterSleep, from: abortStatement, to: latchClear),
+        guard let afterSleep = try? SourceText.slice(of: helperBody, from: sleepStatement),
+              SourceText.statementCount(abortPattern, in: afterSleep) == 1,
+              let abortToClear = try? SourceText.slice(of: afterSleep, from: abortStatement, to: latchClear),
               !abortToClear.contains("isPipelineActive")
         else {
             return false
         }
-        return AppRuntimeSourceGuardTests.containsInOrder(
+        return SourceText.containsInOrder(
             [abortStatement, latchClear, pipelineGate, "self.paintIdleGlyph("],
             in: afterSleep
         )
@@ -77,8 +77,8 @@ struct BriefGlyphResetSourceGuardTests {
     /// in prose, so loosening the needles later cannot pass unnoticed.
     @Test
     func supersededResetAbortsAfterTheSleepWithoutStrandingTheLatch() throws {
-        let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
-        let helper = try AppRuntimeSourceGuardTests.functionBody(named: "flashBriefStatusGlyph", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let helper = try SourceText.functionBody(named: "flashBriefStatusGlyph", in: delegate)
 
         #expect(Self.repairsSupersededReset(in: helper),
                 "the reset task must abort when superseded, clear the latch, then gate only the paint; got:\n\(helper)")

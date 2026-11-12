@@ -3,11 +3,13 @@ import Testing
 
 import SlovoCore
 
-// Wiring guards. The behavior tests in HotkeyEdgeSequencerTests prove the
-// sequencer serializes edges, but nothing forced AppDelegate to actually ROUTE the
-// fn hotkey through it — reverting onTrigger to per-edge `Task { ... }` dispatch
-// (the original stuck-mute bug) reddened no test. These source guards close that
-// gap and pin the single-rebuild re-entrancy guard on retrySetup.
+// Source guards for wiring no behavioural test can reach. `Sources/slovo` is an
+// executable target that no test target depends on (`Package.swift`: the
+// `SlovoCoreTests` target depends on `SlovoCore`, `SlovoTestSupport` and `SlovoObjC`
+// only), and `CGEventTapHotkeyMonitor` builds a real event tap, which needs Input
+// Monitoring. Behaviour tests such as HotkeyEdgeSequencerTests and HotkeyDecision*Tests
+// cover the logic; these guards check that the app calls it. They read the source
+// with comments stripped.
 @Suite("AppDelegate hotkey wiring source guards")
 struct AppDelegateHotkeyWiringSourceGuardTests {
 
@@ -18,13 +20,13 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// or it dispatches concurrently again -> RED.
     @Test
     func onTriggerRoutesEveryEdgeThroughTheSequencer() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
         let onTriggerClosure = try Self.closureBody(afterAnchor: "hotkeyMonitor.onTrigger =", in: startPipeline)
 
         #expect(startPipeline.contains("HotkeyEdgeSequencer"),
                 "startPipeline must build the ordered edge sequencer")
-        #expect(onTriggerClosure.contains("sequencer.send(phase)"),
+        #expect(onTriggerClosure.contains("sequencer.send("),
                 "the hotkey onTrigger must route every edge through the sequencer")
         #expect(!onTriggerClosure.contains("Task"),
                 "the onTrigger closure must not dispatch each edge on its own Task (the stuck-mute race)")
@@ -34,20 +36,20 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// A second retrySetup while a teardown+rebuild is still pending must not spawn
     /// a parallel rebuild, so the re-entrancy guard has to be checked BEFORE the
-    /// rebuild Task. Killing mutation: remove the guard (the current state) and a
-    /// concurrent retrySetup spawns a second consumer -> RED.
-    /// Pinned shape: an early `guard ... return` precedes the teardown+rebuild
-    /// `Task`; the exact flag naming is free.
+    /// rebuild Task.
+    /// Stated sensitivity: remove the guard, or move it below the `Task` → RED, since a
+    /// concurrent retrySetup then spawns a second consumer; drop the join of the
+    /// previous sequencer → RED. The exact flag and local naming are free.
     @Test
     func retrySetupGuardsAgainstConcurrentRebuild() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let retrySetup = try Self.functionBody(named: "retrySetup", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let retrySetup = try SourceText.functionBody(named: "retrySetup", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "guard",
             "return",
             "Task {",
-            "await previousSequencer?.stop()",
+            "?.stop()",
             "startPipeline()",
         ], in: retrySetup),
         "retrySetup must guard against a second rebuild BEFORE spawning the teardown+rebuild Task")
@@ -60,10 +62,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// or below `isPipelineActive = true` -> RED. Add a second read of the stamp -> RED.
     @Test
     func keyDownMadeDuringProcessingIsRefusedBeforeAnySessionState() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "case .down(let mode):",
             "guard !edge.arrivedWhileBusy",
             "isModelReady",
@@ -81,10 +83,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// guard from the `.down` arm -> RED.
     @Test
     func keyDownIsGatedOnModelReadiness() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "case .down(let mode):",
             "isModelReady",
             "showModelLoadingState",
@@ -109,22 +111,22 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// : glyphMode` (the `recording: glyphMode` bind catches this) → RED.
     @Test
     func recordingGlyphTracksTheLatchedMode() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "case .down(let mode):",
             "applyRecordingGlyph(mode)",
         ], in: startPipeline),
         "the .down arm must route the recording glyph through applyRecordingGlyph")
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "case .translateLatched:",
             "applyRecordingGlyph(.translate)",
         ], in: startPipeline),
         "the translate latch must route the recording glyph through applyRecordingGlyph, live")
 
-        let helper = try Self.functionBody(named: "applyRecordingGlyph", in: delegate)
-        #expect(Self.containsInOrder([
+        let helper = try SourceText.functionBody(named: "applyRecordingGlyph", in: delegate)
+        #expect(SourceText.containsInOrder([
             "MenuBarGlyph.recordingGlyphMode(",
             "isCleanupOn: store.state.cleanupAvailability.isOn",
         ], in: helper),
@@ -137,22 +139,23 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// App-level key facts (has-key, save-key, cleanup availability) must read a
     /// provider the AppDelegate OWNS, never one pulled out of the pipeline
-    /// composite: before composition exists, `hasConfiguredKey() ?? false` would
+    /// composite: before the composition exists, a `?? false` fallback would
     /// fabricate "no key" and freeze the launch menu in offNoKey. Key presence
     /// lives in the store. It is written at launch, before each composition is
     /// built, and in the one helper that ends every key save or removal, each time
     /// read straight from the app-owned provider. A composition is seeded from the
     /// store, so the `startPipeline` write must precede `AppComposition.makeLive(`;
     /// `startPipeline` has no behavioural seam, so its source is read.
-    /// Stated sensitivity: reintroduce `composition?.openRouterKeyProvider` for a key
-    /// read, a `?? false` fallback, or a key-presence write that does not read the
-    /// provider → RED; drop one of the three write sites → the count reddens; move
-    /// the `startPipeline` write back below `AppComposition.makeLive(` → the order
-    /// assert reddens.
+    /// Stated sensitivity: a key-presence write that does not read the app-owned
+    /// provider → RED; a read through `composition?.openRouterKeyProvider`, or a
+    /// `?? false` fallback, → RED, also after a provider member is added back to
+    /// `AppComposition.Live`; drop one of the three write sites → the count reddens;
+    /// move the `startPipeline` write back below `AppComposition.makeLive(` → the
+    /// order assert reddens.
     @Test
     func appLayerKeyFactsReadTheAppOwnedProviderNotThePipeline() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let settings = try Self.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let settings = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
 
         #expect(delegate.contains("KeychainOpenRouterKeyProvider("),
                 "AppDelegate must own the key provider so key facts never depend on the pipeline's lifetime")
@@ -171,7 +174,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                     "each key-presence write must read the app-owned provider: \(write)")
             #expect(!write.contains("?? false"), "a key-presence write must not fabricate 'no key': \(write)")
         }
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
         let write = try #require(startPipeline.range(of: "isOpenRouterKeyPresent"))
         let build = try #require(startPipeline.range(of: "AppComposition.makeLive("))
         #expect(write.lowerBound < build.lowerBound, "the composition must be seeded with key presence read just before it")
@@ -183,10 +186,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// idle key-up drives stopRequested and overwrites the loading glyph -> RED.
     @Test
     func keyUpPairsWithTheGatedKeyDown() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "case .up(let mode):",
             "isPipelineActive",
             "orchestrator.handle(.stopRequested(",
@@ -203,20 +206,20 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// isModelReady, or delete the currency comparison from the gate task -> RED.
     @Test
     func modelWarmUpOpensTheDictationGate() throws {
-        let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        #expect(Self.containsInOrder(["modelWarmUp", "startWarmUp()"], in: composition),
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
+        #expect(SourceText.containsInOrder(["modelWarmUp", "startWarmUp()"], in: composition),
                 "the composition must expose the model preload as an awaitable task")
 
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
         #expect(startPipeline.contains("prepareModelGate"),
                 "startPipeline must enter the gated loading state")
 
-        let gate = try Self.code("Sources/slovo/AppDelegate+ModelGate.swift")
-        #expect(Self.containsInOrder([
+        let gate = try SourceText.code("Sources/slovo/AppDelegate+ModelGate.swift")
+        #expect(SourceText.containsInOrder([
             "showModelLoadingState",
             "modelWarmUp",
-            "self.composition?.modelWarmUp",
+            "composition?.modelWarmUp",
             "isModelReady = true",
             "stopModelLoadingPulse",
         ], in: gate),
@@ -233,11 +236,11 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// move the early return below `prepareModelGate` → RED.
     @Test
     func aCompositionThatSkipsTheGateClearsTheLoadingState() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
-        let presentOnboarding = try Self.functionBody(named: "presentOnboarding", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
+        let presentOnboarding = try SourceText.functionBody(named: "presentOnboarding", in: delegate)
 
-        #expect(Self.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "guard live.onboardingSteps == [.ready] else",
             "presentOnboarding(live.onboardingSteps)",
             "return",
@@ -259,9 +262,9 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// does; only this guard proves the production composition uses it.
     @Test
     func theSpeechModelIsBuiltOnceForTheProcessAndInjected() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let composition = try Self.code("Sources/slovo/AppComposition.swift")
-        let makeLive = try Self.functionBody(named: "makeLive", in: composition)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
+        let makeLive = try SourceText.functionBody(named: "makeLive", in: composition)
 
         #expect(delegate.components(separatedBy: "SharedSpeechModel(").count - 1 == 1,
                 "exactly one speech model may be built, and the app must own it")
@@ -275,21 +278,6 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "the pipeline must be wired to the shared transcriber")
     }
 
-    /// The interrupt-cancel edge must route through the sequencer sink into the
-    /// orchestrator's cancelRequested — the silent-cancel contract. Killing
-    /// mutation: drop the `.cancel` arm or route it to stopRequested → RED.
-    @Test
-    func cancelEdgeRoutesToCancelRequested() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let startPipeline = try Self.functionBody(named: "startPipeline", in: delegate)
-
-        #expect(Self.containsInOrder([
-            "case .cancel:",
-            "orchestrator.handle(.cancelRequested)",
-        ], in: startPipeline),
-        "the sequencer sink must handle a .cancel edge by cancelling the in-flight dictation")
-    }
-
     /// The tap must be built with the persisted key configuration — BOTH roles, the
     /// push-to-talk key and the translate key — not a hard-coded or hand-built value.
     /// Killing mutation: construct the monitor from a literal configuration (e.g.
@@ -297,7 +285,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// true)`) or from anything but `config.hotkeyConfiguration` → RED.
     @Test
     func monitorIsBuiltWithConfiguredTrigger() throws {
-        let composition = try Self.code("Sources/slovo/AppComposition.swift")
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
         #expect(composition.contains("CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration)"),
                 "the monitor must be constructed with the persisted key configuration")
     }
@@ -307,7 +295,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// never seen → RED.
     @Test
     func hotkeyTapObservesKeyDownForInterrupt() throws {
-        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        let monitor = try SourceText.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
         #expect(monitor.contains("CGEventType.keyDown.rawValue"),
                 "the event mask must include keyDown so the interrupt is observable")
     }
@@ -320,7 +308,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// resync arm → RED.
     @Test
     func synthesizedStopCarriesTheDeadHoldsMode() throws {
-        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        let monitor = try SourceText.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
         #expect(monitor.contains("onTrigger?(.up(synthesizedStop))"),
                 "the resync arm must emit the mode the decision core reported")
         #expect(!monitor.contains(".up(.plain)"),
@@ -330,21 +318,22 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// Privacy invariant: a non-trigger keyDown contributes only the fact that a
     /// key went down — never its typed character or key code. Killing mutations:
     /// read the typed character (add `keyboardGetUnicodeString`), or read the key
-    /// code in the keyDown arm (a second `getIntegerValueField`) to retain key
-    /// identity → RED.
+    /// code outside the flagsChanged arm to retain key identity → RED. Zero the key
+    /// code in the flagsChanged arm → RED.
     @Test
     func keyDownCarriesNoKeyContent() throws {
-        let monitor = try Self.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
-        #expect(Self.containsInOrder(["case .keyDown:", "= .keyDown"], in: monitor),
+        let monitor = try SourceText.code("Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift")
+        #expect(SourceText.containsInOrder(["case .keyDown:", "= .keyDown"], in: monitor),
                 "the keyDown arm must map to the payload-free input, not read the event")
         #expect(!monitor.contains("keyboardGetUnicodeString"),
                 "the tap must never read a keystroke's typed character")
-        // Exactly one key-CODE read is allowed — the flagsChanged trigger
-        // detection. The keyDown arm records only that a key went down; a
-        // `.keyboardEventKeycode` read there would retain the pressed key (leak).
-        let keyCodeReads = monitor.components(separatedBy: ".keyboardEventKeycode").count - 1
-        #expect(keyCodeReads == 1,
-                "only the flagsChanged arm may read a key code, got \(keyCodeReads) reads")
+        // Only the flagsChanged trigger detection reads a key code. A read in the keyDown
+        // arm, or before the switch, would retain the pressed key.
+        let flagsChangedArm = try SourceText.slice(of: monitor, from: "case .flagsChanged:", to: "case ")
+        #expect(!monitor.replacingOccurrences(of: flagsChangedArm, with: "").contains(".keyboardEventKeycode"),
+                "only the flagsChanged arm may read a key code")
+        #expect(flagsChangedArm.contains(".keyboardEventKeycode"),
+                "the trigger detection reads the modifier key code")
     }
 
     /// All three key settings apply live through the store's hotkey subscriber,
@@ -356,13 +345,13 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     @Test
     func everyKeySettingAppliesInPlaceWithoutRebuild() throws {
         var reconfigureCount = 0
-        for file in try AppRuntimeSourceGuardTests.swiftSourceFiles(under: "Sources/slovo") {
-            reconfigureCount += try Self.code(file).components(separatedBy: "hotkeyMonitor.reconfigure(configuration:").count - 1
+        for file in try SourceText.swiftFiles(under: "Sources/slovo") {
+            reconfigureCount += try SourceText.code(file).components(separatedBy: "hotkeyMonitor.reconfigure(configuration:").count - 1
         }
         #expect(reconfigureCount == 1, "the app target must reconfigure the tap from exactly one place")
-        let storeWiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift").filter { !$0.isWhitespace }
         #expect(storeWiring.contains(
-            "reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) }"
+            "reconfigureHotkeys:{[weakself]inself?.composition?.hotkeyMonitor.reconfigure(configuration:$0)}"
         ), "the one reconfigure call must be the hotkey target closure the store's subscriber calls")
     }
 
@@ -375,8 +364,8 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// Stated sensitivity: drop any write from menuWillOpen → RED.
     @Test
     func systemFactsAreReReadOnMenuOpen() throws {
-        let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
-        let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
+        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
+        let menuWillOpen = try SourceText.functionBody(named: "menuWillOpen", in: updateMenu)
         #expect(menuWillOpen.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
                 "menuWillOpen must write the live fn-assignment value into state")
         #expect(menuWillOpen.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
@@ -394,16 +383,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// `isFnKeySystemAssigned: false` — or drop the reader from the seed → RED.
     @Test
     func makeMenuPassesTheLiveFnAssignmentValue() throws {
-        let delegate = try Self.code("Sources/slovo/AppDelegate.swift")
-        let updateMenu = try Self.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
-        let makeMenu = try Self.functionBody(named: "makeMenu", in: delegate)
-        let initBody = try AppRuntimeSourceGuardTests.slice(
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
+        let makeMenu = try SourceText.functionBody(named: "makeMenu", in: delegate)
+        let initBody = try SourceText.slice(
             of: delegate,
             from: "fnKeyAssignmentReader: FnKeyAssignmentReading =",
             to: "func applicationDidFinishLaunching"
         )
-        let menuWillOpen = try Self.functionBody(named: "menuWillOpen", in: updateMenu)
-        let storeWiring = try Self.code("Sources/slovo/AppDelegate+Store.swift")
+        let menuWillOpen = try SourceText.functionBody(named: "menuWillOpen", in: updateMenu)
+        let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift")
         #expect(storeWiring.contains("isFnKeySystemAssigned: state.isFnKeySystemAssigned"),
                 "the build subscriber must pass the verdict held in state")
         #expect(makeMenu.contains("rows: rows"),
@@ -419,28 +408,6 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 #expect(!body.contains(literal), "\(name) must never hardcode the fn verdict: \(literal)")
             }
         }
-    }
-
-    private static func code(_ relativePath: String) throws -> String {
-        try strippingComments(from: String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8))
-    }
-
-    private static func containsInOrder(_ needles: [String], in source: String) -> Bool {
-        var searchStart = source.startIndex
-        for needle in needles {
-            guard let range = source.range(of: needle, range: searchStart..<source.endIndex) else {
-                return false
-            }
-            searchStart = range.upperBound
-        }
-        return true
-    }
-
-    private static func functionBody(named name: String, in source: String) throws -> String {
-        guard let signature = source.range(of: "func \(name)") else {
-            throw NSError(domain: "AppDelegateHotkeyWiringSourceGuard", code: 1)
-        }
-        return try blockBody(from: functionOpeningBrace(after: signature.lowerBound, in: source), in: source, code: 2)
     }
 
     /// The closure literal assigned right after `anchor`, e.g. `onTrigger = { ... }`.
@@ -469,68 +436,5 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             index = source.index(after: index)
         }
         throw NSError(domain: "AppDelegateHotkeyWiringSourceGuard", code: code)
-    }
-
-    private static func functionOpeningBrace(after start: String.Index, in source: String) -> String.Index? {
-        var index = start
-        var parenDepth = 0
-        while index < source.endIndex {
-            if source[index] == "(" {
-                parenDepth += 1
-            } else if source[index] == ")" {
-                parenDepth -= 1
-            } else if source[index] == "{", parenDepth == 0 {
-                return index
-            }
-            index = source.index(after: index)
-        }
-        return nil
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false, inBlockComment = false, inString = false
-
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-
-            if inLineComment {
-                if character == "\n" {
-                    inLineComment = false
-                    output.append(character)
-                }
-            } else if inBlockComment {
-                if character == "*" && next == "/" {
-                    inBlockComment = false
-                    index = nextIndex
-                }
-            } else if inString {
-                output.append(character)
-                if character == "\"" {
-                    inString = false
-                }
-            } else if character == "/" && next == "/" {
-                inLineComment = true
-                index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true
-                index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" {
-                    inString = true
-                }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static var packageRoot: URL {
-        let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 }

@@ -3,58 +3,22 @@ import Testing
 
 // The recording glyph reads cleanup availability in one place: both sequencer arms
 // route the glyph through `applyRecordingGlyph`, which reads the store.
+// AppDelegate is in the executable "slovo" target, which no test target imports
+// (Package.swift, SlovoCoreTests dependencies; docs/references/testing-swift.md
+// section 1.6), so these guards read source.
 @Suite("Cleanup toggle wiring source guard")
 struct CleanupToggleWiringSourceGuardTests {
-    private static let packageRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-
-    private static func code(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
-    /// Source with `//` line and `/* */` block comments removed, so a guard can
-    /// never be satisfied by a token that survives only in a comment.
-    private static func strippedCode(_ relativePath: String) throws -> String {
-        strippingComments(from: try code(relativePath))
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false, inBlockComment = false, inString = false
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-            if inLineComment {
-                if character == "\n" { inLineComment = false; output.append(character) }
-            } else if inBlockComment {
-                if character == "*" && next == "/" { inBlockComment = false; index = nextIndex }
-            } else if inString {
-                output.append(character)
-                if character == "\"" { inString = false }
-            } else if character == "/" && next == "/" {
-                inLineComment = true; index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true; index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" { inString = true }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
     /// Availability stays out of the sequencer arms: `applyRecordingGlyph` reads
     /// `store.state.cleanupAvailability.isOn` once, as the derivation argument, so no
     /// arm carries a separate gate read that a mutant could leave dead while still
-    /// ungating the paint. Both arms route the glyph through it.
+    /// ungating the paint. Both arms route the glyph through it. The rule itself (raw
+    /// wins over translate while cleanup is off) is
+    /// `MenuBarGlyphTests.recordingGlyphModeDerivesFromModeAndAvailability`.
     /// Stated sensitivity: read `cleanupAvailability` in either arm, or drop an arm's
     /// `applyRecordingGlyph` routing → RED.
     @Test
-    func recordingGlyphIgnoresTranslateWhileCleanupIsOff() throws {
-        let source = try Self.strippedCode("Sources/slovo/AppDelegate.swift")
+    func sequencerArmsReadNoAvailabilityAndPaintThroughApplyRecordingGlyph() throws {
+        let source = try SourceText.code("Sources/slovo/AppDelegate.swift")
         guard let downArm = source.range(of: "case .down(let mode):"),
               let latchArm = source.range(of: "case .translateLatched:"),
               let upArm = source.range(of: "case .up(let mode):")

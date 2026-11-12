@@ -26,9 +26,10 @@ import Testing
 // the fakes and their timing is legitimate; a blocking wait there is not an
 // orchestration-latency regression.
 //
-// Residual gaps, stated not hidden: (1) an orchestration helper extracted into a NEW
-// SlovoCore SUBDIRECTORY (rather than a top-level sibling file) would
-// escape the scope — the anchors below cannot detect that. (2) This catches a
+// Residual gaps, stated not hidden: (1) an orchestration helper in any SlovoCore
+// subdirectory other than `FSM/` escapes the scope. Today that includes `Hotkey/`
+// (the edge sequencer), `Composition/`, `Store/` and `Contracts/`; the anchors below
+// cannot detect that. (2) This catches a
 // wait/sleep/timer primitive, not a stall from arbitrary slow synchronous computation,
 // which no load-immune check can catch without reintroducing the wall-clock flakiness
 // this replaces.
@@ -95,7 +96,7 @@ struct DictationHotPathLatencySourceGuardTests {
     /// each comment-stripped. Recursive over `FSM/`, so a new decision-table file is
     /// covered; top-level so an actor helper split into a new sibling file is covered.
     private static func orchestrationSources() throws -> [ScannedSource] {
-        let core = packageRoot.appending(path: "Sources/SlovoCore", directoryHint: .isDirectory)
+        let core = SourceText.packageRoot.appending(path: "Sources/SlovoCore", directoryHint: .isDirectory)
         let fsm = core.appending(path: "FSM", directoryHint: .isDirectory)
         let manager = FileManager.default
 
@@ -110,40 +111,7 @@ struct DictationHotPathLatencySourceGuardTests {
             .sorted { $0.path < $1.path }
             .map { url in
                 (name: url.lastPathComponent,
-                 code: strippingComments(from: try String(contentsOf: url, encoding: .utf8)))
+                 code: SourceText.strippingComments(from: try String(contentsOf: url, encoding: .utf8)))
             }
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false, inBlockComment = false, inString = false
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-            if inLineComment {
-                if character == "\n" { inLineComment = false; output.append(character) }
-            } else if inBlockComment {
-                if character == "*" && next == "/" { inBlockComment = false; index = nextIndex }
-            } else if inString {
-                output.append(character)
-                if character == "\"" { inString = false }
-            } else if character == "/" && next == "/" {
-                inLineComment = true; index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true; index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" { inString = true }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static var packageRoot: URL {
-        let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 }

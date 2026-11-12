@@ -5,21 +5,15 @@ import Testing
 // when no key; dependent sections disabled while effectively off; the API-key
 // section NEVER disabled by availability (it is the way out of the no-key state);
 // the status line comes from CleanupAvailability, never a re-derived string.
+// The pane is in the executable "slovo" target, which no test target imports
+// (Package.swift, SlovoCoreTests dependencies; docs/references/testing-swift.md
+// section 1.6), so these guards read source.
 @Suite("Cleanup settings pane source guard")
 struct CleanupSettingsPaneSourceGuardTests {
-    private static let packageRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-
-    /// Comment-stripped like every sibling source guard (the shared
-    /// `AppRuntimeSourceGuardTests.strippingComments`): a commented-out
+    /// Read comment-stripped like every sibling source guard: a commented-out
     /// `.disabled(!availability.isOn)` must not inflate the dependent-section
     /// count below, and a token in documentation must not satisfy any pin.
-    private static func paneSource() throws -> String {
-        AppRuntimeSourceGuardTests.strippingComments(from: try String(
-            contentsOf: packageRoot.appending(path: "Sources/slovo/Settings/CleanupSettingsPane.swift"),
-            encoding: .utf8
-        ))
-    }
+    private static let panePath = "Sources/slovo/Settings/CleanupSettingsPane.swift"
 
     /// The title moved into the label builder — the status line is its subtitle Text,
     /// so the hint stays attached to the toggle instead of becoming its own row behind
@@ -29,7 +23,7 @@ struct CleanupSettingsPaneSourceGuardTests {
     /// the disabled modifier, or drop the title from the label → RED.
     @Test
     func masterToggleIsGatedOnToggleEnabled() throws {
-        let source = try Self.paneSource()
+        let source = try SourceText.code(Self.panePath)
         #expect(source.contains("Toggle(isOn: Binding("))
         #expect(source.contains(#"Text("Clean up dictation")"#))
         #expect(source.contains(".disabled(!availability.isToggleEnabled)"))
@@ -38,7 +32,7 @@ struct CleanupSettingsPaneSourceGuardTests {
     /// Stated sensitivity: hardcode a status string in the pane → RED.
     @Test
     func statusLineComesFromCleanupAvailability() throws {
-        let source = try Self.paneSource()
+        let source = try SourceText.code(Self.panePath)
         #expect(source.contains("availability.settingsStatusLine"))
         #expect(!source.contains("Cleanup is off"), "copy lives in CleanupAvailability, not the pane")
     }
@@ -53,7 +47,7 @@ struct CleanupSettingsPaneSourceGuardTests {
     /// section (model, writing style, translate) and the spell-check-hints section.
     @Test
     func dependentSectionsDisabledAndKeySectionExempt() throws {
-        let source = try Self.paneSource()
+        let source = try SourceText.code(Self.panePath)
         let disabledCount = source.components(separatedBy: ".disabled(!availability.isOn)").count - 1
         #expect(disabledCount == 2, "cleanupSection and spellCheckHintsSection; found \(disabledCount)")
         guard let apiStart = source.range(of: "private var apiKeySection") else {
@@ -68,22 +62,23 @@ struct CleanupSettingsPaneSourceGuardTests {
         #expect(!apiBody.contains(".disabled(!availability"), "the key section must never be gated by availability")
     }
 
-    /// Disabled-picker-in-offNoKey (supersedes the old replace-with-add-key pin): with
-    /// no key the model picker grays exactly like writing style and translate — it
-    /// rides the cleanupSection's availability gate, and the pane no longer
-    /// special-cases the no-key state with an active control. The key field in the
-    /// API-key section is the pane's affordance for entering a key; the dedicated
-    /// add-key WINDOW is the menu's, not a focus-a-field-below button here.
-    /// Stated sensitivity: reintroduce an `availability == .offNoKey` branch (an active
-    /// control in the model row), bring back the `addKeyButton`, or drop the
-    /// cleanupSection availability gate (so the model no longer grays in no-key) → RED.
+    /// With no key the model picker grays exactly like writing style and translate:
+    /// it rides the cleanupSection's availability gate, and the model row holds no
+    /// branch on key presence (an active control there was the removed add-key
+    /// button's place).
+    /// Stated sensitivity: put a branch on `offNoKey` or `hasKey` inside the model
+    /// row, reintroduce an `availability == .offNoKey` branch anywhere in the pane, or
+    /// drop the cleanupSection availability gate (so the model no longer grays in
+    /// no-key) → RED.
     @Test
     func modelSelectorGraysInOffNoKeyLikeTheOtherDependentRows() throws {
-        let source = try Self.paneSource()
+        let source = try SourceText.code(Self.panePath)
         #expect(!source.contains("availability == .offNoKey"),
                 "the pane must not special-case the no-key state with an active control")
-        #expect(!source.contains("addKeyButton"),
-                "the focus-a-field-below add-key button is removed; the menu's key window replaces it")
+        let modelRow = try Self.bodyOf("var modelRow", in: source)
+        for token in ["offNoKey", "hasKey"] {
+            #expect(!modelRow.contains(token), "the model row must not branch on key presence: \(token)")
+        }
 
         let bodyBlock = try Self.bodyOf("var body", in: source)
         guard let cleanup = bodyBlock.range(of: "cleanupSection"),

@@ -26,10 +26,10 @@ struct EmptyResultGlyphWiringSourceGuardTests {
     /// ordering needles above would pass).
     @Test
     func emptyResultFlashesBriefGlyphThenReturnsBeforeTitleLine() throws {
-        let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
-        let showStatusBody = try AppRuntimeSourceGuardTests.functionBody(named: "showStatus", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let showStatusBody = try SourceText.functionBody(named: "showStatus", in: delegate)
 
-        #expect(AppRuntimeSourceGuardTests.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "status.isNoSpeechNotice",
             "flashBriefStatusGlyph(status)",
             "return",
@@ -38,7 +38,7 @@ struct EmptyResultGlyphWiringSourceGuardTests {
 
         // The no-speech branch itself (from the `if` open brace to its `return`) must
         // carry NO status-line write — glyph-only, pinned directly rather than by order.
-        let noSpeechBranch = try AppRuntimeSourceGuardTests.slice(
+        let noSpeechBranch = try SourceText.slice(
             of: showStatusBody, from: "isNoSpeechNotice {", to: "return"
         )
         #expect(!noSpeechBranch.contains("statusLine ="),
@@ -54,10 +54,10 @@ struct EmptyResultGlyphWiringSourceGuardTests {
     /// flash immediately) or the `setStatusGlyph(status:` paint → RED.
     @Test
     func briefGlyphHelperLatchesPaintsAndSchedulesReset() throws {
-        let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
-        let helperBody = try AppRuntimeSourceGuardTests.functionBody(named: "flashBriefStatusGlyph", in: delegate)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let helperBody = try SourceText.functionBody(named: "flashBriefStatusGlyph", in: delegate)
 
-        #expect(AppRuntimeSourceGuardTests.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "isShowingBriefStatus = true",
             "setStatusGlyph(status: status",
             "briefStatusResetTask = Task",

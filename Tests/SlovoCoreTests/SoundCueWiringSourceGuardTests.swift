@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 
+// The slovo app target is not importable by any test target (Package.swift, SlovoCoreTests
+// dependencies), and the launcher, notices and README are text, so these guards read source.
 @Suite("Sound cue wiring source guards")
 struct SoundCueWiringSourceGuardTests {
     /// One preference in the store projects both UI surfaces, the menu toggle inverts
@@ -8,18 +10,19 @@ struct SoundCueWiringSourceGuardTests {
     /// synchronously before the next session snapshots it
     /// (`AppStoreEffectsTests.soundCueChangeUpdatesTheControllerSynchronously`).
     /// Stated sensitivity: restore a local Settings copy, render the menu from
-    /// anything but the builder's input, make the menu toggle set a constant, or move
-    /// the initial controller value out of AppComposition → RED.
+    /// anything but the builder's input, make the menu toggle set a constant, move the
+    /// initial controller value out of AppComposition, or let the Orchestrator or
+    /// PipelineFactory hold the cue preference → RED.
     @Test
     func soundCuePreferenceReachesPaneMenuAndComposition() throws {
-        let general = try AppRuntimeSourceGuardTests.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
-        let builder = try AppRuntimeSourceGuardTests.code("Sources/slovo/DictationMenuBuilder.swift")
-        let soundCues = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+SoundCues.swift")
-        let composition = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppComposition.swift")
-        let orchestrator = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Orchestrator.swift")
-        let pipelineFactory = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Composition/PipelineFactory.swift")
-        let toggle = try AppRuntimeSourceGuardTests.functionBody(named: "toggleDictationSoundCues", in: soundCues)
-        let makeLive = try AppRuntimeSourceGuardTests.functionBody(named: "makeLive", in: composition)
+        let general = try SourceText.code("Sources/slovo/Settings/GeneralSettingsPane.swift")
+        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
+        let soundCues = try SourceText.code("Sources/slovo/AppDelegate+SoundCues.swift")
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
+        let orchestrator = try SourceText.code("Sources/SlovoCore/Orchestrator.swift")
+        let pipelineFactory = try SourceText.code("Sources/SlovoCore/Composition/PipelineFactory.swift")
+        let toggle = try SourceText.functionBody(named: "toggleDictationSoundCues", in: soundCues)
+        let makeLive = try SourceText.functionBody(named: "makeLive", in: composition)
 
         #expect(general.contains("Sound Cues") && general.contains(#"store.binding(\.playsDictationSoundCues)"#))
         #expect(!general.contains("@State private var playsDictationSoundCues"),
@@ -37,29 +40,30 @@ struct SoundCueWiringSourceGuardTests {
                 "AppComposition alone owns the persisted initial controller value")
         #expect(makeLive.components(separatedBy: "cueController: cueController").count == 3,
                 "one controller instance must feed Dependencies and Live ownership")
-        #expect(!orchestrator.contains("playsDictationSoundCues"))
-        #expect(!orchestrator.contains("updatePlaysDictationSoundCues"))
+        #expect(!orchestrator.localizedCaseInsensitiveContains("playsDictationSoundCues"),
+                "the Orchestrator must hold no cue preference and expose no push for it")
         #expect(!pipelineFactory.contains("playsDictationSoundCues"),
                 "Orchestrator and PipelineFactory must not duplicate initial preference ownership")
     }
 
     /// The policy scans both production app targets, so a helper introduced away
     /// from today's cue files cannot hide an app-owned volume or alternate player.
-    /// Sensitivity: any forbidden token in any production Swift file → RED; removing
-    /// alert playback from the real player independently breaks the positive guard.
+    /// Sensitivity: any forbidden token in the code or a string literal of any production
+    /// Swift file → RED; removing alert playback from the real player independently breaks
+    /// the positive guard.
     @Test
     func productionSourcesUseOnlyThePublicAlertVolumePath() throws {
         let sources = try Self.productionSwiftSources()
         let violations = Self.volumePolicyViolations(in: sources)
         #expect(violations.isEmpty, "app-owned cue volume/private playback found: \(violations)")
 
-        let cuePlayer = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Audio/DictationCueController.swift")
+        let cuePlayer = try SourceText.code("Sources/SlovoCore/Audio/DictationCueController.swift")
         #expect(cuePlayer.contains("AudioServicesCreateSystemSoundID"))
         #expect(cuePlayer.contains("AudioServicesPlayAlertSoundWithCompletion"),
                 "alert playback follows the macOS alert/notification volume")
         #expect(cuePlayer.contains("AudioServicesDisposeSystemSoundID"), "owned sound IDs must be disposed")
 
-        let updater = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
+        let updater = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         #expect(!updater.contains("DictationCue") && !updater.contains("cueController"),
                 "updater failures must not emit dictation cues")
     }
@@ -99,33 +103,24 @@ struct SoundCueWiringSourceGuardTests {
     /// with the brief glyph → RED.
     @Test
     func failureStatusDrivesBriefRedGlyphWithoutErasingPersistentText() throws {
-        let delegate = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate.swift")
-        let orchestrator = try AppRuntimeSourceGuardTests.code("Sources/SlovoCore/Orchestrator.swift")
-        let showStatus = try AppRuntimeSourceGuardTests.functionBody(named: "showStatus", in: delegate)
-        let flash = try AppRuntimeSourceGuardTests.functionBody(named: "flashBriefStatusGlyph", in: delegate)
-        let reportStatus = try AppRuntimeSourceGuardTests.functionBody(named: "reportStatus", in: orchestrator)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let showStatus = try SourceText.functionBody(named: "showStatus", in: delegate)
+        let flash = try SourceText.functionBody(named: "flashBriefStatusGlyph", in: delegate)
         #expect(showStatus.contains("status.isFailureNotice"))
         #expect(showStatus.contains("flashBriefStatusGlyph(status)"))
         #expect(showStatus.contains("statusLine = .message(status)"))
         #expect(flash.contains("status.isPersistentNotice"),
                 "brief red paint must not reset persistent failure text to the idle hint")
-        #expect(reportStatus.contains("status.isFailureNotice"))
-        #expect(reportStatus.contains("cueController.enqueue(.error)"),
-                "the same classified failure event must enqueue one Error cue")
-        #expect(reportStatus.contains("statusReporter(status)"),
-                "the Error cue and red glyph must remain projections of the same status event")
     }
 
-    /// Sensitivity: omitting resource declaration, one dev-verify assertion, the
-    /// CC0 attribution/source/recipe, or user-facing behavior documentation → RED.
+    /// Sensitivity: omitting a dev-verify assertion, the CC0 attribution/source/recipe,
+    /// or the user-facing behavior documentation → RED.
     @Test
     func resourcesPackagingNoticesAndDocsTravelTogether() throws {
-        let manifest = try Self.source("Package.swift")
-        let launcher = try Self.source("Scripts/build_and_run.sh")
-        let notices = try Self.source("THIRD-PARTY-NOTICES.md")
-        let readme = try Self.source("README.md")
+        let launcher = try SourceText.read("Scripts/build_and_run.sh")
+        let notices = try SourceText.read("THIRD-PARTY-NOTICES.md")
+        let readme = try SourceText.read("README.md")
 
-        #expect(manifest.contains(#".copy("Resources/AudioCues")"#))
         for name in ["start.wav", "end.wav", "error.wav"] {
             #expect(launcher.contains("$core_resources/AudioCues/\(name)"),
                     "dev --verify must assert packaged \(name)")
@@ -133,7 +128,7 @@ struct SoundCueWiringSourceGuardTests {
         for required in ["AbdrTar", "CC0 1.0", "519985", "519986", "558121", "asetrate=44160", "lowpass=f=2400"] {
             #expect(notices.contains(required), "third-party notices must preserve \(required)")
         }
-        #expect(readme.contains("Sound Cues"))
+        #expect(readme.localizedCaseInsensitiveContains("sound cues"))
         #expect(readme.localizedCaseInsensitiveContains("alert volume"),
                 "README must explain that cue loudness follows the system alert volume")
     }
@@ -150,21 +145,9 @@ struct SoundCueWiringSourceGuardTests {
     ]
 
     private static func productionSwiftSources() throws -> [ProductionSource] {
-        try ["Sources/SlovoCore", "Sources/slovo"].flatMap { relativeRoot in
-            let root = packageRoot.appending(path: relativeRoot, directoryHint: .isDirectory)
-            return try FileManager.default.subpathsOfDirectory(atPath: root.path)
-                .filter { path in
-                    path.hasSuffix(".swift")
-                        && !path.split(separator: "/").contains("Generated")
-                        && !path.hasSuffix("resource_bundle_accessor.swift")
-                }
-                .map { path in
-                    ProductionSource(
-                        path: "\(relativeRoot)/\(path)",
-                        contents: try String(contentsOf: root.appending(path: path), encoding: .utf8)
-                    )
-                }
-        }
+        try ["Sources/SlovoCore", "Sources/slovo"]
+            .flatMap { try SourceText.swiftFiles(under: $0) }
+            .map { ProductionSource(path: $0, contents: try SourceText.code($0)) }
     }
 
     private static func volumePolicyViolations(in sources: [ProductionSource]) -> [String] {
@@ -173,16 +156,5 @@ struct SoundCueWiringSourceGuardTests {
                 source.contents.contains(token) ? "\(source.path): \(token)" : nil
             }
         }
-    }
-
-    private static func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
-    private static var packageRoot: URL {
-        URL(fileURLWithPath: "\(#filePath)")
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
     }
 }

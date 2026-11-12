@@ -16,15 +16,15 @@ struct MenuBarGlyphWiringSourceGuardTests {
     /// error glyph to a black template) → the error-path order check goes RED.
     @Test
     func statusGlyphRoutesStatusTintIntoCoreRenderer() throws {
-        let glyphSource = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+Glyph.swift")
-        let statusBody = try AppRuntimeSourceGuardTests.functionBody(named: "setStatusGlyph(status:", in: glyphSource)
-        let stateBody = try AppRuntimeSourceGuardTests.functionBody(named: "setStatusGlyph(_ state:", in: glyphSource)
+        let glyphSource = try SourceText.code("Sources/slovo/AppDelegate+Glyph.swift")
+        let statusBody = try SourceText.functionBody(named: "setStatusGlyph(status:", in: glyphSource)
+        let stateBody = try SourceText.functionBody(named: "setStatusGlyph(_ state:", in: glyphSource)
 
-        #expect(AppRuntimeSourceGuardTests.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "MenuBarGlyph.image(for:",
             "tint: MenuBarGlyph.tint(forStatus: status)",
         ], in: statusBody))
-        #expect(AppRuntimeSourceGuardTests.containsInOrder([
+        #expect(SourceText.containsInOrder([
             "MenuBarGlyph.image(for:",
             "tint: .normal",
         ], in: stateBody))
@@ -36,7 +36,7 @@ struct MenuBarGlyphWiringSourceGuardTests {
     /// Sensitivity: reintroduce an app-local `isTemplate` glyph builder → RED.
     @Test
     func appGlyphSourceDoesNotManageTemplateFlagLocally() throws {
-        let glyphSource = try AppRuntimeSourceGuardTests.code("Sources/slovo/AppDelegate+Glyph.swift")
+        let glyphSource = try SourceText.code("Sources/slovo/AppDelegate+Glyph.swift")
 
         #expect(!glyphSource.contains("isTemplate"))
     }
