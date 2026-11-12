@@ -263,8 +263,9 @@ struct AppRuntimeSourceGuardTests {
     /// Application Support. Stated sensitivity: revert to the SDK default (drop
     /// downloadBase / applicationSupportDirectory) → RED; ASR not built as
     /// WhisperKitTranscriber → composition RED; a Documents marker anywhere → RED.
-    /// `WhisperKitEngine` passes the download base only inside `load()`, which needs a
-    /// real model, so its source is the only place the argument can be checked.
+    /// That both configurations carry the base is pinned by
+    /// `WhisperKitEngineLoadConfigTests`; where the base resolves can only be read from
+    /// the source, since `modelDownloadBase()` is private and needs the real directory.
     @Test
     func productionAsrEngineSetsNonDocumentsModelDownloadBase() throws {
         let sourcePaths = try ["Sources/SlovoCore/ASR", "Sources/SlovoCore/Composition", "Sources/slovo"]
@@ -275,9 +276,6 @@ struct AppRuntimeSourceGuardTests {
         let engine = try #require(sourceByPath["Sources/SlovoCore/ASR/WhisperKitEngine.swift"])
 
         #expect(speechModel.contains("WhisperKitTranscriber("))
-        // The comma matches the two WhisperKit configs, not the folder lookup's `downloadBase: base)`.
-        #expect(engine.components(separatedBy: "downloadBase: base,").count - 1 == 2,
-                "both WhisperKit configs in WhisperKitEngine must set downloadBase; the download call is the one that would write under Documents")
         #expect(engine.contains("applicationSupportDirectory"),
                 "the model download base must resolve under Application Support, not Documents")
         for forbidden in ["documentDirectory", ".documentsDirectory", "Documents"] {

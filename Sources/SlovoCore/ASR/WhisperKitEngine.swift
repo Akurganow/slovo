@@ -40,32 +40,19 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         guard !isLoaded else { return }
         Self.diagnosticLog.info("asr.modelLoad state=started")
         let loadStartUptime = ProcessInfo.processInfo.systemUptime
-        let engine: WhisperKit
-        let loadedFromCache: Bool
         do {
             let base = try Self.modelDownloadBase()
-            let cached = Self.cachedModelFolder(model: model, base: base)
             do {
-                engine = try await WhisperKit(WhisperKitConfig(
-                    model: model,
-                    downloadBase: base,
-                    modelFolder: cached.path(percentEncoded: false),
-                    verbose: false,
-                    logLevel: .error,
-                    load: true,
-                    download: false
-                ))
-                loadedFromCache = true
+                let engine = try await WhisperKit(Self.cachedLoadConfig(model: model, base: base))
+                let loadMs = Self.elapsedMs(since: loadStartUptime)
+                lock.withLock { loadedEngine = engine }
+                // Two literal lines: the redaction gate admits no `.public` payload beyond its metric allowlist.
+                Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public) source=cache")
             } catch {
-                engine = try await WhisperKit(WhisperKitConfig(
-                    model: model,
-                    downloadBase: base,
-                    verbose: false,
-                    logLevel: .error,
-                    load: true,
-                    download: true
-                ))
-                loadedFromCache = false
+                let engine = try await WhisperKit(Self.downloadLoadConfig(model: model, base: base))
+                let loadMs = Self.elapsedMs(since: loadStartUptime)
+                lock.withLock { loadedEngine = engine }
+                Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public) source=download")
             }
         } catch {
             let loadMs = Self.elapsedMs(since: loadStartUptime)
@@ -77,14 +64,33 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
             )
             throw error
         }
-        let loadMs = Self.elapsedMs(since: loadStartUptime)
-        lock.withLock { loadedEngine = engine }
-        // Two literal lines: the redaction gate admits no `.public` payload beyond its metric allowlist.
-        if loadedFromCache {
-            Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public) source=cache")
-        } else {
-            Self.diagnosticLog.info("asr.modelLoad state=finished ms=\(loadMs, privacy: .public) source=download")
-        }
+    }
+
+    /// The configuration of the load from the app cache: the model folder is given and
+    /// `download` is off, so the load makes no request.
+    static func cachedLoadConfig(model: String, base: URL) -> WhisperKitConfig {
+        WhisperKitConfig(
+            model: model,
+            downloadBase: base,
+            modelFolder: cachedModelFolder(model: model, base: base).path(percentEncoded: false),
+            verbose: false,
+            logLevel: .error,
+            load: true,
+            download: false
+        )
+    }
+
+    /// The configuration of the load that fetches the model: no model folder and
+    /// `download` on, writing under `base`.
+    static func downloadLoadConfig(model: String, base: URL) -> WhisperKitConfig {
+        WhisperKitConfig(
+            model: model,
+            downloadBase: base,
+            verbose: false,
+            logLevel: .error,
+            load: true,
+            download: true
+        )
     }
 
     private static func elapsedMs(since startUptime: TimeInterval) -> Int {
@@ -105,11 +111,19 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         ).appending(path: "slovo/models", directoryHint: .isDirectory)
     }
 
-    /// The folder WhisperKit's download writes `model` into under `base`. The SDK names the
-    /// repository folder; the `openai_whisper-` prefix is the Hub's folder name for every
-    /// model of that repository Slovo offers (argmax-oss-swift 1.1.1 at `1bbc57cb`,
-    /// `WhisperKit.swift:264-303`, source). A model id under another prefix, which only a
-    /// hand edit can produce, misses the cache and loads through the download path.
+    /// The folder WhisperKit's download writes `model` into under `base`: the repository
+    /// folder plus the variant folder. Each citation is a source file of argmax-oss-swift 1.1.1
+    /// at `1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4` (`Package.resolved`) unless marked.
+    /// - The default repository is the literal `argmaxinc/whisperkit-coreml`
+    ///   (`WhisperKit.swift:327`).
+    /// - The repository folder is `<base>/models/<repository id>`
+    ///   (`ArgmaxCore/External/Hub/HubApi.swift:333-335`), the folder `snapshot` returns
+    ///   (`HubApi.swift:564-566`, `637`, `671`).
+    /// - The download appends the variant folder it takes from the Hub listing
+    ///   (`WhisperKit.swift:267-273`, `296-303`). The SDK README names that folder
+    ///   `openai_whisper-{MODEL}` (`README.md:247`, documentation), so a model id under
+    ///   another prefix, which only a hand edit can produce, misses the cache and loads
+    ///   through the download path.
     static func cachedModelFolder(model: String, base: URL) -> URL {
         HubApiWrapper(downloadBase: base)
             .localRepoLocation(HubApiWrapper.Repo(id: "argmaxinc/whisperkit-coreml"))
