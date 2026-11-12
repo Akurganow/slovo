@@ -16,9 +16,30 @@ public struct OpenRouterCleaner: Cleaner {
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-    private static let requestTimeout: TimeInterval = 30
+
+    // The resource timer bounds the whole request: an idle timer alone lets a trickling
+    // reply hold the pipeline, and every press is refused until it ends. The idle timer
+    // gets the same number so it cannot fire first. Apple's NSURLSession.h (macOS 27.2
+    // SDK), timeoutIntervalForResource: "The resource timer starts when the request is
+    // initiated and counts until either the request completes or this timeout interval
+    // is reached, whichever comes first."
+    static let deadline: TimeInterval = 10
+    static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = deadline
+        configuration.timeoutIntervalForResource = deadline
+        return URLSession(configuration: configuration)
+    }()
 
     public init(
+        keyProvider: OpenRouterKeyProvider,
+        promptBuilder: PromptBuilder,
+        log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "cleaner")
+    ) {
+        self.init(session: Self.session, keyProvider: keyProvider, promptBuilder: promptBuilder, log: log)
+    }
+
+    init(
         session: URLSession,
         keyProvider: OpenRouterKeyProvider,
         promptBuilder: PromptBuilder,
@@ -65,7 +86,6 @@ public struct OpenRouterCleaner: Cleaner {
             reasoning: OpenRouterRequest.Reasoning(effort: "none")
         )
         var urlRequest = URLRequest(url: Self.endpoint)
-        urlRequest.timeoutInterval = Self.requestTimeout
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
@@ -81,10 +101,11 @@ public struct OpenRouterCleaner: Cleaner {
         let requestStartUptime = ProcessInfo.processInfo.systemUptime
         do {
             (data, response) = try await session.data(for: urlRequest)
-        } catch is URLError {
-            log.event("cleanup failed: offline")
+        } catch let error as URLError {
+            let token = Self.transportToken(error)
+            log.event("cleanup failed: \(token)")
             Self.logFailure(
-                failureKind: "offline",
+                failureKind: token,
                 failureStatus: "none",
                 failureMs: Self.elapsedMs(since: requestStartUptime)
             )
@@ -98,8 +119,8 @@ public struct OpenRouterCleaner: Cleaner {
         )
 
         guard let http = response as? HTTPURLResponse else {
-            log.event("cleanup failed: offline")
-            Self.logFailure(failureKind: "offline", failureStatus: "none", failureMs: requestMs)
+            log.event("cleanup failed: badResponse")
+            Self.logFailure(failureKind: "badResponse", failureStatus: "none", failureMs: requestMs)
             throw CleanupError.offline
         }
 
@@ -141,6 +162,22 @@ public struct OpenRouterCleaner: Cleaner {
             status=\(failureStatus, privacy: .public) ms=\(failureMs, privacy: .public)
             """
         )
+    }
+
+    // Fixed tokens only: `RedactionSafeLog.event` takes no payload.
+    private static func transportToken(_ error: URLError) -> String {
+        switch error.code {
+        case .timedOut:
+            "timedOut"
+        case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed,
+             .internationalRoamingOff, .callIsActive:
+            "offline"
+        case .secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted,
+             .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected:
+            "tls"
+        default:
+            "transport"
+        }
     }
 
     private static func elapsedMs(since startUptime: TimeInterval) -> Int {

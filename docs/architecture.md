@@ -165,7 +165,8 @@ A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
 A reply with no visible character counts as a cleanup failure, so the raw
-transcript is inserted.
+transcript is inserted. One cleanup request is bounded by 10 seconds in total,
+and a request that runs longer inserts the raw transcript.
 
 ## Storage
 

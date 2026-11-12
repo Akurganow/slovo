@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 @Suite("Cleanup provider OpenRouter cleaner")
@@ -51,7 +51,6 @@ struct OpenRouterCleanerTests {
         #expect(request.value(forHTTPHeaderField: "content-type") == "application/json")
         #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://github.com/Akurganow/slovo")
         #expect(request.value(forHTTPHeaderField: "X-Title") == "Slovo")
-        #expect(request.timeoutInterval == 30)
 
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         #expect(json["model"] as? String == "openai/gpt-6-luna")
@@ -67,6 +66,15 @@ struct OpenRouterCleanerTests {
         #expect(messages.map(\.["role"]) == ["system", "user"])
         #expect(messages.first?["content"]?.contains("Return only the cleaned transcript") == true)
         #expect(messages.last?["content"] == "<transcript>raw transcript</transcript>")
+    }
+
+    /// Stated sensitivity: drop either timeout line from the session configuration
+    /// -> the default (60 s idle, 7 days total) comes back -> RED.
+    @Test
+    func cleanupSessionEndsEveryRequestAfterTenSeconds() {
+        let configuration = OpenRouterCleaner.session.configuration
+        #expect(configuration.timeoutIntervalForResource == 10)
+        #expect(configuration.timeoutIntervalForRequest == 10)
     }
 
     /// Stated sensitivity: parsing only OpenAI Responses API `output_text`, or
@@ -102,6 +110,43 @@ struct OpenRouterCleanerTests {
 
         #expect(scenario.recordedRequests.count == 1,
                 "fail-closed: exactly one outbound POST, got \(scenario.recordedRequests.count)")
+    }
+
+    /// Stated sensitivity: mapping every code to `offline` -> the rows other than
+    /// `offline` go RED, because the log loses the transport cause. The thrown
+    /// error stays `.offline` in every row.
+    @Test(arguments: [
+        (URLError.Code.timedOut, "timedOut"),
+        (.notConnectedToInternet, "offline"),
+        (.networkConnectionLost, "offline"),
+        (.dataNotAllowed, "offline"),
+        (.internationalRoamingOff, "offline"),
+        (.callIsActive, "offline"),
+        (.secureConnectionFailed, "tls"),
+        (.serverCertificateHasBadDate, "tls"),
+        (.serverCertificateUntrusted, "tls"),
+        (.serverCertificateHasUnknownRoot, "tls"),
+        (.serverCertificateNotYetValid, "tls"),
+        (.clientCertificateRejected, "tls"),
+        (.cannotFindHost, "transport"),
+    ])
+    func transportFailureLogsItsCauseAndThrowsOffline(code: URLError.Code, token: String) async {
+        let scenario = StubScenario(response: .transportError(URLError(code)))
+        var captured: [String] = []
+        let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder(),
+            log: log
+        )
+
+        await Self.expectThrows(cleaner) { error in
+            guard case .offline = error else { return "expected .offline, got \(error)" }
+            return nil
+        }
+        #expect(captured.contains("cleanup failed: \(token)"),
+                "expected the log to name the transport cause \(token), got \(captured)")
     }
 
     /// Stated sensitivity: mapping 429 to generic apiError makes the fallback

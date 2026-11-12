@@ -40,7 +40,6 @@ enum AppComposition {
             }
         }
         let cleaner = OpenRouterCleaner(
-            session: .shared,
             keyProvider: openRouterKeyProvider,
             promptBuilder: PromptBuilder(examples: .bundled),
             log: log
