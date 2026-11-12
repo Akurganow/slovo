@@ -164,9 +164,9 @@ engine's error code. None of these names a device. A launch that finds stored
 settings damaged or in conflict logs how many it found, never their names or
 values; stored settings that are not a JSON object log one fixed line saying the
 defaults were used. A disable of the key tap by macOS logs one of two fixed lines,
-for a timeout or for user input, with a true or false flag saying whether a
-dictation in progress was ended. Error text is logged privately; transcripts,
-cleaned text and keys never reach the log.
+for a timeout or for user input, with a true or false flag saying whether an open
+key hold was released. Error text is logged privately; transcripts, cleaned text
+and keys never reach the log.
 
 ## Clipboard
 

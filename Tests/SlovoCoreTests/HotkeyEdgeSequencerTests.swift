@@ -12,7 +12,8 @@ import SlovoCore
 //   - init(sink: @escaping @Sendable (HotkeyEdge) async -> Void)
 //   - func send(_ phase: HotkeyPhase)   // synchronous, thread-safe, non-isolated
 //                                        // (called from the CGEventTap run-loop thread)
-//   - func stop() async                 // teardown: consumer stops, later sends are dropped
+//   - func stop() async                 // teardown: drains, ends with one .cancel, consumer stops,
+//                                        // later sends are dropped
 //
 // Every edge carries a stamp set when it was sent: true when an earlier edge was
 // still queued or being handled. `OutstandingEdgeCountTests` drives that counter.
@@ -118,29 +119,33 @@ struct HotkeyEdgeSequencerTests {
         await sequencer.stop()
     }
 
-    /// Teardown must DRAIN the enqueued edges and JOIN the consumer before it
-    /// returns, so a rebuilt monitor cannot leave a second consumer draining the same
-    /// fn edges.
+    /// Teardown must DRAIN the enqueued edges, end the stream with one `.cancel`, and
+    /// JOIN the consumer before it returns. The cancel ends any dictation the drained
+    /// edges left open (a press with no release, say), so a torn-down pipeline never
+    /// keeps the microphone open or output muted; a rebuilt monitor cannot leave a
+    /// second consumer draining the same fn edges.
     ///
     /// The recorder is read SYNCHRONOUSLY (a Mutex, not an actor) on purpose: the
-    /// only suspension point between enqueuing `.down` and the assertion is `stop()`
-    /// itself. A correct stop() finishes the stream and awaits the consumer, so
-    /// `.down` is delivered before it returns.
-    /// Killing mutation: drop the `await consumer.value` join from stop() → RED in
-    /// the schedules where the consumer Task has not yet delivered `.down` when the
-    /// read runs (handled == []); the consumer runs on another thread, so a schedule
-    /// that delivers it first passes. Drop `continuation.finish()` → the consumer
-    /// never ends and the join never returns → the test hangs.
+    /// only suspension point between enqueuing the edges and the assertion is
+    /// `stop()` itself.
+    /// Killing mutation: drop the cancel from stop() → handled ends at `.up` → RED.
+    /// Killing mutation: hand the cancel to the sink directly at the start of stop(),
+    /// ahead of the drained edges → RED in the schedules where the consumer has not
+    /// handled both edges yet. Killing mutation: drop the `await consumer.value`
+    /// join → RED in the schedules where the consumer has not delivered all three
+    /// edges by the read. Drop `continuation.finish()` → the consumer never ends and
+    /// the join never returns → the test hangs.
     @Test
-    func teardownDrainsEnqueuedEdgesBeforeStopReturns() async {
+    func teardownDrainsEnqueuedEdgesThenCancelsBeforeStopReturns() async {
         let handled = Mutex<[HotkeyPhase]>([])
         let sequencer = HotkeyEdgeSequencer { edge in handled.withLock { $0.append(edge.phase) } }
 
         sequencer.send(.down(.plain))
+        sequencer.send(.up(.plain))
         await sequencer.stop()
 
-        #expect(handled.withLock { $0 } == [.down(.plain)],
-                "stop() must drain the enqueued edge and join the consumer before returning")
+        #expect(handled.withLock { $0 } == [.down(.plain), .up(.plain), .cancel],
+                "stop() must deliver the enqueued edges, then one cancel, and nothing after, before returning")
     }
 }
 

@@ -42,7 +42,9 @@ final class OutstandingEdgeCount: Sendable {
 /// The key-up handler holds the channel across the whole finalize, cleanup and
 /// insert pipeline. Every edge sent during that stretch arrives stamped busy.
 public final class HotkeyEdgeSequencer: Sendable {
-    private let continuation: AsyncStream<HotkeyEdge>.Continuation
+    /// Behind a lock so that `stop()`'s final cancel and the end of the stream are
+    /// one step: no edge sent from the tap thread can land between them.
+    private let continuation: Mutex<AsyncStream<HotkeyEdge>.Continuation>
     private let consumer: Task<Void, Never>
     private let outstandingEdges: OutstandingEdgeCount
 
@@ -52,7 +54,7 @@ public final class HotkeyEdgeSequencer: Sendable {
     public init(sink: @escaping @Sendable (HotkeyEdge) async -> Void) {
         let (stream, continuation) = AsyncStream<HotkeyEdge>.makeStream()
         let outstandingEdges = OutstandingEdgeCount()
-        self.continuation = continuation
+        self.continuation = Mutex(continuation)
         self.outstandingEdges = outstandingEdges
         self.consumer = Task {
             for await edge in stream {
@@ -65,17 +67,26 @@ public final class HotkeyEdgeSequencer: Sendable {
     }
 
     /// Enqueues an edge, stamped with what the channel was doing when it arrived.
-    /// Synchronous and thread-safe so the tap thread never blocks. Edges sent after
-    /// `stop()` are dropped.
+    /// Synchronous and thread-safe: the tap thread waits at most for a `stop()` that
+    /// is ending the stream, never for a handler. Edges sent after `stop()` are
+    /// dropped.
     public func send(_ phase: HotkeyPhase) {
-        let arrivedWhileBusy = outstandingEdges.arrive()
-        continuation.yield(HotkeyEdge(phase: phase, arrivedWhileBusy: arrivedWhileBusy))
+        continuation.withLock { _ = $0.yield(edge(phase)) }
     }
 
-    /// Finishes the channel and joins the consumer, so a rebuilt monitor cannot
-    /// leave a second consumer draining edges.
+    /// Ends the channel with one `.cancel` after the edges already sent, then joins
+    /// the consumer. The cancel ends whatever dictation those edges left open, a
+    /// press whose release the torn-down tap will never send, before this returns.
+    /// The join means a rebuilt monitor cannot leave a second consumer draining edges.
     public func stop() async {
-        continuation.finish()
+        continuation.withLock { continuation in
+            continuation.yield(edge(.cancel))
+            continuation.finish()
+        }
         await consumer.value
+    }
+
+    private func edge(_ phase: HotkeyPhase) -> HotkeyEdge {
+        HotkeyEdge(phase: phase, arrivedWhileBusy: outstandingEdges.arrive())
     }
 }
