@@ -2,14 +2,13 @@ import SlovoCore
 import Synchronization
 
 /// A `SystemAudioController` fake that returns a programmed `PriorAudioState` on
-/// mute and records what each restore targeted and whether it actually wrote.
+/// mute and records the device each restore targeted.
 ///
 /// The recorded state is `Mutex`-guarded so the fake is genuinely race-free under
 /// the `actor Orchestrator`.
 public final class FakeSystemAudioController: SystemAudioController {
     private struct Recorded {
         var restoredDeviceIDs: [UInt32] = []
-        var restoreDeviceWrites: [Bool] = []
         var muteCount = 0
     }
 
@@ -26,12 +25,6 @@ public final class FakeSystemAudioController: SystemAudioController {
         recorded.withLock { $0.restoredDeviceIDs }
     }
 
-    /// Whether each restore issued a real device write — `true` only when the
-    /// device was not already muted (restore is a no-op for already-muted output).
-    public var restoreDeviceWrites: [Bool] {
-        recorded.withLock { $0.restoreDeviceWrites }
-    }
-
     /// How many times mute was invoked — lets a single-flight test assert NO
     /// second mute occurs on a re-entrant Start.
     public var muteCount: Int {
@@ -46,7 +39,6 @@ public final class FakeSystemAudioController: SystemAudioController {
     public func restoreSystemOutput(_ state: PriorAudioState) throws {
         recorded.withLock { current in
             current.restoredDeviceIDs.append(state.deviceID)
-            current.restoreDeviceWrites.append(!state.wasAlreadyMuted)
         }
     }
 }

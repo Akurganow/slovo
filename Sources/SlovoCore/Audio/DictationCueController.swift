@@ -29,7 +29,7 @@ public struct DictationCuePlayback: Sendable {
         DictationCuePlayback(playback: Task {})
     }
 
-    public func awaitCompletion() async {
+    func awaitCompletion() async {
         await playback?.value
     }
 }

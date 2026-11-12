@@ -26,8 +26,8 @@ public final class FakeAudioRecorder: AudioRecorder {
         self.chunkCount = chunkCount
     }
 
-    /// How many times the engine was (would have been) started — stays 0 when the
-    /// mic is denied, proving the engine is never touched before the auth check.
+    /// How many `start()` calls passed the authorization check; a denied call adds
+    /// nothing.
     public var engineStartCount: Int {
         state.withLock { $0.starts }
     }

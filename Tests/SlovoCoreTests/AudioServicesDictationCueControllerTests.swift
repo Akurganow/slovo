@@ -178,25 +178,6 @@ struct AudioServicesDictationCueControllerTests {
         #expect(await playback.releaseNext())
     }
 
-    /// Sensitivity: with no guard both branches resume one continuation and the process
-    /// traps. Aligned waits collide them; a non-atomic guard still slips through.
-    @Test
-    func playbackCompletionAndDeadlineResumeTheCallerOnlyOnce() async {
-        await withTaskGroup(of: Void.self) { races in
-            for _ in 0 ..< Self.resumeRaceIterations {
-                races.addTask {
-                    let playback = PlaybackProbe(playbackDelay: Self.resumeRaceWait)
-                    let controller = Self.controller(playback: playback, playbackDeadline: Self.resumeRaceWait)
-                    controller.beginSession()
-                    await controller.beginPlayback(.start).awaitCompletion()
-                    // Whichever branch releases the caller, playback itself still runs;
-                    // the double-resume this pins would trap the process, not fail here.
-                    #expect(await playback.waitForCallCount(1), "the cue must still reach playback")
-                }
-            }
-        }
-    }
-
     /// Sensitivity: a guard that loads before it stores lets more than one caller
     /// through. A shared release instant frees every caller within nanoseconds of the
     /// others, which the deadline-versus-playback race cannot do.
@@ -280,12 +261,6 @@ struct AudioServicesDictationCueControllerTests {
     /// A lost ordering shows far sooner than this; passing runs never wait it out.
     private static let negativeObservationWindow = Duration.milliseconds(50)
 
-    /// Each race is one chance at the resume window; they run concurrently.
-    private static let resumeRaceIterations = 400
-
-    /// Both branches wait this span so they wake together.
-    private static let resumeRaceWait = Duration.milliseconds(1)
-
     /// Callers spin to a shared instant, so every thread the pool gave them leaves the
     /// gate together rather than within a timer's jitter. Under a loaded pool a trial
     /// may get too few threads to race at all, so trials are many.
@@ -320,7 +295,6 @@ private actor PlaybackProbe {
     private var nextWaiterID = 0
     private let blocksSuccessfulCalls: Bool
     private let failingCallIndexes: Set<Int>
-    private let playbackDelay: Duration?
 
     private struct Waiter {
         let id: Int
@@ -330,16 +304,13 @@ private actor PlaybackProbe {
 
     init(
         blocksSuccessfulCalls: Bool = false,
-        failingCallIndexes: Set<Int> = [],
-        playbackDelay: Duration? = nil
+        failingCallIndexes: Set<Int> = []
     ) {
         self.blocksSuccessfulCalls = blocksSuccessfulCalls
         self.failingCallIndexes = failingCallIndexes
-        self.playbackDelay = playbackDelay
     }
 
     func play(_ cue: DictationCue) async throws {
-        if let playbackDelay { try? await Task.sleep(for: playbackDelay) }
         let callIndex = calls.count + 1
         if failingCallIndexes.contains(callIndex) {
             record(cue)

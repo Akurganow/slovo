@@ -1,5 +1,6 @@
 import AudioToolbox
 import CoreAudio
+import os
 
 /// Real CoreAudio implementation of `SystemAudioController`.
 ///
@@ -12,13 +13,28 @@ import CoreAudio
 /// The availability read checks the same two levers `muteSystemOutput` uses, in
 /// the same way: a settable mute, else a settable virtual main volume.
 ///
-/// Exercised on real hardware, not in CI.
+/// The HAL calls run only on real hardware; CI tests the pure restore decision,
+/// `restoreWrite(for:)`.
 public struct CoreAudioOutputMute: SystemAudioController {
-    /// Raised when CoreAudio reports a non-success status for a HAL call.
-    public struct CoreAudioError: Error {
-        public let status: OSStatus
-        public let operation: String
+    /// No fields: `traceFailure` logs the status, and nothing else reads it.
+    private struct CoreAudioError: Error {}
+
+    /// The device write a restore issues.
+    enum OutputWrite: Equatable {
+        case mute(deviceID: AudioDeviceID, muted: Bool)
+        case volume(deviceID: AudioDeviceID, scalar: Float)
     }
+
+    private enum HALCall {
+        case getDefaultDevice
+        case isSettable
+        case getMute
+        case setMute
+        case getVolume
+        case setVolume
+    }
+
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     public init() {}
 
@@ -86,15 +102,26 @@ public struct CoreAudioOutputMute: SystemAudioController {
     }
 
     public func restoreSystemOutput(_ state: PriorAudioState) throws {
+        guard let write = Self.restoreWrite(for: state) else { return }
+        switch write {
+        case .mute(let deviceID, let muted):
+            try setMute(deviceID, muted: muted)
+        case .volume(let deviceID, let scalar):
+            try setVirtualMasterVolume(deviceID, scalar: scalar)
+        }
+    }
+
+    /// The write that undoes a mute, or nil when there is nothing to undo.
+    static func restoreWrite(for state: PriorAudioState) -> OutputWrite? {
         // Never un-mute what the user had already silenced before we muted.
-        guard !state.wasAlreadyMuted else { return }
+        guard !state.wasAlreadyMuted else { return nil }
 
         switch state.method {
         case .mute:
-            try setMute(state.deviceID, muted: false)
+            return .mute(deviceID: state.deviceID, muted: false)
         case .virtualMasterVolume:
             // Restore the exact scalar captured at mute time (default to full).
-            try setVirtualMasterVolume(state.deviceID, scalar: state.priorVolumeScalar ?? 1)
+            return .volume(deviceID: state.deviceID, scalar: state.priorVolumeScalar ?? 1)
         }
     }
 
@@ -116,7 +143,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceID
         )
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "getDefaultOutputDevice")
+            throw Self.traceFailure(.getDefaultDevice, status)
         }
         return deviceID
     }
@@ -139,7 +166,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         var settable = DarwinBoolean(false)
         let status = AudioObjectIsPropertySettable(deviceID, &address, &settable)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "isPropertySettable")
+            throw Self.traceFailure(.isSettable, status)
         }
         return settable.boolValue
     }
@@ -150,7 +177,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         var size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &muted)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "getMute")
+            throw Self.traceFailure(.getMute, status)
         }
         return muted != 0
     }
@@ -161,7 +188,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         let size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioObjectSetPropertyData(deviceID, &address, 0, nil, size, &value)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "setMute")
+            throw Self.traceFailure(.setMute, status)
         }
     }
 
@@ -184,7 +211,7 @@ public struct CoreAudioOutputMute: SystemAudioController {
         var size = UInt32(MemoryLayout<Float>.size)
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &scalar)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "getVirtualMasterVolume")
+            throw Self.traceFailure(.getVolume, status)
         }
         return scalar
     }
@@ -195,7 +222,28 @@ public struct CoreAudioOutputMute: SystemAudioController {
         let size = UInt32(MemoryLayout<Float>.size)
         let status = AudioObjectSetPropertyData(deviceID, &address, 0, nil, size, &value)
         guard status == noErr else {
-            throw CoreAudioError(status: status, operation: "setVirtualMasterVolume")
+            throw Self.traceFailure(.setVolume, status)
         }
+    }
+
+    // MARK: - Failure trace
+
+    /// Only the status is interpolated, so the line never carries a device ID, name or UID.
+    private static func traceFailure(_ call: HALCall, _ status: OSStatus) -> CoreAudioError {
+        switch call {
+        case .getDefaultDevice:
+            diagnosticLog.error("output.getDefaultDevice failed status=\(status)")
+        case .isSettable:
+            diagnosticLog.error("output.isSettable failed status=\(status)")
+        case .getMute:
+            diagnosticLog.error("output.getMute failed status=\(status)")
+        case .setMute:
+            diagnosticLog.error("output.setMute failed status=\(status)")
+        case .getVolume:
+            diagnosticLog.error("output.getVolume failed status=\(status)")
+        case .setVolume:
+            diagnosticLog.error("output.setVolume failed status=\(status)")
+        }
+        return CoreAudioError()
     }
 }

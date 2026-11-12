@@ -5,5 +5,4 @@ public enum AudioCaptureError: Error, Equatable, Sendable {
     case microphoneDenied
     case engineStartFailed
     case formatUnavailable
-    case conversionFailed
 }
