@@ -25,7 +25,7 @@ standalone WhisperKit package). What leaves the Mac is listed in
 
 ## Core Components
 
-- `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
+- `CGEventTapHotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
   default, one side of ⌘, ⌥, ⇧, or ⌃ for either Control key);
   `HotkeyDecisionCore` is the pure, unit-tested policy that turns key events
   into start / stop (plain or translate) / silent-cancel decisions.

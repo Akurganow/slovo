@@ -11,15 +11,3 @@ public enum HotkeyPhase: Equatable, Sendable {
     case translateLatched
     case cancel
 }
-
-/// The Start/Stop source. The real `CGEventTap` implementation is hardware-only.
-/// Source guards (`AppDelegateHotkeyWiringSourceGuardTests`) pin the wiring it
-/// drives. No test feeds edges through this type.
-public protocol HotkeyMonitor {
-    /// Installs the tap / monitor.
-    func start() throws
-    /// Tears it down.
-    func stop()
-    /// Invoked on each hotkey edge; `.down` ⇒ Start, `.up` ⇒ Stop.
-    var onTrigger: ((HotkeyPhase) -> Void)? { get set }
-}

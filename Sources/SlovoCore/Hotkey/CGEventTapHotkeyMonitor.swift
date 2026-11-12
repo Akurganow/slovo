@@ -1,20 +1,23 @@
 import CoreGraphics
+import os
 
-/// Real `CGEventTap` implementation of `HotkeyMonitor`. Observes `flagsChanged`
-/// (trigger edges) and `keyDown` (combo interrupts), reduces each event to a
-/// `HotkeyInputEvent`, and lets the tap-free `HotkeyDecisionCore` decide the
-/// action — emitting `.down`/`.up`/`.cancel` and suppressing or passing the event
-/// through. If the tap is disabled by timeout or user input it is re-enabled, and
-/// a held trigger is released via a synthesized `.up`. A `tapIsEnabled` poll lets
-/// a supervisor recreate a dead tap.
+/// The push-to-talk key's `CGEventTap`. Observes `flagsChanged` (trigger edges)
+/// and `keyDown` (combo interrupts), reduces each event to a `HotkeyInputEvent`,
+/// and lets the tap-free `HotkeyDecisionCore` decide the action — emitting
+/// `.down`/`.up`/`.cancel` and suppressing or passing the event through. If the
+/// tap is disabled by timeout or user input it is re-enabled, the disable is
+/// logged, and a held trigger is released via a synthesized `.up`.
 ///
 /// Exercised on real hardware via the manual runbook, not in CI; its decision
 /// logic is unit-tested through `HotkeyDecisionCore`.
-public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
+public final class CGEventTapHotkeyMonitor {
     public struct HotkeyTapError: Error {
         public let reason: String
     }
 
+    private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "hotkey")
+
+    /// Invoked on each hotkey edge; `.down` ⇒ Start, `.up` ⇒ Stop.
     public var onTrigger: ((HotkeyPhase) -> Void)?
 
     private var eventTap: CFMachPort?
@@ -29,12 +32,6 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
     /// monitor dies so the callback can never dereference a dangling pointer.
     deinit {
         stop()
-    }
-
-    /// Whether the tap is currently installed and enabled.
-    public var tapIsEnabled: Bool {
-        guard let eventTap else { return false }
-        return CGEvent.tapIsEnabled(tap: eventTap)
     }
 
     /// Applies a live key change in place. The event mask is key-independent, so
@@ -123,6 +120,15 @@ public final class CGEventTapHotkeyMonitor: HotkeyMonitor {
         case .resync(let synthesizedStop):
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            // The unified log keeps numbers unredacted and redacts dynamic strings
+            // (man page `os_log(3)`, revision "June 2, 2016"): the Bool is logged as a
+            // number, and the cause is a literal of its own arm.
+            let releasedHold = synthesizedStop != nil
+            if type == .tapDisabledByTimeout {
+                Self.diagnosticLog.notice("key tap disabled by timeout, re-enabled; open hold released: \(releasedHold)")
+            } else {
+                Self.diagnosticLog.notice("key tap disabled by user input, re-enabled; open hold released: \(releasedHold)")
             }
             if let synthesizedStop {
                 // The emergency stop keeps the dead hold's mode, so a translate
