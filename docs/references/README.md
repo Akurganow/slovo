@@ -40,9 +40,6 @@ depends on. The personalization seed data lives under `../../data/` and is
 - GigaAM (Russian-specific ASR) — historical note only; alternative ASR backends
   are not product candidates while the runtime ASR engine is WhisperKit
   (Whisper large-v3 turbo).
-- CoreAudio output mute/restore — no standalone reference needed: the feature
-  shipped small (`Sources/SlovoCore/Audio/CoreAudioOutputMute.swift`,
-  `SystemAudioController.swift`).
 
 ## Verification status
 
@@ -54,7 +51,7 @@ URLs, residual SDK/device-only gaps) is in its own `## Verification` section.
 | Doc | Verdict | Notable correction by the verifier |
 |---|---|---|
 | cleanup-benchmark.md | PASS | OpenRouter-only benchmark path updated; `passthrough` kept as local baseline |
-| asr-whisperkit.md | PASS | Archived historical reference; package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
+| asr-whisperkit.md | PASS | Package is `argmax-oss-swift` (product `WhisperKit`) v1.0.0; model names/sizes resolved from HF |
 | asr-apple-speech.md | PASS | **`supportedLocales` is `async` (needs `await`)** — real bug; code-switching unproven (single `Locale`/session) |
 | menubar-packaging.md | PASS | Confirmed sandbox⊥Accessibility; TCC grant pinned to Team ID; entitlement split |
 | menubar-status-ui.md | PASS | Glagolitic status glyphs render through bundled Noto Sans Glagolitic when pinned explicitly |
