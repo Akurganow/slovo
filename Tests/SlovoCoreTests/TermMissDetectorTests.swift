@@ -77,13 +77,19 @@ struct TermMissDetectorKeyTests {
 // integer division. Spec section "Miss detection", rule 2.
 @Suite("Term miss detector: fuzzy near-match")
 struct TermMissDetectorFuzzyTests {
+    /// Folds `raw` the way detection does once per dictation, so each case reads
+    /// as one key/transcript pair.
+    private static func hasNearMatch(ofKey key: String, inRaw raw: String) -> Bool {
+        TermMissDetector.nearMatch(ofKey: key, inRawTokens: TermMissDetector.latinTokens(inRaw: raw)) == .match
+    }
+
     /// Cross-script correction evidence: «гитхаб» in raw is a 1-edit
     /// neighbor of key "github" after the latin fold.
     /// Stated sensitivity: remove `applyingTransform(.toLatin)` from
     /// `latinFold` → scripts never meet → RED.
     @Test
     func crossScriptNearMatchIsFound() {
-        #expect(TermMissDetector.hasNearMatch(ofKey: "github", inRaw: "залей это на гитхаб пожалуйста"))
+        #expect(Self.hasNearMatch(ofKey: "github", inRaw: "залей это на гитхаб пожалуйста"))
     }
 
     /// THE gate test: a short acronym must never fuzzy-match its one-edit
@@ -93,8 +99,8 @@ struct TermMissDetectorFuzzyTests {
     /// is 1 edit from "rcv", threshold 3/3 = 1 → match → RED.
     @Test
     func shortKeysNeverFuzzyMatch() {
-        #expect(!TermMissDetector.hasNearMatch(ofKey: "rcv", inRaw: "the rsv meeting is at noon"))
-        #expect(!TermMissDetector.hasNearMatch(ofKey: "оауф", inRaw: "включи oauth в настройках"))
+        #expect(!Self.hasNearMatch(ofKey: "rcv", inRaw: "the rsv meeting is at noon"))
+        #expect(!Self.hasNearMatch(ofKey: "оауф", inRaw: "включи oauth в настройках"))
     }
 
     /// Threshold edges under integer division: length 5 → 1 edit; length 6 →
@@ -104,11 +110,11 @@ struct TermMissDetectorFuzzyTests {
     @Test
     func thresholdFollowsIntegerDivision() {
         // "argus" (5) vs "argos" — 1 edit: within threshold 1.
-        #expect(TermMissDetector.hasNearMatch(ofKey: "argus", inRaw: "call argos now"))
+        #expect(Self.hasNearMatch(ofKey: "argus", inRaw: "call argos now"))
         // "argus" vs "orgos" — 2 edits: beyond threshold 1.
-        #expect(!TermMissDetector.hasNearMatch(ofKey: "argus", inRaw: "call orgos now"))
+        #expect(!Self.hasNearMatch(ofKey: "argus", inRaw: "call orgos now"))
         // "github" (6) vs "gethab" — 2 edits: within threshold 2.
-        #expect(TermMissDetector.hasNearMatch(ofKey: "github", inRaw: "open gethab today"))
+        #expect(Self.hasNearMatch(ofKey: "github", inRaw: "open gethab today"))
     }
 
     /// Multi-word keys slide a ±1 token window: "wispr flow" matches the
@@ -117,8 +123,8 @@ struct TermMissDetectorFuzzyTests {
     /// count → the one-token variant no longer matches → RED.
     @Test
     func multiWordKeysUseTokenWindows() {
-        #expect(TermMissDetector.hasNearMatch(ofKey: "wispr flow", inRaw: "открой wisper floh сейчас"))
-        #expect(TermMissDetector.hasNearMatch(ofKey: "wispr flow", inRaw: "запусти wisprflow опять"))
+        #expect(Self.hasNearMatch(ofKey: "wispr flow", inRaw: "открой wisper floh сейчас"))
+        #expect(Self.hasNearMatch(ofKey: "wispr flow", inRaw: "запусти wisprflow опять"))
     }
 
     /// An accepted limitation, pinned so a "fix" is a conscious decision:
@@ -127,7 +133,7 @@ struct TermMissDetectorFuzzyTests {
     /// Stated sensitivity: raise the threshold to length/2 → matches → RED.
     @Test
     func phoneticRespellingBeyondThresholdIsSkipped() {
-        #expect(!TermMissDetector.hasNearMatch(ofKey: "github", inRaw: "залей на джитхаб"))
+        #expect(!Self.hasNearMatch(ofKey: "github", inRaw: "залей на джитхаб"))
     }
 }
 

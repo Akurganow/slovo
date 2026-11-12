@@ -61,7 +61,7 @@ extension AppDelegate: SettingsActions {
         do {
             // No rebuild: vocabulary is re-read from the database at the start of
             // every dictation, so new terms apply on the next one.
-            try composition?.personalization.addVocabulary(records)
+            try personalization?.addVocabulary(records)
         } catch {
             logger.error("vocabulary add failed")
         }
@@ -70,7 +70,7 @@ extension AppDelegate: SettingsActions {
 
     func removeVocabulary(id: Int64) {
         do {
-            try composition?.personalization.removeVocabulary(id: id)
+            try personalization?.removeVocabulary(id: id)
         } catch {
             logger.error("vocabulary remove failed")
         }
@@ -89,7 +89,7 @@ extension AppDelegate: SettingsActions {
     /// `startPipeline` and both edits. Not part of `SettingsActions`.
     func listVocabulary() -> [VocabularyRecord] {
         do {
-            return try composition?.personalization.allVocabulary() ?? []
+            return try personalization?.allVocabulary() ?? []
         } catch {
             logger.error("vocabulary list failed")
             return []

@@ -83,9 +83,10 @@ that session runs on the plaintext file unchanged and the next launch retries.
 The migration is **one-way**: once a build with encryption has opened the
 database, older Slovo builds can no longer read it.
 
-The feature is silent throughout — no dialogs, no notifications, no log lines. A
-set-aside, or a migration that keeps failing, is therefore diagnosable only from
-what is on disk, never from a log.
+The feature shows no dialogs or notifications and writes no log line of its own,
+so a set-aside or a migration that keeps failing is diagnosable only from what is
+on disk. When the database cannot be opened, for any reason, the app writes one
+fixed line with no path and no error text.
 
 ## Local Files
 

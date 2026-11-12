@@ -129,8 +129,12 @@ model is built once per process and injected into every composition, so a rebuil
 a granted permission, Retry Setup, the hotkey retry — starts no second concurrent
 load. Each composition starts its own warm-up of that one model, which joins the
 load already in flight or retries a failed one. Only the composition still wired may
-open the dictation gate. `SlovoCore` owns the seams, value types, state machine,
-storage, cleanup, transcription, and injection behavior.
+open the dictation gate. The personalization database is likewise opened once per
+launch and handed to every composition, so a rebuild opens no second connection to
+it. When it does not open, the app logs one fixed line and dictation runs without
+vocabulary — no bias, no glossary, no miss recording — until the next launch.
+`SlovoCore` owns the seams, value types, state machine, storage, cleanup,
+transcription, and injection behavior.
 
 ## Cleanup Mechanism
 
@@ -178,12 +182,15 @@ Slovo uses SQLite through GRDB for local personalization data:
   `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
+- `vocabulary.created_at` and `vocabulary.source` are written and never used.
+  They stay: removing a column takes a new migration on every user's database
+  and buys no behavior.
 
 The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
 SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
 identifier and stored nowhere.
 
-The repository tracks only schema and migrations. Local databases and seed files
+The repository tracks only the migrations. Local databases and seed files
 are never committed.
 
 ## Menu-Bar App

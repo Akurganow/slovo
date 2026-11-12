@@ -29,7 +29,7 @@ public enum PersonalizationDatabase {
         // whose arms never run the migration again.
         try? FileManager.default.removeItem(atPath: path + PlaintextDatabaseMigration.temporarySuffix)
 
-        switch fileState(at: path) {
+        switch try fileState(at: path) {
         case .missing:
             return try openEncrypted(at: path, passphrase: passphrase)
         case .opaque:
@@ -75,11 +75,13 @@ public enum PersonalizationDatabase {
         try fileManager.moveItem(atPath: path, toPath: asidePath)
     }
 
-    /// On-disk classification, total by construction: a missing file is
-    /// missing (`fileExists`, so the name is honest), the 16-byte SQLite
-    /// header is definite, and EVERYTHING else — encrypted, empty, truncated,
-    /// garbage, unreadable — is `.opaque`: not-plaintext is all the sniff can
-    /// know; whether the passphrase can read it is the open attempt's job.
+    /// On-disk classification: a missing file is missing (`fileExists`, so the
+    /// name is honest), the 16-byte SQLite header is definite, and every other
+    /// file that reads — encrypted, empty, truncated, garbage — is `.opaque`:
+    /// not-plaintext is all the sniff can know; whether the passphrase can read
+    /// it is the open attempt's job. A file that cannot be opened or read
+    /// throws instead: as `.opaque`, a plaintext database would fail the keyed
+    /// open with `SQLITE_NOTADB` and be set aside.
     enum FileState: Equatable {
         case missing
         case plaintext
@@ -88,11 +90,11 @@ public enum PersonalizationDatabase {
 
     private static let plaintextHeader = Data("SQLite format 3\u{0}".utf8)
 
-    static func fileState(at path: String) -> FileState {
+    static func fileState(at path: String) throws -> FileState {
         guard FileManager.default.fileExists(atPath: path) else { return .missing }
-        guard let handle = FileHandle(forReadingAtPath: path) else { return .opaque }
+        let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
         defer { try? handle.close() }
-        let header = (try? handle.read(upToCount: 16)) ?? Data()
+        let header = try handle.read(upToCount: 16) ?? Data()
         return header == plaintextHeader ? .plaintext : .opaque
     }
 
