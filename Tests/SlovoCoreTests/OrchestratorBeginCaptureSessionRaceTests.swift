@@ -68,7 +68,7 @@ struct OrchestratorBeginCaptureSessionRaceTests {
     @Test(arguments: SeamFailure.allCases)
     fileprivate func captureStartFailureAfterCancelCannotAffectReplacement(_ failure: SeamFailure) async {
         // A never reaches recognition here, so no transcriber rendezvous is needed.
-        let transcriber = FakeTranscriber(outcome: .success("spoken"), isModelResident: true)
+        let transcriber = FakeTranscriber(outcome: .success("spoken"))
         let recorder = BeginRaceRecorder(firstStartFailure: failure.captureStartError)
         let cues = FakeDictationCueController()
         let audio = FakeSystemAudioController(muteReturns: priorAudio)
@@ -196,42 +196,6 @@ struct OrchestratorBeginCaptureSessionRaceTests {
         #expect(cues.playedCues == [.start], "A's contained failure must not queue an Error cue over B")
         #expect(audio.restoredDeviceIDs.isEmpty, "A's contained failure must not restore B's audio mid-hold")
     }
-
-    /// Suspended in the model-residency probe, answering "not loaded" once B holds.
-    ///
-    /// Sensitivity: dropping the guard after the probe posts "Preparing Speech Model"
-    /// over B's hold — the lie the honest-status fix removed.
-    @Test
-    func modelPreparationNoticeAfterCancelCannotSurfaceOverReplacement() async {
-        let transcriber = ResidencyRaceTranscriber()
-        let recorder = BeginRaceRecorder()
-        let cues = FakeDictationCueController()
-        let audio = FakeSystemAudioController(muteReturns: priorAudio)
-        let reported = Mutex<[StatusMessage]>([])
-        let orchestrator = makeOrchestrator(
-            transcriber: transcriber, recorder: recorder, cues: cues, audio: audio,
-            logCategory: "residency-probe-race-test",
-            statusReporter: { status in reported.withLock { $0.append(status) } }
-        )
-
-        let startA = Task { await orchestrator.handle(.startRequested) }
-        await transcriber.waitUntilFirstProbeEntered()
-        await orchestrator.handle(.cancelRequested)
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
-        #expect(await orchestrator.currentState() == .recording)
-        #expect(reported.withLock { $0 }.isEmpty, "B's model is resident, so B claims no preparation")
-
-        await transcriber.releaseFirstProbe()
-        await startA.value
-        await settle(orchestrator)
-
-        #expect(reported.withLock { $0 }.isEmpty,
-                "a cancelled session's model preparation must not be claimed over B's dictation")
-        #expect(await orchestrator.currentState() == .recording)
-        #expect(cues.playedCues == [.start])
-    }
 }
 
 private let priorAudio = PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
@@ -311,7 +275,6 @@ private actor AsyncGate {
 /// The parked call is whichever ARRIVES first, so only a test whose cancelled session
 /// reaches recognition may use this; otherwise the replacement parks instead.
 private actor BeginRaceTranscriber: Transcriber {
-    let isModelResident = true
 
     private let firstBeginFailure: (any Error)?
     private let holdsFeed: Bool
@@ -360,34 +323,6 @@ private actor BeginRaceTranscriber: Transcriber {
     func releaseFirstBegin() async { await firstBeginGate.open() }
     func waitUntilFeedEntered() async { await feedGate.waitUntilArrived() }
     func releaseFeed() async { await feedGate.open() }
-}
-
-/// Parks the FIRST residency probe, answering "not resident" on release; later probes
-/// answer "resident", so any preparation notice can only be the cancelled session's.
-private final class ResidencyRaceTranscriber: Transcriber {
-    private let probeCount = Mutex(0)
-    private let firstProbeGate = AsyncGate()
-
-    var isModelResident: Bool {
-        get async {
-            let index = probeCount.withLock { current -> Int in
-                defer { current += 1 }
-                return current
-            }
-            guard index == 0 else { return true }
-            await firstProbeGate.arrive()
-            return false
-        }
-    }
-
-    func setRecognitionLanguage(_ language: Language) {}
-    func begin(biasTerms: [Term]) async throws {}
-    func feed(_ chunk: AudioChunk) async throws {}
-    func finish() async throws -> String { "spoken" }
-    func cancel() async {}
-
-    func waitUntilFirstProbeEntered() async { await firstProbeGate.waitUntilArrived() }
-    func releaseFirstProbe() async { await firstProbeGate.open() }
 }
 
 /// Optionally parks and fails the FIRST `start()`, and optionally parks the FIRST

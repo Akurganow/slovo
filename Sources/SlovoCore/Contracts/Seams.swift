@@ -13,11 +13,6 @@ import Foundation
 /// `Sendable` so the `actor Orchestrator` can hold it across suspension points
 /// without a data race.
 public protocol Transcriber: Sendable {
-    /// Whether `begin` would find the model already loaded, so it has no real
-    /// preparation work to do — the honesty gate for the "Preparing Speech Model"
-    /// notice.
-    var isModelResident: Bool { get async }
-
     /// Applies a new recognition language to the NEXT session. Part of the seam
     /// because the language is session state, not model state: the loaded model
     /// decodes any language, so a change must never cost a reload.

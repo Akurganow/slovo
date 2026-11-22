@@ -62,7 +62,7 @@ struct OrchestratorSoundCueTests {
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
         let injector = FakeInjector(outcome: .success)
         let orchestrator = Self.makeOrchestrator(
-            timeline: timeline, transcriber: FakeTranscriber(outcome: .success("spoken"), isModelResident: true),
+            timeline: timeline, transcriber: FakeTranscriber(outcome: .success("spoken")),
             cues: cues, recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)), injector: injector
         )
 
@@ -204,7 +204,7 @@ struct OrchestratorSoundCueTests {
     func cleanupFailureQueuesEndBeforeError() async {
         let cues = FakeDictationCueController()
         let orchestrator = Self.makeOrchestrator(
-            timeline: CueTimeline(), transcriber: FakeTranscriber(outcome: .success("spoken"), isModelResident: true),
+            timeline: CueTimeline(), transcriber: FakeTranscriber(outcome: .success("spoken")),
             cues: cues, recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             audio: FakeSystemAudioController(muteReturns: mutedState), cleaner: FakeCleaner(outcome: .failure(.transport))
         )
@@ -455,7 +455,6 @@ private final class TimelineAudioController: SystemAudioController {
 
 /// begin, feed, and finish can each be parked, holding the pipeline at one seam.
 private final class ControllableTranscriber: Transcriber {
-    let isModelResident = true
     let beginLatch: SeamLatch
     let feedLatch: SeamLatch
     let finishLatch: SeamLatch

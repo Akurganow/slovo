@@ -1,12 +1,11 @@
 import AppKit
 import SlovoCore
 
-// Dictation is gated until the ASR model is resident: a key-down during the cold
-// load would open the mic and then sit inside `begin` for the whole load, with the
-// key-up queued behind it. While loading, the status bar pulses the Glagolitic
-// Zhivete glyph instead of accepting input. The warm-up task succeeds only once
-// the model has loaded (it retries a failed load itself) and fails when cancelled,
-// so the gate opens only on a loaded model.
+// Dictation is gated until the ASR model is resident: a key-down before the model
+// loads would open the microphone for a session that cannot start. While loading,
+// the status bar pulses the Glagolitic Zhivete glyph instead of accepting input.
+// The warm-up task succeeds only once the model has loaded (it retries a failed
+// load itself) and fails when cancelled, so the gate opens only on a loaded model.
 extension AppDelegate {
     func prepareModelGate(for live: AppComposition.Live) {
         isModelReady = false

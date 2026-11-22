@@ -480,15 +480,6 @@ public actor Orchestrator {
         // `recorder.start()` still reaches it; that window is accepted, and narrowing
         // it is a decision to make on its own merits rather than by symmetry.
         sessionRunsCleaner = cleanupConfig.runsCleaner
-        // Only claim preparation when `begin` really has loading to do. Reported
-        // unconditionally, it overwrote "Recording" with a lie for the whole hold
-        // of every dictation once the model was warm. The model gate keeps every
-        // press out until the model has loaded, so in the app it does not fire.
-        let isModelResident = await deps.transcriber.isModelResident
-        guard ownsRecordingSession(recordingSession) else { return }
-        if !isModelResident {
-            deps.reportStatus(.preparingSpeechModel)
-        }
         do {
             try await deps.transcriber.begin(biasTerms: speechBiasTerms)
         } catch let error as TranscriptionError {
