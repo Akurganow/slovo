@@ -115,9 +115,10 @@ Hugging Face, except that a tokenizer file missing from the cache, or one that
 cannot be loaded, is requested from Hugging Face inside that load, which then
 succeeds. WhisperKit's download path runs only when the local load fails: the
 first run, or a cached copy missing a file the load needs. It downloads the
-files that are missing or whose upstream version changed; a file present but
-damaged in place is kept. A newer model published upstream is not fetched while
-the cached copy loads. Slovo retries a failed attempt on its own, after 1
+files that are missing or whose upstream version changed; a file damaged in
+place is kept while the commit or etag stored for it at download still matches
+the server's. A newer model published upstream is not fetched while the cached
+copy loads. Slovo retries a failed attempt on its own, after 1
 second, then after pauses that double up to 60 seconds, until the model loads.
 An attempt that falls back to the download path makes the requests described
 next; offline, its first file-list request fails and nothing is sent. The

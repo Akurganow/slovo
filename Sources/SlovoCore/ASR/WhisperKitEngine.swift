@@ -29,7 +29,8 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
 
     /// Loads the model from the app cache first, with no request; the download path
     /// runs only when that load fails. It downloads the files that are missing or whose
-    /// upstream version changed; a file present but damaged in place is kept
+    /// upstream version changed; a file damaged in place is kept while the commit or
+    /// etag stored for it at download still matches the server's
     /// (argmax-oss-swift 1.1.1 at `1bbc57cb`,
     /// `Sources/ArgmaxCore/External/Hub/HubApi.swift:469-526`, source).
     ///
