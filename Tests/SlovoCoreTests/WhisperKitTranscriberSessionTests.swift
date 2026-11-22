@@ -34,7 +34,7 @@ struct WhisperKitTranscriberSessionTests {
     /// A re-begin over a dangling session must replace its live stream and must NOT
     /// re-load an already-loaded model.
     /// Stated sensitivity: leak the prior session's samples → finalization sees
-    /// 300 not 200 → RED; `begin` loads the model → `loadCount` 3 → RED.
+    /// 300 not 200 → RED; `begin` calls `engine.load()` unconditionally → `loadCount` 3 → RED.
     @Test
     func beginWithDanglingSessionStartsFreshWithoutDoubleLoad() async throws {
         let engine = FakeSpeechEngine(finalize: .success(""))

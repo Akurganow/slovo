@@ -199,14 +199,17 @@ struct OrchestratorTests {
 
     /// An unexpected cleaner error (not a `CleanupError`) escapes `FallbackCleaner`
     /// and keeps the user's words: the spoken text is inserted, reported once as
-    /// `.cleanupUnavailableInsertedAsSpoken`, and the session returns to idle. The
-    /// owner decided this, so an unexpected error ends like an expected cleanup failure.
-    /// Stated sensitivity: restore the failing catch (`handle(.failed(…))`) → nothing
-    /// injected → RED.
+    /// `.cleanupUnavailableInsertedAsSpoken` with the Error cue after End, and the
+    /// session returns to idle. The owner decided this, so an unexpected error ends
+    /// like an expected cleanup failure.
+    /// Stated sensitivity: drop `handle(.cleaned(transcript))` in the catch → nothing
+    /// injected → RED; report through `deps.statusReporter` instead of
+    /// `deps.reportStatus` → no Error cue → RED.
     @Test
     func unexpectedCleanerFailureInsertsTheSpokenText() async {
         let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
+        let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Self.cleanupConfig,
             dependencies: Dependencies(
@@ -218,7 +221,7 @@ struct OrchestratorTests {
                     muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
                 ),
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
-                cueController: FakeDictationCueController(),
+                cueController: cues,
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
                 statusReporter: { status in reported.withLock { $0.append(status) } }
             )
@@ -231,6 +234,8 @@ struct OrchestratorTests {
         let statuses = reported.withLock { $0 }
         #expect(statuses.filter { $0 == .cleanupUnavailableInsertedAsSpoken }.count == 1,
                 "the spoken-text status must be reported exactly once; got \(statuses)")
+        #expect(cues.events.filter { $0 == .enqueue(.end) || $0 == .enqueue(.error) } == [.enqueue(.end), .enqueue(.error)],
+                "the Error cue must follow End; got \(cues.events)")
         #expect(await orchestrator.currentState() == .idle,
                 "the session must return to idle after the spoken text is inserted")
     }

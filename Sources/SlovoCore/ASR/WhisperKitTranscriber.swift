@@ -47,6 +47,9 @@ public actor WhisperKitTranscriber: Transcriber {
     }
 
     public func begin(biasTerms: [Term]) async throws {
+        // Read before the dangling session's cancel suspends: a push landing there
+        // belongs to the next session.
+        let sessionLanguage = recognitionLanguage
         if let speechSession {
             self.speechSession = nil
             await speechSession.cancel()
@@ -55,7 +58,7 @@ public actor WhisperKitTranscriber: Transcriber {
         do {
             let speechSession = try engine.makeSpeechStreamingSession(
                 biasTerms: biasTerms,
-                language: recognitionLanguage
+                language: sessionLanguage
             )
             try await speechSession.start()
             self.speechSession = speechSession

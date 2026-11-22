@@ -18,8 +18,8 @@ public protocol Transcriber: Sendable {
     /// decodes any language, so a change must never cost a reload.
     func setRecognitionLanguage(_ language: Language) async
 
-    /// Opens a recognition session biased toward `biasTerms`. Throws if the
-    /// backend or engine cannot be brought up.
+    /// Opens a recognition session biased toward `biasTerms` on the loaded model.
+    /// Throws if the session cannot open, `backendUnavailable` when no model is loaded.
     func begin(biasTerms: [Term]) async throws
 
     /// Feeds one live audio chunk into the open session.

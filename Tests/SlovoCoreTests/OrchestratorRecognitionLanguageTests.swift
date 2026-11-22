@@ -62,8 +62,8 @@ struct OrchestratorRecognitionLanguageTests {
     /// Stated sensitivity: make `Orchestrator.updateRecognitionLanguage` a no-op, or
     /// bind the language at engine construction again (the shape that forced a
     /// rebuild) → the second session still records `.auto` → RED. Drop the push into
-    /// the transcriber and the same assertion reddens. `begin` loads the model →
-    /// `loadCount` 3 → RED.
+    /// the transcriber and the same assertion reddens. `begin` calls
+    /// `engine.load()` unconditionally → `loadCount` 3 → RED.
     @Test
     func aPushedLanguageAppliesToTheNextDictationWithoutReloading() async throws {
         let engine = FakeSpeechEngine(finalize: .success("raw words"))

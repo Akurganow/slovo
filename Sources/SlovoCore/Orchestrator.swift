@@ -267,8 +267,8 @@ public actor Orchestrator {
             await handle(.cleaned(cleaned))
         } catch {
             // An error the fallback chain does not catch still keeps the spoken words.
-            deps.reportStatus(.cleanupUnavailableInsertedAsSpoken)
             Self.diagnosticLog.error("cleanup.failure kind=unexpected")
+            deps.reportStatus(.cleanupUnavailableInsertedAsSpoken)
             await handle(.cleaned(transcript))
         }
     }
