@@ -14,12 +14,12 @@ public struct GRDBTermMissStore: TermMissRecording {
     /// With the ranker's 14-day half-life a 90-day-old event weighs under
     /// 1.2% — noise. The prune shares the insert's transaction so it cannot
     /// outlive a failed write.
-    public static let retentionDays = 90
+    static let retentionDays = 90
 
     private let database: DatabasePool
     private let log: RedactionSafeLog
 
-    public init(
+    init(
         database: DatabasePool,
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "storage")
     ) {
@@ -52,7 +52,7 @@ public struct GRDBTermMissStore: TermMissRecording {
     /// The window is applied on READ as well as on write: pruning only happens
     /// when a dictation records something, so a user who stops producing misses
     /// would otherwise keep ranking on — and counting — arbitrarily stale rows.
-    public func missDatesByKey() throws -> [String: [Date]] {
+    func missDatesByKey() throws -> [String: [Date]] {
         try database.read { db in
             let rows = try Row.fetchAll(
                 db,

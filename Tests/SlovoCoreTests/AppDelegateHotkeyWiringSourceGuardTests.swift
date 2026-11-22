@@ -291,7 +291,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     }
 
     /// The tap must observe keyDown so a combo can interrupt a passthrough-modifier
-    /// hold. The event mask is a local inside `start()`, which installs the real tap,
+    /// hold. The event mask is a local inside `serveTap`, which installs the real tap,
     /// so no test can read it.
     /// Killing mutation: drop keyDown from the event mask → the interrupt is
     /// never seen → RED.

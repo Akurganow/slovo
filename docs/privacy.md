@@ -83,9 +83,10 @@ that session runs on the plaintext file unchanged and the next launch retries.
 The migration is **one-way**: once a build with encryption has opened the
 database, older Slovo builds can no longer read it.
 
-The feature is silent throughout — no dialogs, no notifications, no log lines. A
-set-aside, or a migration that keeps failing, is therefore diagnosable only from
-what is on disk, never from a log.
+The feature shows no dialogs or notifications and writes no log line of its own,
+so a set-aside or a migration that keeps failing is diagnosable only from what is
+on disk. When the database cannot be opened, for any reason, the app writes one
+fixed line with no path and no error text.
 
 ## Local Files
 
@@ -163,7 +164,9 @@ step (one of two) and, where one exists, the CoreAudio status number or the
 engine's error code. None of these names a device. A launch that finds stored
 settings damaged or in conflict logs how many it found, never their names or
 values; stored settings that are not a JSON object log one fixed line saying the
-defaults were used. Error text is logged privately; transcripts, cleaned text
+defaults were used. A disable of the key tap by macOS logs one of two fixed lines,
+for a timeout or for user input, with a true or false flag saying whether an open
+key hold was released. Error text is logged privately; transcripts, cleaned text
 and keys never reach the log.
 
 ## Clipboard

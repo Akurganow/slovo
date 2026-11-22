@@ -4,7 +4,8 @@ import GRDB
 // Per-test on-disk DB helper: NEVER `:memory:` — an on-disk file
 // exercises the migrator's create-from-empty (create-or-get) path that in-memory
 // masks. UUID-named per test for Swift-Testing parallel isolation; the
-// teardown closes the pool and deletes the file plus its `-wal`/`-shm` sidecars.
+// teardown deletes the file and its sidecars, and the pool closes when the test
+// releases it.
 enum TempDatabase {
     /// A fresh, empty on-disk temp DB path (the file does NOT exist yet — the
     /// caller's `open`/migrator creates it, so create-or-get is real).

@@ -113,13 +113,6 @@ enum TermMissDetector {
         return .noMatch
     }
 
-    /// The test-facing entry point: folds `raw` itself so a single key/transcript
-    /// pair reads as one call. Detection always goes through `nearMatch`, which
-    /// takes tokens folded once per dictation, so this has no production caller.
-    static func hasNearMatch(ofKey key: String, inRaw raw: String) -> Bool {
-        nearMatch(ofKey: key, inRawTokens: latinTokens(inRaw: raw)) == .match
-    }
-
     /// Classifies every vocabulary term against one dictation. Rule 1: found
     /// in raw → the ASR handled it, nothing recorded (v1 stores no hits).
     /// Rule 2: found only in cleaned → a fuzzy-confirmed near-match in raw is
