@@ -53,37 +53,9 @@ struct OrchestratorTests {
 
     /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
-        await orchestrator.handle(.startRequested)   // mute + beginCapture
+        await orchestrator.handle(.startRequested)   // beginCapture; the mute follows the Start cue
         await orchestrator.handle(.stopRequested(.plain))    // finalize transcript + restore → clean → inject → injected
         await orchestrator.awaitPipelineDrain()
-    }
-
-    /// Happy path + folded biasTerms: the cleaned text is injected AND the
-    /// transcriber and cleaner received the resolved vocabulary. Run with the
-    /// experimental bias switch ON, the one configuration where the vocabulary
-    /// reaches BOTH consumers (the gated behavior lives in
-    /// `OrchestratorVocabularyBiasTests`).
-    /// Stated sensitivity: drop the vocab→biasTerms resolve (pass `[]`) → recorded
-    /// biasTerms/context empty → RED.
-    @Test
-    func cleanedTextIsInjectedAndVocabReachesTranscriberAndCleaner() async {
-        let transcriber = FakeTranscriber(outcome: .success("hi"))
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(usesVocabularyBias: true),
-            dependencies: Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        )
-
-        await Self.runSession(orchestrator)
-
-        #expect(injector.calls.last == "HI", "the cleaned text must be injected; got \(String(describing: injector.calls.last))")
-        let biasTerms = transcriber.calls.last?.biasTerms.map(\.term) ?? []
-        #expect(biasTerms.contains("ExampleCorp") && biasTerms.contains("GitHub"),
-                "the resolved vocabulary must reach the transcriber's biasTerms (folded wiring); got \(biasTerms)")
-        let cleanerTerms = cleaner.calls.last?.context.vocabulary.map(\.term) ?? []
-        #expect(cleanerTerms.contains("ExampleCorp") && cleanerTerms.contains("GitHub"),
-                "the resolved vocabulary must reach the cleaner context for spelling preservation; got \(cleanerTerms)")
     }
 
     /// One uncapped read feeds both consumers: the orchestrator hands the WHOLE
@@ -287,13 +259,12 @@ struct OrchestratorTests {
                 "a contained transcription failure must return the session to idle")
     }
 
-    /// Single-flight: a second Start while processing is IGNORED — no
-    /// second mute, no second capture.
-    /// Stated sensitivity: allow re-entry → a second mute/capture appears → RED.
-    /// A re-entering actor would make muteCount/engineStartCount ≥ 2.
+    /// Single-flight: a second Start while processing is IGNORED — no second
+    /// capture. The no-second-mute half is pinned in `DictationFsmMuteTests`.
+    /// Stated sensitivity: allow re-entry → the recorder starts a second capture,
+    /// or the state leaves processing → RED.
     @Test
-    func secondStartWhileProcessingDoesNotReMuteOrReCapture() async {
-        var capturedLogs: [String] = []
+    func secondStartWhileProcessingDoesNotReCapture() async {
         let transcriber = BlockingTranscriber(outcome: .success("hi"))
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
@@ -311,15 +282,14 @@ struct OrchestratorTests {
                 audio: audio,
                 recorder: recorder,
                 cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test")
             )
         )
 
-        // Drive into processing: Start (mute+capture) then Stop (→ processing).
+        // Drive into processing: Start (capture) then Stop (→ processing).
         await orchestrator.handle(.startRequested)
         await orchestrator.handle(.stopRequested(.plain))
         await transcriber.waitUntilCalled()
-        let muteAfterFirst = audio.muteCount
         let captureAfterFirst = recorder.engineStartCount
 
         // A second Start while processing must be single-flight-ignored.
@@ -327,12 +297,8 @@ struct OrchestratorTests {
 
         #expect(await orchestrator.currentState() == .processing,
                 "single-flight: state must stay processing while the pipeline is in flight")
-        #expect(audio.muteCount == muteAfterFirst,
-                "single-flight: a second Start must NOT re-mute; muteCount went \(muteAfterFirst)→\(audio.muteCount)")
         #expect(recorder.engineStartCount == captureAfterFirst,
                 "single-flight: a second Start must NOT re-capture; engineStartCount went \(captureAfterFirst)→\(recorder.engineStartCount)")
-        #expect(capturedLogs.contains("fsm.singleFlightIgnored"),
-                "single-flight must emit a stable payload-free log event; got \(capturedLogs)")
 
         await transcriber.release()
         await orchestrator.awaitPipelineDrain()

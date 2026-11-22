@@ -175,15 +175,13 @@ struct OrchestratorTermMissTests {
         #expect(!Self.detectionRan(harness.events))
     }
 
-    /// The hot path never awaits the recording. A watchdog releases the
-    /// blocked recorder after a deadline, so the pipeline can ALWAYS finish and
-    /// a regression fails the run instead of hanging it; the pin is that the
-    /// drain got there FIRST, without the watchdog's help. Must NOT call
-    /// awaitTermMissDrain before the assertions.
+    /// The hot path never awaits the recording. The recorder stays blocked until the
+    /// injection is observed; a bounded wait then fails the assertion instead of
+    /// hanging the run. Must NOT call awaitPipelineDrain before the assertion: it
+    /// would wait on the blocked recorder.
     /// Stated sensitivity: `await termMissTask?.value` inside
-    /// `cleanAndContinue` before `handle(.cleaned)` → the drain cannot return
-    /// until the watchdog frees the recorder → `wasReleased` is true and
-    /// nothing was injected by then → RED.
+    /// `cleanAndContinue` before `handle(.cleaned)` → nothing is injected while the
+    /// recorder is blocked → the bounded wait gives up → RED.
     @Test
     func injectionDoesNotWaitForRecording() async {
         let recorder = BlockingTermMissRecorder()
@@ -197,21 +195,15 @@ struct OrchestratorTermMissTests {
                 log: RedactionSafeLog(subsystem: "test", category: "orchestrator")
             )
         )
-        let watchdog = Task {
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            await recorder.releaseRecording()
-        }
 
         await orchestrator.handle(.startRequested)
         await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        let neededWatchdog = await recorder.wasReleased
-        watchdog.cancel()
-        #expect(!neededWatchdog, "injection must complete while the recorder is still blocked")
-        #expect(injector.calls == [Self.cleanedTranscript])
+        let injected = await waitUntil { !injector.calls.isEmpty }
         await recorder.releaseRecording()
+        await orchestrator.awaitPipelineDrain()
         await orchestrator.awaitTermMissDrain()
+
+        #expect(injected, "injection must complete while the recorder is still blocked")
+        #expect(injector.calls == [Self.cleanedTranscript])
     }
 }

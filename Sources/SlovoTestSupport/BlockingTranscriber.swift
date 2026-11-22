@@ -11,7 +11,6 @@ public actor BlockingTranscriber: Transcriber {
         case failure(TranscriptionError)
     }
 
-    private var beginCalls: [[Term]] = []
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var releaseContinuation: CheckedContinuation<Void, Never>?
     private var released = false
@@ -20,11 +19,6 @@ public actor BlockingTranscriber: Transcriber {
 
     public init(outcome: Outcome) {
         self.outcome = outcome
-    }
-
-    /// Every `begin` call's biasTerms, in invocation order.
-    public var calls: [[Term]] {
-        beginCalls
     }
 
     /// Suspends until `finish` has been entered at least once.
@@ -44,9 +38,7 @@ public actor BlockingTranscriber: Transcriber {
 
     public func setRecognitionLanguage(_ language: Language) {}
 
-    public func begin(biasTerms: [Term]) async throws {
-        beginCalls.append(biasTerms)
-    }
+    public func begin(biasTerms: [Term]) async throws {}
 
     public func feed(_ chunk: AudioChunk) async throws {}
 

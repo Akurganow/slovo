@@ -71,7 +71,7 @@ struct OrchestratorSoundCueTests {
             await orchestrator.handle(.stopRequested(.plain))
             await orchestrator.awaitPipelineDrain()
         }
-        let didInsert = await becomesTrue { !injector.calls.isEmpty }
+        let didInsert = await waitUntil { !injector.calls.isEmpty }
 
         #expect(didInsert, "a whole dictation must reach insertion while the Start cue is still playing")
         #expect(!timeline.events.contains(.cuePlaybackFinished(.start)),
@@ -94,7 +94,7 @@ struct OrchestratorSoundCueTests {
 
         let keyDownReturned = SeamLatch(isBlocking: false)
         Task { await orchestrator.handle(.startRequested); await keyDownReturned.arrive() }
-        #expect(await becomesTrue { await keyDownReturned.hasArrived },
+        #expect(await waitUntil { await keyDownReturned.hasArrived },
                 "key-down must return while the Start cue is still playing")
         await cues.startCueLatch.waitUntilArrived()
         await orchestrator.handle(.stopRequested(.plain))
@@ -131,7 +131,7 @@ struct OrchestratorSoundCueTests {
         await transcriber.beginLatch.release()
         await cues.startCueLatch.waitUntilArrived()
         recorder.emitCallback()
-        let didFeedBoth = await becomesTrue { transcriber.fedChunkCount == 2 }
+        let didFeedBoth = await waitUntil { transcriber.fedChunkCount == 2 }
 
         #expect(didFeedBoth, "the frames captured before and during the Start cue must both reach recognition")
 
@@ -179,7 +179,7 @@ struct OrchestratorSoundCueTests {
         await orchestrator.awaitReadinessCue()
         await transcriber.feedLatch.waitUntilArrived()
         let stop = Task { await orchestrator.handle(.stopRequested(.plain)) }
-        let queuedEndBeforePumpRelease = await becomesTrue { timeline.events.contains(.cueEnqueued(.end)) }
+        let queuedEndBeforePumpRelease = await waitUntil { timeline.events.contains(.cueEnqueued(.end)) }
 
         #expect(queuedEndBeforePumpRelease,
                 "key-up must close capture, restore output, and queue End while the pump is still blocked")
@@ -233,7 +233,7 @@ struct OrchestratorSoundCueTests {
         await transcriber.beginLatch.waitUntilArrived()
         let keyUp = Task { await orchestrator.handle(.stopRequested(.plain)) }
         await transcriber.beginLatch.release()
-        let didStop = await becomesTrue { timeline.events.contains(.recorderStopped) }
+        let didStop = await waitUntil { timeline.events.contains(.recorderStopped) }
         await cues.startCueLatch.waitUntilArrived()
 
         #expect(didStop, "key-up must close capture while the Start cue is still playing")
@@ -293,19 +293,6 @@ struct OrchestratorSoundCueTests {
 
 /// The audio state every fake mute returns, so a restore is traceable to its mute.
 private let mutedState = PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
-
-/// Yields until the condition holds or the budget runs out. Nothing it waits for needs
-/// a cue to finish, so `false` means the pipeline really stalled — and the caller turns
-/// that into a failed expectation instead of a hung run. The budget is deliberately far
-/// above what progress needs: several of these loops running at once compete for the
-/// cooperative pool, and a starved loop would report a stall that never happened.
-private func becomesTrue(within maxYields: Int = 20_000, _ isSatisfied: @Sendable () async -> Bool) async -> Bool {
-    for _ in 0..<maxYields {
-        if await isSatisfied() { return true }
-        await Task.yield()
-    }
-    return await isSatisfied()
-}
 
 private enum CueTimelineEvent: Equatable, Sendable {
     case sessionBegan, recorderStarted, asrBeginEntered, asrBecameReady

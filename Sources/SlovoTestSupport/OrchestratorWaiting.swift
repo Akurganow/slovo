@@ -12,8 +12,10 @@ nonisolated(nonsending) public func settle(_ orchestrator: Orchestrator, rounds:
 }
 
 /// Polls until the condition holds, relenting at the bound so a broken implementation
-/// fails its assertion instead of hanging the suite.
-nonisolated(nonsending) public func waitUntil(rounds: Int = 500, _ condition: () async -> Bool) async -> Bool {
+/// fails its assertion instead of hanging the suite. The bound is far above what progress
+/// needs: several loops running at once compete for the cooperative pool, and a starved
+/// loop would report a stall that never happened.
+nonisolated(nonsending) public func waitUntil(rounds: Int = 20_000, _ condition: () async -> Bool) async -> Bool {
     for _ in 0..<rounds {
         if await condition() { return true }
         await Task.yield()

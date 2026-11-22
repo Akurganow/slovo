@@ -47,11 +47,6 @@ public final class FakeTranscriber: Transcriber {
         recorded.withLock { $0.beginCalls }
     }
 
-    /// How many chunks were fed across the session's lifetime.
-    public var fedChunkCount: Int {
-        recorded.withLock { $0.feedCount }
-    }
-
     /// How many times `finish` (the transcribe-and-return path) was invoked.
     public var finishCount: Int {
         recorded.withLock { $0.finishCount }

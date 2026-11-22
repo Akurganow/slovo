@@ -21,12 +21,9 @@ public final class FakeDictationCueController: DictationCueController {
     }
 
     private let state: Mutex<State>
-    private let onEvent: @Sendable (Event) -> Void
 
-    @preconcurrency
-    public init(isEnabled: Bool = true, onEvent: @escaping @Sendable (Event) -> Void = { _ in }) {
+    public init(isEnabled: Bool = true) {
         state = Mutex(State(configuredEnabled: isEnabled))
-        self.onEvent = onEvent
     }
 
     public var events: [Event] {
@@ -47,14 +44,11 @@ public final class FakeDictationCueController: DictationCueController {
     }
 
     public func beginSession() {
-        let event = state.withLock { current -> Event in
+        state.withLock { current in
             current.isSessionActive = true
             current.sessionIsEnabled = current.configuredEnabled
-            let event = Event.beginSession(isEnabled: current.configuredEnabled)
-            current.events.append(event)
-            return event
+            current.events.append(.beginSession(isEnabled: current.configuredEnabled))
         }
-        onEvent(event)
     }
 
     public func beginPlayback(_ cue: DictationCue) -> DictationCuePlayback {
@@ -73,13 +67,11 @@ public final class FakeDictationCueController: DictationCueController {
 
     @discardableResult
     private func recordIfSessionEnabled(_ event: Event) -> Bool {
-        let didRecord = state.withLock { current -> Bool in
+        state.withLock { current -> Bool in
             guard current.isSessionActive, current.sessionIsEnabled else { return false }
             current.events.append(event)
             return true
         }
-        if didRecord { onEvent(event) }
-        return didRecord
     }
 
     private func record(_ event: Event, mutation: (inout State) -> Void) {
@@ -87,6 +79,5 @@ public final class FakeDictationCueController: DictationCueController {
             mutation(&current)
             current.events.append(event)
         }
-        onEvent(event)
     }
 }
