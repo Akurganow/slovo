@@ -8,7 +8,7 @@ enum AppComposition {
         let hotkeyMonitor: CGEventTapHotkeyMonitor
         let onboardingSteps: [OnboardingStep]
         let permissionRequester: any PermissionRequester
-        let modelWarmUp: Task<Void, Never>
+        let modelWarmUp: Task<Void, any Error>
         let cueController: any DictationCueController
         let recorder: AVAudioEngineRecorder
     }
@@ -47,12 +47,7 @@ enum AppComposition {
         // rebuild joins a load already in flight or retries a failed one, and the
         // app can gate dictation on its own warm-up either way.
         let modelWarmUp = speechModel.startWarmUp()
-        let transcriber = TranscriberFactory.makeTranscriber(for: config.asrBackend) { backend in
-            switch backend {
-            case .whisperKit:
-                speechModel.transcriber
-            }
-        }
+        let transcriber = speechModel.transcriber
         let cleaner = OpenRouterCleaner(
             keyProvider: openRouterKeyProvider,
             promptBuilder: PromptBuilder(examples: .bundled),

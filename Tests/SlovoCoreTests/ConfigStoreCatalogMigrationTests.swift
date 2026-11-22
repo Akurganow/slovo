@@ -19,8 +19,8 @@ struct ConfigStoreCatalogMigrationTests {
     /// fix must migrate only known-retired ids, never every non-catalog id.
     ///
     /// Anti-tautology: the load-bearing assertions are NON-DEFAULT siblings the user
-    /// set — writingStyle .formal (≠ .casual default) and keepWarmSeconds 45 (≠ nil
-    /// default) — which a whole-config fallback to .defaults would destroy. Asserting
+    /// set — writingStyle .formal (≠ .casual default) — which a whole-config
+    /// fallback to .defaults would destroy. Asserting
     /// only openRouterModel == default would false-green on a broken reject-to-
     /// defaults path.
     /// Stated sensitivity: keep the stored openRouterModel verbatim (no migration) →
@@ -29,7 +29,6 @@ struct ConfigStoreCatalogMigrationTests {
     func retiredCleanupModelMigratesToCatalogDefault() throws {
         let defaults = FakeUserDefaults(dataByKey: [
             ConfigStore.defaultKey: try ConfigFixtures.configData(
-                keepWarmSeconds: 45,
                 cleanupProvider: "openrouter",
                 openRouterModel: "google/gemini-2.5-flash-lite",
                 writingStyle: "formal"
@@ -45,7 +44,6 @@ struct ConfigStoreCatalogMigrationTests {
         // Non-default siblings a whole-config fallback to .defaults would lose,
         // proving the config decoded and ONLY the stale model was migrated.
         #expect(config.writingStyle == .formal)
-        #expect(config.keepWarmSeconds == 45)
         #expect(config != .defaults)
     }
 

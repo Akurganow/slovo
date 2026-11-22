@@ -315,10 +315,10 @@ struct OrchestratorTests {
                 "a resident model must not claim preparation; got \(statuses)")
     }
 
-    /// The notice stays for the HONEST cases: with the model NOT resident (a
-    /// first-run download, or a failed preload retried inside `begin`), the
-    /// precise stage is surfaced exactly once when the streaming session opens
-    /// at key-down.
+    /// The transcriber here reports "not resident", so the precise stage is surfaced
+    /// exactly once when the streaming session opens at key-down. In the app the
+    /// model gate refuses a press until the model has loaded, so this branch does
+    /// not fire there.
     /// Stated sensitivity: delete the now-conditional emission → nothing is
     /// reported → RED; invert the gate polarity → this non-resident session
     /// reports nothing → RED (the resident test above reddens on the same

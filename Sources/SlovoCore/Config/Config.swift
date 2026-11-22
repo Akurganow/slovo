@@ -47,10 +47,6 @@ public struct Config: Equatable, Sendable {
     public static let defaults = Config()
 
     public var language: Language
-    /// WhisperKit model retention: `nil` keeps the model resident by default
-    /// (fastest first word), `0` releases immediately after each dictation, a
-    /// positive value is the idle-seconds window before release.
-    public var keepWarmSeconds: Int?
     public var trigger: HotkeyTrigger
     /// The key that makes a dictation translate. Must differ from `trigger`:
     /// `ConfigStore` is where that exclusion is enforced. It refuses to save a
@@ -60,7 +56,6 @@ public struct Config: Equatable, Sendable {
     /// and exactly what holding Control did before the key became configurable —
     /// rather than opening a translate dictation of its own.
     public var translateKeyIsAdditional: Bool
-    public var asrBackend: AsrBackend
     public var asrModel: String
     /// Whether the top vocabulary terms are also handed to the speech recognizer as
     /// a bias prompt. EXPERIMENTAL, default off: the prompt rides every decode
@@ -122,11 +117,9 @@ public struct Config: Equatable, Sendable {
 
     public init(
         language: Language = .auto,
-        keepWarmSeconds: Int? = nil,
         trigger: HotkeyTrigger = Config.defaultTrigger,
         translateTrigger: HotkeyTrigger = Config.defaultTranslateTrigger,
         translateKeyIsAdditional: Bool = true,
-        asrBackend: AsrBackend = .whisperKit,
         asrModel: String = Config.defaultAsrModel,
         usesVocabularyBias: Bool = false,
         openRouterModel: String = Config.defaultOpenRouterModel,
@@ -140,11 +133,9 @@ public struct Config: Equatable, Sendable {
         automaticallyInstallsUpdates: Bool = true
     ) {
         self.language = language
-        self.keepWarmSeconds = keepWarmSeconds
         self.trigger = trigger
         self.translateTrigger = translateTrigger
         self.translateKeyIsAdditional = translateKeyIsAdditional
-        self.asrBackend = asrBackend
         self.asrModel = asrModel
         self.usesVocabularyBias = usesVocabularyBias
         self.openRouterModel = openRouterModel

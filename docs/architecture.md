@@ -127,8 +127,9 @@ standalone WhisperKit package). What leaves the Mac is listed in
 The app target owns OS-specific adapters and production composition. The speech
 model is built once per process and injected into every composition, so a rebuild —
 a granted permission, Retry Setup, the hotkey retry — starts no second concurrent
-load. Each composition starts its own warm-up of that one model, which joins the
-load already in flight or retries a failed one. Only the composition still wired may
+load. Each composition's warm-up joins the load in flight and, when a load fails,
+retries it on its own with growing pauses until the model loads, so the
+dictation gate opens only on a loaded model. Only the composition still wired may
 open the dictation gate. The personalization database is likewise opened once per
 launch and handed to every composition, so a rebuild opens no second connection to
 it. When it does not open, the app logs one fixed line and dictation runs without

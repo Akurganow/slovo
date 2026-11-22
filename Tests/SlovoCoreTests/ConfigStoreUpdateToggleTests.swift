@@ -45,17 +45,17 @@ struct ConfigStoreUpdateToggleTests {
     /// updates ON and every other stored field intact — existing users keep
     /// their settings and gain silent updates.
     /// Stated sensitivity: default the absent field to `false`, or reset the WHOLE
-    /// config because a key is absent → updates read off, or the keepWarmSeconds
-    /// pin (45 ≠ default nil) is lost → RED.
+    /// config because a key is absent → updates read off, or the language pin
+    /// (`.ru` ≠ default `.auto`) is lost → RED.
     /// Born green on the current tree — flagged for the mutation demonstration.
     @Test
     func legacyConfigWithoutTheKeyDefaultsToOnKeepingOtherFields() throws {
         let defaults = FakeUserDefaults(dataByKey: [
-            ConfigStore.defaultKey: try ConfigFixtures.configData(keepWarmSeconds: 45),
+            ConfigStore.defaultKey: try ConfigFixtures.configData(),
         ])
 
         let loaded = ConfigStore.load(from: defaults)
         #expect(loaded.automaticallyInstallsUpdates == true)
-        #expect(loaded.keepWarmSeconds == 45, "the legacy blob's other fields must survive the missing update key")
+        #expect(loaded.language == .ru, "the legacy blob's other fields must survive the missing update key")
     }
 }

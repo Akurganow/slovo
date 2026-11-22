@@ -68,7 +68,7 @@ struct OrchestratorRecognitionLanguageTests {
         let engine = FakeSpeechEngine(finalize: .success("raw words"))
         let cleaner = FakeCleaner(outcome: .success("CLEANED"))
         let orchestrator = Self.makeOrchestrator(
-            transcriber: TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil),
+            transcriber: TranscriberFixtures.makeTranscriber(engine: engine),
             cleaner: cleaner
         )
 

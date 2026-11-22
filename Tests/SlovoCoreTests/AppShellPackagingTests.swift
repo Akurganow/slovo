@@ -67,7 +67,6 @@ struct AppShellPackagingTests {
         // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
         // default — → this exact call text is gone → RED.
         #expect(composition.contains("PromptBuilder(examples: .bundled)"))
-        #expect(speechModel.contains("keepWarmSeconds: config.keepWarmSeconds"))
         // Stated sensitivity: drop this argument and the transcriber falls back to
         // Auto — this call is the single point where the persisted recognition
         // language enters the process → RED.

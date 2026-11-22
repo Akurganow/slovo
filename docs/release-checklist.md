@@ -98,8 +98,8 @@ xcrun stapler validate .build/dist/Slovo.dmg
 - A dictation leaves the previous clipboard in place.
 - Nothing waits on a cue: the microphone opens without waiting for Start, and
   releasing the key stops recording immediately rather than after the sound.
-- Speaking while the speech model is still loading ("Preparing Speech Model" on a
-  cold start) still reaches the transcript — that audio is not dropped.
+- A press while the speech model is still loading ("Preparing Speech Model") is
+  refused: no microphone and no cue, and the loading glyph keeps pulsing.
 - Never revoke a permission while Slovo is running. Revoking Accessibility blocks
   keyboard input for the whole session (issue #73). Reset permissions before launch
   instead, with `tccutil`.
@@ -115,19 +115,42 @@ xcrun stapler validate .build/dist/Slovo.dmg
     Accessibility opens System Settings; grant it there, then open the Slovo menu
     again.
   - The log shows exactly one `asr.modelLoad state=started` and one
-    `state=finished ms=…`, then `production composition started`.
+    `state=finished ms=… source=download`, then `production composition started`.
   - The first dictation afterwards inserts text.
 - **A rebuild reuses the model already loaded.** Same stream, model left in the
   cache from the check above:
   - Quit Slovo. Run `tccutil reset Accessibility com.slovo.app`. Launch.
-  - The log shows one `asr.modelLoad state=started`, one `state=finished ms=…`, and
-    `onboarding pending`.
+  - The log shows one `asr.modelLoad state=started`, one
+    `state=finished ms=… source=cache`, and `onboarding pending`.
   - Click "Retry Setup" in the "Slovo Setup Required" menu. Wait for the next
     `onboarding pending` line, then click it once more.
   - Neither click logs a new `asr.modelLoad state=started`.
   - Grant Accessibility from that menu and open the Slovo menu again. The log shows
     `production composition started` and still no new `asr.modelLoad` line.
   - The next dictation starts immediately, with no "Preparing Speech Model" pulse.
+- **A failed first load retries on its own.** Same stream:
+  - Quit Slovo. Remove `~/Library/Application Support/slovo/models`. Turn the
+    network off. Launch.
+  - The log shows `asr.modelLoad state=failed` lines at growing intervals and the
+    glyph keeps pulsing.
+  - Press the push-to-talk key. No orange microphone indicator appears in the menu
+    bar and no cue plays.
+  - Turn the network on. Within about a minute the log shows a new
+    `asr.modelLoad state=started`; `state=finished ms=… source=download` follows
+    when the download completes. The pulse then stops, and the next dictation
+    inserts text.
+- **A cached model loads offline.** Same stream, model left in the cache from the
+  check above:
+  - Quit Slovo. Turn off Wi-Fi (and any wired network). Open the log stream. Launch.
+  - The log shows one `asr.modelLoad state=started` and one
+    `state=finished ms=… source=cache`.
+  - The first dictation inserts text. Turn the network back on.
+- **A missing model file is downloaded again.** Same stream, model cached, network on:
+  - Quit Slovo. Delete one file inside
+    `~/Library/Application Support/slovo/models/models/argmaxinc/whisperkit-coreml/openai_whisper-large-v3-v20240930_turbo_632MB/AudioEncoder.mlmodelc/`
+    (for example `weights/weight.bin`). Launch.
+  - The log shows `state=finished ms=… source=download`; the file is back.
+  - The first dictation inserts text. The next launch shows `source=cache`.
 - The stuck loading pulse — a gated pipeline replaced by one that needs setup —
   requires losing a permission while Slovo runs, so it is not checked by hand. The
   source guard `aCompositionThatSkipsTheGateClearsTheLoadingState` pins it.

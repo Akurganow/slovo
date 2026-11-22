@@ -83,9 +83,6 @@ struct ConfigStoreRecoveryTests {
         row("asr.model", "5") { $0.asrModel = Config.defaultAsrModel },
         row("asr.vocabularyBias", #""on""#) { $0.usesVocabularyBias = false },
         row("cleanup.enabled", #""no""#) { $0.cleanupEnabled = false },
-        row("keepWarmSeconds", "-1") { $0.keepWarmSeconds = nil },
-        row("keepWarmSeconds", "3601") { $0.keepWarmSeconds = nil },
-        row("keepWarmSeconds", #""45""#) { $0.keepWarmSeconds = nil },
         row("cleanup.openRouterModel", #""""#) { $0.openRouterModel = Config.defaultOpenRouterModel },
         row("cleanup.openRouterModel", #""  ""#) { $0.openRouterModel = Config.defaultOpenRouterModel },
         row("cleanup.openRouterModel", "7") { $0.openRouterModel = Config.defaultOpenRouterModel },
@@ -121,8 +118,7 @@ struct ConfigStoreRecoveryTests {
     /// Stated sensitivity: reset the whole config to defaults on an unreadable field
     /// → the untouched fields are lost → RED; leave an unreadable field at its
     /// stored or decoded value, or leave it out of the recovered set → RED; report a
-    /// key that was readable → RED; recover `cleanup.enabled` to on → RED; reset
-    /// keep-warm on an unreadable sibling, or keep an out-of-range keep-warm → RED.
+    /// key that was readable → RED; recover `cleanup.enabled` to on → RED.
     @Test(arguments: unreadableFields)
     func oneUnreadableFieldTakesItsDefaultAndKeepsTheRest(row: Row) throws {
         try expect(row)
@@ -134,7 +130,6 @@ struct ConfigStoreRecoveryTests {
         absent("translateTrigger") { $0.translateTrigger = .control },
         absent("cleanup.enabled") { $0.cleanupEnabled = true },
         absent("cleanup.writingStyle") { $0.writingStyle = .casual },
-        absent("keepWarmSeconds") { $0.keepWarmSeconds = nil },
         absent("asr.backend") { _ in },
         absent("asr.model") { $0.asrModel = Config.defaultAsrModel },
         absent("asr") {
@@ -207,24 +202,6 @@ struct ConfigStoreRecoveryTests {
         ))
     }
 
-    /// A legacy Apple Speech blob reaches WhisperKit with the default model and a
-    /// resident model (keep-warm nil). The migration itself is not damage and is not
-    /// reported, but the stored keep-warm 5000 is out of range, so it is still counted.
-    /// Stated sensitivity: stop counting a damaged legacy keep-warm → the set is empty
-    /// → RED; count the legacy migration itself (the backend or the model) → the set
-    /// has an extra key → RED.
-    @Test
-    func legacyBackendWithDamagedKeepWarmCountsOnlyTheKeepWarm() throws {
-        try expect(Row(
-            edits: [Edit("asr.backend", #""speechtranscriber""#), Edit("keepWarmSeconds", "5000")],
-            recovered: ["keepWarmSeconds"],
-            expected: {
-                $0.asrModel = Config.defaultAsrModel
-                $0.keepWarmSeconds = nil
-            }
-        ))
-    }
-
     static let collisions: [Row] = [
         Row(
             edits: [Edit("trigger", #""left-shift""#)],
@@ -271,17 +248,14 @@ struct ConfigStoreRecoveryTests {
         ))
     }
 
-    /// The keep-warm window is inclusive at both ends: 0 releases the model after
-    /// each use and 3600 is the longest idle window.
-    /// Stated sensitivity: make either bound exclusive → the boundary value is
-    /// recovered to nil and reported → RED.
-    @Test(arguments: [0, 3_600])
-    func keepWarmBoundsLoadAsStored(seconds: Int) throws {
-        try expect(Row(
-            edits: [Edit("keepWarmSeconds", "\(seconds)")],
-            recovered: [],
-            expected: { $0.keepWarmSeconds = seconds }
-        ))
+    /// A stored blob that still carries the retired keep-warm key, whatever it holds,
+    /// loads every other field as stored and reports nothing.
+    /// Stated sensitivity: read the key again, with its old range check → `-1`, `3601`
+    /// and `"45"` are reported as recovered → RED; decode with a container that rejects a
+    /// key it does not know → the blob resets to defaults → RED.
+    @Test(arguments: ["45", "-1", "3601", #""45""#])
+    func retiredKeepWarmKeyIsIgnoredWhateverItHolds(json: String) throws {
+        try expect(Row(edits: [Edit("keepWarmSeconds", json)], recovered: [], expected: { _ in }))
     }
 
     /// A saved config reads back whole and without a recovered key, so an encoder

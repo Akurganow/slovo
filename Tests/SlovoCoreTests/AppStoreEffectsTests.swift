@@ -126,7 +126,7 @@ struct AppStoreEffectsTests {
         let engine = FakeSpeechEngine(finalize: .success("raw words"))
         let orchestrator = Self.makeOrchestrator(
             store: store,
-            transcriber: TranscriberFixtures.makeTranscriber(engine: engine, keepWarmSeconds: nil)
+            transcriber: TranscriberFixtures.makeTranscriber(engine: engine)
         )
         AppStoreEffects.wire(store, to: Self.targets(orchestrator: orchestrator))
         store.update { $0.config.language = .ru }

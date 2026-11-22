@@ -72,7 +72,6 @@ public enum ConfigStore {
     /// too.
     private struct StoredConfig: Encodable {
         let language: Language
-        let keepWarmSeconds: Int?
         let trigger: String
         let translateTrigger: String
         let translateKeyIsAdditional: Bool
@@ -87,7 +86,6 @@ public enum ConfigStore {
 
         init(config: Config) {
             language = config.language
-            keepWarmSeconds = config.keepWarmSeconds
             trigger = config.trigger.rawValue
             translateTrigger = config.translateTrigger.rawValue
             translateKeyIsAdditional = config.translateKeyIsAdditional
@@ -97,7 +95,6 @@ public enum ConfigStore {
             translationTargetLanguage = config.translationTargetLanguage
             automaticallyInstallsUpdates = config.automaticallyInstallsUpdates
             asr = StoredAsr(
-                backend: config.asrBackend,
                 model: config.asrModel,
                 vocabularyBias: config.usesVocabularyBias
             )
@@ -111,7 +108,7 @@ public enum ConfigStore {
     }
 
     private struct StoredAsr: Encodable {
-        let backend: AsrBackend
+        let backend = ConfigStore.whisperKitBackend
         let model: String
         let vocabularyBias: Bool
     }
@@ -160,7 +157,7 @@ public enum ConfigStore {
                 "backend", String.self, default: StoredBackend.whisperKit, whenUnreadable: .unknown
             ) {
                 switch $0 {
-                case AsrBackend.whisperKit.rawValue: .whisperKit
+                case ConfigStore.whisperKitBackend: .whisperKit
                 case ConfigStore.legacyAppleSpeechBackend: .legacyAppleSpeech
                 default: nil
                 }
@@ -181,17 +178,10 @@ public enum ConfigStore {
             let cleanupEnabled = cleanup.value("enabled", default: defaults.cleanupEnabled, whenUnreadable: false)
                 && providerIsOpenRouter
 
-            let keepWarmSeconds = top.value("keepWarmSeconds", Int.self, default: Int?.none) {
-                ConfigStore.keepWarmRange.contains($0) ? .some($0) : nil
-            }
-
             config = Config(
                 language: top.value("language", Language.self, default: defaults.language) {
                     $0 == .auto || RecognitionLanguageCatalog.isSupported($0.rawValue) ? $0 : nil
                 },
-                // A legacy Apple-Speech blob's keep-warm meant Apple-Speech retention,
-                // not a WhisperKit window, so it returns to the resident default (nil).
-                keepWarmSeconds: backend == .legacyAppleSpeech ? nil : keepWarmSeconds,
                 trigger: trigger,
                 translateTrigger: translateTrigger,
                 translateKeyIsAdditional: top.value(
@@ -311,6 +301,10 @@ public enum ConfigStore {
         }
     }
 
+    /// The backend wire value every build since the WhisperKit runtime writes and
+    /// reads; an older build requires it.
+    private static let whisperKitBackend = "whisperkit"
+
     /// Legacy persisted values from the abandoned Apple-Speech migration; decoded
     /// as raw strings and mapped forward, never held as live backend cases.
     private static let legacyAppleSpeechBackend = "speechtranscriber"
@@ -342,17 +336,9 @@ public enum ConfigStore {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
     }
 
-    /// The idle seconds a loaded model may stay warm; load and save share it.
-    private static let keepWarmRange = 0...3_600
-
     /// What `save` and `isValid` accept. Load does not call it: it recovers every
     /// value this refuses.
     private static func validated(_ config: Config) -> Config? {
-        // A nil keep-warm is the valid resident default; a present value must be a
-        // sane window.
-        if let keepWarmSeconds = config.keepWarmSeconds, !keepWarmRange.contains(keepWarmSeconds) {
-            return nil
-        }
         // The save-side mutual-exclusion check on the two hotkeys: one key cannot
         // hold both roles. The Settings pickers also make a colliding pair
         // unselectable, but that only keeps the user away from this rule. Refusing
@@ -361,8 +347,7 @@ public enum ConfigStore {
         guard config.trigger != config.translateTrigger else {
             return nil
         }
-        guard config.asrBackend == .whisperKit,
-              nonBlank(config.asrModel) != nil,
+        guard nonBlank(config.asrModel) != nil,
               nonBlank(config.openRouterModel) != nil
         else {
             return nil

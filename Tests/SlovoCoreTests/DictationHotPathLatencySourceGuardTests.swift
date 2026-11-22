@@ -6,9 +6,9 @@ import Testing
 // property of slovo's OWN orchestration — the pure `DictationFsm` decision table and
 // the effect-executing `Orchestrator` with its helpers — never of the injected
 // ASR/cleanup/injection adapters, which is why the pipeline suite drives all-instant
-// fakes and why those adapters may legitimately wait (WhisperKit keep-warm, the
-// clipboard-restore delay in ClipboardPasteInjector, the app-target sad-to-fail glyph
-// timer).
+// fakes and why those adapters may legitimately wait (the
+// clipboard-restore delay in ClipboardPasteInjector, the app-target sad-to-fail
+// glyph timer).
 //
 // A wall-clock timing test cannot prove this on a loaded machine: OS scheduling
 // variance dwarfs the ~1 ms fake pipeline (the same run was observed taking 0.24 s to
