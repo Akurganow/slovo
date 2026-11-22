@@ -84,9 +84,9 @@ Clarifications:
   finished is refused too. A cancelled hold leaves the same brief wind-down.
   The next press dictates normally.
 - **A press made before the speech model is loaded is refused too.**
-  Nothing happens: no microphone, no mute, no cues, and no change to
-  the glyph or the status line. The loading glyph keeps pulsing and the
-  status line keeps "Preparing Speech Model" until the model loads.
+  It opens no microphone, mutes nothing and plays no cue, and it leaves the
+  menu bar on the pulsing loading glyph with the status line "Preparing
+  Speech Model", which they show until the model loads.
   After a failed load Slovo retries on its own, with growing pauses, and
   shows no separate failure state.
 - **Translate hold.** Translation is driven by a configurable **translate key**

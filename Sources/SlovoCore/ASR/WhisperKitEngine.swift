@@ -27,12 +27,14 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
         lock.withLock { loadedEngine != nil }
     }
 
-    /// Loads the model from the app cache first, with no request; the download path
-    /// runs only when that load fails. It downloads the files that are missing or whose
-    /// upstream version changed; a file damaged in place is kept while the commit or
-    /// etag stored for it at download still matches the server's
-    /// (argmax-oss-swift 1.1.1 at `1bbc57cb`,
-    /// `Sources/ArgmaxCore/External/Hub/HubApi.swift:469-526`, source).
+    /// Loads the model from the app cache first. That load requests no model file; the
+    /// SDK still fetches the tokenizer inside it when the cached one is missing or does
+    /// not load (`Sources/WhisperKit/Utilities/ModelUtilities.swift:17-77`). The
+    /// download path runs only when that load fails. It downloads the files that are
+    /// missing or whose upstream version changed; a file damaged in place is kept while
+    /// the commit or etag stored for it at download still matches the server's
+    /// (`Sources/ArgmaxCore/External/Hub/HubApi.swift:469-526`). Both citations are
+    /// source of argmax-oss-swift 1.1.1 at `1bbc57cb`.
     ///
     /// Logged HERE rather than at the transcriber's single flight: this is the one
     /// place a model is really constructed (and, on a cold cache, downloaded), so a
@@ -69,7 +71,7 @@ public final class WhisperKitEngine: ModelLoading, SpeechStreamingSessionCreatin
     }
 
     /// The configuration of the load from the app cache: the model folder is given and
-    /// `download` is off, so the load makes no request.
+    /// `download` is off, so the load requests no model file.
     static func cachedLoadConfig(model: String, base: URL) -> WhisperKitConfig {
         WhisperKitConfig(
             model: model,

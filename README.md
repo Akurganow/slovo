@@ -130,8 +130,9 @@ tuned.
   dictates, inserting the raw transcript).
 
 On first use, WhisperKit downloads the speech model from Hugging Face; later
-launches load the copy Slovo keeps and contact Hugging Face only when it fails
-to load. When Slovo contacts Hugging Face is in
+launches load the copy Slovo keeps and contact Hugging Face only when that copy
+fails to load or its tokenizer file is missing or unreadable. When Slovo
+contacts Hugging Face is in
 [docs/privacy.md](docs/privacy.md), "Speech Model". Transcription itself runs
 on the Mac.
 

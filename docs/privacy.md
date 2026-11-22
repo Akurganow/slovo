@@ -9,7 +9,7 @@ everything Slovo sends off the Mac.
 | Data | Location | Network |
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
-| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request, except that a tokenizer file missing from the cache is fetched from Hugging Face inside that load; the download path asks Hugging Face only when the local load fails — see Speech Model |
+| Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request, except that a tokenizer file missing from the cache, or one that cannot be loaded, is fetched from Hugging Face inside that load; the download path asks Hugging Face only when the local load fails — see Speech Model |
 | Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, while cleanup is on — see Cloud Cleanup |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Only in the cleanup request; never logged |
 | Key-scope request: `GET /api/v1/models/user`, carrying the API key and no dictated content | — | Sent to OpenRouter on each occasion listed under Cloud Cleanup |
@@ -129,7 +129,7 @@ tokenizer. A local load reads the cached tokenizer from disk. The requests name
 the model's repository and files and carry no dictated content.
 
 Source: `argmax-oss-swift` 1.1.1 at commit `1bbc57cb`, read, not run. The local
-load, with no request when a model folder is given:
+load's setup, with no request when a model folder is given:
 [`WhisperKit.setupModels`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Core/WhisperKit.swift#L322-L325).
 The first file list and the call to `snapshot`:
 [`WhisperKit.download`](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Core/WhisperKit.swift#L262-L303).

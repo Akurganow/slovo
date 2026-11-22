@@ -22,13 +22,13 @@ struct WhisperKitEngineLoadConfigTests {
         #expect(folder.path(percentEncoded: false) == "/tmp/slovo-test-base/models/argmaxinc/whisperkit-coreml/openai_whisper-large-v3-v20240930_turbo_632MB/")
     }
 
-    /// The cached load makes no request and loads from the folder the download wrote.
+    /// The cached load requests no model file and loads from the folder the download wrote.
     /// Stated sensitivity: `download: true` (every cached launch lists the repository on
     /// the network), a nil model folder (the load downloads), or a model folder that
     /// never matches the cache (every launch downloads) → RED; dropping `downloadBase`
     /// from this configuration → RED.
     @Test
-    func theCachedLoadMakesNoRequestAndReadsTheCacheFolder() {
+    func theCachedLoadRequestsNoModelFileAndReadsTheCacheFolder() {
         let config = WhisperKitEngine.cachedLoadConfig(model: Self.model, base: Self.base)
 
         #expect(config.download == false)
