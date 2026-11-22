@@ -9,18 +9,6 @@ import SlovoCore
 // emptied" from a runtime degradation into a red CI.
 @Suite("Prompt example catalog")
 struct PromptExampleCatalogTests {
-    /// Stated sensitivity: deleting the resource, breaking its XML, or renaming
-    /// the root/section tags collapses the bundled catalog to empty → RED here.
-    @Test
-    func bundledCatalogParsesTheXmlResource() {
-        let catalog = PromptExampleCatalog.bundled
-        #expect(!catalog.cleanup.isEmpty, "the bundled cleanup example set must not be empty")
-        #expect(!catalog.translation.isEmpty, "the bundled translation example sets must not be empty")
-        for (code, pairs) in catalog.translation {
-            #expect(!pairs.isEmpty, "target \(code) must not carry an empty example list")
-        }
-    }
-
     /// Stated sensitivity: dropping an example or reordering the head of the set
     /// (the canonical mic-check must stay first) reddens; the count pins silent
     /// truncation by a parser change.

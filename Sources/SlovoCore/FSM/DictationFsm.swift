@@ -206,7 +206,7 @@ public enum DictationFsm {
             // (no OpenRouter round trip, which could invent text) or injection (no
             // clipboard ⌘V cycle, which can delete a selection on an empty pasteboard)
             // in ANY mode — surface only the brief no-speech glyph and reset to idle.
-            let hasSpeech = transcript.contains { !$0.isWhitespace }
+            let hasSpeech = transcript.hasVisibleCharacter
             guard hasSpeech else {
                 return (.idle, [.notify(.noSpeechDetected), .returnToIdle])
             }

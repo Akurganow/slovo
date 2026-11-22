@@ -167,7 +167,8 @@ xcrun stapler validate .build/dist/Slovo.dmg
   cleanup or insertion failure plays Start, End, then Error in FIFO order.
 - Secure-input fields fail closed without writing transcript text to the
   clipboard.
-- Offline, refused, unavailable, or misconfigured cleanup falls back to
+- Offline, refused, unavailable, or misconfigured cleanup, a reply with nothing
+  visible in it, or a request that takes longer than 10 seconds falls back to
   `PassThrough` and preserves the user's words.
 - An Error cue on a dictation that DID insert text means cleanup failed and the raw
   transcript was used. The same stream names the cause:

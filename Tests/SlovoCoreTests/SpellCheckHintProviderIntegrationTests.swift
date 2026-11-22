@@ -49,7 +49,7 @@ struct SpellCheckHintProviderIntegrationTests {
 
     /// Smoke: the TIS reader bridges without crashing and returns nil or a plausible
     /// primary subtag. Stated sensitivity: a broken Unmanaged bridge would crash or
-    /// return a malformed value (spaces / non-lowercase), failing the shape check.
+    /// return a malformed value (spaces), failing the shape check.
     @Test(.enabled(if: runsLocally, "real Text Input Sources; skipped on shared CI"))
     func inputSourceReaderReturnsPlausibleLanguageOrNil() {
         let language = SystemInputSourceLanguageReader().currentPrimaryLanguage()
