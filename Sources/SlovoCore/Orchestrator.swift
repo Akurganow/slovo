@@ -240,8 +240,9 @@ public actor Orchestrator {
     }
 
     /// The clean → inject follow-on for a ready transcript: gathers the on-device
-    /// hints, runs the cleaner, and feeds the cleaned result (or a cleanup failure)
-    /// back through the FSM. Its own method so the effect switch stays cohesive.
+    /// hints, runs the cleaner, and feeds the cleaned result back through the FSM. A
+    /// cleaner error the chain does not catch feeds the spoken transcript instead.
+    /// Its own method so the effect switch stays cohesive.
     private func cleanAndContinue(transcript: String) async {
         // Deliberate pass-through, not a cleanup: cleanup-off forwards the raw
         // transcript untouched and never consults the session mode, so translation
@@ -265,7 +266,10 @@ public actor Orchestrator {
             recordTermMisses(raw: transcript, cleaned: cleaned)
             await handle(.cleaned(cleaned))
         } catch {
-            await handle(.failed(.cleanup))
+            // An error the fallback chain does not catch still keeps the spoken words.
+            deps.reportStatus(.cleanupUnavailableInsertedAsSpoken)
+            Self.diagnosticLog.error("cleanup.failure kind=unexpected")
+            await handle(.cleaned(transcript))
         }
     }
 

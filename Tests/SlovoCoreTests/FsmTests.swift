@@ -217,11 +217,4 @@ struct HonestStatusMappingTests {
         #expect(notifiedStatus(for: .injection(.pasteFailed)) == .injectionFailed,
                 "paste-failed must notify .injectionFailed")
     }
-
-    /// A cleanup failure that escaped the fallback chain names cleanup.
-    @Test
-    func cleanupFailureMapsToCleanupFailed() {
-        #expect(notifiedStatus(for: .cleanup) == .cleanupFailed,
-                "cleanup failure must notify .cleanupFailed")
-    }
 }

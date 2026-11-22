@@ -195,8 +195,9 @@ xcrun stapler validate .build/dist/Slovo.dmg
   `PassThrough` and preserves the user's words.
 - An Error cue on a dictation that DID insert text means cleanup failed and the raw
   transcript was used. The same stream names the cause:
-  `cleanup.failure kind=… status=… ms=…`, then
-  `cue.error reason=cleanupUnavailableInsertedAsSpoken`.
+  `cleanup.failure kind=… status=… ms=…` for a provider failure, or
+  `cleanup.failure kind=unexpected` for an error that is not a provider failure,
+  then `cue.error reason=cleanupUnavailableInsertedAsSpoken`.
 - The key-scope request and the Keychain read follow [docs/privacy.md](privacy.md),
   "Keychain" and "Cloud Cleanup": check that the request goes out once the
   hotkey is ready, before any dictation, and only while Clean Up Dictation is

@@ -106,7 +106,8 @@ standalone WhisperKit package). What leaves the Mac is listed in
   optimization. Neither the cleaner nor the paste path ever sees a special
   token.
 - `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
-  succeeds; `FallbackCleaner` degrades a failed attempt to `PassThrough`.
+  succeeds; `FallbackCleaner` degrades a failed attempt to `PassThrough`, and the
+  orchestrator inserts the spoken text for an error the chain does not catch.
 - `Injector` inserts the final text into the focused field with an atomic paste.
 - `CleanupAvailability` is the app layer's single source of truth for whether
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter

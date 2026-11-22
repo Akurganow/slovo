@@ -225,13 +225,15 @@ struct OrchestratorTests {
                 "turning cleanup back on must reach the cleaner held by the composition; got \(String(describing: injector.calls.last))")
     }
 
-    /// A non-CleanupError from the cleaner is not a degradation case. It must be
-    /// contained as a failure, never silently inserted as raw text.
-    /// Stated sensitivity: actor-level bare `catch { transcript }` fallback →
-    /// raw transcript is injected despite a non-CleanupError → RED.
+    /// An unexpected cleaner error (not a `CleanupError`) escapes `FallbackCleaner`
+    /// and keeps the user's words: the spoken text is inserted, reported once as
+    /// `.cleanupUnavailableInsertedAsSpoken`, and the session returns to idle. The
+    /// owner decided this, so an unexpected error ends like an expected cleanup failure.
+    /// Stated sensitivity: restore the failing catch (`handle(.failed(…))`) → nothing
+    /// injected → RED.
     @Test
-    func unexpectedCleanerFailureDoesNotInjectRawTranscript() async {
-        var capturedLogs: [String] = []
+    func unexpectedCleanerFailureInsertsTheSpokenText() async {
+        let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Self.cleanupConfig,
@@ -245,20 +247,20 @@ struct OrchestratorTests {
                 ),
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
                 cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
+                statusReporter: { status in reported.withLock { $0.append(status) } }
             )
         )
 
         await Self.runSession(orchestrator)
 
-        #expect(injector.calls.isEmpty,
-                "a non-CleanupError must not be degraded to raw transcript insertion; got \(injector.calls)")
-        #expect(capturedLogs.contains("status.cleanupFailed"),
-                "escaped cleanup failures must route through FSM notify(.cleanupFailed); got \(capturedLogs)")
-        #expect(capturedLogs.contains("fsm.stageFailed"),
-                "escaped cleanup failures must route through FSM log(.stageFailed); got \(capturedLogs)")
+        #expect(injector.calls == ["hi"],
+                "an unexpected cleaner error must insert the spoken text; got \(injector.calls)")
+        let statuses = reported.withLock { $0 }
+        #expect(statuses.filter { $0 == .cleanupUnavailableInsertedAsSpoken }.count == 1,
+                "the spoken-text status must be reported exactly once; got \(statuses)")
         #expect(await orchestrator.currentState() == .idle,
-                "a contained cleaner failure must return the session to idle")
+                "the session must return to idle after the spoken text is inserted")
     }
 
     /// A transcription failure yields no text, so nothing is injected and the

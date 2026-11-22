@@ -1,7 +1,7 @@
 /// A composite `Cleaner` that walks a chain, advancing to the next cleaner on any
-/// `CleanupError` and terminating at `PassThrough`. A
-/// non-`CleanupError` (e.g. `CancellationError`) PROPAGATES — it is never
-/// swallowed and silently degraded.
+/// `CleanupError` and terminating at `PassThrough`. A non-`CleanupError` (e.g.
+/// `CancellationError`) is not caught here: it propagates to the orchestrator,
+/// which inserts the spoken text.
 ///
 /// Every expected `CleanupError` advances WITH a user-visible sad-to-fail status.
 /// Cleanup is always attempted upstream; preserving the user's voice-to-text

@@ -13,7 +13,6 @@ struct DictationFailureSoundCueTests {
         .secureFieldActive,
         .injectionFailed,
         .microphoneUnavailable,
-        .cleanupFailed,
         .noSpeechDetected,
     ]
 

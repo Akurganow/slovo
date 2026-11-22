@@ -152,11 +152,12 @@ struct OrchestratorTermMissTests {
         #expect(!Self.detectionRan(harness.events))
     }
 
-    /// A failed cleanup (`catch` branch) spawns no detection. The failure must
-    /// be one that REACHES the actor's catch: `FallbackCleaner` degrades every
-    /// `CleanupError` to `PassThrough` (a success with `cleaned == raw`), so
-    /// only a non-`CleanupError` propagates — the same `ThrowingCleaner`
-    /// shape `OrchestratorTests.unexpectedCleanerFailureDoesNotInjectRawTranscript` uses.
+    /// An unexpected cleaner error (`catch` branch) inserts the spoken text and
+    /// spawns no detection, because no cleaned text exists to compare. The failure
+    /// must REACH the actor's catch: `FallbackCleaner` degrades every `CleanupError`
+    /// to `PassThrough` (a success with `cleaned == raw`), so only a non-`CleanupError`
+    /// propagates — the same `ThrowingCleaner` shape
+    /// `OrchestratorTests.unexpectedCleanerFailureInsertsTheSpokenText` uses.
     /// Stated sensitivity: spawn detection in the catch branch with the raw
     /// transcript as cleaned → the detection line appears → RED.
     @Test
@@ -166,9 +167,9 @@ struct OrchestratorTermMissTests {
         await Self.runSession(harness.orchestrator)
         await harness.orchestrator.awaitTermMissDrain()
 
-        // Precondition: the failure really reached the actor's catch branch
-        // (a degraded pass-through would have injected the raw transcript).
-        #expect(harness.injector.calls.isEmpty)
+        // Precondition: the failure reached the actor's catch branch, which inserts
+        // the spoken text.
+        #expect(harness.injector.calls == [Self.rawTranscript])
         let batches = await harness.recorder.recordedBatches()
         #expect(batches.isEmpty)
         #expect(!Self.detectionRan(harness.events))
