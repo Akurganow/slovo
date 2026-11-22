@@ -45,23 +45,19 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
 
     private let state = Mutex(State())
     private let finalizeOutcome: FinalizeOutcome
-    private let loadSucceeds: Bool
     private let loadFailuresBeforeSuccess: Int
 
     /// - Parameters:
     ///   - finalize: the scripted live-session result.
-    ///   - loadSucceeds: `false` makes every `load()` throw `ScriptedFailure`.
     ///   - loadFailuresBeforeSuccess: the first N `load()` attempts throw, then
     ///     later attempts succeed (models a transient load failure that a retry
-    ///     recovers from). Ignored when `loadSucceeds` is false.
+    ///     recovers from).
     @preconcurrency
     public init(
         finalize: FinalizeOutcome = .success(""),
-        loadSucceeds: Bool = true,
         loadFailuresBeforeSuccess: Int = 0
     ) {
         self.finalizeOutcome = finalize
-        self.loadSucceeds = loadSucceeds
         self.loadFailuresBeforeSuccess = loadFailuresBeforeSuccess
     }
 
@@ -121,7 +117,7 @@ public final class FakeSpeechEngine: ModelLoading, SpeechStreamingSessionCreatin
                 state.withLock { $0.loadWaiters.append(continuation) }
             }
         }
-        if loadSucceeds && attempt > loadFailuresBeforeSuccess {
+        if attempt > loadFailuresBeforeSuccess {
             state.withLock { $0.loaded = true }
         } else {
             throw ScriptedFailure()
