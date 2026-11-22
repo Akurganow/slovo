@@ -86,7 +86,7 @@ Clarifications:
 - **A press made before the speech model is loaded is refused too.**
   It opens no microphone, mutes nothing and plays no cue, and it leaves the
   menu bar on the pulsing loading glyph with the status line "Preparing
-  Speech Model", which they show until the model loads.
+  Speech Model".
   After a failed load Slovo retries on its own, with growing pauses, and
   shows no separate failure state.
 - **Translate hold.** Translation is driven by a configurable **translate key**
