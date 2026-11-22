@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.10] - 2026-11-22
+
+### Fixed
+
+- Load the cached speech model offline and keep dictation closed until it loads (#221)
+
 ## [0.37.9] - 2026-11-22
 
 ### Fixed
