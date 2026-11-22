@@ -153,40 +153,37 @@ struct OrchestratorTests {
                 "the switched cleanup model must reach the next dictation on the SAME orchestrator, without a rebuild")
     }
 
-    /// Degradation: a failing cleaner ⇒ the RAW transcript is injected via
-    /// PassThrough (never lose the words).
+    /// A failing cleaner ⇒ the RAW transcript is injected (never lose the words).
     /// Stated sensitivity: break the degradation (don't advance to PassThrough on
-    /// `.offline`) → the raw transcript is NOT injected → RED.
+    /// `.transport`) → the raw transcript is NOT injected → RED.
     @Test
     func failingCleanerDegradesToRawTranscript() async {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
-        let cleaner = FakeCleaner(outcome: .failure(.offline))
+        let cleaner = FakeCleaner(outcome: .failure(.transport))
         let injector = FakeInjector(outcome: .success)
         let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let summary = PipelineFactory.describeComposition(config: Self.cleanupConfig, dependencies: dependencies)
         let orchestrator = PipelineFactory.makeOrchestrator(config: Self.cleanupConfig, dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
-        #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "factory must compose cleaner failure through PassThrough, not actor-level catch-all fallback; got \(summary.fallbackChainKinds)")
         #expect(injector.calls.last == "hi",
                 "a failing cleaner must degrade to the RAW transcript via PassThrough; got \(String(describing: injector.calls.last))")
     }
 
-    /// A persisted `cleanup.enabled=false` is now a first-class user-off mode, not
-    /// a degradation (spec §Revised product invariants, owner-approved 2026-07-22):
-    /// loaded end-to-end from the stored blob, the orchestrator skips the cleaner
-    /// entirely and injects the RAW transcript. The composition still wraps the
-    /// upstream cleaner before PassThrough — the skip is a runtime latch, not a
-    /// composition change — so PassThrough stays reserved for genuine failures in
-    /// cleanup-ON mode. This is the only test covering the full path (stored blob →
-    /// `ConfigStore.load` → `Config.cleanupConfig.runsCleaner` → session latch);
-    /// the override-based `OrchestratorCleanupToggleTests` bypass that mapping.
+    /// A persisted `cleanup.enabled=false` is a first-class user-off mode, not a
+    /// degradation: loaded end-to-end from the stored blob, the orchestrator skips
+    /// the cleaner and injects the RAW transcript. A later push of the same config
+    /// with `runsCleaner` true cleans again, so the skip is a runtime latch and the
+    /// composition still holds the cleaner. This is the only test covering the full
+    /// path (stored blob → `ConfigStore.load` → `Config.cleanupConfig.runsCleaner`
+    /// → session latch); the override-based `OrchestratorCleanupToggleTests` bypass
+    /// that mapping.
     /// Stated sensitivity: restore the discard-decode (`_ = decodeIfPresent` for
     /// `cleanup.enabled`), or drop the `Config.cleanupConfig → runsCleaner`
     /// mapping, or remove the `sessionRunsCleaner` guard -> `runsCleaner` reads
-    /// `true`, the cleaner is called, and "HI" is injected -> RED.
+    /// `true`, the cleaner is called, and "HI" is injected -> RED. Build the
+    /// factory's chain without `dependencies.cleaner` when `runsCleaner` is false
+    /// -> the second dictation injects "hi" -> RED.
     @Test
     func persistedDisabledConfigSkipsCleanerEndToEnd() async throws {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
@@ -210,17 +207,22 @@ struct OrchestratorTests {
             """.utf8),
         ]))
         let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let summary = PipelineFactory.describeComposition(config: config, dependencies: dependencies)
         let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
-        #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "cleanup-off changes runtime behavior, not composition; got \(summary.fallbackChainKinds)")
         #expect(cleaner.calls.isEmpty,
                 "a persisted enabled=false must skip the cleaner, not attempt it; got \(cleaner.calls.count) calls")
         #expect(injector.calls.last == "hi",
                 "cleanup-off injects the raw transcript, not a cleaned result; got \(String(describing: injector.calls.last))")
+
+        var cleanupOn = config.cleanupConfig
+        cleanupOn.runsCleaner = true
+        await orchestrator.updateCleanupConfig(cleanupOn)
+        await Self.runSession(orchestrator)
+
+        #expect(injector.calls.last == "HI",
+                "turning cleanup back on must reach the cleaner held by the composition; got \(String(describing: injector.calls.last))")
     }
 
     /// A non-CleanupError from the cleaner is not a degradation case. It must be

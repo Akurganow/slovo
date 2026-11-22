@@ -206,7 +206,7 @@ struct OrchestratorSoundCueTests {
         let orchestrator = Self.makeOrchestrator(
             timeline: CueTimeline(), transcriber: FakeTranscriber(outcome: .success("spoken"), isModelResident: true),
             cues: cues, recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
-            audio: FakeSystemAudioController(muteReturns: mutedState), cleaner: FakeCleaner(outcome: .failure(.offline))
+            audio: FakeSystemAudioController(muteReturns: mutedState), cleaner: FakeCleaner(outcome: .failure(.transport))
         )
 
         await orchestrator.handle(.startRequested)

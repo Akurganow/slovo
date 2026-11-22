@@ -128,7 +128,7 @@ struct OpenRouterCleanerTests {
 
     /// Stated sensitivity: mapping every code to `offline` -> the rows other than
     /// `offline` go RED, because the log loses the transport cause. The thrown
-    /// error stays `.offline` in every row.
+    /// error stays `.transport` in every row.
     @Test(arguments: [
         (URLError.Code.timedOut, "timedOut"),
         (.notConnectedToInternet, "offline"),
@@ -144,7 +144,7 @@ struct OpenRouterCleanerTests {
         (.clientCertificateRejected, "tls"),
         (.cannotFindHost, "transport"),
     ])
-    func transportFailureLogsItsCauseAndThrowsOffline(code: URLError.Code, token: String) async {
+    func transportFailureLogsItsCauseAndThrowsTransport(code: URLError.Code, token: String) async {
         let scenario = StubScenario(response: .transportError(URLError(code)))
         var captured: [String] = []
         let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
@@ -156,7 +156,7 @@ struct OpenRouterCleanerTests {
         )
 
         await Self.expectThrows(cleaner) { error in
-            guard case .offline = error else { return "expected .offline, got \(error)" }
+            guard case .transport = error else { return "expected .transport, got \(error)" }
             return nil
         }
         #expect(captured.contains("cleanup failed: \(token)"),
@@ -165,9 +165,9 @@ struct OpenRouterCleanerTests {
 
     /// Stated sensitivity: logging the non-HTTP branch under another token
     /// (`offline`, say) -> RED, because the log loses the cause. The thrown error
-    /// stays `.offline`.
+    /// stays `.transport`.
     @Test
-    func nonHTTPResponseLogsBadResponseAndThrowsOffline() async {
+    func nonHTTPResponseLogsBadResponseAndThrowsTransport() async {
         let scenario = StubScenario(response: .nonHTTP)
         var captured: [String] = []
         let log = RedactionSafeLog(subsystem: "slovo", category: "openrouter-cleaner-test") { captured.append($0) }
@@ -179,7 +179,7 @@ struct OpenRouterCleanerTests {
         )
 
         await Self.expectThrows(cleaner) { error in
-            guard case .offline = error else { return "expected .offline, got \(error)" }
+            guard case .transport = error else { return "expected .transport, got \(error)" }
             return nil
         }
         #expect(captured.contains("cleanup failed: badResponse"),
@@ -226,7 +226,7 @@ struct OpenRouterCleanerTests {
         }
     }
 
-    /// Stated sensitivity: a key-sourcing error must not become offline/apiError.
+    /// Stated sensitivity: a key-sourcing error must not become transport/apiError.
     @Test
     func keySourcingFailureMapsToMissingKey() async throws {
         let scenario = try StubScenario(response: .http(status: 200, headers: [:], body: Self.successBody(text: "ok")))

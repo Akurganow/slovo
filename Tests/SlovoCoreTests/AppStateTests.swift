@@ -204,7 +204,7 @@ struct AppStateTests {
             .keySaved, .keyRemoved,
             .fetchCompleted(generation: known.cleanupScope.generation, ids: [other.id]),
             .fetchCompleted(generation: known.cleanupScope.generation, ids: nil),
-            .cleanupFailed(.apiError(status: 404)), .cleanupFailed(.offline),
+            .cleanupFailed(.apiError(status: 404)), .cleanupFailed(.transport),
         ]
         for event in events {
             var state = known

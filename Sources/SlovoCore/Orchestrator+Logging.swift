@@ -9,8 +9,6 @@ extension Orchestrator {
         switch error {
         case .backendUnavailable:
             return "backendUnavailable"
-        case .assetMissing:
-            return "assetMissing"
         case .audioFormatUnsupported:
             return "audioFormatUnsupported"
         case .engineFailure:

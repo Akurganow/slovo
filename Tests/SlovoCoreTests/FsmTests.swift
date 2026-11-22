@@ -173,22 +173,6 @@ struct FsmTests {
         #expect(translate.0 == plain.0, "the mode must not change the next state")
         #expect(translate.1 == plain.1, "the mode must not change the emitted effects")
     }
-
-    // MARK: - StageFailure equality by value
-
-    /// `StageFailure` equality distinguishes wrapped errors instead of collapsing every
-    /// `.injection(_)` to equal.
-    /// Sensitivity: compare by case only → distinct injection failures compare equal → RED.
-    @Test
-    func stageFailureDistinguishesDistinctInjectionErrors() {
-        #expect(StageFailure.injection(.secureInputActive) != .injection(.pasteFailed),
-                "secureInputActive and pasteFailed are different failures and must be unequal")
-        #expect(StageFailure.injection(.accessibilityDenied) != .injection(.pasteFailed),
-                "accessibilityDenied and pasteFailed are different failures and must be unequal")
-        // Same case stays equal (no over-correction into never-equal).
-        #expect(StageFailure.injection(.pasteFailed) == .injection(.pasteFailed),
-                "the same injection failure must stay equal to itself")
-    }
 }
 
 // MARK: - Honest StatusMessage map

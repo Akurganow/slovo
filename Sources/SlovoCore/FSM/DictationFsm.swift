@@ -103,12 +103,7 @@ public enum StatusMessage: Equatable, Sendable {
 }
 
 /// A stage failure routed into the FSM.
-///
-/// `Equatable` is synthesized, so distinct wrapped errors compare unequal (e.g.
-/// `.injection(.secureInputActive) != .injection(.pasteFailed)`), and adding a
-/// future `StageFailure` case is a compile error rather than a silent
-/// catch-all match.
-public enum StageFailure: Equatable, Sendable {
+public enum StageFailure: Sendable {
     case transcription(TranscriptionError)
     case injection(InjectionError)
     case capture(AudioCaptureError)

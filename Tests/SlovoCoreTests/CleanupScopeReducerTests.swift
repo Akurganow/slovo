@@ -131,8 +131,8 @@ struct CleanupScopeReducerTests {
         #expect(s2.generation == s.generation)
         #expect(s2.scope == .known(["a/b"]))  // stale-until-replaced: no interim reversion
         for error in [
-            CleanupError.apiError(status: 403), .offline, .missingKey,
-            .rateLimited(retryAfter: nil), .refused,
+            CleanupError.apiError(status: 403), .transport, .missingKey,
+            .rateLimited(retryAfter: nil),
         ] {
             #expect(reduce(s, .cleanupFailed(error)) == s)
         }

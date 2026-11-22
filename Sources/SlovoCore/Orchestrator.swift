@@ -135,7 +135,7 @@ public actor Orchestrator {
     /// so switching the cleanup model never tears down and re-warms the resident ASR
     /// model (#2). Like the per-dictation vocabulary read it needs no rebuild, but
     /// the mechanism differs — a push, since only the app knows a change happened
-    /// (the sole runtime mutation today is the cleanup model id).
+    /// (the store pushes the whole effective cleanup config whenever any field of it changes).
     public func updateCleanupConfig(_ config: CleanupConfig) {
         cleanupConfig = config
     }
@@ -215,15 +215,16 @@ public actor Orchestrator {
                 Self.diagnosticLog.error("transcription.failure stage=feed")
                 await handle(.failed(.transcription(feedError)))
             } else {
-                Self.diagnosticLog.info(
+                Self.diagnosticLog.log(
                     """
-                    transcription.success chars=\(text.count, privacy: .public)
+                    transcription.success chars=\(text.count, privacy: .public) \
+                    fed=\(self.feedHealth.successCount) failed=\(self.feedHealth.failureCount)
                     """
                 )
                 // A SEPARATE fixed-string marker, deliberately NOT folded into the
                 // `transcription.success` line above: the runbook predicate matches
                 // eventMessage EXACTLY, so a line carrying a variable payload
-                // (`chars=N`) cannot serve as an equality anchor. This is the
+                // (`chars=N fed=N failed=N`) cannot serve as an equality anchor. This is the
                 // transcript-ready boundary between recognition finalization and
                 // cleanup, pairing with dictation.stopRequested / injection.pasted.
                 Self.diagnosticLog.log("dictation.transcriptReady")
@@ -326,6 +327,7 @@ public actor Orchestrator {
     /// feeds with an error) is distinguishable from legitimate silence.
     private struct FeedHealth {
         var successCount = 0
+        var failureCount = 0
         var lastError: TranscriptionError?
     }
 
@@ -543,8 +545,10 @@ public actor Orchestrator {
                     try await deps.transcriber.feed(chunk)
                     health.successCount += 1
                 } catch let error as TranscriptionError {
+                    health.failureCount += 1
                     health.lastError = error
                 } catch {
+                    health.failureCount += 1
                     health.lastError = .engineFailure(underlying: error)
                 }
             }

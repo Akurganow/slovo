@@ -67,9 +67,7 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
     /// no-`default` switch makes a new `CleanupError` case a compile error here.
     private func report(_ error: CleanupError) {
         switch error {
-        case .offline, .missingKey, .rateLimited, .apiError:
-            statusReporter(.cleanupUnavailableInsertedAsSpoken)
-        case .refused:
+        case .transport, .missingKey, .rateLimited, .apiError:
             statusReporter(.cleanupUnavailableInsertedAsSpoken)
         }
     }

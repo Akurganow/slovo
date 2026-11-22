@@ -24,7 +24,7 @@ public protocol Transcriber: Sendable {
     func setRecognitionLanguage(_ language: Language) async
 
     /// Opens a recognition session biased toward `biasTerms`. Throws if the
-    /// backend, locale assets, or engine cannot be brought up.
+    /// backend or engine cannot be brought up.
     func begin(biasTerms: [Term]) async throws
 
     /// Feeds one live audio chunk into the open session.
@@ -41,11 +41,10 @@ public protocol Transcriber: Sendable {
 ///
 /// `Equatable` is manual because `engineFailure(underlying: Error)` wraps a
 /// non-`Equatable` `Error`, which blocks synthesis. Two `engineFailure` values
-/// are equal by case (the wrapped cause is ignored); the other cases compare by
-/// their values.
+/// are equal by case (the wrapped cause is ignored); the other cases carry no
+/// value.
 public enum TranscriptionError: Error, Equatable, Sendable {
     case backendUnavailable
-    case assetMissing(locale: String)
     case audioFormatUnsupported
     case engineFailure(underlying: Error)
 
@@ -53,14 +52,11 @@ public enum TranscriptionError: Error, Equatable, Sendable {
         switch (lhs, rhs) {
         case (.backendUnavailable, .backendUnavailable):
             return true
-        case (.assetMissing(let lhsLocale), .assetMissing(let rhsLocale)):
-            return lhsLocale == rhsLocale
         case (.audioFormatUnsupported, .audioFormatUnsupported):
             return true
         case (.engineFailure, .engineFailure):
             return true
         case (.backendUnavailable, _),
-             (.assetMissing, _),
              (.audioFormatUnsupported, _),
              (.engineFailure, _):
             return false
@@ -98,11 +94,10 @@ public extension Cleaner {
 
 /// Failure modes of a cleanup attempt.
 public enum CleanupError: Error, Sendable {
-    case offline
+    case transport
     case missingKey
     case rateLimited(retryAfter: TimeInterval?)
     case apiError(status: Int)
-    case refused
 }
 
 /// Inserts finished text into the focused application.

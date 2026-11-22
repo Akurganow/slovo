@@ -112,7 +112,7 @@ public struct OpenRouterCleaner: Cleaner {
                 failureStatus: "none",
                 failureMs: Self.elapsedMs(since: requestStartUptime)
             )
-            throw CleanupError.offline
+            throw CleanupError.transport
         }
         let requestMs = Self.elapsedMs(since: requestStartUptime)
         Self.diagnosticLog.info(
@@ -124,7 +124,7 @@ public struct OpenRouterCleaner: Cleaner {
         guard let http = response as? HTTPURLResponse else {
             log.event("cleanup failed: badResponse")
             Self.logFailure(failureKind: "badResponse", failureStatus: "none", failureMs: requestMs)
-            throw CleanupError.offline
+            throw CleanupError.transport
         }
 
         if http.statusCode == 429 {
