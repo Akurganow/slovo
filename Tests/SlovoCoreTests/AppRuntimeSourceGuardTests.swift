@@ -292,6 +292,9 @@ struct AppRuntimeSourceGuardTests {
     /// That both configurations carry the base is pinned by
     /// `WhisperKitEngineLoadConfigTests`; where the base resolves can only be read from
     /// the source, since `modelDownloadBase()` is private and needs the real directory.
+    /// `load()` needs a real model, so that it builds no configuration of its own is
+    /// read from the source too: a `WhisperKitConfig(...)` written inside `load()`, which
+    /// can leave the base out → RED.
     @Test
     func productionAsrEngineSetsNonDocumentsModelDownloadBase() throws {
         let sourcePaths = try ["Sources/SlovoCore/ASR", "Sources/SlovoCore/Composition", "Sources/slovo"]
@@ -304,6 +307,9 @@ struct AppRuntimeSourceGuardTests {
         #expect(speechModel.contains("WhisperKitTranscriber("))
         #expect(engine.contains("applicationSupportDirectory"),
                 "the model download base must resolve under Application Support, not Documents")
+        let loadBody = try SourceText.functionBody(named: "load", in: engine)
+        #expect(loadBody.contains("modelDownloadBase()") && !loadBody.contains("WhisperKitConfig("),
+                "load() must resolve the app's base and take its configurations from the helpers that require it")
         for forbidden in ["documentDirectory", ".documentsDirectory", "Documents"] {
             for source in sources {
                 #expect(!source.contents.contains(forbidden),

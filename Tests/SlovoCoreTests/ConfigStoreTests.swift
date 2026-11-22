@@ -191,7 +191,7 @@ struct ConfigStoreTests {
     func whisperKitConfigRoundTripsThroughSaveAndLoad() throws {
         let defaults = FakeUserDefaults()
         let config = Config(
-            asrModel: "large-v3-v20240930_turbo_632MB",
+            asrModel: "round-trip-model",
             openRouterModel: "openai/gpt-6-luna"
         )
 
