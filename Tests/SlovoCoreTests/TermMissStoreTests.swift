@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // term_misses persistence: insert + same-transaction prune, retention
 // boundary, fetch shape. ON-DISK temp DB via the existing TempDatabase

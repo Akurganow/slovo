@@ -26,9 +26,9 @@ struct DbRowRedactionTests {
         let path = TempDatabase.freshPath()
         defer { TempDatabase.remove(at: path) }
         let pool = try PersonalizationDatabase.open(at: path, passphrase: TempDatabase.passphrase)
-        try SeedImport.importRows(
-            [VocabularyRecord(term: Self.sentinel, category: "tech", weight: 9)], into: pool
-        )
+        try GRDBPersonalizationSource(database: pool).addVocabulary([
+            VocabularyRecord(term: Self.sentinel, category: "tech", weight: 9),
+        ])
 
         var captured: [String] = []
         let log = RedactionSafeLog(subsystem: "slovo", category: "storage-test") { captured.append($0) }

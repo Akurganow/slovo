@@ -25,8 +25,9 @@ standalone WhisperKit package). What leaves the Mac is listed in
 
 ## Core Components
 
-- `HotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
-  default, one side of ⌘, ⌥, ⇧, or ⌃ for either Control key);
+- `CGEventTapHotkeyMonitor` observes the configured push-to-talk key (`fn` / Globe by
+  default, one side of ⌘, ⌥, ⇧, or ⌃ for either Control key) through a key tap that
+  runs on a thread of its own, so a busy main thread never holds up typing;
   `HotkeyDecisionCore` is the pure, unit-tested policy that turns key events
   into start / stop (plain or translate) / silent-cancel decisions.
 - `SystemAudioController` mutes and restores system output during recording, when
@@ -129,15 +130,19 @@ a granted permission, Retry Setup, the hotkey retry — starts no second concurr
 load. Each composition's warm-up joins the load in flight and, when a load fails,
 retries it on its own with growing pauses until the model loads, so the
 dictation gate opens only on a loaded model. Only the composition still wired may
-open the dictation gate. `SlovoCore` owns the seams, value types, state machine,
-storage, cleanup, transcription, and injection behavior.
+open the dictation gate. The personalization database is likewise opened once per
+launch and handed to every composition, so a rebuild opens no second connection to
+it. When it does not open, the app logs one fixed line and dictation runs without
+vocabulary — no bias, no glossary, no miss recording — until the next launch.
+`SlovoCore` owns the seams, value types, state machine, storage, cleanup,
+transcription, and injection behavior.
 
 ## Cleanup Mechanism
 
 Cleanup has one runtime provider: the OpenRouter Chat Completions API. The app
 stores one OpenRouter key in Keychain and exposes model selection as curated
 OpenRouter model ids and a custom id entry. Selecting a model changes only the
-model id. `KeychainAPIKeyProvider` reads the key's value from Keychain on the
+model id. `KeychainOpenRouterKeyProvider` reads the key's value from Keychain on the
 first request that needs it and keeps it in memory; a successful save replaces
 the copy, and a failed save or a successful removal drops it. The key-scope
 request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
@@ -165,6 +170,9 @@ the examples; no prompt text is assembled from string literals scattered in code
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
+`OpenRouterCleaner` owns its network session, and one deadline bounds the whole
+request, so one cleanup request holds a dictation for at most 10 seconds.
+
 ## Storage
 
 Slovo uses SQLite through GRDB for local personalization data:
@@ -178,12 +186,15 @@ Slovo uses SQLite through GRDB for local personalization data:
   `GRDBTermMissStore` reads and writes them.
 - `corrections` and `profile` exist for migration stability; no current code
   reads or writes them.
+- `vocabulary.created_at` and `vocabulary.source` are written and never used.
+  They stay: removing a column takes a new migration on every user's database
+  and buys no behavior.
 
 The store is encrypted at rest with SQLCipher — GRDB comes from Zetetic's
 SQLCipher-enabled distribution, and the key is derived from this Mac's hardware
 identifier and stored nowhere.
 
-The repository tracks only schema and migrations. Local databases and seed files
+The repository tracks only the migrations. Local databases and seed files
 are never committed.
 
 ## Menu-Bar App

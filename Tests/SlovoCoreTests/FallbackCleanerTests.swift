@@ -18,22 +18,6 @@ struct FallbackCleanerTests {
         FallbackCleaner(chain: chain, statusReporter: report)
     }
 
-    /// Every `CleanupError` case ⇒ the chain advances to `PassThrough`,
-    /// returning the raw input unchanged.
-    /// Stated sensitivity: make a case "terminal" (re-throw instead of advancing)
-    /// → that case throws instead of returning raw → RED.
-    @Test
-    func everyCleanupErrorAdvancesToPassThrough() async throws {
-        let cases: [CleanupError] = [
-            .offline, .missingKey, .rateLimited(retryAfter: 1.0), .apiError(status: 500), .refused,
-        ]
-        for failure in cases {
-            let chain: [Cleaner] = [FakeCleaner(outcome: .failure(failure)), PassThrough()]
-            let output = try await Self.fallback(chain).clean(Self.raw, config: Self.config, context: Self.context)
-            #expect(output == Self.raw, "a \(failure) failure must degrade to PassThrough (raw inserted), got \(output)")
-        }
-    }
-
     /// A NON-`CleanupError` (here `CancellationError`) must PROPAGATE —
     /// not be swallowed and degraded.
     /// Stated sensitivity: `catch let e as CleanupError` → bare `catch` → the

@@ -17,8 +17,9 @@ public struct OpenRouterModelScopeFetcher: Sendable {
     private let log: RedactionSafeLog
 
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/models/user")!
-    // Same bound as OpenRouterCleaner.requestTimeout: one metadata GET never
-    // outlives a cleanup round-trip.
+    // The key-scope GET runs outside any dictation, so nothing waits on it. The
+    // idle bound only stops a stalled fetch from holding its task: a failed fetch
+    // resets the scope to unknown, and the pickers show the full catalog.
     private static let requestTimeout: TimeInterval = 30
 
     public init(

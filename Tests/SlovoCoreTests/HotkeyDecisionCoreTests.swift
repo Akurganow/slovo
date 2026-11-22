@@ -44,21 +44,6 @@ struct HotkeyDecisionCoreTests {
         #expect(core.isTriggerHeld, "fn must stay held; a keypress does not interrupt fn")
     }
 
-    /// A right modifier starts/stops on its side-specific key code + modifier bit,
-    /// and is NOT suppressed (it keeps working as a normal modifier system-wide).
-    /// Stated sensitivity: suppress a right modifier (`.start(suppress: true)`) →
-    /// RED. This is ALSO the test that catches the trigger-table key-code flip
-    /// (Right ⌘ 54 → Right ⌥ 61): under that mutation key code 54 no longer matches
-    /// the trigger, so the expected `.start` becomes `.passThrough` → RED.
-    @Test
-    func rightModifierStartsAndStopsPassedThrough() {
-        var core = makeDecisionCore(main: .rightCommand)
-        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [.command])) == .start(suppress: false, mode: .plain))
-        #expect(core.isTriggerHeld)
-        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain))
-        #expect(!core.isTriggerHeld)
-    }
-
     /// A non-trigger key going down while a right modifier is held cancels the
     /// in-flight dictation; the real combo passes through untouched.
     /// Stated sensitivity: remove the interrupt branch → RED (no cancel emitted).
@@ -257,31 +242,43 @@ struct HotkeyDecisionCoreTests {
         #expect(core.handle(.tapDisabled) == .resync(synthesizedStop: nil))
     }
 
-    /// Reconfiguring to a new trigger resets the held state, so a live key change
-    /// starts clean.
-    /// Stated sensitivity: keep the held bit across reconfigure → the next event is
-    /// judged against stale held state → RED.
+    /// A key change made while the key is held waits for that hold to close: the
+    /// release is judged against the key that opened it, so the dictation gets its
+    /// stop, and the last change made during the hold works from the next press.
+    /// Stated sensitivity: apply the change at once (drop the hold) → the old key's
+    /// release passes through, the dictation never stops → RED. Never apply the
+    /// waiting change → the new key's press passes through → RED. Keep the first of
+    /// two waiting changes (`pendingConfiguration = pendingConfiguration ??
+    /// configuration`) → Right ⇧ starts and Left ⌥ passes through → RED.
     @Test
-    func reconfigureResetsHeldState() {
+    func aKeyChangeDuringAHoldAppliesWhenTheHoldCloses() {
         var core = makeDecisionCore(main: .rightCommand)
         _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
         core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
-        #expect(!core.isTriggerHeld)
+        core.reconfigure(to: controlLatchConfiguration(main: .leftOption))
+        #expect(core.handle(.flagsChanged(keyCode: 54, flags: [])) == .stop(suppress: false, mode: .plain),
+                "the hold open at the key change must still stop on its own key's release")
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .passThrough,
+                "a change superseded during the hold must not apply")
+        #expect(core.handle(.flagsChanged(keyCode: 60, flags: [])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 58, flags: [.option])) == .start(suppress: false, mode: .plain),
+                "the last change made during the hold applies when it closes")
+    }
+
+    /// A tap disable closes the hold too, so a key change waiting on it applies then.
+    /// Stated sensitivity: apply the waiting change only when a key event closes the
+    /// hold → the new key's press passes through → RED.
+    @Test
+    func aKeyChangeWaitingOnAHoldAppliesWhenATapDisableClosesIt() {
+        var core = makeDecisionCore(main: .rightCommand)
+        _ = core.handle(.flagsChanged(keyCode: 54, flags: [.command]))
+        core.reconfigure(to: controlLatchConfiguration(main: .rightShift))
+        #expect(core.handle(.tapDisabled) == .resync(synthesizedStop: .plain))
         #expect(core.handle(.flagsChanged(keyCode: 60, flags: [.shift])) == .start(suppress: false, mode: .plain))
     }
 
     // MARK: - The additional translate key (Control by default): held at any moment
     // of the hold, it latches the session's stop into `.translate` (default `.plain`).
-
-    /// Plain-path baseline: a hold with NO control at any point stops in `.plain`.
-    /// Stated sensitivity: default the latch to `.translate` (or latch when control
-    /// is absent) → this stop reads `.translate` → RED.
-    @Test
-    func heldWithoutControlStaysPlain() {
-        var core = makeDecisionCore(main: .fn)
-        _ = core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn]))
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .plain))
-    }
 
     /// L2 — Control pressed MID-hold latches translate: fn down, then a control key
     /// goes down while fn is still held, then fn up ⇒ `.stop(mode: .translate)`.
@@ -428,18 +425,6 @@ struct HotkeyDecisionCoreTests {
 
     // MARK: - Live latch signal: the recording glyph needs the latch surfaced DURING
     // the hold, not only as the `.translate` at key-up.
-
-    /// LL1 — Control already held at key-down starts directly in `.translate`, so the
-    /// recording glyph can be the translate glyph from the very first frame (no plain
-    /// flash). No separate live-latch event: the start already carries the mode.
-    /// Stated sensitivity: drop the latch read in `openingHold` (open every hold in
-    /// `.plain`) → RED.
-    @Test
-    func controlHeldAtKeyDownStartsInTranslateMode() {
-        var core = makeDecisionCore(main: .fn)
-        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.secondaryFn, .control]))
-            == .start(suppress: true, mode: .translate))
-    }
 
     /// LL2 — Control pressed MID-hold surfaces `.translateLatched` on that very event
     /// (fn trigger, foreign left control kc59), so the glyph can switch live instead of

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 @Suite("Cleaner hint threading")

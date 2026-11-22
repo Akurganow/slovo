@@ -22,6 +22,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// pipeline is rebuilt on a permission grant, on Retry Setup and on the hotkey
     /// retry, and none of those may download or load the speech model again.
     private let speechModel: SharedSpeechModel
+    /// The personalization database, opened once per launch and injected into
+    /// every composition like the speech model, so a rebuild never opens a second
+    /// connection to the same file. Nil when it did not open: dictation runs
+    /// without vocabulary, and vocabulary edits do nothing, until relaunch.
+    let personalization = AppComposition.openPersonalization()
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
@@ -111,78 +116,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // The composition is seeded from the store, so a key added or removed
         // outside Slovo must reach it before it is built.
         store.update { $0.isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey() }
-        do {
-            let live = try AppComposition.makeLive(
-                state: store.state,
-                openRouterKeyProvider: openRouterKeyProvider,
-                speechModel: speechModel,
-                statusReporter: { [weak self] status in
-                    Task { @MainActor [weak self] in
-                        self?.showStatus(status)
-                    }
-                },
-                onCleanupFailure: scopeFailureObserver()
-            )
-            composition = live
-            store.update { $0.vocabulary = listVocabulary() }
-            guard live.onboardingSteps == [.ready] else {
-                presentOnboarding(live.onboardingSteps)
-                logger.info("onboarding pending")
-                return
-            }
-            prepareModelGate(for: live)
-            let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
-                switch edge.phase {
-                // A press stamped busy arrived while an earlier edge still held this
-                // sink. Servicing it now would open the microphone after its own key
-                // was released, and the repaint below would overwrite the live glyph.
-                case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
-                    guard await MainActor.run(body: { self?.isModelReady == true })
-                    else { return await MainActor.run { self?.showModelLoadingState() } }
-                    await MainActor.run {
-                        self?.isPipelineActive = true
-                        self?.didShowPipelineStatus = false
-                        // The recording glyph is the semantic family, derived in
-                        // applyRecordingGlyph from the live availability (letter
-                        // mnemonics: MenuBarGlyph.forRecording).
-                        self?.applyRecordingGlyph(mode)
-                        self?.store.update { $0.statusLine = .recording }
-                    }
-                    await orchestrator.handle(.startRequested)
-                case .translateLatched:
-                    guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
-                    await MainActor.run { self?.applyRecordingGlyph(.translate) }
-                case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
-                    await MainActor.run {
-                        self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
-                        if self?.didShowPipelineStatus == false {
-                            self?.store.update { $0.statusLine = .processing }
-                        }
-                    }
-                    await orchestrator.handle(.stopRequested(mode))
-                    await orchestrator.awaitPipelineDrain()
-                    await MainActor.run { self?.settleToIdle() }
-                case .cancel:
-                    guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
-                    await orchestrator.handle(.cancelRequested)
-                    await orchestrator.awaitPipelineDrain()
-                    await MainActor.run { self?.settleToIdle() }
+        let live = AppComposition.makeLive(
+            state: store.state,
+            openRouterKeyProvider: openRouterKeyProvider,
+            speechModel: speechModel,
+            personalization: personalization,
+            statusReporter: { [weak self] status in
+                Task { @MainActor [weak self] in
+                    self?.showStatus(status)
                 }
+            },
+            onCleanupFailure: scopeFailureObserver()
+        )
+        composition = live
+        store.update { $0.vocabulary = listVocabulary() }
+        guard live.onboardingSteps == [.ready] else {
+            presentOnboarding(live.onboardingSteps)
+            logger.info("onboarding pending")
+            return
+        }
+        prepareModelGate(for: live)
+        let sequencer = HotkeyEdgeSequencer { [weak self, orchestrator = live.orchestrator] edge in
+            switch edge.phase {
+            // A press stamped busy arrived while an earlier edge still held this
+            // sink. Servicing it now would open the microphone after its own key
+            // was released, and the repaint below would overwrite the live glyph.
+            case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
+                guard await MainActor.run(body: { self?.isModelReady == true })
+                else { return await MainActor.run { self?.showModelLoadingState() } }
+                await MainActor.run {
+                    self?.isPipelineActive = true
+                    self?.didShowPipelineStatus = false
+                    // The recording glyph is the semantic family, derived in
+                    // applyRecordingGlyph from the live availability (letter
+                    // mnemonics: MenuBarGlyph.forRecording).
+                    self?.applyRecordingGlyph(mode)
+                    self?.store.update { $0.statusLine = .recording }
+                }
+                await orchestrator.handle(.startRequested)
+            case .translateLatched:
+                guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                await MainActor.run { self?.applyRecordingGlyph(.translate) }
+            case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                await MainActor.run {
+                    self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
+                    if self?.didShowPipelineStatus == false {
+                        self?.store.update { $0.statusLine = .processing }
+                    }
+                }
+                await orchestrator.handle(.stopRequested(mode))
+                await orchestrator.awaitPipelineDrain()
+                await MainActor.run { self?.settleToIdle() }
+            case .cancel:
+                guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+                await orchestrator.handle(.cancelRequested)
+                await orchestrator.awaitPipelineDrain()
+                await MainActor.run { self?.settleToIdle() }
             }
-            hotkeyEdgeSequencer = sequencer
-            live.hotkeyMonitor.onTrigger = { phase in
-                sequencer.send(phase)
-            }
-            do {
-                try live.hotkeyMonitor.start()
-                store.update { $0.applyScope(.pipelineStarted) }
-                logger.info("production composition started")
-            } catch {
-                presentHotkeyRecovery()
-                logger.error("hotkey monitor failed")
-            }
+        }
+        hotkeyEdgeSequencer = sequencer
+        live.hotkeyMonitor.onTrigger = { phase in
+            sequencer.send(phase)
+        }
+        do {
+            try live.hotkeyMonitor.start()
+            store.update { $0.applyScope(.pipelineStarted) }
+            logger.info("production composition started")
         } catch {
-            logger.error("production composition failed")
+            presentHotkeyRecovery()
+            logger.error("hotkey monitor failed")
         }
     }
 

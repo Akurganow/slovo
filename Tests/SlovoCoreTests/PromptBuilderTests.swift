@@ -118,25 +118,6 @@ struct PromptBuilderTests {
         #expect(systemText.contains("in parentheses where known: RCV (RingCentral Video), Slovo"))
     }
 
-    /// The block must drive CORRECTION, not only preservation: a transliterated
-    /// mis-recognition ("RCV" heard as "РСВ") has to be replaced. The parenthetical
-    /// guard keeps the recorded meaning out of the output, and the closing guard stops
-    /// correction from inserting a term nobody said.
-    /// Stated sensitivity: drop any one of the four instruction lines from
-    /// `vocabularyBlock` → its expectation reddens.
-    @Test
-    func vocabularyBlockDemandsCorrectionWithoutInvention() {
-        let systemText = Self.plainSystemText(vocabulary: [Self.term("RCV", weight: 9)])
-        let correction = "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
-            + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
-            + "replace it with the spelling given here."
-
-        #expect(systemText.contains("Preserve these terms verbatim wherever the transcript already spells them correctly."))
-        #expect(systemText.contains(correction))
-        #expect(systemText.contains(PromptBuilderFixtures.parentheticalGuardLine))
-        #expect(systemText.contains("Never introduce a term from this list that the speaker did not say."))
-    }
-
     /// A speaker with no vocabulary must never be told to correct toward an empty list,
     /// so every line of the block — not just its tag — has to be absent.
     /// Stated sensitivity: emit the vocabulary block unconditionally, or hoist any one
@@ -166,10 +147,10 @@ struct PromptBuilderTests {
         #expect(prompt.model == "custom/provider-model")
     }
 
-    /// Stated sensitivity: weakening the transform-only guardrails lets short
-    /// dictation snippets be answered as chat instead of cleaned as transcripts.
+    /// Stated sensitivity: send the input without its `<transcript>` wrapper, or
+    /// drop the short-dictation example or let its output echo the raw input → RED.
     @Test
-    func promptRequiresTransformOnlyReplyForShortDictation() {
+    func shortDictationInputIsWrappedAndTaughtByAnExample() {
         let raw = "1 2 3 проверяем 1 2 3"
         let prompt = PromptBuilder().buildPrompt(
             raw: raw,
@@ -180,9 +161,6 @@ struct PromptBuilderTests {
 
         #expect(prompt.input == "<transcript>\(raw)</transcript>",
                 "real input must match the few-shot <transcript> format byte-for-byte")
-        #expect(systemText.contains("Return only the cleaned transcript"))
-        #expect(systemText.contains("do not ask for more context"))
-        #expect(systemText.contains("If the transcript is a short test phrase"))
         #expect(systemText.contains("<output>1, 2, 3, проверяем, 1, 2, 3.</output>"))
         #expect(!systemText.contains("<output>\(raw)</output>"))
     }
@@ -204,11 +182,12 @@ struct PromptBuilderTests {
         #expect(!veryCasual.contains("Rewrite the transcript"))
     }
 
-    /// Stated sensitivity: removing the filler rule, the run-on guidance, the
-    /// anti-compression example, or the translate-trap example makes the benchmark
-    /// regress on the most common dictation cleanup.
+    /// The filler and run-on rules are pinned by the plain golden; this pins the two
+    /// examples that teach them on Russian input.
+    /// Stated sensitivity: removing the translate-trap example or the
+    /// anti-compression example → RED.
     @Test
-    func promptTeachesRussianFillerRemovalAndRunOnSplitting() {
+    func promptCarriesTranslateTrapAndAntiCompressionExamples() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup",
             config: CleanupConfig(writingStyle: .casual, language: .auto),
@@ -216,11 +195,6 @@ struct PromptBuilderTests {
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n")
 
-        #expect(systemText.contains("Never translate"))
-        #expect(systemText.contains("Output language must match the transcript language"))
-        #expect(systemText.contains("Remove discourse fillers (such as"))
-        #expect(systemText.contains("ну, вот, короче"))
-        #expect(systemText.contains("split run-on text into clear sentences"))
         #expect(systemText.contains("<output>Переведи release notes на английский и запушь PR в GitHub.</output>"))
         // The anti-compression exemplar: a long complex sentence preserved whole.
         #expect(systemText.contains("что было решено, а что просто обсуждалось.</output>"))

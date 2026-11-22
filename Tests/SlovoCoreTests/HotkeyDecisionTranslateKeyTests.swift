@@ -250,20 +250,26 @@ struct HotkeyDecisionTranslateKeyTests {
         #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.control])) == .start(suppress: false, mode: .translate))
     }
 
-    /// A live key change starts from a clean state, the disarm included: whatever the
-    /// user was holding when they changed the setting is no longer the core's business.
-    /// Stated sensitivity: carry the disarmed state across `reconfigure` → the press
-    /// after it is swallowed → RED.
+    /// A key change waits for a cancelled hold too: its key is still down, so the
+    /// shortcut being typed must not reopen a dictation. Once that key comes up, the
+    /// new configuration applies.
+    /// Stated sensitivity: apply the change while the cancelled key is down → the ⌘
+    /// event of the shortcut reopens a Control hold → RED. Never apply the waiting
+    /// change → Left ⇧ stays a latch key and its press passes through → RED.
     @Test
-    func reconfigureArmsACancelledKeyAgain() {
-        let configuration = HotkeyConfiguration(main: .control, translate: .leftShift, translateIsAdditional: true)
-        var core = HotkeyDecisionCore(configuration: configuration)
+    func aKeyChangeWaitsForACancelledHoldToComeUp() {
+        var core = HotkeyDecisionCore(
+            configuration: HotkeyConfiguration(main: .control, translate: .leftShift, translateIsAdditional: true)
+        )
         _ = core.handle(.flagsChanged(keyCode: 59, flags: [.control]))
         #expect(core.handle(.keyDown) == .interruptCancel)
 
-        core.reconfigure(to: configuration)
+        core.reconfigure(to: HotkeyConfiguration(main: .control, translate: .leftShift, translateIsAdditional: false))
 
-        #expect(core.handle(.flagsChanged(keyCode: 55, flags: [.control, .command])) == .start(suppress: false, mode: .plain))
+        #expect(core.handle(.flagsChanged(keyCode: 55, flags: [.control, .command])) == .passThrough,
+                "the shortcut's next modifier must not reopen a hold while the cancelled key is down")
+        #expect(core.handle(.flagsChanged(keyCode: 59, flags: [.command])) == .passThrough)
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.command, .shift])) == .start(suppress: false, mode: .translate))
     }
 
     /// Tap death synthesizes a stop in the mode the dying hold was in — for a
@@ -305,15 +311,15 @@ struct HotkeyDecisionTranslateKeyTests {
         #expect(core.handle(.flagsChanged(keyCode: 63, flags: [])) == .stop(suppress: true, mode: .translate))
     }
 
-    /// Switching the translate key's ROLE applies live too, and reconfiguring mid-hold
-    /// drops the hold: the key that latched a moment ago now opens its own translate
-    /// dictation.
-    /// Stated sensitivity: keep the translate role across `reconfigure` → the Left ⇧
-    /// press latches onto nothing and passes through instead of opening a translate
-    /// dictation → RED; keep the open hold across `reconfigure` → the press is judged
-    /// mid-hold → RED.
+    /// Switching the translate key's ROLE applies live too, once the hold open at the
+    /// change closes: until then the key still latches onto that hold, and after it
+    /// the key opens its own translate dictation.
+    /// Stated sensitivity: keep the translate role across `reconfigure` → the last
+    /// Left ⇧ press latches onto nothing and passes through instead of opening a
+    /// translate dictation → RED; drop the open hold at the change → the first Left ⇧
+    /// press opens a dictation instead of latching → RED.
     @Test
-    func reconfigureRebuildsTheTranslateRoleAndDropsTheHold() {
+    func reconfigureRebuildsTheTranslateRoleOnceTheHoldCloses() {
         var core = HotkeyDecisionCore(
             configuration: HotkeyConfiguration(main: .fn, translate: .leftShift, translateIsAdditional: true)
         )
@@ -321,7 +327,10 @@ struct HotkeyDecisionTranslateKeyTests {
 
         core.reconfigure(to: HotkeyConfiguration(main: .fn, translate: .leftShift, translateIsAdditional: false))
 
-        #expect(!core.isTriggerHeld, "a live key change must drop the hold judged against the old configuration")
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.secondaryFn, .shift])) == .translateLatched,
+                "the hold open at the change keeps the old role until it closes")
+        #expect(core.handle(.flagsChanged(keyCode: 63, flags: [.shift])) == .stop(suppress: true, mode: .translate))
+        #expect(core.handle(.flagsChanged(keyCode: 56, flags: [])) == .passThrough)
         #expect(core.handle(.flagsChanged(keyCode: 56, flags: [.shift])) == .start(suppress: false, mode: .translate))
     }
 }

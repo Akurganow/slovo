@@ -83,16 +83,47 @@ struct AppRuntimeSourceGuardTests {
         #expect(composition.contains("passphrase: PersonalizationDatabasePassphrase.derive"))
     }
 
-    /// The SlovoCore half reads `KeychainAPIKeyProvider` as text. `keychainItemExists` is
-    /// a private call into the real Keychain, which no hermetic test can drive.
-    /// `hasConfiguredKey` could be driven through the public closure initializer, but
-    /// this guard pins it as text beside the lookup it delegates to.
+    /// The personalization database is opened at one site, once per launch: never
+    /// by `makeLive`, `startPipeline` or Settings, which run again on every rebuild
+    /// or edit. The opener and the delegate are in the executable target, which no
+    /// test imports, so the wiring is read as text.
+    /// Killing mutation: open the database anywhere else in the app, call
+    /// `openPersonalization()` from a second site, or move its one call into
+    /// `makeLive`, `startPipeline` or Settings → RED.
+    @Test
+    func thePersonalizationDatabaseIsOpenedOnceForTheProcessAndInjected() throws {
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
+        let settings = try SourceText.code("Sources/slovo/Settings/AppDelegate+Settings.swift")
+        let rebuiltOrRepeated = [
+            ("makeLive", try SourceText.functionBody(named: "makeLive", in: composition)),
+            ("startPipeline", try SourceText.functionBody(named: "startPipeline", in: delegate)),
+            ("Settings", settings),
+        ]
+        let appSources = try SourceText.swiftFiles(under: "Sources/slovo").map(SourceText.code)
+        func occurrences(of needle: String) -> Int {
+            appSources.reduce(0) { $0 + $1.components(separatedBy: needle).count - 1 }
+        }
+
+        #expect(occurrences(of: "PersonalizationDatabase.open(") == 1,
+                "the app may open the database at exactly one site, the opener")
+        #expect(occurrences(of: "openPersonalization(") == 2,
+                "the opener must be declared once and called once")
+        for (name, body) in rebuiltOrRepeated {
+            #expect(!body.contains("openPersonalization("),
+                    "\(name) runs more than once per launch and must never open the database")
+        }
+    }
+
+    /// The SlovoCore half reads `KeychainOpenRouterKeyProvider` as text. `keychainItemExists`
+    /// is a private call into the real Keychain, which no hermetic test can drive.
+    /// `hasConfiguredKey` is driven through the closure initializer by
+    /// `KeychainKeySourceTests.hasConfiguredKeyNeverReadsTheSecret`.
     @Test
     func readinessCheckUsesKeyPresenceWithoutDecryptingSecret() throws {
         let composition = try SourceText.code("Sources/slovo/AppComposition.swift")
-        let keyProvider = try SourceText.code("Sources/SlovoCore/Cleaner/KeychainAPIKeyProvider.swift")
+        let keyProvider = try SourceText.code("Sources/SlovoCore/Cleaner/KeychainOpenRouterKeyProvider.swift")
         let makeLiveBody = try SourceText.functionBody(named: "makeLive", in: composition)
-        let hasConfiguredKeyBody = try SourceText.functionBody(named: "hasConfiguredKey", in: keyProvider)
         let keychainItemExistsBody = try SourceText.functionBody(named: "keychainItemExists", in: keyProvider)
 
         #expect(makeLiveBody.contains("FirstRunFlow.pendingSteps("))
@@ -101,11 +132,6 @@ struct AppRuntimeSourceGuardTests {
         #expect(!makeLiveBody.contains("hasConfiguredKey"),
                 "the composition takes key presence from the state it is handed, never from the Keychain")
         #expect(!SourceText.withoutStringLiterals(makeLiveBody).contains("apiKey()"))
-        #expect(hasConfiguredKeyBody.contains("keyExists()"))
-        for forbidden in ["apiKey()", "readKey(", "kSecReturnData"] {
-            #expect(!SourceText.withoutStringLiterals(hasConfiguredKeyBody).contains(forbidden),
-                    "hasConfiguredKey must not read or decrypt the stored secret via \(forbidden)")
-        }
         #expect(keychainItemExistsBody.contains("kSecReturnAttributes as String: true"))
         #expect(keychainItemExistsBody.contains("kSecMatchLimit as String: kSecMatchLimitOne"))
         #expect(SourceText.containsInOrder(["SecItemCopyMatching(query as CFDictionary", "== errSecSuccess"], in: keychainItemExistsBody))

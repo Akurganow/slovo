@@ -31,7 +31,7 @@ struct PersonalizationDatabaseFixtureTests {
         let path = TempDatabase.freshPath()
         defer { TempDatabase.remove(at: path) }
         try FileManager.default.copyItem(atPath: fixture.path, toPath: path)
-        #expect(PersonalizationDatabase.fileState(at: path) == .opaque)
+        #expect(try PersonalizationDatabase.fileState(at: path) == .opaque)
 
         let pool = try PersonalizationDatabase.open(at: path, passphrase: Self.fixturePassphrase)
         defer { try? pool.close() }
