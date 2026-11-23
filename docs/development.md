@@ -197,7 +197,7 @@ tap, verify on a real keyboard:
   on the next dictation with no "Preparing Speech Model" pulse.
 - **Change during a hold:** hold the push-to-talk key and switch it in Settings with the
   mouse, then release — recording ends on that release, and the new key works next.
-- **Translate key, additional (the default):** hold the push-to-talk key and press
+- **Translate Key, additional (the default):** hold the push-to-talk key and press
   the translate key (⌃ by default) at any point before releasing — the dictation is
   translated into the configured target (menu bar / Settings → Cleanup), and the
   menu-bar recording glyph switches to Pokoji `Ⱂ` live, at that moment; a hold
@@ -207,7 +207,7 @@ tap, verify on a real keyboard:
   start. With a sided ⌘/⌥/⇧ as the translate key the same sequence does NOT
   translate: only its press during the hold is visible to Slovo, which is what the
   README and AGENTS.md say.
-- **Translate key, standalone:** turn "Use as additional key" off in Settings →
+- **Translate Key, standalone:** turn "Use as Additional Key" off in Settings →
   General, then hold the translate key alone — it dictates and always translates,
   showing `Ⱂ` from key-down, while the push-to-talk key still dictates plainly.
 - **Two keys, one pool:** in Settings → General the key selected in one picker
@@ -243,13 +243,17 @@ real signatures). After a change to the update path, verify by hand:
   publish a newer test release, then launch the old build. Within the hourly
   window it downloads silently — no window, no notification — and the dropdown's
   always-visible update row shows "Checking…" during the check, "Downloading
-  v<next>", then the hybrid "Update ready — v<next>" row (grey status line;
+  v<next>", then the hybrid "Update Ready — v<next>" row (grey status line;
   "Restart" in white under highlight), while the resting menu-bar glyph switches
   to Nash "Ⱀ" (U+2C10).
+- **Failed check and busy updater:** with the network off, a check ends on the
+  grey "Update Check Failed" row ("Check for Updates…" in white under highlight)
+  that stays until the next check starts. While the updater cannot check, the
+  "Check for Updates…" and "Update Check Failed" rows are greyed out and do nothing.
 - **Both apply paths:** clicking **Restart** installs and relaunches into the new
   version; ignoring it and Quitting normally installs on the way out, so the next
   launch is the new version. The app never restarts on its own.
-- **Toggle off:** with Settings → General "Automatically install updates" off, no
+- **Toggle off:** with Settings → General "Automatically Install Updates" off, no
   scheduled appcast fetch and no download happen on their own; the menu-bar
   "Check for Updates…" row still runs a check, but only when clicked.
 - **Mandatory negative Team-ID check (before the first release):** feed the

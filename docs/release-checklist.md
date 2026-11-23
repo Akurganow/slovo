@@ -203,7 +203,7 @@ xcrun stapler validate .build/dist/Slovo.dmg
   hotkey is ready, before any dictation, and only while Clean Up Dictation is
   on.
 - `biasTerms` reach the transcriber path on a real on-device run. The switch ships
-  OFF, so this needs Settings → General → "Vocabulary bias (experimental)" turned
+  OFF, so this needs Settings → General → "Vocabulary Bias (Experimental)" turned
   ON first; otherwise the pass exercises only the unbiased path. Efficacy and
   safety are decided by the gate below, not by this plumbing check.
 - cleanup substitutes NOTHING into a phrase of ordinary words that collide with
@@ -222,7 +222,7 @@ xcrun stapler validate .build/dist/Slovo.dmg
 
 Efficacy and safety of the bias prompt are decided here, not by unit tests: the
 prompt rides EVERY decode window. The switch ships OFF, so the biased arm exists
-only once Settings → General → "Vocabulary bias (experimental)" is turned ON —
+only once Settings → General → "Vocabulary Bias (Experimental)" is turned ON —
 turn it on for the gate, and leave it off afterwards unless the gate passed.
 The app retains no raw audio and has no file-replay command, so the two arms are
 two LIVE passes, not two decodes of one recording. Write down a fixed five-item

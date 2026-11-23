@@ -24,7 +24,8 @@ struct VocabularySettingsPane: View {
         _store = ObservedObject(wrappedValue: actions.store)
     }
 
-    private var records: [VocabularyRecord] { store.state.vocabulary }
+    private var vocabulary: VocabularyList { store.state.vocabulary }
+    private var records: [VocabularyRecord] { vocabulary.records }
 
     private var trimmedNewTerms: String {
         newTerms.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,6 +48,11 @@ struct VocabularySettingsPane: View {
         }
         .padding()
         .frame(width: 420, height: 360)
+        .onAppear {
+            // A read that failed leaves the list unavailable, and the edits that
+            // re-read it are disabled then, so each appearance re-reads it.
+            actions.reloadVocabulary()
+        }
     }
 
     private var table: some View {
@@ -61,12 +67,10 @@ struct VocabularySettingsPane: View {
             .overlay {
                 // Centered in the empty list so the pane explains itself before any
                 // term exists, rather than showing a blank box.
-                if records.isEmpty {
-                    Text("No terms yet — add words cleanup should never rewrite.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding()
+                if !vocabulary.isEditable {
+                    emptyOverlay("Vocabulary is unavailable. Dictation works without it.")
+                } else if records.isEmpty {
+                    emptyOverlay("No terms yet — add words cleanup should never rewrite.")
                 }
             }
             Divider()
@@ -81,6 +85,14 @@ struct VocabularySettingsPane: View {
         }
     }
 
+    private func emptyOverlay(_ text: String) -> some View {
+        Text(text)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding()
+    }
+
     // The bottom-left ＋ / － bar of a macOS editable table. Icon-only borderless
     // buttons carry their meaning through accessibility labels, not visible text.
     private var editBar: some View {
@@ -92,8 +104,9 @@ struct VocabularySettingsPane: View {
                 Image(systemName: "plus")
                     .frame(width: 26, height: 22)
                     .contentShape(Rectangle())
-                    .accessibilityLabel("Add term")
+                    .accessibilityLabel("Add Term")
             }
+            .disabled(!vocabulary.isEditable)
             .popover(isPresented: $isAddingTerm, arrowEdge: .bottom) {
                 addTermPopover
             }
@@ -102,9 +115,9 @@ struct VocabularySettingsPane: View {
                 Image(systemName: "minus")
                     .frame(width: 26, height: 22)
                     .contentShape(Rectangle())
-                    .accessibilityLabel("Remove selected")
+                    .accessibilityLabel("Remove Selected")
             }
-            .disabled(selection.isEmpty)
+            .disabled(selection.isEmpty || !vocabulary.isEditable)
 
             Spacer()
         }
@@ -123,6 +136,7 @@ struct VocabularySettingsPane: View {
             // Comma-separated bulk add is preserved: the seam splits the input.
             TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
                 .frame(width: 240)
+                .accessibilityLabel("Terms")
             HStack {
                 Spacer()
                 Button("Add", action: addTerms)

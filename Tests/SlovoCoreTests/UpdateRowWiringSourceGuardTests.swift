@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 // The update row is the app target's persistent NSMenuItem, mutated in place by
-// renderUpdateIndication. No test target depends on the `slovo` executable, so the
+// renderUpdateRow. No test target depends on the `slovo` executable, so the
 // Sparkle-callback wiring is pinned by reading comment-stripped source; the state
 // reduction is tested in UpdateIndicationTests and the row's texts and the write to the
 // item in UpdateRowTests.

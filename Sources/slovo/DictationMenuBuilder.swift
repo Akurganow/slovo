@@ -43,7 +43,7 @@ struct DictationMenuBuilder {
             playsDictationSoundCues: input.playsDictationSoundCues,
             rows: rows
         ) {
-            if let entry = render(item, into: menu, hotkeys: hotkeys, modelOptions: input.cleanupModelSelection.options) {
+            if let entry = render(item, into: menu, input: input) {
                 statusItem = entry
             }
         }
@@ -52,9 +52,8 @@ struct DictationMenuBuilder {
 
     /// Adds one item to the menu and returns the status row, which `make` hands back.
     /// Holds the per-item switch so `make` stays within `function_body_length`.
-    private func render(
-        _ item: DictationMenuItem, into menu: NSMenu, hotkeys: HotkeyConfiguration, modelOptions: [CleanupModelOption]
-    ) -> NSMenuItem? {
+    private func render(_ item: DictationMenuItem, into menu: NSMenu, input: DictationMenuInput) -> NSMenuItem? {
+        let hotkeys = input.hotkeyConfiguration
         var statusItem: NSMenuItem?
         switch item {
         case .status(let title):
@@ -84,7 +83,7 @@ struct DictationMenuBuilder {
         case .cleanupModel(let modelId, let enabled):
             let entry = target.modelMenu(
                 title: "Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))",
-                options: modelOptions,
+                options: input.cleanupModelSelection.options,
                 selectedModel: modelId
             )
             // Grayed but visible when cleanup is off with a key present: there is
@@ -110,7 +109,9 @@ struct DictationMenuBuilder {
             entry.state = isOn ? .on : .off
             menu.addItem(entry)
         case .addVocabulary:
-            menu.addItem(target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd)))
+            let entry = target.actionItem("Add Vocabulary…", #selector(AppDelegate.showVocabularyQuickAdd))
+            entry.isEnabled = input.isVocabularyEditable
+            menu.addItem(entry)
         case .microphone:
             // The submenu's rows are the renderer's; the item keeps one submenu object
             // so an open dropdown keeps its item.

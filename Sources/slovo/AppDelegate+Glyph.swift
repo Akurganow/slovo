@@ -3,20 +3,21 @@ import QuartzCore
 import SlovoCore
 
 extension AppDelegate {
-    /// Paints the glyph the menu bar shows when nothing else draws on it: the
-    /// loading glyph and its pulse, or idle. The decision is `RestingGlyph.derive`.
-    /// Idle is reached only through here, since idle is a projection of update
-    /// state: a direct `setStatusGlyph(.idle)` call would silently drop the
-    /// update-ready Nash Ⱀ while a downloaded update awaits Restart. Every Sparkle
-    /// callback calls this, because the Nash rides the idle slot; the decision keeps
-    /// that repaint off a dictation or the dictation-failure flash. The user-action
-    /// failure flash sets no latch, so a later Sparkle event repaints over it on
-    /// purpose (`docs/architecture.md`, "App State").
+    /// Paints the glyph the menu bar shows when no flash and no notice holds it: a
+    /// live dictation's hold glyph, the loading glyph and its pulse, or idle. The
+    /// decision is `RestingGlyph.derive`. Idle is reached only through here, since
+    /// idle is a projection of update state: painting the idle glyph directly would
+    /// silently drop the update-ready Nash Ⱀ while a downloaded update awaits
+    /// Restart. Every Sparkle callback calls this, because the Nash rides the idle
+    /// slot; the decision keeps that repaint off the dictation-failure flash and
+    /// gives a live dictation its hold glyph. The user-action failure flash sets no
+    /// latch, so a later Sparkle event repaints over it on purpose
+    /// (`docs/architecture.md`, "App State").
     func paintRestingGlyph() {
         guard let button = statusItem?.button else { return }
         let resting = RestingGlyph.derive(
-            isPipelineActive: isPipelineActive,
             isShowingBriefStatus: isShowingBriefStatus,
+            liveDictation: liveDictation,
             gate: modelGate
         )
         // Only `.loading` keeps the pulse. Any other result ends it, so a dictation glyph
@@ -25,6 +26,8 @@ extension AppDelegate {
         switch resting {
         case .leave:
             break
+        case .hold:
+            paintHoldGlyph()
         case .loading:
             setStatusGlyph(status: .preparingSpeechModel, on: button)
             startModelLoadingPulse(on: button)
@@ -43,18 +46,14 @@ extension AppDelegate {
         paint(MenuBarGlyph.idleGlyph(isUpdateReady: isUpdateReady), tint: .normal, fallbackSymbol: "mic", on: button)
     }
 
-    func setStatusGlyph(_ state: DictationState, on button: NSStatusBarButton?) {
-        guard let button else { return }
-        paint(MenuBarGlyph.forState(state), tint: .normal, fallbackSymbol: "mic", on: button)
-    }
-
-    /// Paints the recording glyph for the session's mode — the semantic family
-    /// Ⱍ clean / Ⰳ raw / Ⱂ translate — so the mode (a translate hold that latches
-    /// live mid-hold, or raw when cleanup is off) is visible in the menu bar while
-    /// the key is still held.
-    func setStatusGlyph(recording mode: RecordingGlyphMode, on button: NSStatusBarButton?) {
-        guard let button else { return }
-        paint(MenuBarGlyph.forRecording(mode: mode), tint: .normal, fallbackSymbol: "mic", on: button)
+    /// Paints the live dictation's glyph for its phase: the recording family
+    /// Ⱍ clean / Ⰳ raw / Ⱂ translate while the key is held, the processing glyph
+    /// after key-up. The only read of the live cleanup setting for this glyph, so
+    /// raw wins over a translate key that joined mid-hold.
+    private func paintHoldGlyph() {
+        guard let button = statusItem?.button, case .hold(let phase) = liveDictation else { return }
+        let glyph = MenuBarGlyph.forHold(phase, isCleanupOn: store.state.cleanupAvailability.isOn)
+        paint(glyph, tint: .normal, fallbackSymbol: "mic", on: button)
     }
 
     func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
@@ -74,19 +73,22 @@ extension AppDelegate {
     private func paint(_ glyph: Character, tint: MenuBarGlyphTint, fallbackSymbol: String, on button: NSStatusBarButton) {
         button.title = ""
         button.contentTintColor = nil
+        button.setAccessibilityLabel("Slovo")
         button.image = MenuBarGlyph.image(for: glyph, tint: tint)
             ?? NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: "Slovo")
     }
 
     /// Briefly flashes the red failure glyph (the empty-dictation pattern) when an
-    /// action the user explicitly took fails — a Restart install, a key save or a
-    /// key removal — then restores the resting glyph. Background failures stay silent.
+    /// action the user explicitly took fails — a Restart install, a key save or removal,
+    /// a vocabulary edit, or opening the notices file or a System Settings pane — then
+    /// restores the resting glyph. Background failures stay silent.
     func flashUserActionFailure() {
         guard let button = statusItem?.button else { return }
         paint(MenuBarGlyph.failureGlyph, tint: .error, fallbackSymbol: "exclamationmark.circle", on: button)
         // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
-        // scheduling anew, and skip the reset if superseded or if a dictation started
-        // within the window (its recording glyph must not be stomped back to idle).
+        // scheduling anew, and skip the reset if superseded. The repaint goes through
+        // the resting decision, so a dictation that started within the window gets
+        // its hold glyph back, not idle.
         userActionFailureResetTask?.cancel()
         userActionFailureResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2))

@@ -10,7 +10,7 @@ public struct AppState: Equatable, Sendable {
     /// `private(set)` leaves `applyScope`, in this file, its only writer.
     public private(set) var cleanupScope = CleanupScopeState()
     /// Mirrors the SQLite vocabulary table; the table stays the source of truth.
-    public var vocabulary: [VocabularyRecord]
+    public var vocabulary: VocabularyList
     public var menuMode: MenuMode = .dictation
     public var statusLine: StatusLine = .idle
     /// Whether macOS also claims the fn key; read from the system on each menu open.
@@ -25,6 +25,9 @@ public struct AppState: Equatable, Sendable {
     /// `menuStructure`: the Microphone submenu's row listener updates it in place.
     public var inputDevices = InputDevices()
     public var updateIndication: UpdateIndication = .idle
+    /// The updater's own answer to "can a check start now" (`SPUUpdater.canCheckForUpdates`).
+    /// False until the updater reports. `UpdaterCoordinator` is its only writer.
+    public var canCheckForUpdates = false
     /// The pane Settings… opens: the last one the user viewed, About excepted.
     /// General until the first visit, and again after a relaunch.
     /// `recordSettingsPane`, in this file, is its only writer.
@@ -33,7 +36,7 @@ public struct AppState: Equatable, Sendable {
     public init(
         config: Config,
         isOpenRouterKeyPresent: Bool,
-        vocabulary: [VocabularyRecord] = [],
+        vocabulary: VocabularyList = .available([]),
         isFnKeySystemAssigned: Bool = false
     ) {
         self.config = config
@@ -69,6 +72,12 @@ extension AppState {
 }
 
 public extension AppState {
+    /// What the persistent update row shows: the indication, with its check action
+    /// following the updater's answer.
+    var updateRow: UpdateRow {
+        updateIndication.row(canCheckForUpdates: canCheckForUpdates)
+    }
+
     var cleanupAvailability: CleanupAvailability {
         CleanupAvailability.derive(preference: config.cleanupEnabled, keyPresent: isOpenRouterKeyPresent)
     }
@@ -101,7 +110,8 @@ public extension AppState {
             translationTargetLanguage: config.translationTargetLanguage,
             cleanupAvailability: cleanupAvailability,
             mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            playsDictationSoundCues: config.playsDictationSoundCues
+            playsDictationSoundCues: config.playsDictationSoundCues,
+            isVocabularyEditable: vocabulary.isEditable
         )
     }
 
@@ -118,7 +128,7 @@ public extension AppState {
     }
 }
 
-/// The configuration values the dictation menu is built from. The menu rebuilds
+/// The values the dictation menu is built from. The menu rebuilds
 /// when these or the menu mode change; the status, fn and update rows, the mute
 /// item's availability and the Microphone submenu follow state through their own
 /// listeners.
@@ -129,6 +139,7 @@ public struct DictationMenuInput: Equatable, Sendable {
     public let cleanupAvailability: CleanupAvailability
     public let mutesSystemAudioWhileDictating: Bool
     public let playsDictationSoundCues: Bool
+    public let isVocabularyEditable: Bool
 }
 
 /// Which menu the status item shows. Runtime UI state, never persisted.

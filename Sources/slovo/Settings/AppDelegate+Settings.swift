@@ -64,6 +64,7 @@ extension AppDelegate: SettingsActions {
             try personalization?.addVocabulary(records)
         } catch {
             logger.error("vocabulary add failed")
+            flashUserActionFailure()
         }
         store.update { $0.vocabulary = listVocabulary() }
     }
@@ -73,7 +74,12 @@ extension AppDelegate: SettingsActions {
             try personalization?.removeVocabulary(id: id)
         } catch {
             logger.error("vocabulary remove failed")
+            flashUserActionFailure()
         }
+        store.update { $0.vocabulary = listVocabulary() }
+    }
+
+    func reloadVocabulary() {
         store.update { $0.vocabulary = listVocabulary() }
     }
 
@@ -81,19 +87,26 @@ extension AppDelegate: SettingsActions {
     /// (THIRD-PARTY-NOTICES.md, staged there by the packaging scripts) in the
     /// user's default handler.
     func openAcknowledgements() {
-        guard let url = Bundle.main.url(forResource: "THIRD-PARTY-NOTICES", withExtension: "md") else { return }
-        NSWorkspace.shared.open(url)
+        guard let url = Bundle.main.url(forResource: "THIRD-PARTY-NOTICES", withExtension: "md"),
+              NSWorkspace.shared.open(url) else {
+            flashUserActionFailure()
+            return
+        }
     }
 
     /// The vocabulary mirror's one read of the database, for the seed in
-    /// `startPipeline` and both edits. Not part of `SettingsActions`.
-    func listVocabulary() -> [VocabularyRecord] {
-        do {
-            return try personalization?.allVocabulary() ?? []
-        } catch {
-            logger.error("vocabulary list failed")
-            return []
-        }
+    /// `startPipeline`, both edits and the pane's reload. Not part of `SettingsActions`.
+    func listVocabulary() -> VocabularyList {
+        VocabularyList(reading: personalization.map { database in
+            {
+                do {
+                    return try database.allVocabulary()
+                } catch {
+                    self.logger.error("vocabulary list failed")
+                    throw error
+                }
+            }
+        })
     }
 
     /// Ends a key save or removal: reads key presence back from the provider on both

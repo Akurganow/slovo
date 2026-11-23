@@ -13,17 +13,35 @@ struct StatusLineTests {
     func messagesKeepTheirTitles() {
         let titles: [(StatusMessage, String)] = [
             (.preparingSpeechModel, "Preparing Speech Model"),
-            (.cleanupUnavailableInsertedAsSpoken, "Inserted As Spoken"),
+            (.cleanupUnavailableInsertedAsSpoken, "Inserted as Spoken"),
             (.accessibilityDenied, "Accessibility Denied"),
             (.transcriptionFailed, "Transcription Failed"),
             (.secureFieldActive, "Secure Field Active"),
             (.injectionFailed, "Insertion Failed"),
             (.microphoneUnavailable, "Microphone Unavailable"),
             (.noSpeechDetected, "No Speech"),
+            (.outputMuteFailed, "Sound Not Muted"),
+            (.outputRestoreFailed, "Could Not Restore Sound"),
         ]
         for (message, title) in titles {
             #expect(StatusLine.message(message).text(idleTrigger: .fn) == title)
         }
+    }
+
+    /// Only a line that shows a persistent notice counts as one, so a flash's reset
+    /// keeps "Sound Not Muted" and still clears "Inserted as Spoken".
+    /// Stated sensitivity: return false for every line, or true for every message
+    /// → RED.
+    @Test
+    func onlyAPersistentMessageLineIsPersistent() {
+        #expect(StatusLine.message(.outputMuteFailed).isPersistentNotice)
+        #expect(StatusLine.message(.outputRestoreFailed).isPersistentNotice)
+        #expect(StatusLine.message(.microphoneUnavailable).isPersistentNotice)
+        #expect(!StatusLine.message(.cleanupUnavailableInsertedAsSpoken).isPersistentNotice)
+        #expect(!StatusLine.message(.noSpeechDetected).isPersistentNotice)
+        #expect(!StatusLine.idle.isPersistentNotice)
+        #expect(!StatusLine.recording.isPersistentNotice)
+        #expect(!StatusLine.processing.isPersistentNotice)
     }
 
     /// The two progress words the row shows while a dictation runs. With

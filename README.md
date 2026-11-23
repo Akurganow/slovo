@@ -35,18 +35,18 @@ tuned.
   or from **Cleanup Model: …** in the menu bar. A custom id goes in the field
   under the list and takes effect with **Use**. Once Slovo knows which models
   your key can call, the curated models in both places are limited to those.
-- A cleanup switch, on by default: **Clean Up Dictation** in the menu bar and
-  **Clean up dictation** in **Settings → Cleanup**. Turn it off for the explicit
+- A cleanup switch, on by default: **Clean Up Dictation** in the menu bar and in
+  **Settings → Cleanup**. Turn it off for the explicit
   raw-transcript mode: the raw final transcript lands in the focused field once
   at key-up, near-instantly.
   Translation is unavailable while cleanup is off. With no OpenRouter key saved,
   cleanup is off as well: the menu shows **Add OpenRouter Key…** in place of the
   switch, and the Settings switch is off and cannot be turned on.
-- Optional per-dictation translation from a **Translate key** of its own — ⌃ by
+- Optional per-dictation translation from a **Translate Key** of its own — ⌃ by
   default, drawn from the same pool as the push-to-talk key and never the same
   key. It is an *additional* key by default: hold it together with the
   push-to-talk key and that dictation is translated into your target language as
-  part of the same cleanup step. Turn **Use as additional key** off and it
+  part of the same cleanup step. Turn **Use as Additional Key** off and it
   becomes a second push-to-talk key that always translates. Either way a plain
   hold is unchanged.
 - Optional muting of system audio while dictating. A **Mute Audio While
@@ -76,7 +76,7 @@ tuned.
 - Cleanup hints: your active keyboard language and the system spell and grammar
   checker nudge the model toward the right words. Slovo gathers them on your Mac,
   then sends them to OpenRouter with the transcript as advisory context. Turn
-  off **Use system spell and grammar hints** in **Settings → Cleanup** (on by
+  off **Use System Spell and Grammar Hints** in **Settings → Cleanup** (on by
   default) to stop the spell and grammar hints. Grammar hints are English-only.
   [docs/privacy.md](docs/privacy.md), "Data Paths", lists what is sent.
 - OpenRouter API key stored in macOS Keychain. Add it through the menu-bar
@@ -90,7 +90,9 @@ tuned.
 - Local SQLite personalization store for vocabulary hints, encrypted at rest
   with SQLCipher — add and remove terms in **Settings → Vocabulary**, or use the
   menu-bar **Add Vocabulary…** quick action — to protect your own terms during
-  cleanup.
+  cleanup. If the database cannot be opened or read, the pane says the
+  vocabulary is unavailable, adding and removing are disabled, and dictation
+  continues without vocabulary.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states — resting idle shows `Ⱄ` normally, swapping to `Ⱀ`
   when a downloaded update awaits restart; the recording glyph names the mode:
@@ -100,11 +102,11 @@ tuned.
   opens on the pane you last viewed, never on **About**, and on **General**
   after a launch.
   - **General**: hotkeys, language, microphone, mute, cues, bias, login, updates.
-  - **Cleanup**: the switch, model, **Writing style** (**Formal**, **Casual** or
-    **Very casual**; Casual by default), target, key, hints.
+  - **Cleanup**: the switch, model, **Writing Style** (**Formal**, **Casual** or
+    **Very Casual**; Casual by default), target, key, hints.
   - **Vocabulary**: your terms.
   - **About**: the quick guide and version, described below.
-- **Vocabulary bias (experimental)**, off by default, also passes the
+- **Vocabulary Bias (Experimental)**, off by default, also passes the
   top-ranked vocabulary terms that fit a short prompt to the on-device speech
   recognizer, ranked by each term's weight and its recent cleanup corrections.
   Your vocabulary reaches cleanup whether it is on or off.
@@ -113,9 +115,10 @@ tuned.
   in the menu bar opens it.
 - Silent automatic updates with an always-visible menu-bar update row:
   **Check for Updates…** runs a manual silent check, **Checking…** shows while
-  any check runs, **Downloading v…** shows while an update downloads, and a
-  downloaded update switches the status bar glyph to `Ⱀ` and offers **Update
-  ready — v…** / **Restart**. The **Automatically install updates** switch
+  any check runs, **Update Check Failed** shows after a failed check or
+  download until the next check starts, **Downloading v…** shows while an update
+  downloads, and a downloaded update switches the status bar glyph to `Ⱀ` and
+  offers **Update Ready — v…** / **Restart**. The **Automatically Install Updates** switch
   (Settings → General, on by default) turns scheduled checking off.
 - Strict Swift build, test, concurrency, lint, and ast-grep rule checks.
 
@@ -177,14 +180,14 @@ on the Mac.
    and the menu-bar icon briefly shows the error glyph `Ⱁ`. Cleanup turned off
    by choice is not a failure — raw mode inserts silently, with no error glyph.
 
-To translate a dictation, use the **Translate key** — ⌃ out of the box, and
+To translate a dictation, use the **Translate Key** — ⌃ out of the box, and
 any other key from the same pool in **Settings → General**. By default it is
 an additional key: press it at any moment while the push-to-talk key is down,
 and that dictation is cleaned and translated into your target language in the
 same single step, then inserted. Slovo sees ⌃ and `fn` in every keystroke, so
 they count even if you were already holding one; a sided ⌘, ⌥ or ⇧ is noticed
 only when that key itself moves, so it has to go down during the hold. A plain
-hold (translate key untouched) is unchanged. Turn **Use as additional key**
+hold (translate key untouched) is unchanged. Turn **Use as Additional Key**
 off and the translate key stands alone: hold it by itself to dictate, and that
 dictation is always translated, while the push-to-talk key keeps working as
 plain dictation.
@@ -195,7 +198,7 @@ from the start of a standalone translate hold, so the mode is visible at a
 glance. Translation requires cleanup: while **Clean Up Dictation** is off, the
 translate key adds no translation and the recording glyph stays the raw-mode
 `Ⰳ`.
-Choose the target — the **Recognition language** list without **Auto** — from the
+Choose the target — the **Recognition Language** list without **Auto** — from the
 menu bar (**Translate to: …**) or **Settings → Cleanup**. If cleanup fails, the
 raw untranslated transcript is inserted with the same `Ⱁ` notice — translation
 adds no new error surface.
@@ -205,8 +208,12 @@ Error cue — never a dialog or focus-stealing notification, since Slovo types
 into whichever app you're already using. Intentional cancellation is silent.
 Open the menu for the reason: after most failures its first row names it, such
 as **Secure Field Active** when Slovo refused to paste because secure input was
-on, and it stays until your next dictation. **Inserted As Spoken**, after a
-cleanup fallback, clears after about a second, and a hold with no speech shows
+on, and it stays until your next dictation. **Sound Not Muted** and **Could
+Not Restore Sound** stay the same way: Slovo could not silence system audio for
+the hold, or could not turn it back on afterward; neither stops the dictation.
+Slovo tries the failed restore again at your next dictation.
+**Inserted as Spoken**, after a cleanup fallback, clears after about a second,
+and a hold with no speech shows
 only the glyph. With nothing to report, that row reads the hold hint, for
 example “Hold fn to talk”. Under it, a row shows how to
 translate: **Add ⌃ to translate** while the translate key is additional,

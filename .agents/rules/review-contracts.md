@@ -30,10 +30,14 @@ is a file's content, the entry names the file.
   no session. The check comes before any session starts.
 - The release of a refused press does nothing, so it cannot overwrite the
   loading glyph.
-- The recording glyph comes from one path that takes the hold's mode and reads
+- The recording glyph comes from one path that takes the hold's phase and reads
   the live cleanup setting once. The key-down arm and the translate-latch arm
   both paint through it, and neither reads the cleanup setting itself. A
   translate key joining mid-hold repaints the glyph, and raw wins over translate.
+- During a dictation every repaint of the glyph goes through
+  `RestingGlyph.derive`. A failure flash, or a notice that ended the dictation,
+  owns the glyph; otherwise the glyph shows the hold's phase. The key-down,
+  key-up and translate-latch arms set the live dictation and repaint through it.
 - The dictation gate opens only when the model load finished successfully, and
   only for the composition that is still current. The composition exposes the
   load as a task the gate awaits.
@@ -78,8 +82,9 @@ is a file's content, the entry names the file.
   follows device changes. Launch reads the devices once. A rebuild renders the
   choice onto the new item, and a row writes the saved choice.
 - A brief glyph reset that a newer flash superseded does nothing when its delay
-  ends. The live reset always clears the brief-status state, and it repaints the
-  resting glyph only while no dictation is active.
+  ends. The live reset always clears the brief-status state and repaints
+  through the resting decision, which during a dictation gives the glyph back to
+  the hold unless a notice that ended it holds the glyph.
 - An empty result flashes the brief failure glyph and returns before any status
   line is written. That branch writes no status text.
 - A brief flash sets the brief-status state, so settling to idle does not wipe
@@ -87,16 +92,21 @@ is a file's content, the entry names the file.
 - A failure status paints through the core glyph renderer in the error tint, and
   a live state paints in the normal tint.
 - A brief red flash never resets the line of a persistent failure to the idle
-  hint.
+  hint. Its reset reads the line on screen, not the flash's own status.
 - The menu is built from one input and the live rows, and the builder reads every
   value from them, never from the store. The menu cannot show a value that
-  bypasses the app state. The build takes the fn verdict and the update
-  indication as arguments, not from the live reader or the updater coordinator.
+  bypasses the app state. The build takes the fn verdict and the update row
+  (`AppState.updateRow`, from the indication and `canCheckForUpdates`) as
+  arguments, not from the live reader or the updater coordinator.
 - The resting-glyph painter reads the update indication from the store and
   picks the glyph through the core projection.
 - Every updater event repaints the resting glyph, once and under no condition,
   so a later event overwrites a failed Restart's red flash. The core glyph logic
   decides whether the repaint may run over a live dictation.
+- `Add Vocabulary…` is disabled while the vocabulary is unavailable. Its flag
+  comes from the menu input.
+- A failed vocabulary edit, and an open of the notices file or a System Settings
+  pane that fails, flash the user-action failure glyph.
 
 ## Settings panes
 
@@ -114,8 +124,8 @@ is a file's content, the entry names the file.
   effect outside the store goes through the settings actions seam. Only a user
   action writes the cleanup model: the picker and the custom model button. The
   Cleanup pane renders the state's model selection and derives none of its own.
-- The General pane re-reads Launch at Login each time it appears, since the
-  setting can change outside Slovo while the window is cached.
+- The General pane re-reads Open at Login each time it appears and after every
+  change, since the setting can change outside Slovo while the window is cached.
 - The General mute switch is disabled, with the reason in its row, where macOS
   can set neither mute nor volume.
 - The Microphone picker lists the present devices and an absent chosen device,
@@ -127,7 +137,10 @@ is a file's content, the entry names the file.
 - The Cleanup pane's translate caption names the configured keys and the right
   gesture for an additional and a standalone translate key.
 - The Vocabulary pane has a selectable list with a visible minus control. The
-  control removes the selection and is disabled while nothing is selected.
+  control removes the selection and is disabled while nothing is selected. The
+  pane re-reads the table each time it appears.
+  While the vocabulary is unavailable, the pane says so in place of the empty
+  state and disables both controls.
 - The Settings window activates the app before it shows, so it does not open
   behind other apps. The opener uses no Settings link route.
 - The menu's add-key item shows the key window, and the window's Save routes
@@ -170,9 +183,13 @@ is a file's content, the entry names the file.
 - The Check for Updates menu action calls the update coordinator's manual check.
 - The manual check runs the silent background check, only when the updater can
   check, and shows Checking at once.
+- The check row acts only while the updater can check. A KVO observation writes
+  that answer into the state.
+- A failed check or download keeps the failed row until the next check starts. A
+  no-update abort and a cancelled download are not failures.
 - The app builds one updater directly. It uses no stock updater controller, no
   legacy updater class and no check that shows an alert.
-- The saved Automatically install updates choice is applied before the updater
+- The saved Automatically Install Updates choice is applied before the updater
   starts, so a user who chose Off gets no first check.
 - The install-on-quit answer is yes, and the handler the updater passes is kept
   for the Restart click.
@@ -183,7 +200,7 @@ is a file's content, the entry names the file.
 - The update row is one persistent menu item that is changed in place. The
   renderer builds no menu items, and the menu-open re-sync renders the row from
   state.
-- Settings, General has the Automatically install updates switch, bound to the
+- Settings, General has the Automatically Install Updates switch, bound to the
   store.
 
 ## Sound cues
@@ -194,6 +211,11 @@ is a file's content, the entry names the file.
   hold no cue preference.
 - The cue controller creates a system sound id, plays it as an alert sound with a
   completion, and disposes it.
+- A failed mute is reported at once and the hold records on. A failed restore is
+  reported after its transition's other effects, so its Error follows End and a
+  cancel plays none. A device with no mute or volume lever reports nothing. Slovo
+  keeps a failed restore and tries it again at the next dictation's mute step and
+  restore step, until one succeeds.
 - The cue sound files, their packaging checks, their license notice and the
   README feature line stay in step. `Scripts/build_and_run.sh` checks each
   packaged cue file under verify. `THIRD-PARTY-NOTICES.md` keeps the CC0

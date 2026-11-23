@@ -12,7 +12,7 @@ extension SPUUpdater: @MainActor UpdaterSwitch {}
 
 /// Owns Slovo's silent Sparkle pipeline: one directly-constructed `SPUUpdater` and
 /// its updater/user-driver delegates. It folds Sparkle's callbacks into
-/// `AppState.updateIndication`. The silent path never touches the stock user
+/// `AppState.updateIndication` and `AppState.canCheckForUpdates`. The silent path never touches the stock user
 /// driver, so no Sparkle window can appear; the only self-relaunch is the user's
 /// Restart click.
 ///
@@ -39,6 +39,9 @@ final class UpdaterCoordinator: NSObject {
     /// the red glyph, the latter resets to hidden.
     private var isRestartInFlight = false
 
+    /// Keeps the `canCheckForUpdates` observation alive; dropping it ends the observation.
+    private var canCheckObservation: NSKeyValueObservation?
+
     private let store: AppStore
     private let onUpdaterEvent: () -> Void
     private let onInstallFailedAfterRestart: () -> Void
@@ -62,12 +65,32 @@ final class UpdaterCoordinator: NSObject {
     }
 
     private func startUpdater() {
+        observeCanCheckForUpdates()
         do {
             try updater.start()
         } catch {
             // The log line is the only surface (menu-bar-only rule); the next launch retries.
             Self.log.error("updater did not start, code \((error as NSError).code)")
         }
+    }
+
+    /// Writes the updater's `canCheckForUpdates` into the store, now and on every change,
+    /// so the check row acts only while Sparkle says a check can start.
+    /// `SPUUpdater.h`, Sparkle 2.10.1: "This property is suitable to use for menu item
+    /// validation for seeing if `-checkForUpdates` can be invoked. This property is also
+    /// KVO-compliant." The change handler is not main-actor-isolated, so it hops to the
+    /// main actor and reads the live value there, which keeps the final write the latest.
+    private func observeCanCheckForUpdates() {
+        canCheckObservation = updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                self?.syncCanCheckForUpdates()
+            }
+        }
+    }
+
+    private func syncCanCheckForUpdates() {
+        let canCheck = updater.canCheckForUpdates
+        store.update { $0.canCheckForUpdates = canCheck }
     }
 
     /// Installs the already-downloaded update and relaunches — the one relaunch the
@@ -103,10 +126,12 @@ final class UpdaterCoordinator: NSObject {
         onUpdaterEvent()
     }
 
-    private func handleAbort() {
+    /// The one place that ends a Restart: `event` is `.failed` when the check or the
+    /// download failed and `.aborted` when it stopped without a failure.
+    private func handleAbort(_ event: UpdaterEvent) {
         let wasRestartInFlight = isRestartInFlight
         isRestartInFlight = false
-        reduce(.aborted)
+        reduce(event)
         if wasRestartInFlight {
             // The user asked to restart and the immediate install failed: reduce
             // leaves the ready row intact (never regress a downloaded update); flash
@@ -144,21 +169,24 @@ extension UpdaterCoordinator: SPUUpdaterDelegate {
     }
 
     func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: any Error) {
-        handleAbort()
+        handleAbort(.failed)
     }
 
     func userDidCancelDownload(_ updater: SPUUpdater) {
-        handleAbort()
+        handleAbort(.aborted)
     }
 
     /// Sparkle reports a check that found no update here too, as `SUNoUpdateError`
-    /// (`SPUUpdaterDelegate.h`, Sparkle 2.10.1), so that one is not logged.
+    /// (`SPUUpdaterDelegate.h`, Sparkle 2.10.1). That one is no failure and is not
+    /// logged; every other error is a failed check.
     func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
         let error = error as NSError
-        if error.domain != SUSparkleErrorDomain || error.code != Int(SUError.noUpdateError.rawValue) {
-            Self.log.error("update check aborted, code \(error.code)")
+        guard error.domain != SUSparkleErrorDomain || error.code != Int(SUError.noUpdateError.rawValue) else {
+            handleAbort(.aborted)
+            return
         }
-        handleAbort()
+        Self.log.error("update check aborted, code \(error.code)")
+        handleAbort(.failed)
     }
 
     /// A check finished finding no newer version: return the row from "Checking…" to
@@ -183,7 +211,7 @@ extension UpdaterCoordinator: SPUUpdaterDelegate {
 
 extension UpdaterCoordinator: SPUStandardUserDriverDelegate {
     /// Opt into gentle reminders so a downloaded-but-uninstalled update never
-    /// escalates to a modal; our own menu-bar "Update ready" line is the reminder.
+    /// escalates to a modal; our own menu-bar "Update Ready" line is the reminder.
     /// `nonisolated` because this protocol (unlike `SPUUpdaterDelegate`) is not
     /// main-actor-annotated and the answer is a constant.
     nonisolated var supportsGentleScheduledUpdateReminders: Bool {
@@ -192,7 +220,7 @@ extension UpdaterCoordinator: SPUStandardUserDriverDelegate {
 
     /// Return false: the delegate owns showing scheduled updates, and by
     /// deliberately not implementing `standardUserDriverWillHandleShowingUpdate`,
-    /// nothing is shown — the menu-bar "Update ready" line is the only reminder.
+    /// nothing is shown — the menu-bar "Update Ready" line is the only reminder.
     /// Returning true would let the stock Sparkle alert appear on the fallback
     /// path (a translocated or non-writable /Applications copy).
     nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(

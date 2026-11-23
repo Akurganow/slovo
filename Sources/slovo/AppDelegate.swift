@@ -41,7 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self?.saveOpenRouterKey(key)
     }
     private var didShowPipelineStatus = false
-    var isPipelineActive = false
+    // The live dictation, for the glyph a repaint gives back to it: nil between
+    // dictations. A notice that ended the dictation keeps the glyph until it settles,
+    // so no repaint brings the recording or processing glyph back over it.
+    var liveDictation: LiveDictation?
+    var isPipelineActive: Bool { liveDictation != nil }
     // A brief self-clearing failure glyph is on screen; settleToIdle must not stomp
     // it back to idle mid-window.
     var isShowingBriefStatus = false
@@ -106,13 +110,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func makeMenu(
         _ input: DictationMenuInput,
         rows: DictationMenuRows,
-        indication: UpdateIndication,
+        updateRow: UpdateRow,
         muteAvailability: OutputMuteAvailability,
         inputDeviceChoice: InputDeviceChoice
     ) -> NSMenu {
         let built = DictationMenuBuilder(target: self).make(input, rows: rows)
         statusTextItem = built.statusItem
-        renderUpdateIndication(indication)
+        renderUpdateRow(updateRow)
         renderMuteAvailability(muteAvailability)
         renderMicrophoneMenu(inputDeviceChoice)
         return built.menu
@@ -150,22 +154,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // was released, and the repaint below would overwrite the live glyph.
             case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
                 guard await MainActor.run(body: { self?.modelGate == .open }) else { return }
-                await MainActor.run {
-                    self?.isPipelineActive = true
-                    self?.didShowPipelineStatus = false
-                    // The recording glyph is the semantic family, derived in
-                    // applyRecordingGlyph from the live availability (letter
-                    // mnemonics: MenuBarGlyph.forRecording).
-                    self?.applyRecordingGlyph(mode)
-                    self?.store.update { $0.statusLine = .recording }
-                }
+                await MainActor.run { self?.beginHold(mode) }
                 await orchestrator.deliver(edge)
             case .translateLatched:
                 guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
-                await MainActor.run { self?.applyRecordingGlyph(.translate) }
+                await MainActor.run { self?.enterHoldPhase(.recording(.translate)) }
             case .up: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                 await MainActor.run {
-                    self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
+                    self?.enterHoldPhase(.processing)
                     if self?.didShowPipelineStatus == false {
                         self?.store.update { $0.statusLine = .processing }
                     }
@@ -196,26 +192,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// A refused press shows the user nothing, since it captured no speech. This line
     /// is the only way to tell it from a press the key tap never delivered. A method,
-    /// not an inline call, because the sink closure sits at its length ceiling and the
-    /// refusal may cost exactly one line there.
+    /// not an inline call, because the sink closure sits near its length ceiling.
     private func logRefusedPress() {
         logger.info("press refused: earlier key edge still being handled")
     }
 
-    /// Derives and paints the recording glyph for a session's mode from the LIVE
-    /// cleanup availability. The availability is read exactly once — here, as the
-    /// derivation argument — so no sequencer arm carries a separate gate read that a
-    /// mutant could leave dead while still running the paint; both arms share this.
-    func applyRecordingGlyph(_ mode: DictationMode) {
-        let glyphMode = MenuBarGlyph.recordingGlyphMode(mode: mode, isCleanupOn: store.state.cleanupAvailability.isOn)
-        setStatusGlyph(recording: glyphMode, on: statusItem?.button)
+    /// A new hold owns the glyph, so a flash left from the previous dictation ends
+    /// here: its reset is cancelled and its latch cleared, and the hold glyph is
+    /// painted at once. Otherwise the hold's next phase would wait out that flash.
+    private func beginHold(_ mode: DictationMode) {
+        briefStatusResetTask?.cancel()
+        isShowingBriefStatus = false
+        didShowPipelineStatus = false
+        liveDictation = .hold(.recording(mode))
+        paintRestingGlyph()
+        store.update { $0.statusLine = .recording }
+    }
+
+    /// Repaints through the resting decision, so a failure flash, or a notice that
+    /// ended the dictation, keeps the glyph and the new phase shows once it is free.
+    private func enterHoldPhase(_ phase: HoldPhase) {
+        if case .hold = liveDictation { liveDictation = .hold(phase) }
+        paintRestingGlyph()
     }
 
     /// Return the menu-bar glyph and status line to idle — the hold-to-talk hint —
     /// when a session settles (normal stop or a silent cancel), leaving a
     /// sad-to-fail notice or an already-shown pipeline status untouched.
     private func settleToIdle() {
-        isPipelineActive = false
+        liveDictation = nil
         paintRestingGlyph()
         if !didShowPipelineStatus {
             store.update { $0.statusLine = .idle }
@@ -285,7 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
             $0.inputDevices = CoreAudioInputDevices().inputDevices()
         }
-        renderUpdateIndication(store.state.updateIndication)
+        renderUpdateRow(store.state.updateRow)
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
         guard store.state.menuMode.isOnboarding else { return }
@@ -323,11 +328,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             flashBriefStatusGlyph(status)
             return
         }
-        if status.isPersistentNotice {
+        if status.isPersistentNotice || status.isSadToFailNotice {
             didShowPipelineStatus = true
         }
-        if status.isSadToFailNotice {
-            didShowPipelineStatus = true
+        if status.holdsGlyph, liveDictation != nil {
+            liveDictation = .heldByNotice
         }
         if status.isFailureNotice {
             flashBriefStatusGlyph(status)
@@ -348,17 +353,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             //    above discards that, so the cancel alone stops nothing: without
             //    this the superseded reset runs on and clears the newer flash.
             guard !Task.isCancelled, let self else { return }
-            // 2. Unconditionally, and before any other exit: this line is the ONLY
-            //    writer that clears the latch, and every resting-glyph repaint reads
+            // 2. Unconditionally, and before any other exit: besides a new hold,
+            //    which cancels this task first, this line is the only writer that
+            //    clears the latch, and every resting-glyph repaint reads
             //    it as a do-not-repaint veto — a return above it strands the latch
             //    set and suppresses idle indefinitely.
             self.isShowingBriefStatus = false
-            // 3. The repaint decides for itself whether a dictation owns the glyph.
-            //    The status line is gated here: a dictation that began inside the
-            //    window owns it too, and idle would overwrite its status.
+            // 3. The repaint decides for itself what gets the glyph back: a live
+            //    dictation's hold glyph, unless a notice that ended it holds the
+            //    glyph, or the resting glyph. The status line is gated here: a
+            //    dictation that began inside the window owns it, and idle would
+            //    overwrite its status.
             self.paintRestingGlyph()
             guard !self.isPipelineActive else { return }
-            if !status.isPersistentNotice {
+            // The line on screen decides, not this flash's status: a persistent
+            // notice written earlier in the dictation stays until the next one starts.
+            if !self.store.state.statusLine.isPersistentNotice {
                 self.store.update { $0.statusLine = .idle }
             }
         }
@@ -427,8 +437,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func openSettingsPane(_ pane: String) {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
-            NSWorkspace.shared.open(url)
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"),
+              NSWorkspace.shared.open(url) else {
+            flashUserActionFailure()
+            return
         }
     }
 

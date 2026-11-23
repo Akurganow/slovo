@@ -9,13 +9,14 @@ import os
 /// to zero (and restoring the saved scalar) for devices that do not expose a
 /// settable mute (e.g. some Bluetooth/USB DACs). The `AudioDeviceID` is pinned
 /// at mute time so a device change mid-dictation cannot misdirect the restore.
-/// A device with neither lever makes `muteSystemOutput` throw `NoOutputControl`.
+/// A device with neither lever makes `muteSystemOutput` return nil: there is
+/// nothing to mute, which is not a failure.
 ///
 /// `muteLever` is the one decision of which lever a device has: `muteSystemOutput`
 /// and the availability read both call it.
 ///
 /// The HAL calls run only on real hardware; CI tests the pure decisions,
-/// `muteLever(hasSettableMute:hasSettableVolume:)` and `restoreWrite(for:)`.
+/// `muteLever(hasSettableMute:hasSettableVolume:)`, `restoreWrite(for:)` and `isVanishedDevice(_:)`.
 public struct CoreAudioOutputMute: SystemAudioController {
     /// A HAL call that returned an error status. The helpers throw it and never log:
     /// the availability probe reads through them, where a failure is an expected
@@ -24,10 +25,6 @@ public struct CoreAudioOutputMute: SystemAudioController {
         let call: HALCall
         let status: OSStatus
     }
-
-    /// Thrown by `muteSystemOutput` for a device with no settable control. That is not
-    /// a failure, so it is never logged.
-    private struct NoOutputControl: Error {}
 
     /// The device write a restore issues.
     enum OutputWrite: Equatable {
@@ -80,10 +77,9 @@ public struct CoreAudioOutputMute: SystemAudioController {
         }
     }
 
-    public func muteSystemOutput() throws -> PriorAudioState {
-        let state: PriorAudioState?
+    public func muteSystemOutput() throws -> PriorAudioState? {
         do {
-            state = try muteDefaultOutput()
+            return try muteDefaultOutput()
         } catch {
             switch error.call {
             case .getDefaultDevice:
@@ -101,8 +97,6 @@ public struct CoreAudioOutputMute: SystemAudioController {
             }
             throw error
         }
-        guard let state else { throw NoOutputControl() }
-        return state
     }
 
     private func muteDefaultOutput() throws(HALFailure) -> PriorAudioState? {
@@ -156,9 +150,22 @@ public struct CoreAudioOutputMute: SystemAudioController {
                 try setVirtualMasterVolume(deviceID, scalar: scalar)
             }
         } catch {
+            if Self.isVanishedDevice(error.status) {
+                Self.diagnosticLog.info("output.restore skipped: device gone status=\(error.status)")
+                return
+            }
             Self.diagnosticLog.error("output.restore failed status=\(error.status)")
             throw error
         }
+    }
+
+    /// A status that says the pinned device no longer exists, so no mute or volume
+    /// is left to undo. `AudioHardwareBase.h` (macOS SDK) documents
+    /// `kAudioHardwareBadObjectError` as "The AudioObjectID passed to the function
+    /// doesn't map to a valid AudioObject." and `kAudioHardwareBadDeviceError` as
+    /// "The AudioObjectID passed to the function doesn't map to a valid AudioDevice."
+    static func isVanishedDevice(_ status: OSStatus) -> Bool {
+        status == kAudioHardwareBadObjectError || status == kAudioHardwareBadDeviceError
     }
 
     /// The one decision of which lever a device has: a settable mute, else a settable

@@ -91,6 +91,17 @@ struct AppStateTests {
         }
     }
 
+    /// The menu's Add Vocabulary… item follows the vocabulary mirror through the menu input.
+    /// Stated sensitivity: hard-code `isVocabularyEditable` to `true` → RED.
+    @Test
+    func menuInputReportsWhetherTheVocabularyIsEditable() {
+        var state = Self.makeState()
+        #expect(state.dictationMenuInput.isVocabularyEditable, "an empty table is editable")
+        state.vocabulary = .unavailable
+        #expect(!state.dictationMenuInput.isVocabularyEditable)
+        #expect(state.menuStructure != Self.makeState().menuStructure, "the menu must rebuild when it changes")
+    }
+
     /// Stated sensitivity: skip `reconciled()` in `update` or in `init`, or let the
     /// `.availabilityChanged` arm return before it sets `cleanupIsOn` → RED.
     @Test
@@ -249,5 +260,21 @@ struct AppStateTests {
         let state = AppState(config: config, isOpenRouterKeyPresent: false)
         #expect(state.statusLine == .idle)
         #expect(state.statusLineText == "Hold Right ⌘ to talk")
+    }
+
+    /// The update row follows both the indication and the updater's answer.
+    /// Stated sensitivity: pass a constant `true` (or ignore the indication) to `row` → RED.
+    @Test
+    func updateRowFollowsTheIndicationAndTheUpdatersAnswer() {
+        var state = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        #expect(state.updateRow.action == .noAction)
+        state.canCheckForUpdates = true
+        #expect(state.updateRow == UpdateIndication.idle.row(canCheckForUpdates: true))
+        #expect(state.updateRow.action == .checkNow)
+        state.updateIndication = .checkFailed
+        #expect(state.updateRow == UpdateIndication.checkFailed.row(canCheckForUpdates: true))
+        state.canCheckForUpdates = false
+        #expect(state.updateRow == UpdateIndication.checkFailed.row(canCheckForUpdates: false))
+        #expect(state.updateRow.action == .noAction)
     }
 }

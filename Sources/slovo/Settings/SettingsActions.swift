@@ -17,6 +17,9 @@ protocol SettingsActions: AnyObject {
     func removeOpenRouterKey()
     func addVocabulary(_ commaSeparatedTerms: String)
     func removeVocabulary(id: Int64)
+    /// Re-reads the vocabulary table into the store, so a list left unavailable by
+    /// an earlier failed read recovers.
+    func reloadVocabulary()
     /// Opens the bundled third-party notices file in the user's default handler.
     func openAcknowledgements()
 }

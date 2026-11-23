@@ -30,13 +30,12 @@ extension AppDelegate {
         updaterCoordinator?.checkForUpdates()
     }
 
-    /// Writes the indication's row to the ONE persistent update row in place — never a
+    /// Writes the row to the ONE persistent update row in place — never a
     /// rebuild, so the highlight callbacks survive a transition that happens while the
-    /// dropdown is tracking. The row value (`UpdateIndication.row`) holds the texts and
+    /// dropdown is tracking. The row value (`AppState.updateRow`) holds the texts and
     /// styles; this maps its action to the selector it triggers.
-    func renderUpdateIndication(_ indication: UpdateIndication) {
+    func renderUpdateRow(_ row: UpdateRow) {
         guard let item = updateMenuItem else { return }
-        let row = indication.row
         switch row.action {
         case .noAction:
             item.action = nil
@@ -50,13 +49,13 @@ extension AppDelegate {
         item.apply(row, highlighted: false)
     }
 
-    /// The hybrid row: a grey status-line "Update ready — v…" when unhighlighted,
-    /// swapping to a plain white "Restart" under highlight (like every actionable
-    /// row). Only in the ready state; the accessibility label stays put across the swap.
+    /// The hybrid row: a grey status line ("Update Ready — v…", "Update Check Failed")
+    /// when unhighlighted, swapping to a plain white action title under highlight (like
+    /// every actionable row). Only for a row that has a highlighted title; the
+    /// accessibility label stays put across the swap.
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-        guard let updateItem = updateMenuItem,
-              case .ready = store.state.updateIndication
-        else { return }
-        updateItem.apply(store.state.updateIndication.row, highlighted: item === updateItem)
+        let row = store.state.updateRow
+        guard let updateItem = updateMenuItem, row.highlightedTitle != nil else { return }
+        updateItem.apply(row, highlighted: item === updateItem)
     }
 }

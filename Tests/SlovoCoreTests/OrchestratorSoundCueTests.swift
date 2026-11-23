@@ -429,7 +429,7 @@ private final class TimelineAudioController: SystemAudioController {
 
     init(timeline: CueTimeline) { self.timeline = timeline }
 
-    func muteSystemOutput() throws -> PriorAudioState {
+    func muteSystemOutput() throws -> PriorAudioState? {
         timeline.record(.systemMuted)
         return mutedState
     }

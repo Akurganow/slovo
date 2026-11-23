@@ -182,4 +182,45 @@ struct UpdateIndicationTests {
         #expect(UpdateIndication.idle.applying(.checkFinished) == .idle)
         #expect(UpdateIndication.idle.applying(.found) == .idle)
     }
+
+    // MARK: failed check or download
+
+    /// A failed check or download shows the failure from every state but a staged update.
+    /// Stated sensitivity: map `failed` like `aborted` (idle) → the failure is never
+    /// shown → RED.
+    @Test
+    func failedFromIdleCheckingAndDownloadingShowsCheckFailed() {
+        #expect(UpdateIndication.idle.applying(.failed) == .checkFailed)
+        #expect(UpdateIndication.checking.applying(.failed) == .checkFailed)
+        #expect(UpdateIndication.downloading(version: "0.14.0").applying(.failed) == .checkFailed)
+    }
+
+    /// A failed immediate install from `ready` keeps the Restart row for another try.
+    /// Stated sensitivity: `failed` from `ready` gives `.checkFailed` → the Restart row
+    /// vanishes → RED.
+    @Test
+    func failedFromReadyKeepsReady() {
+        #expect(UpdateIndication.ready(version: "0.14.0").applying(.failed) == .ready(version: "0.14.0"))
+    }
+
+    /// The failed row stays until the next check starts, then the cycle goes on as usual.
+    /// Stated sensitivity: `checkStarted` keeps `.checkFailed` → the row never shows the
+    /// new check → RED.
+    @Test
+    func checkFailedYieldsToTheNextCycle() {
+        #expect(UpdateIndication.checkFailed.applying(.checkStarted) == .checking)
+        #expect(UpdateIndication.checkFailed.applying(.downloadStarted(version: "0.14.0")) == .downloading(version: "0.14.0"))
+        #expect(UpdateIndication.checkFailed.applying(.downloaded(version: "0.14.0")) == .ready(version: "0.14.0"))
+    }
+
+    /// The terminal callbacks of the failed cycle must not erase the failure.
+    /// Stated sensitivity: `checkFinished` (or `notFound`, `found`, `aborted`) clears
+    /// `.checkFailed` to idle → the failure flashes by unseen → RED.
+    @Test
+    func terminalEventsKeepCheckFailed() {
+        #expect(UpdateIndication.checkFailed.applying(.found) == .checkFailed)
+        #expect(UpdateIndication.checkFailed.applying(.notFound) == .checkFailed)
+        #expect(UpdateIndication.checkFailed.applying(.checkFinished) == .checkFailed)
+        #expect(UpdateIndication.checkFailed.applying(.aborted) == .checkFailed)
+    }
 }

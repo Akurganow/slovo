@@ -97,7 +97,7 @@ Clarifications:
   and that one dictation translates. Slovo sees ⌃ and fn in every keystroke, so
   they also count when already down as the hold begins; a sided ⌘, ⌥ or ⇧ is
   noticed only when that key itself moves, so it must go down during the hold.
-  With "Use as additional key" off it is *standalone* — a push-to-talk key of
+  With "Use as Additional Key" off it is *standalone* — a push-to-talk key of
   its own whose every dictation translates, while the main key keeps dictating
   plainly. Either way the single cleanup step also translates the result into
   the target language chosen in Settings or the menu-bar dropdown, then inserts
@@ -115,7 +115,10 @@ Clarifications:
   shows Slovo "Ⱄ" (U+2C14) normally, swapping to Nash "Ⱀ" (U+2C10) while a
   downloaded update awaits Restart. The failure glyph "Ⱁ" (U+2C11) is unchanged.
   During a hold the glyph follows the current switch, not the setting the
-  dictation began with.
+  dictation began with. A failure flash during a hold that goes on lasts its
+  moment, then the glyph shows what is happening: recording while the key is
+  held, processing after key-up. After a failure that cut the recording short,
+  no recording glyph returns.
 - **Mute while dictating.** A switch in Settings → General and in the menu-bar
   dropdown (on by default) silences system audio output while the key is held and
   restores it afterward; turning it off leaves system audio untouched during
@@ -153,15 +156,19 @@ Clarifications:
     finishes, and until the deadline when the alert service is stuck. With
     mute-while-dictating off no mute lands, so it can reach recognition for the
     whole hold.
+  - A failed mute or restore never stops or blocks the dictation. A failed mute
+    plays Error at once, and the hold records on. A failed restore adds Error
+    behind End, and none on a cancelled hold. On an output device where macOS can
+    set neither the mute nor the volume, nothing can fail.
   - **End marks the end of AUDIO RECORDING, not a successful transcription.** At
     key-up Slovo stops capture, restores output, and queues End right there, so the
     sound lands with the glyph change instead of trailing the transcript. It is
     queued after the restore, since End sent into muted output would not be heard,
     and never delays cleanup or translation.
   - Any failure after the recording ended — silence, finalization, cleanup, or
-    insertion — adds Error behind End through the same FIFO; a failure before it
-    ended produces Error alone. Intentional cancellation is silent, with neither End
-    nor Error.
+    insertion — adds Error behind End through the same FIFO; a failure that cut the
+    recording short produces Error alone. Intentional cancellation is silent, with
+    neither End nor Error.
   - The queue is per-dictation, so one dictation's remaining audio never delays the
     next one's cue and back-to-back cues may briefly overlap — deliberately, since
     delaying the microphone is the worse outcome.
