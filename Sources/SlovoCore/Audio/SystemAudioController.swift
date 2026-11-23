@@ -2,8 +2,10 @@
 /// behavior is unit-testable without touching CoreAudio.
 public protocol SystemAudioController: Sendable {
     /// Captures and pins the current output device, mutes it, and returns the
-    /// prior state to hand back to `restoreSystemOutput`.
-    func muteSystemOutput() throws -> PriorAudioState
+    /// prior state to hand back to `restoreSystemOutput`. Nil when the output device
+    /// has neither a mute nor a volume macOS can set; a throw only for a failed HAL
+    /// call.
+    func muteSystemOutput() throws -> PriorAudioState?
 
     /// Restores output on `state.deviceID`. A no-op when `state.wasAlreadyMuted`
     /// (never un-mute what the user had already silenced).

@@ -205,8 +205,11 @@ Error cue — never a dialog or focus-stealing notification, since Slovo types
 into whichever app you're already using. Intentional cancellation is silent.
 Open the menu for the reason: after most failures its first row names it, such
 as **Secure Field Active** when Slovo refused to paste because secure input was
-on, and it stays until your next dictation. **Inserted as Spoken**, after a
-cleanup fallback, clears after about a second, and a hold with no speech shows
+on, and it stays until your next dictation. **Sound Not Muted** and **Could
+Not Restore Sound** stay the same way: Slovo could not silence system audio for
+the hold, or could not turn it back on afterward; neither stops the dictation.
+**Inserted as Spoken**, after a cleanup fallback, clears after about a second,
+and a hold with no speech shows
 only the glyph. With nothing to report, that row reads the hold hint, for
 example “Hold fn to talk”. Under it, a row shows how to
 translate: **Add ⌃ to translate** while the translate key is additional,

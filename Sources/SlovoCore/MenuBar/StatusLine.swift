@@ -42,6 +42,10 @@ public enum StatusLine: Equatable, Sendable {
             // exhaustiveness and is never placed on the status line (see
             // AppDelegate.showStatus).
             return "No Speech"
+        case .outputMuteFailed:
+            return "Sound Not Muted"
+        case .outputRestoreFailed:
+            return "Could Not Restore Sound"
         }
     }
 }

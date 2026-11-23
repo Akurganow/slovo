@@ -291,6 +291,7 @@ public actor Orchestrator {
 
     private enum DeferredEffect: Sendable {
         case finish
+        case report(StatusMessage)
     }
 
     private func execute(_ effect: DictationEffect) async -> DeferredEffect? {
@@ -306,7 +307,12 @@ public actor Orchestrator {
         case .muteSystemOutput:
             // MUTE is gated on the session's flag; RESTORE stays stash-gated.
             guard sessionSettings.mutesSystemAudio else { return nil }
-            stashedPriorAudio = try? deps.audio.muteSystemOutput()
+            // A failed mute is reported at once, and the hold records on.
+            do {
+                stashedPriorAudio = try deps.audio.muteSystemOutput()
+            } catch {
+                deps.reportStatus(.outputMuteFailed)
+            }
             return nil
 
         case .beginCapture:
@@ -323,10 +329,16 @@ public actor Orchestrator {
             return nil
 
         case .restoreSystemOutput:
-            if let prior = stashedPriorAudio {
-                try? deps.audio.restoreSystemOutput(prior)
+            guard let prior = stashedPriorAudio else { return nil }
+            do {
+                try deps.audio.restoreSystemOutput(prior)
+                return nil
+            } catch {
+                // Deferred behind the transition's other effects: at key-up its Error
+                // follows End, and on a cancel or a stage failure `.returnToIdle` has
+                // already ended the cue session, so it plays none.
+                return .report(.outputRestoreFailed)
             }
-            return nil
 
         case .clean(let transcript):
             await cleanAndContinue(transcript: transcript)
@@ -474,6 +486,8 @@ public actor Orchestrator {
                 guard let self else { return }
                 await self.finishAndContinue()
             }
+        case .report(let status):
+            deps.reportStatus(status)
         }
     }
 }

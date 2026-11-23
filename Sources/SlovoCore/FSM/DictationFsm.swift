@@ -48,6 +48,10 @@ public enum StatusMessage: Equatable, Sendable {
     /// A held key produced only silence. Surfaced as a brief glyph-only flash, never
     /// a lingering notice (see `isNoSpeechNotice`).
     case noSpeechDetected
+    /// Muting system output failed; the hold records on.
+    case outputMuteFailed
+    /// Restoring system output failed; output may stay muted.
+    case outputRestoreFailed
 
     public var isPersistentNotice: Bool {
         switch self {
@@ -57,8 +61,21 @@ public enum StatusMessage: Equatable, Sendable {
              .transcriptionFailed,
              .secureFieldActive,
              .injectionFailed,
-             .microphoneUnavailable:
+             .microphoneUnavailable,
+             .outputMuteFailed,
+             .outputRestoreFailed:
             return true
+        }
+    }
+
+    /// The glyph stays on this notice until the dictation settles. A failed mute or
+    /// restore leaves the dictation running, so its flash gives the glyph back.
+    public var holdsGlyph: Bool {
+        switch self {
+        case .outputMuteFailed, .outputRestoreFailed:
+            return false
+        default:
+            return isPersistentNotice || isSadToFailNotice
         }
     }
 
@@ -79,7 +96,9 @@ public enum StatusMessage: Equatable, Sendable {
              .secureFieldActive,
              .injectionFailed,
              .microphoneUnavailable,
-             .noSpeechDetected:
+             .noSpeechDetected,
+             .outputMuteFailed,
+             .outputRestoreFailed:
             return true
         }
     }

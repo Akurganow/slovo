@@ -14,6 +14,8 @@ struct DictationFailureSoundCueTests {
         .injectionFailed,
         .microphoneUnavailable,
         .noSpeechDetected,
+        .outputMuteFailed,
+        .outputRestoreFailed,
     ]
 
     /// Sensitivity: excluding any dictation failure suppresses its red glyph and

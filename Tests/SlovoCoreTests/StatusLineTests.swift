@@ -20,6 +20,8 @@ struct StatusLineTests {
             (.injectionFailed, "Insertion Failed"),
             (.microphoneUnavailable, "Microphone Unavailable"),
             (.noSpeechDetected, "No Speech"),
+            (.outputMuteFailed, "Sound Not Muted"),
+            (.outputRestoreFailed, "Could Not Restore Sound"),
         ]
         for (message, title) in titles {
             #expect(StatusLine.message(message).text(idleTrigger: .fn) == title)

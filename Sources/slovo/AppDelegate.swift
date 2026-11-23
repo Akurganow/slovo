@@ -333,6 +333,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if status.isPersistentNotice || status.isSadToFailNotice {
             didShowPipelineStatus = true
+        }
+        if status.holdsGlyph {
             isGlyphHeldByNotice = true
         }
         if status.isFailureNotice {

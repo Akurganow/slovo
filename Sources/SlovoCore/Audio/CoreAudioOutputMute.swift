@@ -9,7 +9,8 @@ import os
 /// to zero (and restoring the saved scalar) for devices that do not expose a
 /// settable mute (e.g. some Bluetooth/USB DACs). The `AudioDeviceID` is pinned
 /// at mute time so a device change mid-dictation cannot misdirect the restore.
-/// A device with neither lever makes `muteSystemOutput` throw `NoOutputControl`.
+/// A device with neither lever makes `muteSystemOutput` return nil: there is
+/// nothing to mute, which is not a failure.
 ///
 /// `muteLever` is the one decision of which lever a device has: `muteSystemOutput`
 /// and the availability read both call it.
@@ -24,10 +25,6 @@ public struct CoreAudioOutputMute: SystemAudioController {
         let call: HALCall
         let status: OSStatus
     }
-
-    /// Thrown by `muteSystemOutput` for a device with no settable control. That is not
-    /// a failure, so it is never logged.
-    private struct NoOutputControl: Error {}
 
     /// The device write a restore issues.
     enum OutputWrite: Equatable {
@@ -80,10 +77,9 @@ public struct CoreAudioOutputMute: SystemAudioController {
         }
     }
 
-    public func muteSystemOutput() throws -> PriorAudioState {
-        let state: PriorAudioState?
+    public func muteSystemOutput() throws -> PriorAudioState? {
         do {
-            state = try muteDefaultOutput()
+            return try muteDefaultOutput()
         } catch {
             switch error.call {
             case .getDefaultDevice:
@@ -101,8 +97,6 @@ public struct CoreAudioOutputMute: SystemAudioController {
             }
             throw error
         }
-        guard let state else { throw NoOutputControl() }
-        return state
     }
 
     private func muteDefaultOutput() throws(HALFailure) -> PriorAudioState? {
