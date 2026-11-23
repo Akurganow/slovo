@@ -24,7 +24,7 @@ let package = Package(
         // API keys included (swift-package-manager swift-6.4.0-RELEASE source,
         // Sources/Build/BuildPlan/BuildPlan.swift:907; reproduced on 6.4.0).
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
-        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
+        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.2"),
         // Sparkle 2 auto-update engine. App target only — SlovoCore stays
         // Sparkle-free, enforced by the SwiftPM target graph (an `import Sparkle`
         // in the core cannot compile).
