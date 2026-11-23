@@ -80,6 +80,28 @@ jobs:
       - name: "Spike: import check over the test targets"
         if: github.event_name == 'pull_request'
         run: swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error
+      - name: "Spike: import check recompiles the probe, and refuses an undeclared import"
+        if: github.event_name == 'pull_request'
+        run: |
+          set -uo pipefail
+          touch Tests/SlovoAppTests/ShellSpikeProbeTests.swift
+          swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error 2>&1 | tee "$RUNNER_TEMP/clean.log"
+          clean=${PIPESTATUS[0]}
+          grep -E "Compiling SlovoAppTests|Build complete" "$RUNNER_TEMP/clean.log" || true
+          echo "SPIKE: import check with the probe recompiled exited $clean"
+          printf 'import CleanupBenchmark\n' > Tests/SlovoAppTests/PlantedImport.swift
+          swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error > "$RUNNER_TEMP/planted.log" 2>&1
+          planted=$?
+          rm Tests/SlovoAppTests/PlantedImport.swift
+          grep -E "CleanupBenchmark|error:" "$RUNNER_TEMP/planted.log" | head -20
+          echo "SPIKE: import check with a planted undeclared import exited $planted"
+          printf 'import GRDB\n' > Tests/SlovoAppTests/PlantedImport.swift
+          swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error > "$RUNNER_TEMP/external.log" 2>&1
+          external=$?
+          rm Tests/SlovoAppTests/PlantedImport.swift
+          grep -E "GRDB|error:|Build complete" "$RUNNER_TEMP/external.log" | head -20
+          echo "SPIKE: import check with a planted undeclared external product (GRDB) exited $external"
+          [ "$clean" -eq 0 ] && [ "$planted" -ne 0 ]
       - name: "Spike: rebuild time of the shell files, base manifest and spike manifest"
         if: github.event_name == 'pull_request'
         env:
