@@ -18,7 +18,7 @@ struct CleanupToggleWiringSourceGuardTests {
     func sequencerArmsReadNoAvailabilityAndPaintThroughApplyRecordingGlyph() throws {
         let source = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let downBody = try SourceText.slice(of: source, from: "case .down(let mode):", to: "case .translateLatched:")
-        let latchBody = try SourceText.slice(of: source, from: "case .translateLatched:", to: "case .up(let mode):")
+        let latchBody = try SourceText.slice(of: source, from: "case .translateLatched:", to: "case .up:")
 
         #expect(!downBody.contains("cleanupAvailability"),
                 "the .down arm must not read availability; it is consumed once inside applyRecordingGlyph")

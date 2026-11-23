@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The running orchestrator's silent-cancel behavior: a cancel tears the ASR

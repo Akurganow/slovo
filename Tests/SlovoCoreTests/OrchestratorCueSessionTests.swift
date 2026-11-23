@@ -1,6 +1,6 @@
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The orchestrator must close the cue session when a dictation ends, whatever ended

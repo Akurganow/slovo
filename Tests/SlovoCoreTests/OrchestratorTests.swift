@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Running pipeline + degradation + the FOLDED vocab→biasTerms, single-flight (no

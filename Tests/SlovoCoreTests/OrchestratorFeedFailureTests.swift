@@ -1,7 +1,7 @@
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Total audio-conversion/feed failure must surface the menu-bar

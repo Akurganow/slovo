@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The recognition language is SESSION state, not model state: the loaded model

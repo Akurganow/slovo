@@ -118,8 +118,8 @@ struct AppShellPackagingTests {
         #expect(delegate.contains("setStatusGlyph(recording:"))
         #expect(delegate.contains("setStatusGlyph(.processing"))
         #expect(delegate.contains("awaitPipelineDrain()"))
-        #expect(delegate.contains("orchestrator.handle(.startRequested)"))
-        #expect(delegate.contains("orchestrator.handle(.stopRequested("))
+        #expect(startPipelineBody.components(separatedBy: "orchestrator.deliver(edge)").count - 1 == 3,
+                "the sequencer sink must hand the down, up and cancel edges to the orchestrator")
     }
 
     @Test

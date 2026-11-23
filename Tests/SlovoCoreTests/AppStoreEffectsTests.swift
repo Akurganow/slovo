@@ -1,7 +1,7 @@
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Each effect of AppState is a subscriber wired in SlovoCore. Every test wires a

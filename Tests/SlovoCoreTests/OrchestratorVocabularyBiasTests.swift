@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The experimental switch gates ONLY what reaches the speech engine; the cleaner's

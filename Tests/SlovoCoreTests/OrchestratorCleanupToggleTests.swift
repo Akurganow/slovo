@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Cleanup-off sessions skip the cleaner and hints entirely, inject the raw

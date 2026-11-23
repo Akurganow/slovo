@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 /// Collects log lines from the orchestrator and the detached reporter alike.

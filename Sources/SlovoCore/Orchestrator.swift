@@ -162,8 +162,18 @@ public actor Orchestrator {
         }
     }
 
+    /// The only entry for hotkey edges.
+    public func deliver(_ edge: HotkeyEdge) async {
+        switch edge.phase {
+        case .down: await handle(.startRequested)
+        case .up(let mode): await handle(.stopRequested(mode))
+        case .cancel: await handle(.cancelRequested)
+        case .translateLatched: break // the sink repaints the glyph; a dictation learns its mode from `.up`
+        }
+    }
+
     /// Drives one event through the FSM and executes the resulting effects in order.
-    public func handle(_ event: DictationEvent) async {
+    func handle(_ event: DictationEvent) async {
         // Stash the mode before the transition so the FSM stays mode-agnostic.
         if case .stopRequested(let mode) = event {
             sessionMode = mode

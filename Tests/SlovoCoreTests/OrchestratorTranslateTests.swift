@@ -1,7 +1,7 @@
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Translate mode threaded through the REAL running composition

@@ -1,7 +1,7 @@
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Silence is intercepted before cleanup and injection in EITHER mode — no OpenRouter
