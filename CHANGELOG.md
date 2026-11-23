@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.38.0] - 2026-11-23
+
+### Added
+
+- Show the failures that were silent and give the app one label style (#240)
+
 ## [0.37.13] - 2026-11-23
 
 ### Fixed
