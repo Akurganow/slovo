@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.11] - 2026-11-23
+
+### Fixed
+
+- Insert the spoken text on an unexpected cleaner error and delete dead orchestrator code (#226)
+
 ## [0.37.10] - 2026-11-22
 
 ### Fixed
