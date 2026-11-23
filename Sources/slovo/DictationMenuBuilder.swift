@@ -30,8 +30,7 @@ struct DictationMenuBuilder {
         target.fnConflictMenuItem = nil
         var statusItem = NSMenuItem()
         // The config arguments exceed the strict 160-char line, so the call
-        // is multiline per multiline_arguments_brackets; the source guards assert the
-        // call token and the threaded configuration separately.
+        // is multiline per multiline_arguments_brackets.
         for item in DictationMenu.items(
             hotkeys: hotkeys,
             cleanup: DictationMenuCleanupConfiguration(
@@ -57,7 +56,7 @@ struct DictationMenuBuilder {
         var statusItem: NSMenuItem?
         switch item {
         case .status(let title):
-            // Header order, pinned by menuBuilderKeepsTheHeaderRowOrder: status
+            // Header order, pinned by headerRowsKeepTheirOrder: status
             // line, then the fn-conflict notice claiming its slot while hidden —
             // directly under the line whose key it warns about. The update row is
             // appended after the translate hint instead, so the two key hints stay

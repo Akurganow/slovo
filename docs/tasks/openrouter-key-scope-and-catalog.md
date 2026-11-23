@@ -197,9 +197,9 @@ transcript."` ("may", not "will": the cache D3 tolerates can be stale).
   `(state, event) → (state, [command])`, effects as data (directive 4). The
   app funnel's only role is executing emitted commands (run the fetch, push
   the effective config, rebuild the menu) and feeding completions back as
-  events. This is what makes §6's behavioral tests real: no test target
-  links `Sources/slovo`, so any invariant left in `AppDelegate` would
-  silently degrade to a string-scanning source guard —
+  events. This is what makes §6's behavioral tests real: an invariant left in
+  `AppDelegate` is tested only through the app delegate, a heavier point than a
+  pure reducer —
   `CleanupAvailabilityModel` in SlovoCore is the existing precedent.
 
 ### Components

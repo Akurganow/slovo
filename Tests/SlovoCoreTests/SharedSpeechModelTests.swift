@@ -60,8 +60,8 @@ struct SharedSpeechModelTests {
     /// second gated load → loadCount == 2 → RED. A warm-up that never loads → no load
     /// parks → the bounded wait reports it → RED, with no hang. The neighbouring
     /// mutation — a transcriber built per composition — cannot be written against this
-    /// test, which injects one; the guard in `AppDelegateHotkeyWiringSourceGuardTests`
-    /// catches it.
+    /// test, which injects one; `.agents/rules/review-contracts.md` holds it as a
+    /// contract ("The app builds one speech model for the process").
     @Test
     func aRebuildDuringTheLoadJoinsTheOneLoadInFlight() async throws {
         let engine = FakeSpeechEngine()

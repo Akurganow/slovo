@@ -277,6 +277,12 @@ is a file's content, the entry names the file.
 - The packaged app looks for the named SlovoCore resource bundle under the app's
   resource root first. It falls back to the linked bundle, and returns nil when
   neither exists.
+- Key presence in the store has three writes, each read from the app-owned key
+  provider: the launch seed in `AppDelegate.init`, the write in `startPipeline`
+  before `AppComposition.makeLive(` builds the composition, and the helper that
+  ends every key save or removal. The delegate's live default provider is the
+  Keychain provider, `makeLive` receives that same provider, and the composition
+  exposes none.
 
 ## Packaging and plist
 

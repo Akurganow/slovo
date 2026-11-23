@@ -1,6 +1,6 @@
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // One derivation for "cleanup is effectively off, and why" — every UI surface
 // and the dictation settings consume this value instead of re-deriving it.
