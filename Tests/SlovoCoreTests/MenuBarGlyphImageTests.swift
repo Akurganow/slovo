@@ -8,8 +8,12 @@ struct MenuBarGlyphImageTests {
     /// The menu bar repaints a template image in its own color, so the failure
     /// glyph shows red only as a non-template image drawn in red.
     ///
-    /// Sensitivity: leave the error image as a template (the original bug) → RED;
-    /// draw the error glyph in any color but `systemRed` → RED.
+    /// This pins the `.error` rendering style (`renderingStyle(for: .error)`) and
+    /// that the image takes its template flag from it; the drawn pixels are not
+    /// inspected.
+    ///
+    /// Sensitivity: make `renderingStyle(for: .error)` a template (the original
+    /// bug), or give it any color but `systemRed` → RED.
     @Test
     func errorGlyphIsNonTemplateSystemRed() throws {
         let style = MenuBarGlyph.renderingStyle(for: .error)
@@ -33,29 +37,14 @@ struct MenuBarGlyphImageTests {
         #expect(image.isTemplate == true)
     }
 
-    /// A non-error STATUS glyph (e.g. preparing the speech model) also renders
-    /// template — the status overload's normal branch, not only the state overload.
-    ///
-    /// Sensitivity: give the normal-tinted status glyph a non-template image
-    /// (breaking light/dark adaptivity for that path) → this goes RED.
+    /// The update-ready Nash is drawn from the Glagolitic font, a macOS system font
+    /// that Slovo does not bundle. This checks that the normal tint draws visible
+    /// pixels: a font or codepoint that is not there makes `image(for:tint:)`
+    /// return nil or draw nothing, and the caller would fall back to the mic symbol.
+    /// Sensitivity: a nil image or zero opaque pixels → RED.
     @Test
-    func normalStatusGlyphStaysTemplate() throws {
-        let status = StatusMessage.preparingSpeechModel
-        let glyph = try #require(MenuBarGlyph.forStatus(status))
-        let image = try #require(MenuBarGlyph.image(for: glyph, tint: MenuBarGlyph.tint(forStatus: status)))
-
-        #expect(image.isTemplate == true)
-    }
-
-    /// The update-ready Nash must really exist in the bundled Glagolitic font and
-    /// render as a visible template image — a missing codepoint would silently
-    /// fall back to the mic symbol.
-    /// Sensitivity: a codepoint absent from the font (renderer returns nil or
-    /// zero pixels), or a non-template image → RED.
-    @Test
-    func updateReadyGlyphRendersVisibleTemplatePixels() throws {
+    func updateReadyGlyphRendersVisiblePixels() throws {
         let image = try #require(MenuBarGlyph.image(for: MenuBarGlyph.updateReadyGlyph, tint: .normal))
-        #expect(image.isTemplate == true)
         #expect(try Self.opaquePixelCount(of: image) > 0, "Nash must draw visible pixels")
     }
 

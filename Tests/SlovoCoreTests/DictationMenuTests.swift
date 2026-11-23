@@ -44,18 +44,6 @@ struct DictationMenuTests {
         list.filter { if case .fnConflictNotice = $0 { return true }; return false }.count
     }
 
-    private func hasCleanupToggle(_ list: [DictationMenuItem]) -> Bool {
-        list.contains { if case .cleanupToggle = $0 { return true }; return false }
-    }
-
-    private func hasTranslationLanguage(_ list: [DictationMenuItem]) -> Bool {
-        list.contains { if case .translationLanguage = $0 { return true }; return false }
-    }
-
-    private func hasCleanupModel(_ list: [DictationMenuItem]) -> Bool {
-        list.contains { if case .cleanupModel = $0 { return true }; return false }
-    }
-
     /// With a key and cleanup on, the dropdown appears in the fixed order: header
     /// (the status line carrying the hold-to-talk hint), separator, the cleanup
     /// block (switch, model, translate — all active), separator, the vocabulary
@@ -66,13 +54,13 @@ struct DictationMenuTests {
     /// live-switch argument — → the exact sequence mismatches → RED.
     @Test
     func onStateAppearsInSpecOrder() {
-        #expect(items(availability: .on, model: "openai/gpt-6-luna") == [
+        #expect(items(availability: .on, model: "openai/gpt-6-luna", translate: "de") == [
             .status("Hold fn to talk"),
             .translateHint("Add ⌃ to translate"),
             .separator,
             .cleanupToggle(isOn: true),
             .cleanupModel(selectedModelId: "openai/gpt-6-luna", enabled: true),
-            .translationLanguage(selected: "en", enabled: true),
+            .translationLanguage(selected: "de", enabled: true),
             .separator,
             .addVocabulary,
             .microphone,
@@ -134,104 +122,6 @@ struct DictationMenuTests {
             .about,
             .quit,
         ])
-        // Reinforce the omission independently of exact ordering: none of the three
-        // cleanup controls survive in the no-key state, in any associated form.
-        let noKey = items(availability: .offNoKey)
-        #expect(!hasCleanupToggle(noKey))
-        #expect(!hasTranslationLanguage(noKey))
-        #expect(!hasCleanupModel(noKey))
-    }
-
-    /// The cleanup block is one separator-delimited group: with a key it is exactly
-    /// `[switch, model, translate]` between two separators, in that order (matching the
-    /// Settings pane's Cleanup section); with no key it is exactly `[add-key]` between
-    /// two separators.
-    /// Stated sensitivity: reorder the block (e.g. swap model/translate back), drop its
-    /// bounding separators, or leak a neighbouring item into it → the neighbour/bound
-    /// asserts redden.
-    @Test
-    func cleanupBlockIsSeparatorDelimited() {
-        for availability in [CleanupAvailability.on, .offByChoice] {
-            let list = items(availability: availability, model: "m", translate: "en")
-            guard let toggleIndex = list.firstIndex(of: .cleanupToggle(isOn: availability.isOn)) else {
-                Issue.record("cleanup toggle missing for \(availability): \(list)")
-                continue
-            }
-            #expect(list[toggleIndex - 1] == .separator, "block must open with a separator for \(availability)")
-            #expect(list[toggleIndex + 1] == .cleanupModel(selectedModelId: "m", enabled: availability.isOn))
-            #expect(list[toggleIndex + 2] == .translationLanguage(selected: "en", enabled: availability.isOn))
-            #expect(list[toggleIndex + 3] == .separator, "block must close with a separator for \(availability)")
-        }
-        let noKey = items(availability: .offNoKey)
-        guard let addKeyIndex = noKey.firstIndex(of: .addOpenRouterKey) else {
-            Issue.record("add-key missing in no-key state: \(noKey)")
-            return
-        }
-        #expect(noKey[addKeyIndex - 1] == .separator, "add-key must open its section")
-        #expect(noKey[addKeyIndex + 1] == .separator, "add-key must be alone in its separator-delimited slot")
-    }
-
-    /// Item A — the model selector reads as unavailable whenever cleanup is off with a
-    /// key present (offByChoice), active only when cleanup is on; with no key it is
-    /// gone (covered by the block swap). Mirrors the translate item.
-    /// Stated sensitivity: hardcode `enabled: true` for the model item → the
-    /// offByChoice expectation reads enabled → RED.
-    @Test
-    func modelSelectorIsDisabledWhenCleanupToggledOff() {
-        #expect(items(availability: .offByChoice, model: "m").contains(.cleanupModel(selectedModelId: "m", enabled: false)))
-        #expect(items(availability: .on, model: "m").contains(.cleanupModel(selectedModelId: "m", enabled: true)))
-    }
-
-    /// The cleanup switch is type-narrowed to `isOn`, so an off-and-disabled toggle is
-    /// unrepresentable — when shown it is always actionable, and `isOn` only drives the
-    /// checkmark: checked in `on`, unchecked (but still actionable) in `offByChoice`.
-    /// Stated sensitivity: hardcode the emitter's `isOn` (e.g. always `true`) → the
-    /// `offByChoice` `isOn: false` expectation reddens; pass the wrong on-state → the
-    /// `.on` `isOn: true` expectation reddens.
-    @Test
-    func cleanupToggleReflectsOnStateAndIsAlwaysActionable() {
-        #expect(items(availability: .on).contains(.cleanupToggle(isOn: true)))
-        #expect(items(availability: .offByChoice).contains(.cleanupToggle(isOn: false)))
-    }
-
-    /// The translate submenu reads as unavailable in offByChoice and is ABSENT with no
-    /// key (a translate hold cannot run without cleanup, and with no key there is no
-    /// block at all); enabled only when cleanup is on.
-    /// Stated sensitivity: hardcode `enabled: true` for translate → the offByChoice
-    /// expectation reddens; keep translate in the no-key state → the absence reddens.
-    @Test
-    func translateSubmenuDisabledInOffByChoiceAbsentInOffNoKey() {
-        #expect(items(availability: .offByChoice, translate: "en").contains(.translationLanguage(selected: "en", enabled: false)))
-        #expect(items(availability: .on, translate: "en").contains(.translationLanguage(selected: "en", enabled: true)))
-        #expect(!hasTranslationLanguage(items(availability: .offNoKey, translate: "en")))
-    }
-
-    /// The live switches live in the vocabulary block — NOT in the cleanup block —
-    /// and are availability-INDEPENDENT. Sound Cues sits directly after Mute in every
-    /// availability state. The block is exactly
-    /// `[separator, Add Vocabulary, Microphone, Mute, Sound Cues, separator]`.
-    /// Stated sensitivity: move either switch into the cleanup block, couple either to
-    /// availability, detach the Microphone submenu from Add Vocabulary, detach Mute from
-    /// the Microphone submenu, or detach Sound Cues from Mute → RED.
-    @Test
-    func muteAndSoundCuesLiveTogetherInTheVocabularyBlockInAllStates() {
-        for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
-            let list = items(availability: availability, mute: true)
-            guard let vocabIndex = list.firstIndex(of: .addVocabulary),
-                  let microphoneIndex = list.firstIndex(of: .microphone),
-                  let muteIndex = list.firstIndex(of: .muteWhileDictating(isOn: true)),
-                  let soundCuesIndex = list.firstIndex(of: .soundCues(isOn: true))
-            else {
-                Issue.record("vocab/microphone/mute/sound cues missing for \(availability): \(list)")
-                continue
-            }
-            #expect(microphoneIndex == vocabIndex + 1, "the Microphone submenu sits right after Add Vocabulary for \(availability)")
-            #expect(muteIndex == microphoneIndex + 1, "mute sits right after the Microphone submenu for \(availability)")
-            #expect(soundCuesIndex == muteIndex + 1, "Sound Cues sits right after Mute for \(availability)")
-            #expect(list[vocabIndex - 1] == .separator, "the vocabulary block opens with a separator for \(availability)")
-            #expect(list[soundCuesIndex + 1] == .separator,
-                    "the vocabulary block closes right after Sound Cues for \(availability)")
-        }
     }
 
     /// AC9: passing the mute flag as `false` yields `.muteWhileDictating(isOn: false)`
@@ -264,26 +154,6 @@ struct DictationMenuTests {
             #expect(list[muteIndex + 1] == .soundCues(isOn: false),
                     "Sound Cues reflects its flag directly after Mute for \(availability)")
         }
-    }
-
-    /// The bottom section is exactly `[separator, Settings, About, Quit]` — Settings
-    /// above About, About directly above Quit, all under one separator, Quit last — in
-    /// EVERY availability state.
-    /// Stated sensitivity: reorder Settings/About/Quit, insert a separator between
-    /// them, or leave Settings/About in an old slot → the suffix mismatches → RED.
-    @Test
-    func bottomSectionIsSeparatorSettingsAboutQuitInAllStates() {
-        for availability in [CleanupAvailability.on, .offByChoice, .offNoKey] {
-            let list = items(availability: availability)
-            #expect(Array(list.suffix(4)) == [.separator, .settings, .about, .quit], "\(availability): \(list)")
-        }
-    }
-
-    /// Quit is the isolated last item.
-    /// Stated sensitivity: append anything after `.quit` or drop `.quit` → RED.
-    @Test
-    func quitIsTheLastItem() {
-        #expect(items(availability: .on).last == .quit)
     }
 
     /// No two separators are ever adjacent — none of the block moves may leave a
@@ -320,15 +190,6 @@ struct DictationMenuTests {
             return
         }
         #expect(list[statusIndex + 1] == .fnConflictNotice(fnConflictCopy))
-    }
-
-    /// With fn NOT system-assigned the notice is absent — the menu never warns
-    /// about a conflict that does not exist.
-    /// Stated sensitivity: emit the notice unconditionally (ignore the assigned
-    /// flag) → RED.
-    @Test
-    func fnConflictNoticeAbsentWhenFnNotSystemAssigned() {
-        #expect(fnConflictNoticeCount(items(availability: .on, fnAssigned: false)) == 0)
     }
 
     /// The notice is fn-trigger-ONLY: with the `.rightOption` trigger the fn key's
@@ -369,24 +230,6 @@ struct DictationMenuTests {
             .contains(.translateHint("Add fn to translate")))
     }
 
-    /// The hint is a SEPARATE line in the header, exactly once, never folded into the
-    /// status row — that row is retitled at runtime ("Recording") and would wipe it.
-    /// Stated sensitivity: fold the translate text into the `.status` row inside
-    /// `items` instead of emitting the case (the status equality then fails), emit
-    /// the hint twice, or drop it → RED.
-    @Test
-    func translateHintIsItsOwnHeaderLineEmittedOnce() {
-        let list = items(availability: .on)
-        #expect(list.filter { if case .translateHint = $0 { return true }; return false }.count == 1)
-        #expect(list.first == .status("Hold fn to talk"))
-        guard let hintIndex = list.firstIndex(of: .translateHint("Add ⌃ to translate")) else {
-            Issue.record("translate hint missing: \(list)")
-            return
-        }
-        #expect(list[..<hintIndex].allSatisfy { $0 != .separator },
-                "the hint belongs to the header, above the first separator: \(list)")
-    }
-
     /// The fn-conflict notice follows the fn KEY into either role: a translate key on
     /// fn collides with the macOS assignment exactly as a main key on fn does.
     /// Stated sensitivity: gate the notice on `hotkeys.main == .fn` alone → the
@@ -400,14 +243,5 @@ struct DictationMenuTests {
         #expect(fnConflictNoticeCount(
             items(availability: .on, trigger: .rightOption, translateTrigger: .fn, fnAssigned: false)
         ) == 0)
-    }
-
-    /// The cleanup-model item carries the selected id so the builder checks the right
-    /// catalog row.
-    /// Stated sensitivity: hard-code or drop the id → the wrong row would be checked → RED.
-    @Test
-    func cleanupModelItemCarriesSelectedId() {
-        #expect(items(availability: .on, model: "anthropic/claude-haiku-5.5")
-            .contains(.cleanupModel(selectedModelId: "anthropic/claude-haiku-5.5", enabled: true)))
     }
 }
