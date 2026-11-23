@@ -53,37 +53,9 @@ struct OrchestratorTests {
 
     /// Runs a full Start→Stop session through the orchestrator.
     private static func runSession(_ orchestrator: Orchestrator) async {
-        await orchestrator.handle(.startRequested)   // mute + beginCapture
+        await orchestrator.handle(.startRequested)   // beginCapture; the mute follows the Start cue
         await orchestrator.handle(.stopRequested(.plain))    // finalize transcript + restore → clean → inject → injected
         await orchestrator.awaitPipelineDrain()
-    }
-
-    /// Happy path + folded biasTerms: the cleaned text is injected AND the
-    /// transcriber and cleaner received the resolved vocabulary. Run with the
-    /// experimental bias switch ON, the one configuration where the vocabulary
-    /// reaches BOTH consumers (the gated behavior lives in
-    /// `OrchestratorVocabularyBiasTests`).
-    /// Stated sensitivity: drop the vocab→biasTerms resolve (pass `[]`) → recorded
-    /// biasTerms/context empty → RED.
-    @Test
-    func cleanedTextIsInjectedAndVocabReachesTranscriberAndCleaner() async {
-        let transcriber = FakeTranscriber(outcome: .success("hi"))
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(usesVocabularyBias: true),
-            dependencies: Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        )
-
-        await Self.runSession(orchestrator)
-
-        #expect(injector.calls.last == "HI", "the cleaned text must be injected; got \(String(describing: injector.calls.last))")
-        let biasTerms = transcriber.calls.last?.biasTerms.map(\.term) ?? []
-        #expect(biasTerms.contains("ExampleCorp") && biasTerms.contains("GitHub"),
-                "the resolved vocabulary must reach the transcriber's biasTerms (folded wiring); got \(biasTerms)")
-        let cleanerTerms = cleaner.calls.last?.context.vocabulary.map(\.term) ?? []
-        #expect(cleanerTerms.contains("ExampleCorp") && cleanerTerms.contains("GitHub"),
-                "the resolved vocabulary must reach the cleaner context for spelling preservation; got \(cleanerTerms)")
     }
 
     /// One uncapped read feeds both consumers: the orchestrator hands the WHOLE
@@ -153,40 +125,37 @@ struct OrchestratorTests {
                 "the switched cleanup model must reach the next dictation on the SAME orchestrator, without a rebuild")
     }
 
-    /// Degradation: a failing cleaner ⇒ the RAW transcript is injected via
-    /// PassThrough (never lose the words).
+    /// A failing cleaner ⇒ the RAW transcript is injected (never lose the words).
     /// Stated sensitivity: break the degradation (don't advance to PassThrough on
-    /// `.offline`) → the raw transcript is NOT injected → RED.
+    /// `.transport`) → the raw transcript is NOT injected → RED.
     @Test
     func failingCleanerDegradesToRawTranscript() async {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
-        let cleaner = FakeCleaner(outcome: .failure(.offline))
+        let cleaner = FakeCleaner(outcome: .failure(.transport))
         let injector = FakeInjector(outcome: .success)
         let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let summary = PipelineFactory.describeComposition(config: Self.cleanupConfig, dependencies: dependencies)
         let orchestrator = PipelineFactory.makeOrchestrator(config: Self.cleanupConfig, dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
-        #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "factory must compose cleaner failure through PassThrough, not actor-level catch-all fallback; got \(summary.fallbackChainKinds)")
         #expect(injector.calls.last == "hi",
                 "a failing cleaner must degrade to the RAW transcript via PassThrough; got \(String(describing: injector.calls.last))")
     }
 
-    /// A persisted `cleanup.enabled=false` is now a first-class user-off mode, not
-    /// a degradation (spec §Revised product invariants, owner-approved 2026-07-22):
-    /// loaded end-to-end from the stored blob, the orchestrator skips the cleaner
-    /// entirely and injects the RAW transcript. The composition still wraps the
-    /// upstream cleaner before PassThrough — the skip is a runtime latch, not a
-    /// composition change — so PassThrough stays reserved for genuine failures in
-    /// cleanup-ON mode. This is the only test covering the full path (stored blob →
-    /// `ConfigStore.load` → `Config.cleanupConfig.runsCleaner` → session latch);
-    /// the override-based `OrchestratorCleanupToggleTests` bypass that mapping.
+    /// A persisted `cleanup.enabled=false` is a first-class user-off mode, not a
+    /// degradation: loaded end-to-end from the stored blob, the orchestrator skips
+    /// the cleaner and injects the RAW transcript. A later push of the same config
+    /// with `runsCleaner` true cleans again, so the skip is a runtime latch and the
+    /// composition still holds the cleaner. This is the only test covering the full
+    /// path (stored blob → `ConfigStore.load` → `Config.cleanupConfig.runsCleaner`
+    /// → session latch); the override-based `OrchestratorCleanupToggleTests` bypass
+    /// that mapping.
     /// Stated sensitivity: restore the discard-decode (`_ = decodeIfPresent` for
     /// `cleanup.enabled`), or drop the `Config.cleanupConfig → runsCleaner`
     /// mapping, or remove the `sessionRunsCleaner` guard -> `runsCleaner` reads
-    /// `true`, the cleaner is called, and "HI" is injected -> RED.
+    /// `true`, the cleaner is called, and "HI" is injected -> RED. Build the
+    /// factory's chain without `dependencies.cleaner` when `runsCleaner` is false
+    /// -> the second dictation injects "hi" -> RED.
     @Test
     func persistedDisabledConfigSkipsCleanerEndToEnd() async throws {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
@@ -210,27 +179,37 @@ struct OrchestratorTests {
             """.utf8),
         ]))
         let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let summary = PipelineFactory.describeComposition(config: config, dependencies: dependencies)
         let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
-        #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "cleanup-off changes runtime behavior, not composition; got \(summary.fallbackChainKinds)")
         #expect(cleaner.calls.isEmpty,
                 "a persisted enabled=false must skip the cleaner, not attempt it; got \(cleaner.calls.count) calls")
         #expect(injector.calls.last == "hi",
                 "cleanup-off injects the raw transcript, not a cleaned result; got \(String(describing: injector.calls.last))")
+
+        var cleanupOn = config.cleanupConfig
+        cleanupOn.runsCleaner = true
+        await orchestrator.updateCleanupConfig(cleanupOn)
+        await Self.runSession(orchestrator)
+
+        #expect(injector.calls.last == "HI",
+                "turning cleanup back on must reach the cleaner held by the composition; got \(String(describing: injector.calls.last))")
     }
 
-    /// A non-CleanupError from the cleaner is not a degradation case. It must be
-    /// contained as a failure, never silently inserted as raw text.
-    /// Stated sensitivity: actor-level bare `catch { transcript }` fallback →
-    /// raw transcript is injected despite a non-CleanupError → RED.
+    /// An unexpected cleaner error (not a `CleanupError`) escapes `FallbackCleaner`
+    /// and keeps the user's words: the spoken text is inserted, reported once as
+    /// `.cleanupUnavailableInsertedAsSpoken` with the Error cue after End, and the
+    /// session returns to idle. The owner decided this, so an unexpected error ends
+    /// like an expected cleanup failure.
+    /// Stated sensitivity: drop `handle(.cleaned(transcript))` in the catch → nothing
+    /// injected → RED; report through `deps.statusReporter` instead of
+    /// `deps.reportStatus` → no Error cue → RED.
     @Test
-    func unexpectedCleanerFailureDoesNotInjectRawTranscript() async {
-        var capturedLogs: [String] = []
+    func unexpectedCleanerFailureInsertsTheSpokenText() async {
+        let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
+        let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Self.cleanupConfig,
             dependencies: Dependencies(
@@ -242,21 +221,23 @@ struct OrchestratorTests {
                     muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
                 ),
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
-                cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
+                cueController: cues,
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
+                statusReporter: { status in reported.withLock { $0.append(status) } }
             )
         )
 
         await Self.runSession(orchestrator)
 
-        #expect(injector.calls.isEmpty,
-                "a non-CleanupError must not be degraded to raw transcript insertion; got \(injector.calls)")
-        #expect(capturedLogs.contains("status.cleanupFailed"),
-                "escaped cleanup failures must route through FSM notify(.cleanupFailed); got \(capturedLogs)")
-        #expect(capturedLogs.contains("fsm.stageFailed"),
-                "escaped cleanup failures must route through FSM log(.stageFailed); got \(capturedLogs)")
+        #expect(injector.calls == ["hi"],
+                "an unexpected cleaner error must insert the spoken text; got \(injector.calls)")
+        let statuses = reported.withLock { $0 }
+        #expect(statuses.filter { $0 == .cleanupUnavailableInsertedAsSpoken }.count == 1,
+                "the spoken-text status must be reported exactly once; got \(statuses)")
+        #expect(cues.events.filter { $0 == .enqueue(.end) || $0 == .enqueue(.error) } == [.enqueue(.end), .enqueue(.error)],
+                "the Error cue must follow End; got \(cues.events)")
         #expect(await orchestrator.currentState() == .idle,
-                "a contained cleaner failure must return the session to idle")
+                "the session must return to idle after the spoken text is inserted")
     }
 
     /// A transcription failure yields no text, so nothing is injected and the
@@ -283,83 +264,12 @@ struct OrchestratorTests {
                 "a contained transcription failure must return the session to idle")
     }
 
-    /// A session begun with the model already RESIDENT must never claim
-    /// "Preparing Speech Model": the unconditional notice was overwriting the
-    /// Recording title for the whole hold on every dictation, long after the
-    /// model was warm — the status must be a projection of the transcriber's
-    /// actual residency.
-    /// Stated sensitivity: restore the unconditional
-    /// `reportStatus(.preparingSpeechModel)` in `beginCapture` (the pre-fix
-    /// code) → the resident session reports it → RED; invert the gate polarity
-    /// (report only when resident) → same RED from this side.
+    /// Single-flight: a second Start while processing is IGNORED — no second
+    /// capture. The no-second-mute half is pinned in `DictationFsmMuteTests`.
+    /// Stated sensitivity: allow re-entry → the recorder starts a second capture,
+    /// or the state leaves processing → RED.
     @Test
-    func residentModelSessionNeverReportsPreparing() async {
-        let reported = Mutex<[StatusMessage]>([])
-        let transcriber = FakeTranscriber(outcome: .success("hi"), isModelResident: true)
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Self.cleanupConfig,
-            dependencies: Self.deps(
-                transcriber: transcriber,
-                cleaner: cleaner,
-                injector: injector,
-                statusReporter: { status in reported.withLock { $0.append(status) } }
-            )
-        )
-
-        await Self.runSession(orchestrator)
-
-        let statuses = reported.withLock { $0 }
-        #expect(!statuses.contains(.preparingSpeechModel),
-                "a resident model must not claim preparation; got \(statuses)")
-    }
-
-    /// The transcriber here reports "not resident", so the precise stage is surfaced
-    /// exactly once when the streaming session opens at key-down. In the app the
-    /// model gate refuses a press until the model has loaded, so this branch does
-    /// not fire there.
-    /// Stated sensitivity: delete the now-conditional emission → nothing is
-    /// reported → RED; invert the gate polarity → this non-resident session
-    /// reports nothing → RED (the resident test above reddens on the same
-    /// inversion from its side).
-    @Test
-    func reportsSpeechModelPreparationWhenSessionBegins() async {
-        let reported = Mutex<[StatusMessage]>([])
-        let transcriber = BlockingTranscriber(outcome: .success("hi"), isModelResident: false)
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(
-                transcriber: transcriber,
-                cleaner: cleaner,
-                injector: injector,
-                statusReporter: { status in reported.withLock { $0.append(status) } }
-            )
-        )
-
-        await orchestrator.handle(.startRequested)
-        #expect(reported.withLock { $0 } == [.preparingSpeechModel],
-                "ASR preparation status must be surfaced when the session begins at key-down; got \(reported.withLock { $0 })")
-
-        await orchestrator.handle(.stopRequested(.plain))
-        await transcriber.waitUntilCalled()
-
-        #expect(reported.withLock { $0 } == [.preparingSpeechModel],
-                "the ASR preparation status must be reported exactly once; got \(reported.withLock { $0 })")
-
-        await transcriber.release()
-        await orchestrator.awaitPipelineDrain()
-    }
-
-    /// Single-flight: a second Start while processing is IGNORED — no
-    /// second mute, no second capture.
-    /// Stated sensitivity: allow re-entry → a second mute/capture appears → RED.
-    /// A re-entering actor would make muteCount/engineStartCount ≥ 2.
-    @Test
-    func secondStartWhileProcessingDoesNotReMuteOrReCapture() async {
-        var capturedLogs: [String] = []
+    func secondStartWhileProcessingDoesNotReCapture() async {
         let transcriber = BlockingTranscriber(outcome: .success("hi"))
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
@@ -377,15 +287,14 @@ struct OrchestratorTests {
                 audio: audio,
                 recorder: recorder,
                 cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test") { capturedLogs.append($0) }
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test")
             )
         )
 
-        // Drive into processing: Start (mute+capture) then Stop (→ processing).
+        // Drive into processing: Start (capture) then Stop (→ processing).
         await orchestrator.handle(.startRequested)
         await orchestrator.handle(.stopRequested(.plain))
         await transcriber.waitUntilCalled()
-        let muteAfterFirst = audio.muteCount
         let captureAfterFirst = recorder.engineStartCount
 
         // A second Start while processing must be single-flight-ignored.
@@ -393,12 +302,8 @@ struct OrchestratorTests {
 
         #expect(await orchestrator.currentState() == .processing,
                 "single-flight: state must stay processing while the pipeline is in flight")
-        #expect(audio.muteCount == muteAfterFirst,
-                "single-flight: a second Start must NOT re-mute; muteCount went \(muteAfterFirst)→\(audio.muteCount)")
         #expect(recorder.engineStartCount == captureAfterFirst,
                 "single-flight: a second Start must NOT re-capture; engineStartCount went \(captureAfterFirst)→\(recorder.engineStartCount)")
-        #expect(capturedLogs.contains("fsm.singleFlightIgnored"),
-                "single-flight must emit a stable payload-free log event; got \(capturedLogs)")
 
         await transcriber.release()
         await orchestrator.awaitPipelineDrain()

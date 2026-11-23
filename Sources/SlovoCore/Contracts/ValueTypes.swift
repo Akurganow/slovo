@@ -5,7 +5,7 @@ import AVFAudio
 // conforming implementations, not here.
 
 /// The language a transcript or term is in, carried as a bare WhisperKit language
-/// code. `auto` chooses the best supported system locale and enables per-utterance
+/// code. `auto` passes no language code and turns on WhisperKit's per-utterance
 /// detection; any other value pins one specific code (e.g. "ru", "ja").
 ///
 /// String-backed rather than a fixed case list so the full WhisperKit catalog
@@ -63,22 +63,6 @@ public struct Term: Sendable {
         self.expansion = expansion
         self.lang = lang
         self.weight = weight
-    }
-}
-
-/// A captured audio span handed to a `Transcriber`: raw float samples plus the
-/// format describing their sample rate and channel layout.
-///
-/// `@unchecked Sendable`: `[Float]` is `Sendable`, and `AVAudioFormat` is an
-/// immutable Apple class (not marked `Sendable` in the SDK) that is safe to share
-/// — the value is never mutated after construction.
-public struct AudioBuffer: @unchecked Sendable {
-    public let samples: [Float]
-    public let format: AVAudioFormat
-
-    public init(samples: [Float], format: AVAudioFormat) {
-        self.samples = samples
-        self.format = format
     }
 }
 

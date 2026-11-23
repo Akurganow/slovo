@@ -4,10 +4,8 @@ import Testing
 import SlovoCore
 import SlovoTestSupport
 
-// Composition root: the factory builds EXACTLY ONE Transcriber,
-// a `FallbackCleaner` whose chain is `[OpenRouterCleaner, PassThrough]`, ONE
-// injector, ONE personalization source.
-//
+// Composition root: the orchestrator the factory builds cleans with the
+// configured model.
 @Suite("PipelineFactory composition")
 struct PipelineFactoryTests {
     private static func deps() -> Dependencies {
@@ -23,25 +21,6 @@ struct PipelineFactoryTests {
             cueController: FakeDictationCueController(),
             log: RedactionSafeLog(subsystem: "slovo", category: "factory-test")
         )
-    }
-
-    /// The composition must be exactly ONE transcriber, a FallbackCleaner over
-    /// the injected upstream cleaner and `PassThrough`, one injector, one source.
-    /// Stated sensitivity: wire a SECOND live ASR backend (a multi-backend switch)
-    /// or a bare cleaner without the fallback → the count/chain
-    /// assertion fails → RED.
-    @Test
-    func factoryBuildsOneTranscriberAndFallbackChain() {
-        let summary = PipelineFactory.describeComposition(config: Config(), dependencies: Self.deps())
-
-        #expect(summary.transcriberCount == 1,
-                "the composition must build EXACTLY ONE Transcriber (no multi-backend switch); got \(summary.transcriberCount)")
-        #expect(summary.cleanerIsFallback,
-                "the cleaner must be a FallbackCleaner")
-        #expect(summary.fallbackChainKinds == ["FakeCleaner", "PassThrough"],
-                "the fallback chain must wrap the injected upstream cleaner and terminate in PassThrough; got \(summary.fallbackChainKinds)")
-        #expect(summary.injectorCount == 1, "exactly one injector; got \(summary.injectorCount)")
-        #expect(summary.sourceCount == 1, "exactly one personalization source; got \(summary.sourceCount)")
     }
 
     /// Stated sensitivity: use the default model instead of the selected

@@ -25,7 +25,7 @@ struct OrchestratorSoundCueCancelRaceTests {
         let cues = BlockingStartCueController(startCueCount: 2)
         let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
         let audio = FakeSystemAudioController(muteReturns: Self.priorAudio)
-        let transcriber = FakeTranscriber(outcome: .success("spoken"), isModelResident: true)
+        let transcriber = FakeTranscriber(outcome: .success("spoken"))
         let orchestrator = Orchestrator(
             dependencies: Dependencies(
                 transcriber: transcriber,
@@ -85,7 +85,7 @@ struct OrchestratorSoundCueCancelRaceTests {
         let recorder = BlockingCaptureStartRecorder()
         let cues = FakeDictationCueController()
         let audio = FakeSystemAudioController(muteReturns: Self.priorAudio)
-        let transcriber = FakeTranscriber(outcome: .success("spoken"), isModelResident: true)
+        let transcriber = FakeTranscriber(outcome: .success("spoken"))
         let cleaner = FakeCleaner(outcome: .success("CLEANED"))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = Orchestrator(

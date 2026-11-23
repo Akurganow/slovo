@@ -152,11 +152,12 @@ struct OrchestratorTermMissTests {
         #expect(!Self.detectionRan(harness.events))
     }
 
-    /// A failed cleanup (`catch` branch) spawns no detection. The failure must
-    /// be one that REACHES the actor's catch: `FallbackCleaner` degrades every
-    /// `CleanupError` to `PassThrough` (a success with `cleaned == raw`), so
-    /// only a non-`CleanupError` propagates — the same `ThrowingCleaner`
-    /// shape `OrchestratorTests.unexpectedCleanerFailureDoesNotInjectRawTranscript` uses.
+    /// An unexpected cleaner error (`catch` branch) inserts the spoken text and
+    /// spawns no detection, because no cleaned text exists to compare. The failure
+    /// must REACH the actor's catch: `FallbackCleaner` degrades every `CleanupError`
+    /// to `PassThrough` (a success with `cleaned == raw`), so only a non-`CleanupError`
+    /// propagates — the same `ThrowingCleaner` shape
+    /// `OrchestratorTests.unexpectedCleanerFailureInsertsTheSpokenText` uses.
     /// Stated sensitivity: spawn detection in the catch branch with the raw
     /// transcript as cleaned → the detection line appears → RED.
     @Test
@@ -166,23 +167,21 @@ struct OrchestratorTermMissTests {
         await Self.runSession(harness.orchestrator)
         await harness.orchestrator.awaitTermMissDrain()
 
-        // Precondition: the failure really reached the actor's catch branch
-        // (a degraded pass-through would have injected the raw transcript).
-        #expect(harness.injector.calls.isEmpty)
+        // Precondition: the failure reached the actor's catch branch, which inserts
+        // the spoken text.
+        #expect(harness.injector.calls == [Self.rawTranscript])
         let batches = await harness.recorder.recordedBatches()
         #expect(batches.isEmpty)
         #expect(!Self.detectionRan(harness.events))
     }
 
-    /// The hot path never awaits the recording. A watchdog releases the
-    /// blocked recorder after a deadline, so the pipeline can ALWAYS finish and
-    /// a regression fails the run instead of hanging it; the pin is that the
-    /// drain got there FIRST, without the watchdog's help. Must NOT call
-    /// awaitTermMissDrain before the assertions.
+    /// The hot path never awaits the recording. The recorder stays blocked until the
+    /// injection is observed; a bounded wait then fails the assertion instead of
+    /// hanging the run. Must NOT call awaitPipelineDrain before the assertion: it
+    /// would wait on the blocked recorder.
     /// Stated sensitivity: `await termMissTask?.value` inside
-    /// `cleanAndContinue` before `handle(.cleaned)` → the drain cannot return
-    /// until the watchdog frees the recorder → `wasReleased` is true and
-    /// nothing was injected by then → RED.
+    /// `cleanAndContinue` before `handle(.cleaned)` → nothing is injected while the
+    /// recorder is blocked → the bounded wait gives up → RED.
     @Test
     func injectionDoesNotWaitForRecording() async {
         let recorder = BlockingTermMissRecorder()
@@ -196,21 +195,15 @@ struct OrchestratorTermMissTests {
                 log: RedactionSafeLog(subsystem: "test", category: "orchestrator")
             )
         )
-        let watchdog = Task {
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            await recorder.releaseRecording()
-        }
 
         await orchestrator.handle(.startRequested)
         await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        let neededWatchdog = await recorder.wasReleased
-        watchdog.cancel()
-        #expect(!neededWatchdog, "injection must complete while the recorder is still blocked")
-        #expect(injector.calls == [Self.cleanedTranscript])
+        let injected = await waitUntil { !injector.calls.isEmpty }
         await recorder.releaseRecording()
+        await orchestrator.awaitPipelineDrain()
         await orchestrator.awaitTermMissDrain()
+
+        #expect(injected, "injection must complete while the recorder is still blocked")
+        #expect(injector.calls == [Self.cleanedTranscript])
     }
 }

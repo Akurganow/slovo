@@ -36,7 +36,7 @@ final class OutstandingEdgeCount: Sendable {
 /// The CGEventTap run-loop thread calls `send` for every edge; a single
 /// long-lived consumer drains them and runs the sink for each edge to completion
 /// before dequeuing the next. Without this, each edge ran on its own `Task` and a
-/// still-running `.down` (mic setup, model warm-up) could be overtaken by `.up`,
+/// still-running `.down` (mic setup) could be overtaken by `.up`,
 /// leaving audio muted after the key was already released (the stuck-mute race).
 ///
 /// The key-up handler holds the channel across the whole finalize, cleanup and

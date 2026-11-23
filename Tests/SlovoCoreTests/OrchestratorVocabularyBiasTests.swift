@@ -121,43 +121,15 @@ struct OrchestratorVocabularyBiasTests {
                 "the orchestrator's own default must leave the recognizer unbiased")
     }
 
-    /// The gate is LATCHED at capture start, not read at the `begin` call: the
-    /// orchestrator suspends on `isModelResident` in between, and an actor admits
-    /// other messages at that suspension — so a push landing there must not change
-    /// what this session began with.
-    /// Stated sensitivity: read the flag live at the `begin` call site (drop the
-    /// latch) → the mid-flight push lands first and the session records the
-    /// vocabulary → RED. Without the interleaving this test performs, that mutation
-    /// survives the whole suite.
-    @Test
-    func aPushLandingMidCaptureCannotChangeTheLatchedSession() async {
-        let transcriber = ResidencyGateTranscriber()
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let orchestrator = Self.makeOrchestrator(
-            transcriber: transcriber,
-            cleaner: cleaner,
-            usesVocabularyBias: false
-        )
-        // Runs INSIDE the orchestrator's `isModelResident` await — after the latch,
-        // before `begin`.
-        transcriber.onResidencyRead { await orchestrator.updateUsesVocabularyBias(true) }
-
-        await Self.runDictation(on: orchestrator)
-
-        #expect(transcriber.beginBiasTerms.map { $0.map(\.term) } == [[]],
-                "the session must begin with the value latched at capture start")
-    }
-
-    /// The same latch, at the EARLIER and much longer suspension: `recorder.start()`
-    /// spans microphone startup, so a toggle push is far likelier to land there than
-    /// in the residency read. Sibling of the test above, one suspension upstream.
-    /// Stated sensitivity: move the `usesVocabularyBias` read back below
-    /// `recorder.start()` → the push lands first and the session records ["RCV",
-    /// "GitHub"] → RED. The residency-read test above stays GREEN under that same
-    /// mutation, which is why this one has to exist.
+    /// The gate is LATCHED at capture start: `recorder.start()` spans microphone
+    /// startup and an actor admits other messages there, so a toggle push landing
+    /// during it must not change what this session began with.
+    /// Stated sensitivity: read `usesVocabularyBias` live at the `speechBiasTerms`
+    /// line instead of the latch → the push lands first and the session records
+    /// ["RCV", "GitHub"] → RED.
     @Test
     func aPushLandingInsideRecorderStartCannotChangeTheLatchedSession() async {
-        let transcriber = ResidencyGateTranscriber()
+        let transcriber = FakeTranscriber(outcome: .success("raw words"))
         let cleaner = FakeCleaner(outcome: .success("CLEANED"))
         let recorder = StartGateRecorder()
         let orchestrator = Self.makeOrchestrator(
@@ -172,7 +144,7 @@ struct OrchestratorVocabularyBiasTests {
 
         await Self.runDictation(on: orchestrator)
 
-        #expect(transcriber.beginBiasTerms.map { $0.map(\.term) } == [[]],
+        #expect(transcriber.calls.map { $0.biasTerms.map(\.term) } == [[]],
                 "the session must begin with the value latched before capture opened")
     }
 
@@ -197,51 +169,6 @@ struct OrchestratorVocabularyBiasTests {
 
         #expect(engine.sessionBiasTerms.map { $0.map(\.term) } == [[], ["RCV", "GitHub"]])
     }
-}
-
-/// A transcriber that runs a hook INSIDE `isModelResident` — the orchestrator's
-/// suspension point between latching the gate and calling `begin`, where actor
-/// reentrancy admits another message — and records the terms each `begin` received.
-private final class ResidencyGateTranscriber: Transcriber, Sendable {
-    private struct State {
-        var beginBiasTerms: [[Term]] = []
-        var duringResidencyRead: (@Sendable () async -> Void)?
-    }
-
-    private let state = Mutex(State())
-
-    /// Every `begin` call's terms, in invocation order.
-    var beginBiasTerms: [[Term]] {
-        state.withLock { $0.beginBiasTerms }
-    }
-
-    /// Installs the work to interleave at the residency suspension point.
-    @preconcurrency
-    func onResidencyRead(_ body: @escaping @Sendable () async -> Void) {
-        state.withLock { $0.duringResidencyRead = body }
-    }
-
-    var isModelResident: Bool {
-        get async {
-            let interleaved = state.withLock { $0.duringResidencyRead }
-            await interleaved?()
-            return true
-        }
-    }
-
-    func setRecognitionLanguage(_ language: Language) {}
-
-    func begin(biasTerms: [Term]) async throws {
-        state.withLock { $0.beginBiasTerms.append(biasTerms) }
-    }
-
-    func feed(_ chunk: AudioChunk) async throws {}
-
-    func finish() async throws -> String {
-        "raw words"
-    }
-
-    func cancel() async {}
 }
 
 /// A recorder that runs a hook INSIDE `start()` — `beginCapture`'s first and longest

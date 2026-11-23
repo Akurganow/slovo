@@ -36,9 +36,9 @@ struct DictationFsmCaptureFailureTests {
         )
     }
 
-    /// The other capture cases also surface the single honest mic status (all
-    /// capture cases → `.microphoneUnavailable`).
-    /// Stated sensitivity: map any capture case to a different status → RED.
+    /// An engine start failure surfaces the same honest mic status as a denied
+    /// microphone.
+    /// Stated sensitivity: map `.engineStartFailed` to a different status → RED.
     @Test
     func engineStartFailureAlsoNotifiesMicUnavailable() {
         let (_, effects) = DictationFsm.transition(

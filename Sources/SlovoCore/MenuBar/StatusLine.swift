@@ -37,8 +37,6 @@ public enum StatusLine: Equatable, Sendable {
             return "Insertion Failed"
         case .microphoneUnavailable:
             return "Microphone Unavailable"
-        case .cleanupFailed:
-            return "Cleanup Failed"
         case .noSpeechDetected:
             // The empty-result surface is glyph-only; this title exists for switch
             // exhaustiveness and is never placed on the status line (see

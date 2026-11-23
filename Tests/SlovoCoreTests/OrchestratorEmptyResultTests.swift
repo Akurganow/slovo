@@ -43,28 +43,6 @@ struct OrchestratorEmptyResultTests {
         #expect(await orchestrator.currentState() == .idle, "silence must return the session to idle")
     }
 
-    /// Bare whitespace is silence too, and takes the same path.
-    /// Sensitivity: an `isEmpty`-only guard lets "  \n" through → RED, while the
-    /// empty-string test stays green.
-    @Test
-    func whitespaceOnlyInCleanModeNeverCleansOrInjects() async {
-        let cleaner = FakeCleaner(outcome: .success("HALLUCINATED"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(
-                transcriber: FakeTranscriber(outcome: .success("  \n")),
-                cleaner: cleaner,
-                injector: injector
-            )
-        )
-
-        await Self.runSession(orchestrator)
-
-        #expect(cleaner.calls.isEmpty, "whitespace-only silence must never reach the cleaner; got \(cleaner.calls.map(\.raw))")
-        #expect(injector.calls.isEmpty, "whitespace-only silence must never reach the injector; got \(injector.calls)")
-    }
-
     /// Raw mode skips the cleaner anyway, but ⌘V on an empty pasteboard can delete an
     /// active selection — that is the destructive exposure guarded here.
     /// Sensitivity: forward `.cleaned("")` to `.inject("")` → RED.

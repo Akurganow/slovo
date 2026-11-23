@@ -162,14 +162,15 @@ Logs must not contain:
 Runtime logging is limited to coarse status, counts, lengths, and failure classes.
 In the clear it carries elapsed times in milliseconds, the model-load state token,
 the model-load source token (`cache` or `download`), and the Error cue's reason
-token. It also carries three numbers about each dictation: the transcript's
-length in characters, the captured audio's sample count, and how far into the
+token. It also carries five numbers about each dictation: the transcript's
+length in characters, how many captured audio chunks recognition accepted and
+how many it refused, the captured audio's sample count, and how far into the
 recording, in seconds, recognition had confirmed text at key-up. The key-up
 decode adds two fixed tokens: its plan, one of four names, and a 0 or 1 flag for
 a retry without vocabulary bias. Five cue lines carry the
 cue's name (one of three), and two of them also its elapsed milliseconds. They
-carry dictation timing and no user text. A cleanup failure adds its kind and the
-provider's HTTP status. A failed mute of system output adds the name of its
+carry dictation timing and no user text. A cleanup failure adds its kind and, for a
+provider failure, the provider's HTTP status. A failed mute of system output adds the name of its
 failing step (one of six) and the CoreAudio status number. A failed restore adds
 that status number alone. A failed microphone start adds the name of its failing
 step (one of two) and, where one exists, the CoreAudio status number or the
@@ -205,8 +206,9 @@ A dictation set to translate by the translate key is translated in the same
 request; there is no second request. Raw audio still never leaves.
 
 If OpenRouter is unavailable, rate-limited, misconfigured, or returns an
-unusable response, Slovo falls back to the direct, untranslated transcript and
-shows a transient error glyph instead of dropping the dictation.
+unusable response, or cleanup fails in any other way, Slovo falls back to the
+direct, untranslated transcript and shows a transient error glyph instead of
+dropping the dictation.
 
 Slovo also sends OpenRouter the key-scope request, so the model pickers offer
 only the models your key can call. On each of these occasions it is sent only

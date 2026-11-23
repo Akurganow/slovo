@@ -99,7 +99,7 @@ struct OrchestratorTranslateTests {
     @Test
     func failingCleanerInTranslateModeDegradesToRawAndReportsSadStatus() async {
         let reported = Mutex<[StatusMessage]>([])
-        let cleaner = FakeCleaner(outcome: .failure(.offline))
+        let cleaner = FakeCleaner(outcome: .failure(.transport))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
             config: Config(),

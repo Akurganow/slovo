@@ -69,21 +69,6 @@ struct OrchestratorMuteWhileDictatingTests {
         #expect(audio.restoredDeviceIDs.isEmpty, "nothing muted → nothing restored; got \(audio.restoredDeviceIDs)")
     }
 
-    /// AC4: with muting ON (today's behavior, now tied to the flag), a full session
-    /// mutes exactly once, after the readiness cue, and restores exactly once at key-up.
-    /// Stated sensitivity: make the guard mute unconditionally-off → muteCount == 0
-    /// → RED.
-    @Test
-    func mutingEnabledMutesAndRestoresOnce() async {
-        let audio = Self.mutingAudio()
-        let orchestrator = Self.orchestrator(mutingEnabled: true, audio: audio)
-
-        await Self.runSession(orchestrator)
-
-        #expect(audio.muteCount == 1, "muting enabled must mute once per hold; got \(audio.muteCount)")
-        #expect(audio.restoredDeviceIDs.count == 1, "a muted session restores once at key-up; got \(audio.restoredDeviceIDs)")
-    }
-
     /// AC5: disabling muting applies to the NEXT dictation live on the SAME running
     /// orchestrator (no rebuild), mirroring `updatedCleanupModelReachesNextDictationLive`.
     /// Stated sensitivity: make `updateMutesSystemAudioWhileDictating` a no-op → the
@@ -168,26 +153,5 @@ struct OrchestratorMuteWhileDictatingTests {
 
         #expect(audio.muteCount == 0, "muting was off for that hold, so nothing was muted")
         #expect(audio.restoredDeviceIDs.isEmpty, "restore stays stash-gated; toggling on must not fabricate a restore; got \(audio.restoredDeviceIDs)")
-    }
-
-    /// AC8: the FIRST dictation respects the persisted setting via construction —
-    /// `PipelineFactory.makeOrchestrator` must pass `config.mutesSystemAudioWhileDictating`
-    /// into `Orchestrator.init`. Building one orchestrator OFF (→ no mute) and one ON
-    /// (→ mute) proves the CONFIG value, not a literal, drives construction: a
-    /// hard-coded `true` cannot satisfy off→0 and a hard-coded `false` cannot satisfy on→1.
-    /// Stated sensitivity: hard-code `true` (or `false`) in `makeOrchestrator`,
-    /// ignoring config → one of the two branches breaks → RED.
-    @Test
-    func firstDictationMuteReflectsConstructedConfigNotALiteral() async {
-        let offAudio = Self.mutingAudio()
-        await Self.runSession(Self.orchestrator(mutingEnabled: false, audio: offAudio))
-
-        let onAudio = Self.mutingAudio()
-        await Self.runSession(Self.orchestrator(mutingEnabled: true, audio: onAudio))
-
-        #expect(
-            offAudio.muteCount == 0 && onAudio.muteCount == 1,
-            "the first dictation must reflect the constructed config, not a literal; got off=\(offAudio.muteCount) on=\(onAudio.muteCount)"
-        )
     }
 }

@@ -40,12 +40,12 @@ struct FallbackCleanerTests {
     /// user-visible sad-to-fail status. Cleanup is always attempted upstream;
     /// insertion falls back to the direct transcript only when cleanup fails with
     /// `CleanupError` because the provider is unavailable, refused, or misconfigured.
-    /// Stated sensitivity: keep `.offline`, `.missingKey`, `.rateLimited`, and
-    /// `.apiError` silent, or keep reporting the old refused-only status -> RED.
+    /// Stated sensitivity: keep `.transport`, `.missingKey`, `.rateLimited`, and
+    /// `.apiError` silent -> RED.
     @Test
     func expectedCleanupErrorsAdvanceWithSadToFailStatus() async throws {
         let cases: [CleanupError] = [
-            .offline, .missingKey, .rateLimited(retryAfter: 1.0), .apiError(status: 500), .refused,
+            .transport, .missingKey, .rateLimited(retryAfter: 1.0), .apiError(status: 500),
         ]
         for failure in cases {
             var reported: [StatusMessage] = []

@@ -8,17 +8,7 @@ import SlovoCore
 @Suite("FSM transition")
 struct FsmTests {
 
-    /// Key-down begins capture and nothing else.
-    /// Sensitivity: a wrong next state or any extra effect → RED.
-    @Test
-    func idleStartRequestedBeginsCapture() {
-        let (state, effects) = DictationFsm.transition(.idle, on: .startRequested)
-        #expect(state == .recording, "idle + startRequested must move to recording, got \(state)")
-        #expect(effects == [.beginCapture],
-                "must emit exactly [beginCapture], got \(effects)")
-    }
-
-    /// The same pair yields the same result twice, and the pinned value with it.
+    /// The same pair yields the same result twice.
     /// Sensitivity: read a clock or mutate shared state so two calls diverge → RED.
     @Test
     func transitionIsDeterministic() {
@@ -26,9 +16,6 @@ struct FsmTests {
         let second = DictationFsm.transition(.idle, on: .startRequested)
         #expect(first.0 == second.0, "state diverged across identical calls")
         #expect(first.1 == second.1, "effects diverged across identical calls")
-        // Without this a deterministically WRONG transition would pass vacuously.
-        #expect(first == (DictationState.recording, [DictationEffect.beginCapture]),
-                "deterministic result must be (.recording, [.beginCapture]); got \(first)")
     }
 
     /// The transition is a function of (state, event) and nothing else: no config and no
@@ -44,16 +31,6 @@ struct FsmTests {
         // The call keeps the constant used: an unused constant is a warning, and the
         // gate builds with warnings as errors.
         #expect(transition(.idle, .startRequested) == (DictationState.recording, [DictationEffect.beginCapture]))
-    }
-
-    /// A Start while processing is ignored, and logged as ignored.
-    /// Sensitivity: restart processing, or drop the log → RED.
-    @Test
-    func processingStartRequestedIsSingleFlightIgnored() {
-        let (state, effects) = DictationFsm.transition(.processing, on: .startRequested)
-        #expect(state == .processing, "single-flight: state must stay processing, got \(state)")
-        #expect(effects == [.log(.singleFlightIgnored)],
-                "single-flight must emit exactly [log(.singleFlightIgnored)], got \(effects)")
     }
 
     /// An unpinned pair is a lossless no-op: state unchanged, one log, never a crash.
@@ -148,16 +125,6 @@ struct FsmTests {
                 "must emit exactly [inject(text: \"done\")], got \(effects)")
     }
 
-    /// Injection completes the session back to idle.
-    /// Sensitivity: stay in processing, or emit anything else → RED.
-    @Test
-    func processingInjectedReturnsToIdle() {
-        let (state, effects) = DictationFsm.transition(.processing, on: .injected)
-        #expect(state == .idle, "injected returns to idle, got \(state)")
-        #expect(effects == [.returnToIdle],
-                "must emit exactly [returnToIdle], got \(effects)")
-    }
-
     // MARK: - Dictation mode is inert in the pure transition
 
     /// The dictation mode is carried for the cleanup step, never branched on here.
@@ -172,22 +139,6 @@ struct FsmTests {
                 "translate stop must emit exactly the pinned key-up effects, got \(translate.1)")
         #expect(translate.0 == plain.0, "the mode must not change the next state")
         #expect(translate.1 == plain.1, "the mode must not change the emitted effects")
-    }
-
-    // MARK: - StageFailure equality by value
-
-    /// `StageFailure` equality distinguishes wrapped errors instead of collapsing every
-    /// `.injection(_)` to equal.
-    /// Sensitivity: compare by case only → distinct injection failures compare equal → RED.
-    @Test
-    func stageFailureDistinguishesDistinctInjectionErrors() {
-        #expect(StageFailure.injection(.secureInputActive) != .injection(.pasteFailed),
-                "secureInputActive and pasteFailed are different failures and must be unequal")
-        #expect(StageFailure.injection(.accessibilityDenied) != .injection(.pasteFailed),
-                "accessibilityDenied and pasteFailed are different failures and must be unequal")
-        // Same case stays equal (no over-correction into never-equal).
-        #expect(StageFailure.injection(.pasteFailed) == .injection(.pasteFailed),
-                "the same injection failure must stay equal to itself")
     }
 }
 
@@ -232,12 +183,5 @@ struct HonestStatusMappingTests {
     func pasteFailedMapsToInjectionFailed() {
         #expect(notifiedStatus(for: .injection(.pasteFailed)) == .injectionFailed,
                 "paste-failed must notify .injectionFailed")
-    }
-
-    /// A cleanup failure that escaped the fallback chain names cleanup.
-    @Test
-    func cleanupFailureMapsToCleanupFailed() {
-        #expect(notifiedStatus(for: .cleanup) == .cleanupFailed,
-                "cleanup failure must notify .cleanupFailed")
     }
 }

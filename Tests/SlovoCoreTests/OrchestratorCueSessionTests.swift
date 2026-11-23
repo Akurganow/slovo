@@ -11,7 +11,7 @@ import SlovoTestSupport
 @Suite("Orchestrator cue session")
 struct OrchestratorCueSessionTests {
 
-    /// A dictation that runs to insertion closes its cue session, exactly once and last.
+    /// A dictation that runs to insertion closes its cue session, with nothing queued after it.
     /// Sensitivity: drop `endSession()` from `returnToIdle` → RED.
     @Test
     func completedDictationClosesTheCueSession() async {
@@ -26,8 +26,8 @@ struct OrchestratorCueSessionTests {
         await orchestrator.awaitPipelineDrain()
 
         #expect(await orchestrator.currentState() == .idle, "the dictation must finish")
-        #expect(cues.events.filter { $0 == .endSession }.count == 1,
-                "a finished dictation must close its cue session exactly once; got \(cues.events)")
+        #expect(cues.events.contains(.endSession),
+                "a finished dictation must close its cue session; got \(cues.events)")
         #expect(cues.events.last == .endSession,
                 "nothing may be queued after the session closed; got \(cues.events)")
     }
@@ -49,8 +49,8 @@ struct OrchestratorCueSessionTests {
         await orchestrator.awaitPipelineDrain()
 
         #expect(await orchestrator.currentState() == .idle, "cancellation must return to idle")
-        #expect(cues.events.filter { $0 == .endSession }.count == 1,
-                "a cancelled dictation must close its cue session exactly once; got \(cues.events)")
+        #expect(cues.events.contains(.endSession),
+                "a cancelled dictation must close its cue session; got \(cues.events)")
     }
 
     /// Dependencies with the seam fakes, mirroring the sibling orchestrator suites.

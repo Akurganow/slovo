@@ -2,10 +2,9 @@ import SlovoCore
 import Synchronization
 
 /// A scriptable spy for the `AudioConverting` seam: it returns (or throws) a
-/// pre-scripted result per `convert` call and records the chunks it received, so
-/// session tests drive accumulation with EXACT sample counts and a deterministic
-/// convert-failure — no real CoreAudio. State is `Mutex`-guarded so the spy is
-/// race-free under the transcriber actor and still inspectable afterward.
+/// pre-scripted result per `convert` call, so session tests drive accumulation with
+/// EXACT sample counts and a deterministic convert-failure — no real CoreAudio. State
+/// is `Mutex`-guarded so the fake is race-free under the transcriber actor.
 public final class FakeAudioConverter: AudioConverting, Sendable {
     /// What `convert` should do for one call.
     public enum Outcome: Sendable {
@@ -23,7 +22,6 @@ public final class FakeAudioConverter: AudioConverting, Sendable {
     private struct State {
         var outcomes: [Outcome]
         var cursor = 0
-        var receivedChunks: [AudioChunk] = []
     }
 
     private let state: Mutex<State>
@@ -34,14 +32,8 @@ public final class FakeAudioConverter: AudioConverting, Sendable {
         state = Mutex(State(outcomes: outcomes))
     }
 
-    /// Number of `convert` calls received (successful or scripted-failure).
-    public var convertCount: Int {
-        state.withLock { $0.receivedChunks.count }
-    }
-
     public func convert(_ chunk: AudioChunk) throws -> [Float] {
         try state.withLock { current in
-            current.receivedChunks.append(chunk)
             guard !current.outcomes.isEmpty else { return [] }
             let index = min(current.cursor, current.outcomes.count - 1)
             current.cursor += 1

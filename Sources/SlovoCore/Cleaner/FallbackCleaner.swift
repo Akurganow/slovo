@@ -1,7 +1,7 @@
 /// A composite `Cleaner` that walks a chain, advancing to the next cleaner on any
-/// `CleanupError` and terminating at `PassThrough`. A
-/// non-`CleanupError` (e.g. `CancellationError`) PROPAGATES — it is never
-/// swallowed and silently degraded.
+/// `CleanupError` and terminating at `PassThrough`. A non-`CleanupError` (e.g. a
+/// request body that fails to encode) is not caught here: it propagates to the
+/// orchestrator, which inserts the spoken text.
 ///
 /// Every expected `CleanupError` advances WITH a user-visible sad-to-fail status.
 /// Cleanup is always attempted upstream; preserving the user's voice-to-text
@@ -63,13 +63,11 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
         return raw
     }
 
-    /// Surfaces a user-visible status for the cases that warrant one. The
+    /// Every `CleanupError` reports that the spoken text was inserted. The
     /// no-`default` switch makes a new `CleanupError` case a compile error here.
     private func report(_ error: CleanupError) {
         switch error {
-        case .offline, .missingKey, .rateLimited, .apiError:
-            statusReporter(.cleanupUnavailableInsertedAsSpoken)
-        case .refused:
+        case .transport, .missingKey, .rateLimited, .apiError:
             statusReporter(.cleanupUnavailableInsertedAsSpoken)
         }
     }

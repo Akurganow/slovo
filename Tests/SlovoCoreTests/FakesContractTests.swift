@@ -28,18 +28,18 @@ struct FakesContractTests {
     /// the test pins the EXACT programmed case, not merely "some error".
     @Test
     func fakeCleanerThrowsExactProgrammedCase() async {
-        let fake = FakeCleaner(outcome: .failure(.offline))
+        let fake = FakeCleaner(outcome: .failure(.transport))
         let config = CleanupConfig(writingStyle: .formal, language: .en)
         let context = PersonalizationContext(vocabulary: [])
 
         do {
             _ = try await fake.clean("hello", config: config, context: context)
-            Issue.record("FakeCleaner(.failure(.offline)) did not throw — error swallowed")
+            Issue.record("FakeCleaner(.failure(.transport)) did not throw — error swallowed")
         } catch let error as CleanupError {
             switch error {
-            case .offline:
+            case .transport:
                 break  // correct — exactly the programmed case
-            case .missingKey, .rateLimited, .apiError, .refused:
+            case .missingKey, .rateLimited, .apiError:
                 Issue.record("FakeCleaner threw the wrong CleanupError case: \(error)")
             }
         } catch {
@@ -52,7 +52,7 @@ struct FakesContractTests {
     /// Stated sensitivity: the fake does not record → `calls` is empty → RED.
     @Test
     func fakeCleanerRecordsTheCall() async {
-        let fake = FakeCleaner(outcome: .failure(.offline))
+        let fake = FakeCleaner(outcome: .failure(.transport))
         let config = CleanupConfig(writingStyle: .casual, language: .ru)
         let context = PersonalizationContext(vocabulary: [])
 

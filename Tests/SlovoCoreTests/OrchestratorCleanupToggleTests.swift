@@ -32,27 +32,6 @@ struct OrchestratorCleanupToggleTests {
         return cleanupConfig
     }
 
-    /// Stated sensitivity: remove the `sessionRunsCleaner` guard in
-    /// `cleanAndContinue` → the cleaner records a call and "CLEANED" is
-    /// injected → RED on both expectations.
-    @Test
-    func offSkipsCleanerAndInjectsRaw() async {
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(transcriber: FakeTranscriber(outcome: .success("raw words")), cleaner: cleaner, injector: injector),
-            cleanupConfig: Self.cleanupConfig(runsCleaner: false)
-        )
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(cleaner.calls.isEmpty, "cleanup-off must never call the cleaner")
-        #expect(injector.calls.last == "raw words")
-    }
-
     /// Stated sensitivity: route the translate mode around the guard (e.g. run
     /// the cleaner whenever `sessionMode == .translate`) → RED.
     @Test

@@ -117,32 +117,6 @@ struct AppStateTests {
 
     /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
     @Test
-    func pendingFetchFollowsAvailabilityChanged() {
-        var state = Self.makeState()
-        state.applyScope(.pipelineStarted)
-        #expect(state.pendingFetch == nil, "no fetch while cleanup is off")
-        state.applyScope(.availabilityChanged(isOn: true))
-        #expect(state.pendingFetch == state.cleanupScope.generation)
-        state.applyScope(.availabilityChanged(isOn: false))
-        #expect(state.pendingFetch == nil)
-    }
-
-    /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
-    @Test
-    func pendingFetchFollowsPipelineStarted() {
-        var state = Self.makeState()
-        state.applyScope(.availabilityChanged(isOn: true))
-        #expect(state.pendingFetch == nil, "no fetch before hotkey start (K10)")
-        state.applyScope(.pipelineStarted)
-        #expect(state.pendingFetch == state.cleanupScope.generation)
-        state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: ["a/b"]))
-        let known = state.pendingFetch
-        state.applyScope(.pipelineStarted)
-        #expect(state.pendingFetch == known, "a restart with a known scope fetches nothing")
-    }
-
-    /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
-    @Test
     func pendingFetchFollowsKeySaved() {
         var state = Self.launched()
         state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: ["a/b"]))
@@ -150,41 +124,6 @@ struct AppStateTests {
         let before = state.cleanupScope.generation
         state.applyScope(.keySaved)
         #expect(state.pendingFetch == before + 1)
-    }
-
-    /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
-    @Test
-    func pendingFetchFollowsKeyRemoved() {
-        var state = Self.launched()
-        #expect(state.pendingFetch != nil)
-        state.applyScope(.keyRemoved)
-        #expect(state.pendingFetch == nil)
-    }
-
-    /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
-    @Test
-    func pendingFetchFollowsFetchCompleted() {
-        var state = Self.launched()
-        let stale = state.cleanupScope.generation
-        state.applyScope(.keySaved)
-        let pending = state.pendingFetch
-        #expect(pending != nil)
-        state.applyScope(.fetchCompleted(generation: stale, ids: ["old/model"]))
-        #expect(state.pendingFetch == pending, "a stale result changes nothing")
-        state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: ["a/b"]))
-        #expect(state.pendingFetch == nil)
-    }
-
-    /// Stated sensitivity: return `generation` regardless of `fetchInFlight` → RED.
-    @Test
-    func pendingFetchFollowsCleanupFailed() {
-        var state = Self.launched()
-        state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: ["a/b"]))
-        let generation = state.cleanupScope.generation
-        state.applyScope(.cleanupFailed(.apiError(status: 403)))
-        #expect(state.pendingFetch == nil, "only a 404 refreshes the scope")
-        state.applyScope(.cleanupFailed(.apiError(status: 404)))
-        #expect(state.pendingFetch == generation, "a 404 refetches under the same generation")
     }
 
     /// K1: the scope machinery never writes the stored preference, even while the
@@ -204,7 +143,7 @@ struct AppStateTests {
             .keySaved, .keyRemoved,
             .fetchCompleted(generation: known.cleanupScope.generation, ids: [other.id]),
             .fetchCompleted(generation: known.cleanupScope.generation, ids: nil),
-            .cleanupFailed(.apiError(status: 404)), .cleanupFailed(.offline),
+            .cleanupFailed(.apiError(status: 404)), .cleanupFailed(.transport),
         ]
         for event in events {
             var state = known

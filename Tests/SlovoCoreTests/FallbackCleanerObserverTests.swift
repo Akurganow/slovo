@@ -61,10 +61,10 @@ struct FallbackCleanerObserverTests {
     }
 
     // K8 chain, link (a): the factory THREADS the observer into the FallbackCleaner
-    // it assembles. `assemble` is private and `CompositionSummary` cannot carry a
-    // closure, so this is a source pin — the v5-verification's G1: drop the
-    // threading and every behavioral test stays green while the K4d self-heal
-    // ships dead. Sensitivity: remove the argument from PipelineFactory → RED.
+    // it builds inline. A closure cannot be compared, so this is a source pin —
+    // the v5-verification's G1: drop the threading and every behavioral test stays
+    // green while the K4d self-heal ships dead. Sensitivity: remove the argument
+    // from PipelineFactory → RED.
     @Test
     func factoryThreadsTheObserverIntoTheFallback() throws {
         let root = URL(fileURLWithPath: #filePath)

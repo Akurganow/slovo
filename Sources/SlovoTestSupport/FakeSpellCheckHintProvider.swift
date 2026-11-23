@@ -2,11 +2,10 @@ import SlovoCore
 import Synchronization
 
 /// A `SpellCheckHintProviding` fake that returns fixed findings and records each
-/// call's arguments so a test can assert the transcript and the ignored vocabulary
-/// that reached it. The call log is `Mutex`-guarded for use under the actor.
+/// call's arguments so a test can assert the ignored vocabulary that reached it.
+/// The call log is `Mutex`-guarded for use under the actor.
 public final class FakeSpellCheckHintProvider: SpellCheckHintProviding {
     public struct Call: Sendable {
-        public let transcript: String
         public let ignoredVocabulary: [String]
     }
 
@@ -29,7 +28,7 @@ public final class FakeSpellCheckHintProvider: SpellCheckHintProviding {
     }
 
     public func findings(in transcript: String, ignoring vocabulary: [String]) -> SpellCheckFindings {
-        recordedCalls.withLock { $0.append(Call(transcript: transcript, ignoredVocabulary: vocabulary)) }
+        recordedCalls.withLock { $0.append(Call(ignoredVocabulary: vocabulary)) }
         return findingsToReturn
     }
 }

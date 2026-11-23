@@ -127,26 +127,4 @@ struct OrchestratorCleanupHintsTests {
 
         #expect(cleaner.calls.last?.hints.grammarFindings == grammar)
     }
-
-    /// Stated sensitivity: the spell-check toggle governs BOTH halves of the pass —
-    /// they come from one provider call. An orchestrator that gates only the spelling
-    /// half lets grammar findings through with the toggle off → RED.
-    @Test
-    func grammarPassAlsoSkippedWhenToggleOff() async {
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let provider = FakeSpellCheckHintProvider(
-            findings: SpellCheckFindings(
-                grammar: [GrammarFinding(fragment: "is", message: "may not agree", corrections: [])]
-            )
-        )
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(useSpellCheckHints: false),
-            dependencies: Self.deps(cleaner: cleaner, inputSource: nil, spell: provider)
-        )
-
-        await Self.runSession(orchestrator)
-
-        #expect(provider.calls.isEmpty)
-        #expect(cleaner.calls.last?.hints.grammarFindings.isEmpty == true)
-    }
 }

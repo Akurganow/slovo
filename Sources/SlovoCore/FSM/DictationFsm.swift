@@ -45,7 +45,6 @@ public enum StatusMessage: Equatable, Sendable {
     case secureFieldActive
     case injectionFailed
     case microphoneUnavailable
-    case cleanupFailed
     /// A held key produced only silence. Surfaced as a brief glyph-only flash, never
     /// a lingering notice (see `isNoSpeechNotice`).
     case noSpeechDetected
@@ -58,8 +57,7 @@ public enum StatusMessage: Equatable, Sendable {
              .transcriptionFailed,
              .secureFieldActive,
              .injectionFailed,
-             .microphoneUnavailable,
-             .cleanupFailed:
+             .microphoneUnavailable:
             return true
         }
     }
@@ -81,7 +79,6 @@ public enum StatusMessage: Equatable, Sendable {
              .secureFieldActive,
              .injectionFailed,
              .microphoneUnavailable,
-             .cleanupFailed,
              .noSpeechDetected:
             return true
         }
@@ -103,21 +100,10 @@ public enum StatusMessage: Equatable, Sendable {
 }
 
 /// A stage failure routed into the FSM.
-///
-/// `Equatable` is synthesized, so distinct wrapped errors compare unequal (e.g.
-/// `.injection(.secureInputActive) != .injection(.pasteFailed)`), and adding a
-/// future `StageFailure` case is a compile error rather than a silent
-/// catch-all match.
-public enum StageFailure: Equatable, Sendable {
+public enum StageFailure: Sendable {
     case transcription(TranscriptionError)
     case injection(InjectionError)
     case capture(AudioCaptureError)
-    /// A cleanup failure escaped the `FallbackCleaner` chain unexpectedly.
-    ///
-    /// Normal `CleanupError` degradation belongs inside `FallbackCleaner`; this
-    /// case exists so the actor can contain non-degradation cleanup failures
-    /// without inventing a second state-transition policy outside the FSM.
-    case cleanup
 }
 
 /// Outputs the actor executes. The FSM only emits these.
@@ -243,8 +229,6 @@ public enum DictationFsm {
             return .transcriptionFailed
         case .capture:
             return .microphoneUnavailable
-        case .cleanup:
-            return .cleanupFailed
         case .injection(.accessibilityDenied):
             return .accessibilityDenied
         case .injection(.secureInputActive):

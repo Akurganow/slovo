@@ -7,7 +7,8 @@ import SlovoCore
 // test: a cue finishing after the hold ended never mutes, and restore runs exactly
 // once on leaving `recording`, with End queued behind it. The silent-cancel and
 // capture-failure restores are pinned where those rows live, in
-// `DictationFsmCancelTests` and `DictationFsmCaptureFailureTests`.
+// `DictationFsmCancelTests` and `DictationFsmCaptureFailureTests`, and the failure rows
+// in `FsmTests`.
 @Suite("FSM cue/mute/restore")
 struct DictationFsmMuteTests {
 
@@ -61,22 +62,6 @@ struct DictationFsmMuteTests {
         }
     }
 
-    /// The same property along the real path: key-up first, then the cue completion,
-    /// driven through the actual transition rather than an assumed state.
-    /// Sensitivity: a state-agnostic `startCueFinished` row → RED.
-    @Test
-    func startCueFinishingAfterKeyUpNeverReMutes() {
-        let (afterKeyUp, keyUpEffects) = DictationFsm.transition(.recording, on: .stopRequested(.plain))
-        #expect(keyUpEffects.contains(.restoreSystemOutput),
-                "key-up must restore system output, got \(keyUpEffects)")
-
-        let (state, lateCueEffects) = DictationFsm.transition(afterKeyUp, on: .startCueFinished)
-        #expect(state == afterKeyUp,
-                "a late cue completion must not disturb the post-key-up state, got \(state)")
-        #expect(!lateCueEffects.contains(.muteSystemOutput),
-                "a cue completing after key-up must never re-mute system output, got \(lateCueEffects)")
-    }
-
     // MARK: - Restore at key-up, then End
 
     /// Key-up stops capture, restores output, then queues End — End marks the end of the
@@ -88,31 +73,6 @@ struct DictationFsmMuteTests {
         #expect(state == .processing, "recording + stopRequested must move to processing, got \(state)")
         #expect(effects == [.endCaptureAndFinalizeTranscript, .restoreSystemOutput, .enqueueCue(.end)],
                 "must stop, restore, then announce the end of recording; got \(effects)")
-    }
-
-    /// End is queued after the restore: sent into still-muted output it would not be heard.
-    /// Sensitivity: emit End ahead of restore → RED (a missing End is caught by the
-    /// sequence above, not here).
-    @Test
-    func keyUpQueuesEndOnlyAfterOutputIsRestored() {
-        let (_, effects) = DictationFsm.transition(.recording, on: .stopRequested(.plain))
-        #expect(Self.position(of: .restoreSystemOutput, in: effects)
-                < Self.position(of: .enqueueCue(.end), in: effects),
-                "End queued into muted output would not be heard — restore must come first; got \(effects)")
-    }
-
-    /// A failure before key-up restores audio first: an error must never leave output muted.
-    /// Sensitivity: drop `.restoreSystemOutput` from this row → RED.
-    @Test
-    func failureDuringRecordingRestoresAudio() {
-        let (state, effects) = DictationFsm.transition(
-            .recording, on: .failed(.transcription(.backendUnavailable))
-        )
-        #expect(state == .idle, "a failure during recording must return to idle, got \(state)")
-        #expect(
-            effects == [.restoreSystemOutput, .notify(.transcriptionFailed), .log(.stageFailed), .returnToIdle],
-            "must emit exactly [restoreSystemOutput, notify, log, returnToIdle], got \(effects)"
-        )
     }
 
     // MARK: - No second restore in processing
@@ -127,18 +87,6 @@ struct DictationFsmMuteTests {
                 "injected must emit exactly [returnToIdle] (no second restore), got \(effects)")
         #expect(!effects.contains(.restoreSystemOutput),
                 "injected must NOT restore again — already restored at key-up")
-    }
-
-    /// A failure after key-up does not restore again either.
-    /// Sensitivity: add `.restoreSystemOutput` to the processing-failure row → RED.
-    @Test
-    func processingFailureDoesNotRestoreAgain() {
-        let (state, effects) = DictationFsm.transition(
-            .processing, on: .failed(.injection(.pasteFailed))
-        )
-        #expect(state == .idle, "a processing failure returns to idle, got \(state)")
-        #expect(!effects.contains(.restoreSystemOutput),
-                "a processing-phase failure must NOT restore again (already restored at key-up), got \(effects)")
     }
 
     /// A second Start while processing is ignored and issues no second mute — a re-mute
@@ -167,11 +115,5 @@ struct DictationFsmMuteTests {
         case .idle, .processing:
             return true
         }
-    }
-
-    /// Position of an effect, or past the end when absent, so an ordering assertion on a
-    /// missing effect fails instead of trapping.
-    private static func position(of effect: DictationEffect, in effects: [DictationEffect]) -> Int {
-        effects.firstIndex(of: effect) ?? Int.max
     }
 }

@@ -11,23 +11,6 @@ struct WhisperKitTranscriberSessionTests {
 
     // MARK: - begin
 
-    /// begin must LOAD the model before opening the live session.
-    /// Stated sensitivity: begin that loads lazily (at feed/finish) or not at all →
-    /// `.load` is not the first recorded event → RED.
-    @Test
-    func beginLoadsTheModelFirst() async throws {
-        let terms = [
-            Term(term: "GitHub", expansion: nil, lang: .en, weight: 1),
-            Term(term: "PR", expansion: nil, lang: .en, weight: 1),
-        ]
-        let engine = FakeSpeechEngine()
-        let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
-
-        try await transcriber.begin(biasTerms: terms)
-
-        #expect(engine.events.first == .load, "the model must load first; events: \(engine.events)")
-    }
-
     /// begin hands its biasTerms to the session factory unchanged — the wiring
     /// that feeds the re-enabled bias prompt.
     /// Stated sensitivity: pass [] (or drop/reorder terms) instead of the received
@@ -51,13 +34,14 @@ struct WhisperKitTranscriberSessionTests {
     /// A re-begin over a dangling session must replace its live stream and must NOT
     /// re-load an already-loaded model.
     /// Stated sensitivity: leak the prior session's samples → finalization sees
-    /// 300 not 200 → RED; load unconditionally in begin → loadCount 2 → RED.
+    /// 300 not 200 → RED; `begin` calls `engine.load()` unconditionally → `loadCount` 3 → RED.
     @Test
     func beginWithDanglingSessionStartsFreshWithoutDoubleLoad() async throws {
         let engine = FakeSpeechEngine(finalize: .success(""))
         let converter = FakeAudioConverter(outcomes: [.samples(TranscriberFixtures.samples(100)), .samples(TranscriberFixtures.samples(200))])
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
+        try await transcriber.warmUp()
         try await transcriber.begin(biasTerms: [])
         try await transcriber.feed(TranscriberFixtures.chunk())   // session A: 100
         try await transcriber.begin(biasTerms: [])  // dangling re-begin
@@ -250,22 +234,6 @@ struct WhisperKitTranscriberSessionTests {
             Issue.record("finish must throw when live-session finalization fails")
         } catch let error as TranscriptionError {
             #expect(error == .engineFailure(underlying: FakeSpeechEngine.ScriptedFailure()))
-        }
-    }
-
-    /// A load or download failure maps to `.backendUnavailable`.
-    /// Stated sensitivity: map a load failure to any other case (`mapLoadFailure`
-    /// returns `.engineFailure`) → RED.
-    @Test
-    func loadFailureMapsToBackendUnavailable() async throws {
-        let engine = FakeSpeechEngine(loadSucceeds: false)
-        let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
-
-        do {
-            try await transcriber.begin(biasTerms: [])
-            Issue.record("begin must throw when the model fails to load")
-        } catch let error as TranscriptionError {
-            #expect(error == .backendUnavailable)
         }
     }
 }

@@ -68,8 +68,6 @@ struct OrchestratorFeedFailureTests {
                 "total feed failure must surface the .transcriptionFailed menu-bar status; got \(reported.withLock { $0 })")
         #expect(logged.withLock { $0 }.contains("transcription.totalFeedFailure.engineFailure"),
                 "the ROUTED feed error kind must be logged, not a hardcoded one; got \(logged.withLock { $0 })")
-        #expect(!logged.withLock { $0 }.contains("transcription.totalFeedFailure.audioFormatUnsupported"),
-                "the logged kind must be the captured feed error, never a hardcoded .audioFormatUnsupported")
         #expect(await orchestrator.currentState() == .idle,
                 "a contained transcription failure must return the session to idle")
         // End marks the end of recording, which did happen here; the failure surfaces

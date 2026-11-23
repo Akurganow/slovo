@@ -19,7 +19,6 @@ struct StatusLineTests {
             (.secureFieldActive, "Secure Field Active"),
             (.injectionFailed, "Insertion Failed"),
             (.microphoneUnavailable, "Microphone Unavailable"),
-            (.cleanupFailed, "Cleanup Failed"),
             (.noSpeechDetected, "No Speech"),
         ]
         for (message, title) in titles {
