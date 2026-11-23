@@ -28,6 +28,22 @@ struct StatusLineTests {
         }
     }
 
+    /// Only a line that shows a persistent notice counts as one, so a flash's reset
+    /// keeps "Sound Not Muted" and still clears "Inserted as Spoken".
+    /// Stated sensitivity: return false for every line, or true for every message
+    /// → RED.
+    @Test
+    func onlyAPersistentMessageLineIsPersistent() {
+        #expect(StatusLine.message(.outputMuteFailed).isPersistentNotice)
+        #expect(StatusLine.message(.outputRestoreFailed).isPersistentNotice)
+        #expect(StatusLine.message(.microphoneUnavailable).isPersistentNotice)
+        #expect(!StatusLine.message(.cleanupUnavailableInsertedAsSpoken).isPersistentNotice)
+        #expect(!StatusLine.message(.noSpeechDetected).isPersistentNotice)
+        #expect(!StatusLine.idle.isPersistentNotice)
+        #expect(!StatusLine.recording.isPersistentNotice)
+        #expect(!StatusLine.processing.isPersistentNotice)
+    }
+
     /// The two progress words the row shows while a dictation runs. With
     /// `messagesKeepTheirTitles` it pins every non-idle line exactly.
     /// Stated sensitivity: add a "Status: " prefix, or change either word → RED.

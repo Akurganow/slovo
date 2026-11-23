@@ -92,7 +92,7 @@ is a file's content, the entry names the file.
 - A failure status paints through the core glyph renderer in the error tint, and
   a live state paints in the normal tint.
 - A brief red flash never resets the line of a persistent failure to the idle
-  hint.
+  hint. Its reset reads the line on screen, not the flash's own status.
 - The menu is built from one input and the live rows, and the builder reads every
   value from them, never from the store. The menu cannot show a value that
   bypasses the app state. The build takes the fn verdict and the update row

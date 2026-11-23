@@ -7,6 +7,14 @@ public enum StatusLine: Equatable, Sendable {
     case processing
     case message(StatusMessage)
 
+    /// Whether the line shows a persistent notice, which stays until the next
+    /// dictation starts. A later flash's reset reads this from the line on screen,
+    /// so a no-speech flash after a failed mute does not wipe "Sound Not Muted".
+    public var isPersistentNotice: Bool {
+        if case .message(let message) = self { return message.isPersistentNotice }
+        return false
+    }
+
     /// The row's text. `idleTrigger` is the key the idle hint tells the user to hold.
     public func text(idleTrigger: HotkeyTrigger) -> String {
         switch self {

@@ -366,7 +366,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             //    overwrite its status.
             self.paintRestingGlyph()
             guard !self.isPipelineActive else { return }
-            if !status.isPersistentNotice {
+            // The line on screen decides, not this flash's status: a persistent
+            // notice written earlier in the dictation stays until the next one starts.
+            if !self.store.state.statusLine.isPersistentNotice {
                 self.store.update { $0.statusLine = .idle }
             }
         }
