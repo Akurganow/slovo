@@ -9,4 +9,4 @@ inheritance: true
 reviews:
   auto_review:
     base_branches:
-      - "^work/on-device-cleanup$"
+      - ".*"
