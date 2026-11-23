@@ -1,6 +1,6 @@
 /// The effective cleanup state and its cause — the app layer's single source of
 /// truth (spec 2026-07-22, amendment A5). Menu, Settings, the glyph layer, and
-/// the orchestrator push all consume this; the "off because toggled" vs "off
+/// the dictation settings all consume this; the "off because toggled" vs "off
 /// because no key" distinction is derived exactly once.
 public enum CleanupAvailability: Equatable, Sendable {
     case on

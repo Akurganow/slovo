@@ -16,7 +16,7 @@ struct WhisperKitLiveTranscriptionTests {
         let converter = FakeAudioConverter(outcomes: [.samples(TranscriberFixtures.samples(160))])
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
 
         #expect(engine.streamAppendCalls == [160])
@@ -30,7 +30,7 @@ struct WhisperKitLiveTranscriptionTests {
         let engine = FakeSpeechEngine()
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
 
         #expect(engine.streamStartCount == 1)
     }
@@ -42,7 +42,7 @@ struct WhisperKitLiveTranscriptionTests {
         let engine = FakeSpeechEngine(finalize: .success("must not return"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         await transcriber.cancel()
 

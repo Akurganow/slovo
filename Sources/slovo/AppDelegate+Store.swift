@@ -10,7 +10,6 @@ extension AppDelegate {
         let keyProvider = openRouterKeyProvider
         AppStoreEffects.wire(store, to: AppStoreEffectTargets(
             defaults: defaults,
-            orchestrator: { [weak self] in self?.composition?.orchestrator },
             reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) },
             cueController: { [weak self] in self?.composition?.cueController },
             updaterSwitch: { [weak self] in self?.updaterCoordinator?.updater },

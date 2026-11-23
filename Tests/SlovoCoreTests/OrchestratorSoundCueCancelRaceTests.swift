@@ -35,9 +35,9 @@ struct OrchestratorSoundCueCancelRaceTests {
                 audio: audio,
                 recorder: recorder,
                 cueController: cues,
-                log: RedactionSafeLog(subsystem: "slovo", category: "cue-cancel-race-test")
-            ),
-            cleanupConfig: Config.defaults.cleanupConfig
+                log: RedactionSafeLog(subsystem: "slovo", category: "cue-cancel-race-test"),
+                settings: FakeSettingsSource().provider
+            )
         )
 
         await orchestrator.handle(.startRequested)

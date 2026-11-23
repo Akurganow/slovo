@@ -246,23 +246,6 @@ struct AppRuntimeSourceGuardTests {
         #expect(saves == 0, "only the store's persistence subscriber may save Config; found \(saves) app-side saves")
     }
 
-    /// Every orchestrator push is a store subscriber in SlovoCore, so the app target
-    /// pushes nothing itself.
-    /// Stated sensitivity: an app-side push beside the store wiring → RED.
-    @Test
-    func appTargetPushesNothingToTheOrchestrator() throws {
-        let pushes = [
-            "updateCleanupConfig(", "updateMutesSystemAudioWhileDictating(",
-            "updateUsesVocabularyBias(", "updateRecognitionLanguage(",
-        ]
-        for file in try SourceText.swiftFiles(under: "Sources/slovo") {
-            let source = try SourceText.code(file)
-            for push in pushes {
-                #expect(!source.contains(push), "\(file) pushes \(push) beside the store wiring")
-            }
-        }
-    }
-
     /// Stated sensitivity: build the submenu from the catalog instead of the
     /// `options` parameter, or write anything but the chosen id → RED.
     @Test

@@ -2,7 +2,7 @@ import SlovoCore
 import Synchronization
 
 /// A programmable streaming `Transcriber` fake for tests: `begin` records its
-/// biasTerms, `feed` counts chunks, and `finish` returns or throws exactly the
+/// biasTerms and language, `feed` counts chunks, and `finish` returns or throws exactly the
 /// outcome it was constructed with. An optional `feedFailure` plan makes chosen
 /// chunks throw, so a test can exercise the pump's per-chunk error tolerance and
 /// total-failure detection.
@@ -19,6 +19,7 @@ public final class FakeTranscriber: Transcriber {
     /// One recorded `begin` invocation.
     public struct Call: Sendable {
         public let biasTerms: [Term]
+        public let language: Language
     }
 
     /// Per-feed failure control: given the 1-based chunk index, returns the error
@@ -42,7 +43,7 @@ public final class FakeTranscriber: Transcriber {
         self.feedFailure = feedFailure
     }
 
-    /// Every `begin` call, in invocation order (each carrying its `biasTerms`).
+    /// Every `begin` call, in invocation order (each carrying its `biasTerms` and `language`).
     public var calls: [Call] {
         recorded.withLock { $0.beginCalls }
     }
@@ -57,13 +58,8 @@ public final class FakeTranscriber: Transcriber {
         recorded.withLock { $0.cancelCount }
     }
 
-    /// Ignored: the language assertion sits on the session factory, where the real
-    /// transcriber delivers it (`OrchestratorRecognitionLanguageTests`), so a fake
-    /// that recorded it here could stay green while nothing reached the engine.
-    public func setRecognitionLanguage(_ language: Language) {}
-
-    public func begin(biasTerms: [Term]) async throws {
-        recorded.withLock { $0.beginCalls.append(Call(biasTerms: biasTerms)) }
+    public func begin(biasTerms: [Term], language: Language) async throws {
+        recorded.withLock { $0.beginCalls.append(Call(biasTerms: biasTerms, language: language)) }
     }
 
     public func feed(_ chunk: AudioChunk) async throws {

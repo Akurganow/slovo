@@ -17,7 +17,6 @@ struct OrchestratorDeliverTests {
 
         init() {
             orchestrator = PipelineFactory.makeOrchestrator(
-                config: Config(),
                 dependencies: Dependencies(
                     transcriber: transcriber,
                     cleaner: cleaner,
@@ -28,7 +27,8 @@ struct OrchestratorDeliverTests {
                     ),
                     recorder: recorder,
                     cueController: FakeDictationCueController(),
-                    log: RedactionSafeLog(subsystem: "slovo", category: "orch-deliver-test")
+                    log: RedactionSafeLog(subsystem: "slovo", category: "orch-deliver-test"),
+                    settings: FakeSettingsSource().provider
                 )
             )
         }

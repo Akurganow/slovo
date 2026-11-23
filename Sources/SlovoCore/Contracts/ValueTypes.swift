@@ -112,11 +112,11 @@ public struct CleanupConfig: Equatable, Sendable {
     /// a translate pass into `translationTargetLanguage`, off keeps today's
     /// transcription-only cleanup.
     public var translate: Bool
-    /// Whether the cleanup step runs at all for the NEXT session — the EFFECTIVE
-    /// value (stored preference AND key present), derived in the app layer so
-    /// the orchestrator never learns about keys. Latched per session at
-    /// key-down; `CleanupConfig` mixes provenance deliberately: tunables (how),
-    /// `translate` (per-call), and this (whether-to-run) all ride one push.
+    /// Whether the cleanup step runs, the EFFECTIVE value (stored preference AND
+    /// key present), read once per dictation. The app layer derives it, so the
+    /// orchestrator never learns about keys. `CleanupConfig` mixes provenance
+    /// deliberately: tunables (how), `translate` (per-call), and this
+    /// (whether-to-run).
     public var runsCleaner: Bool
 
     public init(

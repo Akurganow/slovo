@@ -13,14 +13,10 @@ import Foundation
 /// `Sendable` so the `actor Orchestrator` can hold it across suspension points
 /// without a data race.
 public protocol Transcriber: Sendable {
-    /// Applies a new recognition language to the NEXT session. Part of the seam
-    /// because the language is session state, not model state: the loaded model
-    /// decodes any language, so a change must never cost a reload.
-    func setRecognitionLanguage(_ language: Language) async
-
-    /// Opens a recognition session biased toward `biasTerms` on the loaded model.
-    /// Throws if the session cannot open, `backendUnavailable` when no model is loaded.
-    func begin(biasTerms: [Term]) async throws
+    /// Opens a recognition session biased toward `biasTerms` on the loaded model;
+    /// the session decodes in `language`. Throws if the session cannot open,
+    /// `backendUnavailable` when no model is loaded.
+    func begin(biasTerms: [Term], language: Language) async throws
 
     /// Feeds one live audio chunk into the open session.
     func feed(_ chunk: AudioChunk) async throws

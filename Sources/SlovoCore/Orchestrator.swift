@@ -16,6 +16,8 @@ public struct Dependencies: Sendable {
     public var recorder: any AudioRecorder
     public var cueController: any DictationCueController
     public var log: RedactionSafeLog
+    /// Read once per dictation, as the first step after the microphone opens.
+    public var settings: @Sendable () async -> DictationSettings
     public var statusReporter: @Sendable (StatusMessage) -> Void
     /// Cleanup-failure observer (spec K8): assigned at composition, invoked by
     /// FallbackCleaner beside its degrade path. Optional and nil by default.
@@ -38,6 +40,7 @@ public struct Dependencies: Sendable {
         recorder: any AudioRecorder,
         cueController: any DictationCueController,
         log: RedactionSafeLog,
+        settings: @escaping @Sendable () async -> DictationSettings,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         inputSourceLanguage: (any InputSourceLanguageReading)? = nil,
         spellCheckHints: (any SpellCheckHintProviding)? = nil,
@@ -51,6 +54,7 @@ public struct Dependencies: Sendable {
         self.recorder = recorder
         self.cueController = cueController
         self.log = log
+        self.settings = settings
         self.statusReporter = statusReporter
         self.inputSourceLanguage = inputSourceLanguage
         self.spellCheckHints = spellCheckHints
@@ -83,10 +87,9 @@ public actor Orchestrator {
     private var sessionVocabulary: [Term] = []
     /// The mode latched at key-up, read at clean time; reset in `.returnToIdle`.
     private var sessionMode: DictationMode = .plain
-    /// Effective cleanup flag snapshotted at `.beginCapture` (the `sessionVocabulary`
-    /// pattern) so a mid-hold `updateCleanupConfig` push affects only the NEXT
-    /// session — one dictation's key-up clean short-circuit is decided once.
-    private var sessionRunsCleaner = true
+    /// The settings the current dictation read when its recording began; assigned
+    /// once per dictation, never reset.
+    private var sessionSettings = AppState(config: .defaults, isOpenRouterKeyPresent: false).dictationSettings
     /// Pipes live capture chunks into the open transcription session during the
     /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
     /// drained (via the stream finishing) at key-up.
@@ -104,56 +107,12 @@ public actor Orchestrator {
     private var readinessCueTask: Task<Void, Never>?
 
     private let deps: Dependencies
-    private var cleanupConfig: CleanupConfig
-    private var mutesSystemAudioWhileDictating: Bool
-    private var usesVocabularyBias: Bool
-
-    public init(
-        dependencies: Dependencies,
-        cleanupConfig: CleanupConfig,
-        mutesSystemAudioWhileDictating: Bool = true,
-        usesVocabularyBias: Bool = false
-    ) {
+    public init(dependencies: Dependencies) {
         self.deps = dependencies
-        self.cleanupConfig = cleanupConfig
-        self.mutesSystemAudioWhileDictating = mutesSystemAudioWhileDictating
-        self.usesVocabularyBias = usesVocabularyBias
     }
 
     /// The current session state (for tests/introspection).
     public func currentState() -> DictationState { state }
-
-    /// Applies a new cleanup configuration (e.g. a switched model) to the NEXT
-    /// dictation, live: the app pushes it here instead of rebuilding the pipeline,
-    /// so switching the cleanup model never tears down and re-warms the resident ASR
-    /// model (#2). Like the per-dictation vocabulary read it needs no rebuild, but
-    /// the mechanism differs — a push, since only the app knows a change happened
-    /// (the store pushes the whole effective cleanup config whenever any field of it changes).
-    public func updateCleanupConfig(_ config: CleanupConfig) {
-        cleanupConfig = config
-    }
-
-    /// Live-pushes the mute-while-dictating setting to the NEXT dictation, like
-    /// `updateCleanupConfig` — a push because only the app knows the toggle changed.
-    public func updateMutesSystemAudioWhileDictating(_ enabled: Bool) {
-        mutesSystemAudioWhileDictating = enabled
-    }
-
-    /// Live-pushes the experimental vocabulary-bias switch to the NEXT dictation,
-    /// like `updateMutesSystemAudioWhileDictating`. It gates ONLY what reaches the
-    /// speech engine; cleanup keeps the full vocabulary either way.
-    public func updateUsesVocabularyBias(_ enabled: Bool) {
-        usesVocabularyBias = enabled
-    }
-
-    /// Live-pushes the recognition language to the NEXT dictation, like
-    /// `updateUsesVocabularyBias`. It travels through the orchestrator rather than
-    /// straight from the app to the transcriber so every live setting keeps ONE
-    /// mutation path; the resident model is never re-warmed, because the language
-    /// reaches only the decoder's per-session options.
-    public func updateRecognitionLanguage(_ language: Language) async {
-        await deps.transcriber.setRecognitionLanguage(language)
-    }
 
     /// Waits for the tracked transcribe-clean-inject follow-on to settle.
     public func awaitPipelineDrain() async {
@@ -239,14 +198,14 @@ public actor Orchestrator {
         // Deliberate pass-through, not a cleanup: cleanup-off forwards the raw
         // transcript untouched and never consults the session mode, so translation
         // is suppressed too (the `.clean` effect over-promises here by design).
-        guard sessionRunsCleaner else {
+        guard sessionSettings.cleanup.runsCleaner else {
             await handle(.cleaned(transcript))
             return
         }
         let context = PersonalizationContext(vocabulary: sessionVocabulary)
         let hints = await gatherCleanupHints(for: transcript)
-        // Apply the per-session translate flag; the target already rides on cleanupConfig.
-        var config = cleanupConfig
+        // The hold's mode sets the per-call translate flag; the target rides in the settings.
+        var config = sessionSettings.cleanup
         config.translate = (sessionMode == .translate)
         do {
             let cleaned = try await deps.cleaner.clean(
@@ -312,7 +271,7 @@ public actor Orchestrator {
     /// by the network cleanup call. `async` so a threading change touches only this
     /// body, never its callers.
     private func gatherSpellCheckFindings(for transcript: String) async -> SpellCheckFindings {
-        guard cleanupConfig.useSpellCheckHints, let provider = deps.spellCheckHints else {
+        guard sessionSettings.cleanup.useSpellCheckHints, let provider = deps.spellCheckHints else {
             return .empty
         }
         return provider.findings(in: transcript, ignoring: sessionVocabulary.map(\.term))
@@ -342,8 +301,8 @@ public actor Orchestrator {
             return nil
 
         case .muteSystemOutput:
-            // MUTE is flag-gated but RESTORE stays stash-gated, so a mid-session toggle can't leave audio muted (skipped mute → nothing to restore).
-            guard mutesSystemAudioWhileDictating else { return nil }
+            // MUTE is gated on the session's flag; RESTORE stays stash-gated.
+            guard sessionSettings.mutesSystemAudio else { return nil }
             stashedPriorAudio = try? deps.audio.muteSystemOutput()
             return nil
 
@@ -394,7 +353,6 @@ public actor Orchestrator {
             stashedPriorAudio = nil
             sessionVocabulary = []
             sessionMode = .plain
-            sessionRunsCleaner = true
             feedHealth = FeedHealth()
             readinessCueTask?.cancel()
             readinessCueTask = nil
@@ -434,10 +392,6 @@ public actor Orchestrator {
     /// pump that pipes each captured chunk into the session for the hold.
     /// Extracted from `execute` so that switch stays within its body-length gate.
     private func beginCapture() async {
-        // Latched BEFORE the first suspension. `recorder.start()` is the longest await
-        // in this chain, and the actor admits a toggle push there — read afterwards,
-        // the switch would silently redefine the dictation already in progress.
-        let sessionUsesVocabularyBias = usesVocabularyBias
         deps.cueController.beginSession()
         let stream: AsyncStream<AudioChunk>
         do {
@@ -450,28 +404,16 @@ public actor Orchestrator {
             return
         }
 
-        // Folded vocab→biasTerms wiring:
-        // resolve the personalization vocabulary once and derive both consumers
-        // from it — the cleaner context and, behind the experimental switch, the
-        // recognizer's bias prompt.
+        sessionSettings = await deps.settings()
         let vocabulary = deps.personalization.vocabulary()
         sessionVocabulary = vocabulary
-        // The switch gates only the recognizer: `sessionVocabulary` stays full, so
-        // cleanup personalization is unaffected. It defaults off partly because a
-        // prompted model can transcribe the glossary itself on a speech-free hold —
-        // non-empty text the empty-transcript invariant cannot catch (see
-        // docs/release-checklist.md's on-device gate).
-        let speechBiasTerms = sessionUsesVocabularyBias ? vocabulary : []
-        // Latch the effective-cleanup flag once, HERE — never read
-        // `cleanupConfig.runsCleaner` at clean time: a mid-hold `updateCleanupConfig`
-        // push would otherwise split this session's key-up clean short-circuit,
-        // running the cleaner on a transcript the session began without. This latch
-        // sits later than the bias one above, so a push landing during
-        // `recorder.start()` still reaches it; that window is accepted, and narrowing
-        // it is a decision to make on its own merits rather than by symmetry.
-        sessionRunsCleaner = cleanupConfig.runsCleaner
+        // The switch gates only what reaches the recognizer; cleanup keeps the full
+        // vocabulary. A prompted model can transcribe the glossary on a speech-free
+        // hold, text the empty-transcript rule cannot catch (docs/release-checklist.md,
+        // on-device gate).
+        let speechBiasTerms = sessionSettings.usesVocabularyBias ? vocabulary : []
         do {
-            try await deps.transcriber.begin(biasTerms: speechBiasTerms)
+            try await deps.transcriber.begin(biasTerms: speechBiasTerms, language: sessionSettings.recognitionLanguage)
         } catch let error as TranscriptionError {
             // Release the mic first, then contain the failure.
             await deps.recorder.stop()

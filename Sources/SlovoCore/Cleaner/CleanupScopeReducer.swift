@@ -23,7 +23,7 @@ public enum CleanupScopeEvent: Sendable {
 
 /// Pure transition logic over the scope state. The store applies each event and
 /// derives what follows from the result: the fetch from `AppState.pendingFetch`,
-/// the orchestrator push and the menu from the selectors.
+/// the dictation settings and the menu from the selectors.
 public enum CleanupScopeReducer {
     public static func reduce(_ state: CleanupScopeState, _ event: CleanupScopeEvent) -> CleanupScopeState {
         var s = state

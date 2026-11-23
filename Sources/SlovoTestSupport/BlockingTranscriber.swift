@@ -36,9 +36,7 @@ public actor BlockingTranscriber: Transcriber {
         releaseContinuation = nil
     }
 
-    public func setRecognitionLanguage(_ language: Language) {}
-
-    public func begin(biasTerms: [Term]) async throws {}
+    public func begin(biasTerms: [Term], language: Language) async throws {}
 
     public func feed(_ chunk: AudioChunk) async throws {}
 

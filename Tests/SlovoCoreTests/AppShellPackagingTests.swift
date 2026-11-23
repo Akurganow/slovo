@@ -55,22 +55,21 @@ struct AppShellPackagingTests {
         // first dictation after launch ignores the choice) → RED.
         #expect(composition.contains("preferredInputDevice: config.preferredInputDevice"),
                 "the recorder must start from the stored microphone choice")
-        // Every new orchestrator starts on the derived model and the effective on/off
-        // (K6), so its first dictation never runs the raw preference.
-        // Stated sensitivity: pass `state.config.cleanupConfig`, or omit the argument
-        // (the factory then falls back to the raw preference) → RED.
-        let orchestratorCall = try #require(composition.range(of: "PipelineFactory.makeOrchestrator("))
-        let callEnd = try #require(composition.range(of: ")", range: orchestratorCall.upperBound..<composition.endIndex))
-        #expect(composition[orchestratorCall.upperBound..<callEnd.lowerBound].contains("cleanupConfig: state.effectiveCleanupConfig"),
-                "a new orchestrator must be seeded with the effective cleanup config")
+        // Every orchestrator reads its settings from the store when a dictation's
+        // recording begins, so a new one never starts from a snapshot taken at
+        // composition. A source guard because no test target links the `slovo`
+        // executable; the SlovoCore half is held by `AppStoreEffectsTests`,
+        // `aDictationReadsTheStoreAsItIsWhenItsRecordingBegins`.
+        // Stated sensitivity: pass a closure over the state captured at composition
+        // (`settings: { state.dictationSettings }`) in either file → RED.
+        #expect(composition.contains("settings: settings,"),
+                "makeLive must hand the injected settings provider to Dependencies")
+        #expect(delegate.contains("settings: store.dictationSettingsProvider"),
+                "the app must pass the store's provider into the composition")
         // Stated sensitivity: change the production prompt-builder call at all —
         // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
         // default — → this exact call text is gone → RED.
         #expect(composition.contains("PromptBuilder(examples: .bundled)"))
-        // Stated sensitivity: drop this argument and the transcriber falls back to
-        // Auto — this call is the single point where the persisted recognition
-        // language enters the process → RED.
-        #expect(speechModel.contains("language: config.language"))
         // Stated sensitivity: let `startWarmUp` stop calling the transcriber — every
         // first dictation then pays the cold load — → RED. The bare needle "warmUp()"
         // would not catch it: it matches inside "startWarmUp()".

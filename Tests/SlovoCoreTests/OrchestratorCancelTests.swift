@@ -29,7 +29,6 @@ struct OrchestratorCancelTests {
         let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Dependencies(
                 transcriber: transcriber,
                 cleaner: cleaner,
@@ -38,7 +37,8 @@ struct OrchestratorCancelTests {
                 audio: audio,
                 recorder: recorder,
                 cueController: cues,
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-cancel-test")
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-cancel-test"),
+                settings: FakeSettingsSource().provider
             )
         )
 

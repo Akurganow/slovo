@@ -7,7 +7,6 @@ import os
 @MainActor
 public struct AppStoreEffectTargets {
     public var defaults: any UserDefaultsWriting
-    public var orchestrator: () -> Orchestrator?
     public var reconfigureHotkeys: (HotkeyConfiguration) -> Void
     public var cueController: () -> (any DictationCueController)?
     public var updaterSwitch: () -> (any UpdaterSwitch)?
@@ -17,7 +16,6 @@ public struct AppStoreEffectTargets {
     @preconcurrency // required by the strict SwiftLint rule incompatible_concurrency_annotation
     public init(
         defaults: any UserDefaultsWriting,
-        orchestrator: @escaping () -> Orchestrator?,
         reconfigureHotkeys: @escaping (HotkeyConfiguration) -> Void,
         cueController: @escaping () -> (any DictationCueController)?,
         updaterSwitch: @escaping () -> (any UpdaterSwitch)?,
@@ -25,7 +23,6 @@ public struct AppStoreEffectTargets {
         fetchScopeIds: @escaping @Sendable () async throws -> Set<String>
     ) {
         self.defaults = defaults
-        self.orchestrator = orchestrator
         self.reconfigureHotkeys = reconfigureHotkeys
         self.cueController = cueController
         self.updaterSwitch = updaterSwitch
@@ -51,24 +48,6 @@ public enum AppStoreEffects {
             } catch {
                 log.error("config save failed")
             }
-        }
-        // Each push reads the orchestrator when the value changes, so a push made
-        // before a pipeline rebuild reaches the orchestrator it was computed for.
-        store.listen(\.effectiveCleanupConfig) { config in
-            let orchestrator = targets.orchestrator()
-            Task { await orchestrator?.updateCleanupConfig(config) }
-        }
-        store.listen(\.config.mutesSystemAudioWhileDictating) { isOn in
-            let orchestrator = targets.orchestrator()
-            Task { await orchestrator?.updateMutesSystemAudioWhileDictating(isOn) }
-        }
-        store.listen(\.config.usesVocabularyBias) { isOn in
-            let orchestrator = targets.orchestrator()
-            Task { await orchestrator?.updateUsesVocabularyBias(isOn) }
-        }
-        store.listen(\.config.language) { language in
-            let orchestrator = targets.orchestrator()
-            Task { await orchestrator?.updateRecognitionLanguage(language) }
         }
         store.listen(\.config.hotkeyConfiguration) { targets.reconfigureHotkeys($0) }
         // Synchronous: the controller snapshots the preference at the next key-down.

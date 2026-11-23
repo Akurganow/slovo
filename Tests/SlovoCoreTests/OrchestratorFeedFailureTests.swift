@@ -44,7 +44,6 @@ struct OrchestratorFeedFailureTests {
         let injector = FakeInjector(outcome: .success)
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(
                     outcome: .success(""),
@@ -86,7 +85,6 @@ struct OrchestratorFeedFailureTests {
         let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(
                     outcome: .success("hi"),
@@ -118,7 +116,6 @@ struct OrchestratorFeedFailureTests {
         let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(outcome: .success("")),
                 cleaner: FakeCleaner(outcome: .success("HI")),
@@ -154,7 +151,7 @@ struct OrchestratorFeedFailureTests {
             transcriber: transcriber, cleaner: cleaner, injector: injector,
             personalization: FakePersonalizationSource(terms: vocabulary),
             audio: audio, recorder: recorder, cueController: cues,
-            log: log, statusReporter: statusReporter
+            log: log, settings: FakeSettingsSource().provider, statusReporter: statusReporter
         )
     }
 

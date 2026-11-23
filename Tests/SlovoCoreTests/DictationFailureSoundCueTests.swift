@@ -74,6 +74,7 @@ struct DictationFailureSoundCueTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: cues,
             log: RedactionSafeLog(subsystem: "slovo", category: "failure-cue-test"),
+            settings: FakeSettingsSource().provider,
             statusReporter: statusReporter
         )
     }

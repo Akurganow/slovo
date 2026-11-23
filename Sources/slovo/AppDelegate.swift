@@ -121,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             openRouterKeyProvider: openRouterKeyProvider,
             speechModel: speechModel,
             personalization: personalization,
+            settings: store.dictationSettingsProvider,
             statusReporter: { [weak self] status in
                 Task { @MainActor [weak self] in
                     self?.showStatus(status)

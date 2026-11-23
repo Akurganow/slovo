@@ -253,12 +253,12 @@ struct OrchestratorSoundCueTests {
         let cues = FakeDictationCueController()
         let audio = FakeSystemAudioController(muteReturns: mutedState)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config.defaults,
             dependencies: Dependencies(
                 transcriber: transcriber, cleaner: FakeCleaner(outcome: .success("HI")),
                 injector: FakeInjector(outcome: .success), personalization: FakePersonalizationSource(terms: []),
                 audio: audio, recorder: recorder, cueController: cues,
-                log: RedactionSafeLog(subsystem: "slovo", category: "cue-start-failure-test")
+                log: RedactionSafeLog(subsystem: "slovo", category: "cue-start-failure-test"),
+                settings: FakeSettingsSource().provider
             )
         )
         await orchestrator.handle(.startRequested)
@@ -281,9 +281,9 @@ struct OrchestratorSoundCueTests {
                 personalization: FakePersonalizationSource(terms: []),
                 audio: audio ?? TimelineAudioController(timeline: timeline),
                 recorder: recorder ?? TimelineRecorder(timeline: timeline),
-                cueController: cues, log: RedactionSafeLog(subsystem: "slovo", category: "cue-orchestrator-test")
-            ),
-            cleanupConfig: Config.defaults.cleanupConfig
+                cueController: cues, log: RedactionSafeLog(subsystem: "slovo", category: "cue-orchestrator-test"),
+                settings: FakeSettingsSource().provider
+            )
         )
     }
 }
@@ -466,9 +466,7 @@ private final class ControllableTranscriber: Transcriber {
     /// How many captured chunks reached recognition.
     var fedChunkCount: Int { fedChunks.withLock { $0 } }
 
-    func setRecognitionLanguage(_ language: Language) {}
-
-    func begin(biasTerms: [Term]) async throws {
+    func begin(biasTerms: [Term], language: Language) async throws {
         timeline?.record(.asrBeginEntered)
         await beginLatch.arrive()
         if beginFails { throw TranscriptionError.backendUnavailable }

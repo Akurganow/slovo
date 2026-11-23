@@ -24,7 +24,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine()
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: terms)
+        try await transcriber.begin(biasTerms: terms, language: .auto)
 
         let recorded = try #require(engine.sessionBiasTerms.first, "the session factory must be asked once")
         #expect(recorded.map(\.term) == ["GitHub", "ExampleCorp"])
@@ -42,9 +42,9 @@ struct WhisperKitTranscriberSessionTests {
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
         try await transcriber.warmUp()
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())   // session A: 100
-        try await transcriber.begin(biasTerms: [])  // dangling re-begin
+        try await transcriber.begin(biasTerms: [], language: .auto)  // dangling re-begin
         try await transcriber.feed(TranscriberFixtures.chunk())   // session B: 200
         _ = try await transcriber.finish()
 
@@ -67,7 +67,7 @@ struct WhisperKitTranscriberSessionTests {
         let converter = FakeAudioConverter(outcomes: [.samples(TranscriberFixtures.samples(100)), .samples(TranscriberFixtures.samples(200))])
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         try await transcriber.feed(TranscriberFixtures.chunk())
 
@@ -92,7 +92,7 @@ struct WhisperKitTranscriberSessionTests {
         ])
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())   // ok → 3 forwarded
 
         do {
@@ -120,7 +120,7 @@ struct WhisperKitTranscriberSessionTests {
         let converter = FakeAudioConverter(outcomes: [.samples(TranscriberFixtures.samples(50))])
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine, converter: converter)
 
-        try await transcriber.begin(biasTerms: [Term(term: "GitHub", expansion: nil, lang: .en, weight: 1)])
+        try await transcriber.begin(biasTerms: [Term(term: "GitHub", expansion: nil, lang: .en, weight: 1)], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         let text = try await transcriber.finish()
 
@@ -137,7 +137,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .success("  привет  "))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         #expect(try await transcriber.finish() == "привет")
     }
@@ -151,7 +151,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .success(""))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         #expect(try await transcriber.finish().isEmpty)
         #expect(engine.finalizeCalls.count == 1, "real audio must be finalized even when the transcript comes back empty")
@@ -165,7 +165,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .success("must not run"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])   // no feed → empty live session
+        try await transcriber.begin(biasTerms: [], language: .auto)   // no feed → empty live session
         #expect(try await transcriber.finish().isEmpty)
         #expect(engine.finalizeCalls.isEmpty, "an empty live session must not invoke model finalization")
     }
@@ -181,7 +181,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .success("should not run"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         await transcriber.cancel()
 
@@ -205,7 +205,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .success("привет"))
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
         #expect(try await transcriber.finish() == "привет")
         #expect(try await transcriber.finish().isEmpty, "a second finish on a closed session returns empty")
@@ -226,7 +226,7 @@ struct WhisperKitTranscriberSessionTests {
         let engine = FakeSpeechEngine(finalize: .failure)
         let transcriber = TranscriberFixtures.makeTranscriber(engine: engine)
 
-        try await transcriber.begin(biasTerms: [])
+        try await transcriber.begin(biasTerms: [], language: .auto)
         try await transcriber.feed(TranscriberFixtures.chunk())
 
         do {
