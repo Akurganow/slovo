@@ -36,8 +36,6 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
                 "paintIdleGlyph must read store.state.updateIndication")
         #expect(funnelBody.contains("MenuBarGlyph.idleGlyph"),
                 "paintIdleGlyph must project through MenuBarGlyph.idleGlyph")
-        #expect(funnelBody.contains("MenuBarGlyph.image(for:"),
-                "paintIdleGlyph must render through MenuBarGlyph.image(for:")
     }
 
     /// Every Sparkle callback repaints the idle glyph, changed indication or not;

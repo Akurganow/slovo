@@ -89,8 +89,7 @@ struct MenuBarGlyphTests {
 
     /// The empty-result (no speech) surface reuses the red failure glyph Ⱁ (U+2C11)
     /// with the error tint — the spec's "brief red failure glyph" for a silent hold.
-    /// Stated sensitivity: return nil for `.noSpeechDetected` (dropping it into the
-    /// no-glyph group), a different codepoint, or a `.normal` tint → RED.
+    /// Stated sensitivity: a different codepoint or a `.normal` tint → RED.
     @Test
     func noSpeechDetectedUsesFailureGlyphAndErrorTint() {
         #expect(MenuBarGlyph.forStatus(.noSpeechDetected) == "\u{2C11}")
@@ -99,8 +98,7 @@ struct MenuBarGlyphTests {
 
     /// Model-loading must be visible as its own glyph, not silence: Zhivete Ⰶ
     /// with a normal (non-error) tint — loading is a state, not a failure.
-    /// Stated sensitivity: returning the status to the nil-glyph group, a wrong
-    /// character, or an error tint goes RED.
+    /// Stated sensitivity: a wrong character or an error tint goes RED.
     @Test
     func preparingSpeechModelShowsZhiveteGlyph() {
         #expect(MenuBarGlyph.forStatus(.preparingSpeechModel) == "\u{2C06}")

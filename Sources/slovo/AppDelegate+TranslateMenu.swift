@@ -11,8 +11,7 @@ extension AppDelegate {
         let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let menu = NSMenu(title: title)
         for option in RecognitionLanguageCatalog.options {
-            let item = NSMenuItem(title: option.displayName, action: #selector(selectTranslationLanguage(_:)), keyEquivalent: "")
-            item.target = self
+            let item = actionItem(option.displayName, #selector(selectTranslationLanguage(_:)))
             item.representedObject = option
             item.state = option.code == selected ? .on : .off
             menu.addItem(item)
