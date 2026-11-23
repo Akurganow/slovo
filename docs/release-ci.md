@@ -92,6 +92,23 @@ after its release, and a security update skips that wait (Renovate's documentati
 `docs/usage/key-concepts/minimum-release-age.md`, "What happens to security
 updates?", tag `44.257.9`).
 
+Two limits of that setup, both read in Renovate's source at tag `44.257.9`:
+
+- **The release date comes from git.** Every dependency here resolves through
+  `github-tags`. It takes the commit date for a lightweight tag and the tagger
+  date for an annotated one (`lib/util/github/graphql/query-adapters/tags-query-adapter.ts`).
+  Whoever makes the tag sets both dates, so a backdated tag passes the 7-day hold
+  at once. Switching to `github-releases` would close this hole and stop other
+  updates. `github/codeql-action` and `sindresorhus/Settings` publish their
+  versions as tags without a GitHub Release, so their updates would no longer
+  arrive.
+- **Only the updated package's pin moves.** For a Swift update, Renovate rewrites
+  that package's version and revision in `Package.resolved` and runs no resolution
+  (`lib/modules/manager/swift/artifacts.ts`, `updatePinInJson`). A new version
+  that needs a newer transitive package fails the gate, which builds with
+  `--disable-automatic-resolution`. Fix such a pull request with
+  `swift package resolve` on its branch.
+
 ## Dev builds on demand
 
 [dev-build.yml](../.github/workflows/dev-build.yml) exists for one consumer: the
