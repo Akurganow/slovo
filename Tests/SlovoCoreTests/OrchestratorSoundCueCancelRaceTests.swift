@@ -17,8 +17,9 @@ struct OrchestratorSoundCueCancelRaceTests {
 
     /// Suspended at the readiness cue's completion, after A's slot claim outlived A.
     ///
-    /// Sensitivity: dropping the identity check in `finishReadinessCue` mutes B; the cue
-    /// sequence also pins the silent cancel and B's single End.
+    /// Sensitivity: dropping `readinessCueTask?.cancel()` in `.returnToIdle`, or the
+    /// `Task.isCancelled` guard in `finishReadinessCue`, mutes B → RED; the cue sequence
+    /// also pins the silent cancel and B's single End.
     @Test
     func readinessCueOutlivingItsSessionCannotAffectReplacement() async {
         let cues = BlockingStartCueController(startCueCount: 2)

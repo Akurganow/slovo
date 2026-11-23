@@ -71,9 +71,10 @@ public struct Dependencies: Sendable {
 /// decides the next state + effects; this actor executes them in order, holding
 /// the session state and the stashed `PriorAudioState` for the key-up restore.
 ///
-/// Actor isolation protects state but permits re-entry at awaits. Production key
-/// edges are ordered by `HotkeyEdgeSequencer`, while the recording-session identity
-/// discards continuations that resume after their own dictation ended.
+/// Actor isolation permits re-entry at awaits. `deliver` is the only entry for
+/// hotkey edges, and `HotkeyEdgeSequencer` hands it one edge at a time, so no
+/// await interleaves with another edge. A readiness Task that outlives its
+/// dictation is cancelled when that dictation returns to idle.
 public actor Orchestrator {
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
@@ -100,10 +101,6 @@ public actor Orchestrator {
     /// The committed feed outcome of the current session, used at finish to tell a
     /// total conversion failure apart from legitimate silence.
     private var feedHealth = FeedHealth()
-    /// Identity of one recording, so work resumed after it ended cannot touch its
-    /// successor. Stateless by design.
-    private final class RecordingSession: Sendable {}
-    private var activeRecordingSession: RecordingSession?
     private var readinessCueTask: Task<Void, Never>?
 
     private let deps: Dependencies
@@ -167,9 +164,6 @@ public actor Orchestrator {
 
     /// Drives one event through the FSM and executes the resulting effects in order.
     public func handle(_ event: DictationEvent) async {
-        if case .startRequested = event, state == .idle {
-            activeRecordingSession = RecordingSession()
-        }
         // Stash the mode before the transition so the FSM stays mode-agnostic.
         if case .stopRequested(let mode) = event {
             sessionMode = mode
@@ -392,7 +386,7 @@ public actor Orchestrator {
             sessionMode = .plain
             sessionRunsCleaner = true
             feedHealth = FeedHealth()
-            activeRecordingSession = nil
+            readinessCueTask?.cancel()
             readinessCueTask = nil
             pumpTask?.cancel()
             pumpTask = nil
@@ -402,21 +396,21 @@ public actor Orchestrator {
     }
 
     /// Starts the readiness cue and returns at once; its completion re-enters as
-    /// `startCueFinished`, scoped to the session that started it.
+    /// `startCueFinished` unless the dictation already returned to idle, which
+    /// cancels the task.
     private func startReadinessCue() {
-        guard let recordingSession = activeRecordingSession else { return }
         // Claimed synchronously: deferred into the task below, a key-up could queue
         // End ahead of Start.
         let playback = deps.cueController.beginPlayback(.start)
         readinessCueTask = Task { [weak self] in
             guard let self else { return }
             await playback.awaitCompletion()
-            await self.finishReadinessCue(for: recordingSession)
+            await self.finishReadinessCue()
         }
     }
 
-    private func finishReadinessCue(for recordingSession: RecordingSession) async {
-        guard activeRecordingSession === recordingSession else { return }
+    private func finishReadinessCue() async {
+        guard !Task.isCancelled else { return }
         await handle(.startCueFinished)
     }
 
