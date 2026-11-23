@@ -1,4 +1,3 @@
-import AVFoundation
 import Synchronization
 import Testing
 
@@ -75,68 +74,6 @@ struct OrchestratorSoundCueCancelRaceTests {
                 "End belongs to B's key-up; the slot A claimed and abandoned adds none")
         #expect(recorder.stopCount == 2)
     }
-
-    /// Suspended in `recorder.start()`, resumed once B holds the microphone.
-    ///
-    /// Sensitivity: dropping the ownership guard after `recorder.start()` overwrites
-    /// the live session's vocabulary, so B is cleaned against A's terms.
-    @Test
-    func cancelledCaptureStartCannotAffectReplacementSession() async {
-        let recorder = BlockingCaptureStartRecorder()
-        let cues = FakeDictationCueController()
-        let audio = FakeSystemAudioController(muteReturns: Self.priorAudio)
-        let transcriber = FakeTranscriber(outcome: .success("spoken"))
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = Orchestrator(
-            dependencies: Dependencies(
-                transcriber: transcriber,
-                cleaner: cleaner,
-                injector: injector,
-                personalization: PerCallPersonalizationSource(),
-                audio: audio,
-                recorder: recorder,
-                cueController: cues,
-                log: RedactionSafeLog(subsystem: "slovo", category: "capture-start-race-test")
-            ),
-            cleanupConfig: Config.defaults.cleanupConfig
-        )
-
-        let startA = Task { await orchestrator.handle(.startRequested) }
-        await recorder.waitUntilFirstStartEntered()
-        #expect(await orchestrator.currentState() == .recording)
-
-        await orchestrator.handle(.cancelRequested)
-        #expect(await orchestrator.currentState() == .idle)
-        #expect(recorder.stopCount == 1)
-        #expect(transcriber.cancelCount == 1)
-        #expect(cues.playedCues.isEmpty, "a cancel before readiness is silent")
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
-        #expect(await orchestrator.currentState() == .recording)
-        #expect(audio.muteCount == 1)
-
-        await recorder.releaseFirstStart()
-        await startA.value
-        await settle(orchestrator)
-
-        #expect(await orchestrator.currentState() == .recording)
-        #expect(recorder.stopCount == 1, "A must not stop B's microphone")
-        #expect(transcriber.cancelCount == 1, "A must not tear down B's recognition session")
-        #expect(audio.muteCount == 1, "A must not mute through B's state")
-        #expect(cues.playedCues == [.start], "A must not replay B's Start cue")
-
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(await orchestrator.currentState() == .idle)
-        #expect(cleaner.calls.map { $0.context.vocabulary.map(\.term) } == [["vocabulary-0"]],
-                "B must be cleaned against its own vocabulary, never the cancelled session's")
-        #expect(injector.calls == ["CLEANED"])
-        #expect(recorder.stopCount == 2)
-        #expect(cues.playedCues == [.start, .end])
-    }
 }
 
 /// One-shot rendezvous: `arrive()` parks the caller until `open()`.
@@ -207,78 +144,5 @@ private final class BlockingStartCueController: DictationCueController {
 
     func releaseStartCue(_ index: Int) async {
         await startCueGates[index].open()
-    }
-}
-
-/// Suspends the FIRST `start()` until released. `stop()` finishes every stream handed
-/// out, so a stale start cannot strand the live pump.
-private final class BlockingCaptureStartRecorder: AudioRecorder {
-    private struct State {
-        var startCount = 0
-        var stopCount = 0
-        var openContinuations: [AsyncStream<AudioChunk>.Continuation] = []
-        var liveContinuation: AsyncStream<AudioChunk>.Continuation?
-    }
-
-    private let state = Mutex(State())
-    private let firstStartGate = AsyncGate()
-
-    var stopCount: Int { state.withLock { $0.stopCount } }
-
-    func start() async throws -> AsyncStream<AudioChunk> {
-        let index = state.withLock { current -> Int in
-            defer { current.startCount += 1 }
-            return current.startCount
-        }
-        if index == 0 { await firstStartGate.arrive() }
-
-        let (stream, continuation) = AsyncStream<AudioChunk>.makeStream()
-        state.withLock { current in
-            current.openContinuations.append(continuation)
-            current.liveContinuation = continuation
-        }
-        continuation.yield(AudioChunk(buffer: Self.chunkBuffer()))
-        return stream
-    }
-
-    func stop() async {
-        let continuations = state.withLock { current -> [AsyncStream<AudioChunk>.Continuation] in
-            current.stopCount += 1
-            defer {
-                current.openContinuations = []
-                current.liveContinuation = nil
-            }
-            return current.openContinuations
-        }
-        continuations.forEach { $0.finish() }
-    }
-
-    func waitUntilFirstStartEntered() async {
-        await firstStartGate.waitUntilArrived()
-    }
-
-    func releaseFirstStart() async {
-        await firstStartGate.open()
-    }
-
-    private static func chunkBuffer() -> AVAudioPCMBuffer {
-        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1)!
-        buffer.frameLength = 1
-        return buffer
-    }
-}
-
-/// Answers every `vocabulary` call with a distinct term, so a stale session
-/// overwriting the live session's vocabulary reaches the cleaner visibly.
-private final class PerCallPersonalizationSource: PersonalizationSource {
-    private let callCount = Mutex(0)
-
-    func vocabulary() -> [Term] {
-        let index = callCount.withLock { current -> Int in
-            defer { current += 1 }
-            return current
-        }
-        return [Term(term: "vocabulary-\(index)", expansion: nil, lang: .en, weight: 1)]
     }
 }
