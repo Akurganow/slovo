@@ -2,7 +2,7 @@ import Testing
 
 import SlovoCore
 
-// This file unit-tests the About pane's version line; the About menu row is tested in `Tests/SlovoAppTests/DictationMenuRowTests.swift`.
+// The About menu row is tested in `Tests/SlovoAppTests/DictationMenuRowTests.swift`.
 @Suite("About pane")
 struct AboutPaneTests {
     /// The version line is composed from the bundle's marketing and build numbers,
