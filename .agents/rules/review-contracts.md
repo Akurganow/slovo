@@ -30,10 +30,15 @@ is a file's content, the entry names the file.
   no session. The check comes before any session starts.
 - The release of a refused press does nothing, so it cannot overwrite the
   loading glyph.
-- The recording glyph comes from one path that takes the hold's mode and reads
+- The recording glyph comes from one path that takes the hold's phase and reads
   the live cleanup setting once. The key-down arm and the translate-latch arm
   both paint through it, and neither reads the cleanup setting itself. A
   translate key joining mid-hold repaints the glyph, and raw wins over translate.
+- During a dictation every repaint of the glyph goes through
+  `RestingGlyph.derive`. A failure flash, or a notice that ended the dictation,
+  owns the glyph; otherwise the glyph shows the hold's phase. The key-up and
+  translate-latch arms set the phase and repaint through it; only key-down paints
+  the hold glyph directly.
 - The dictation gate opens only when the model load finished successfully, and
   only for the composition that is still current. The composition exposes the
   load as a task the gate awaits.
@@ -78,8 +83,9 @@ is a file's content, the entry names the file.
   follows device changes. Launch reads the devices once. A rebuild renders the
   choice onto the new item, and a row writes the saved choice.
 - A brief glyph reset that a newer flash superseded does nothing when its delay
-  ends. The live reset always clears the brief-status state, and it repaints the
-  resting glyph only while no dictation is active.
+  ends. The live reset always clears the brief-status state and repaints
+  through the resting decision, which during a dictation gives the glyph back to
+  the hold unless a notice that ended it holds the glyph.
 - An empty result flashes the brief failure glyph and returns before any status
   line is written. That branch writes no status text.
 - A brief flash sets the brief-status state, so settling to idle does not wipe

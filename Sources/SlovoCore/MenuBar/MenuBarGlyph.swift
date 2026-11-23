@@ -19,6 +19,15 @@ public enum RecordingGlyphMode: Equatable, Sendable {
     case translate
 }
 
+/// What a live dictation is doing, for its glyph.
+public enum HoldPhase: Equatable, Sendable {
+    /// The key is held; the mode is the hold's current one, so a translate key that
+    /// joined mid-hold shows.
+    case recording(DictationMode)
+    /// The key is up and the transcript is on its way to insertion.
+    case processing
+}
+
 public enum MenuBarGlyph {
     /// Onu Ⱁ (U+2C11), the red glyph projected from every dictation failure
     /// status. The updater may reuse the visual glyph, but it is not a dictation
@@ -77,6 +86,17 @@ public enum MenuBarGlyph {
             return "\u{2C03}"
         case .translate:
             return "\u{2C12}"
+        }
+    }
+
+    /// The glyph of a live dictation: the recording glyph of its mode, derived with
+    /// the live cleanup setting so raw wins, or the processing glyph after key-up.
+    public static func forHold(_ phase: HoldPhase, isCleanupOn: Bool) -> Character {
+        switch phase {
+        case .recording(let mode):
+            return forRecording(mode: recordingGlyphMode(mode: mode, isCleanupOn: isCleanupOn))
+        case .processing:
+            return forState(.processing)
         }
     }
 

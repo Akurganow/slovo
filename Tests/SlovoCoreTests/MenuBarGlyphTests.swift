@@ -78,6 +78,23 @@ struct MenuBarGlyphTests {
         #expect(MenuBarGlyph.recordingGlyphMode(mode: .translate, isCleanupOn: false) == .raw)
     }
 
+    /// The glyph a live dictation gets back: the recording letter of its mode with
+    /// the live cleanup setting (raw wins over translate), and the processing
+    /// glyph Ⰴ (U+2C04) after key-up whatever the cleanup setting.
+    /// Stated sensitivity: return a recording glyph for `.processing`, ignore
+    /// `isCleanupOn`, or let translate win over raw → RED.
+    @Test(arguments: [
+        (HoldPhase.recording(.plain), true, Character("\u{2C1D}")),
+        (HoldPhase.recording(.plain), false, Character("\u{2C03}")),
+        (HoldPhase.recording(.translate), true, Character("\u{2C12}")),
+        (HoldPhase.recording(.translate), false, Character("\u{2C03}")),
+        (HoldPhase.processing, true, Character("\u{2C04}")),
+        (HoldPhase.processing, false, Character("\u{2C04}")),
+    ])
+    func holdGlyphFollowsPhaseAndLiveCleanup(phase: HoldPhase, isCleanupOn: Bool, expected: Character) {
+        #expect(MenuBarGlyph.forHold(phase, isCleanupOn: isCleanupOn) == expected)
+    }
+
     /// Stated sensitivity: reuse the processing glyph for cleanup degradation or
     /// forget the error tint -> the status bar cannot tell "inserted as spoken"
     /// from normal processing.
