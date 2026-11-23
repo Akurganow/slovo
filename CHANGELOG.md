@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.38.1] - 2026-11-23
+
+### Fixed
+
+- Test the app shell by running its code (#243)
+
 ## [0.38.0] - 2026-11-23
 
 ### Added
