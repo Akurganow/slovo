@@ -184,11 +184,10 @@ transcript."` ("may", not "will": the cache D3 tolerates can be stale).
   key — keeps its "zero network requests" promise to the letter: no fetch
   fires there (availability gates K4a/K4b). The fetch is asynchronous and
   can never block or delay pipeline readiness. This deliberately AMENDS the
-  pinned launch invariant "launch must not read the Keychain secret"
-  (`AppRuntimeSourceGuardTests.readyPipelineDoesNotRequireCleanupKeyBeforeHotkeyStart`):
-  the amended invariant is "nothing before hotkey start reads the Keychain
-  secret; the post-start scope fetch may" — the guard test is updated in the
-  same change to pin the new boundary, never silently outgrown. Owner-approved
+  launch invariant "launch must not read the Keychain secret". The amended
+  invariant is "nothing before hotkey start reads the Keychain secret; the
+  post-start scope fetch may". `.agents/rules/review-contracts.md`, "Cleanup
+  wiring", holds it. Owner-approved
   2026-08-26 (§9), with the Keychain-prompt acceptance check it carries.
 
 - **K11** The transition logic — reset-first, fetch generations,
@@ -260,7 +259,8 @@ transcript."` ("may", not "will": the cache D3 tolerates can be stale).
   reducer and fetcher — a silently persisted scope must redden.
 - K7: the positively-anchored logging guard described in K7.
 - K10: fetch is gated on availability `.on` and ordered strictly after
-  hotkey start; the amended launch guard pins the new boundary.
+  hotkey start; the entry in `.agents/rules/review-contracts.md`, "Cleanup
+  wiring", holds the new boundary.
 - Source guards updated deliberately: `SettingsSurfaceSourceGuardTests`,
   `AppRuntimeSourceGuardTests` (both the catalog assertion AND the launch
   key-laziness guard), `AppShellPackagingTests`.
