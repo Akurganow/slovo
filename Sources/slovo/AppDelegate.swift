@@ -6,7 +6,7 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let logger: Logger
-    let defaults: UserDefaults
+    let defaults: any UserDefaultsWriting
     /// Injected like `defaults`, with the live system reader as the default, so this
     /// layer names the capability instead of hard-wiring a preferences call. Read
     /// afresh on every menu open — the macOS setting changes while Slovo runs.
@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Key presence is an APP fact, not a pipeline fact: the app owns the provider
     /// and injects it into the pipeline, so has-key / save-key / cleanup
     /// availability never depend on whether the pipeline composite exists yet.
-    let openRouterKeyProvider = KeychainOpenRouterKeyProvider()
+    let openRouterKeyProvider: KeychainOpenRouterKeyProvider
     /// The app's state and its one mutation path, seeded once in `init`. A stored
     /// `let`: a computed form would hand every reader a different store.
     let store: AppStore
@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// every composition like the speech model, so a rebuild never opens a second
     /// connection to the same file. Nil when it did not open: dictation runs
     /// without vocabulary, and vocabulary edits do nothing, until relaunch.
-    let personalization = AppComposition.openPersonalization()
+    let personalization: GRDBPersonalizationSource?
     var statusItem: NSStatusItem?
     var statusTextItem: NSMenuItem?
     var composition: AppComposition.Live?
@@ -77,12 +77,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     init(
         logger: Logger,
-        defaults: UserDefaults = .standard,
-        fnKeyAssignmentReader: FnKeyAssignmentReading = SystemFnKeyAssignmentReader()
+        defaults: any UserDefaultsWriting = UserDefaults.standard,
+        fnKeyAssignmentReader: FnKeyAssignmentReading = SystemFnKeyAssignmentReader(),
+        openRouterKeyProvider: KeychainOpenRouterKeyProvider = KeychainOpenRouterKeyProvider(),
+        personalization: GRDBPersonalizationSource? = AppComposition.openPersonalization()
     ) {
         self.logger = logger
         self.defaults = defaults
         self.fnKeyAssignmentReader = fnKeyAssignmentReader
+        self.openRouterKeyProvider = openRouterKeyProvider
+        self.personalization = personalization
         store = AppStore(state: AppState(
             config: ConfigStore.load(from: defaults),
             isOpenRouterKeyPresent: openRouterKeyProvider.hasConfiguredKey(),

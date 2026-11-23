@@ -2,10 +2,10 @@ id: personalization-database-opened-once
 language: swift
 severity: error
 message: >-
-  The personalization database is opened once per launch, by
-  `openPersonalization()` as the initial value of the `personalization`
-  property, and injected from there. `makeLive`, `startPipeline` and Settings
-  run again on every rebuild or edit, so open the database nowhere else.
+  The personalization database opens once per launch, as the default value of
+  the `personalization` parameter of `AppDelegate.init`, and is injected from
+  there. `makeLive`, `startPipeline` and Settings run again on every rebuild or
+  edit, so open the database nowhere else.
 rule:
   any:
     - kind: call_expression
@@ -27,11 +27,16 @@ rule:
           - kind: navigation_expression
             regex: \.openPersonalization$
       not:
-        inside:
-          kind: property_declaration
-          stopBy: end
-          has:
-            field: name
-            regex: ^personalization$
+        all:
+          - inside:
+              kind: init_declaration
+          - follows:
+              kind: parameter
+              stopBy:
+                kind: parameter
+              has:
+                kind: simple_identifier
+                field: name
+                regex: ^personalization$
 files:
   - Sources/slovo/**/*.swift

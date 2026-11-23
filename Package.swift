@@ -100,6 +100,12 @@ let package = Package(
             exclude: ["Fixtures/personalization-sqlcipher-4.17.0.sqlite"],
             swiftSettings: strictSwiftSettings
         ),
+        // Tests the app shell by running the `slovo` target's code.
+        .testTarget(
+            name: "SlovoAppTests",
+            dependencies: ["slovo", "SlovoCore", "SlovoTestSupport"],
+            swiftSettings: strictSwiftSettings
+        ),
         // Unit tests for the non-product cleanup benchmark harness.
         .testTarget(
             name: "CleanupBenchmarkTests",
