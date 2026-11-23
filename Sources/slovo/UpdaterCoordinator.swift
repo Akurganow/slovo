@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Sparkle
 import SlovoCore
 
@@ -19,6 +20,8 @@ extension SPUUpdater: @MainActor UpdaterSwitch {}
 /// callbacks land on the main actor and need no isolation hop.
 @MainActor
 final class UpdaterCoordinator: NSObject {
+    private static let log = Logger(subsystem: "com.slovo.app", category: "update")
+
     /// The Sparkle updater, exposed as the pure `UpdaterSwitch` so the settings
     /// toggle and startup both drive it through `UpdaterActivation.apply`. Built
     /// lazily so it can wire `self` as both delegates without an unsafe unwrap.
@@ -62,7 +65,8 @@ final class UpdaterCoordinator: NSObject {
         do {
             try updater.start()
         } catch {
-            // A failed start surfaces nowhere (menu-bar-only rule); the next launch retries.
+            // The log line is the only surface (menu-bar-only rule); the next launch retries.
+            Self.log.error("updater did not start, code \((error as NSError).code)")
         }
     }
 
@@ -147,7 +151,13 @@ extension UpdaterCoordinator: SPUUpdaterDelegate {
         handleAbort()
     }
 
+    /// Sparkle reports a check that found no update here too, as `SUNoUpdateError`
+    /// (`SPUUpdaterDelegate.h`, Sparkle 2.10.1), so that one is not logged.
     func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+        let error = error as NSError
+        if error.domain != SUSparkleErrorDomain || error.code != Int(SUError.noUpdateError.rawValue) {
+            Self.log.error("update check aborted, code \(error.code)")
+        }
         handleAbort()
     }
 

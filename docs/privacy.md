@@ -179,7 +179,9 @@ settings damaged or in conflict logs how many it found, never their names or
 values; stored settings that are not a JSON object log one fixed line saying the
 defaults were used. A disable of the key tap by macOS logs one of two fixed lines,
 for a timeout or for user input, with a true or false flag saying whether an open
-key hold was released. Error text is logged privately; transcripts, cleaned text
+key hold was released. A failed updater start or an aborted update check logs one
+fixed line with the updater's integer error code; a check that found no update
+logs nothing. Error text is logged privately; transcripts, cleaned text
 and keys never reach the log.
 
 ## Clipboard
