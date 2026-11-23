@@ -111,7 +111,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: "Spike: choose an Xcode with Swift 6.4 or newer"
+      - name: "Spike: choose an Xcode with Swift 6.4 or newer, else the default"
         id: xcode
         run: |
           set -euo pipefail
@@ -130,17 +130,16 @@ jobs:
             fi
           done
           if [ -z "$chosen" ]; then
-            echo "SPIKE: no Xcode with Swift 6.4 or newer on this runner; criterion 7 not run"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "SPIKE: no Xcode with Swift 6.4 or newer on this runner; Swift Build runs on the default toolchain"
+          else
+            echo "DEVELOPER_DIR=$chosen" >> "$GITHUB_ENV"
           fi
-          echo "DEVELOPER_DIR=$chosen" >> "$GITHUB_ENV"
           echo "found=true" >> "$GITHUB_OUTPUT"
       - name: "Spike: toolchain"
         if: steps.xcode.outputs.found == 'true'
         run: |
           set -euo pipefail
-          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          echo "DEVELOPER_DIR=${DEVELOPER_DIR:-unset}"
           swift --version
           xcodebuild -version
           xcode-select -p
@@ -149,7 +148,7 @@ jobs:
         if: steps.xcode.outputs.found == 'true'
         run: /usr/bin/time -p swift test --disable-automatic-resolution --build-system swiftbuild
       - name: "Spike: the armed self-test goes red under Swift Build"
-        if: steps.xcode.outputs.found == 'true'
+        if: !cancelled() && steps.xcode.outputs.found == 'true'
         env:
           SLOVO_GATE_SELFTEST: red
         run: |
@@ -159,10 +158,10 @@ jobs:
           fi
           echo "SPIKE: armed self-test failed as expected under Swift Build"
       - name: "Spike: import check over the test targets under Swift Build"
-        if: steps.xcode.outputs.found == 'true'
+        if: !cancelled() && steps.xcode.outputs.found == 'true'
         run: swift build --disable-automatic-resolution --build-system swiftbuild --build-tests --explicit-target-dependency-import-check error
       - name: "Spike: rebuild time of the shell files under Swift Build, base manifest and spike manifest"
-        if: steps.xcode.outputs.found == 'true'
+        if: !cancelled() && steps.xcode.outputs.found == 'true'
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
