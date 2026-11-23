@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.37.12] - 2026-11-23
+
+### Fixed
+
+- Keep the settings a dictation started with and give the orchestrator one entry for key edges (#233)
+
 ## [0.37.11] - 2026-11-23
 
 ### Fixed
