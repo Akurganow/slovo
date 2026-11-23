@@ -25,6 +25,9 @@ public struct AppState: Equatable, Sendable {
     /// `menuStructure`: the Microphone submenu's row listener updates it in place.
     public var inputDevices = InputDevices()
     public var updateIndication: UpdateIndication = .idle
+    /// The updater's own answer to "can a check start now" (`SPUUpdater.canCheckForUpdates`).
+    /// False until the updater reports. `UpdaterCoordinator` is its only writer.
+    public var canCheckForUpdates = false
     /// The pane Settings… opens: the last one the user viewed, About excepted.
     /// General until the first visit, and again after a relaunch.
     /// `recordSettingsPane`, in this file, is its only writer.
@@ -69,6 +72,12 @@ extension AppState {
 }
 
 public extension AppState {
+    /// What the persistent update row shows: the indication, with its check action
+    /// following the updater's answer.
+    var updateRow: UpdateRow {
+        updateIndication.row(canCheckForUpdates: canCheckForUpdates)
+    }
+
     var cleanupAvailability: CleanupAvailability {
         CleanupAvailability.derive(preference: config.cleanupEnabled, keyPresent: isOpenRouterKeyPresent)
     }

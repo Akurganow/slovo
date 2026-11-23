@@ -1,8 +1,9 @@
 /// The update-indication state shown in the always-visible status-menu update row,
 /// owned by `SlovoCore` so the whole check → download → ready lifecycle is
 /// unit-testable without the Sparkle updater. The row is never hidden: `idle` shows
-/// an actionable "Check for Updates…" line, `checking` a transient "Checking…", and
-/// the download/ready states the silent-update progress.
+/// an actionable "Check for Updates…" line, `checking` a transient "Checking…",
+/// the download/ready states the silent-update progress, and `checkFailed` the
+/// failure of the last check or download.
 public enum UpdateIndication: Equatable, Sendable {
     /// No check in flight and no update staged: the row offers a manual check.
     case idle
@@ -14,6 +15,8 @@ public enum UpdateIndication: Equatable, Sendable {
     /// A downloaded update is validated and ready to install; the argument is
     /// that version.
     case ready(version: String)
+    /// The last check or download failed; the row says so until the next check starts.
+    case checkFailed
 
     /// The next indication state after an updater event, keeping the whole
     /// check → download → ready lifecycle a pure reduction the menu can test
@@ -33,7 +36,7 @@ public enum UpdateIndication: Equatable, Sendable {
             switch self {
             case .ready, .downloading:
                 return self
-            case .idle, .checking:
+            case .idle, .checking, .checkFailed:
                 return .checking
             }
         case .found:
@@ -50,9 +53,9 @@ public enum UpdateIndication: Equatable, Sendable {
             return .ready(version: version)
         case .notFound:
             // A check found no update: back to the idle "Check for Updates…" row, but
-            // never regress a staged update or an in-flight download.
+            // never regress a staged update, an in-flight download or a failure.
             switch self {
-            case .ready, .downloading:
+            case .ready, .downloading, .checkFailed:
                 return self
             case .idle, .checking:
                 return .idle
@@ -62,19 +65,29 @@ public enum UpdateIndication: Equatable, Sendable {
             // can never stick — the end of ANY check cycle drops it to idle. This is the
             // stuck-state backstop even on the found-but-download-didn't-start path where
             // notFound never fires. Downloading/ready are mid/post-download states the
-            // finished CHECK must not disturb; idle stays idle.
+            // finished CHECK must not disturb, and it must not erase a recorded failure;
+            // idle stays idle.
             if case .checking = self {
                 return .idle
             }
             return self
         case .aborted:
             // A downloaded update never regresses — a failed immediate install from
-            // `ready` keeps the Restart row for another try; every other abort (failed
-            // check/download) returns to the idle check row.
+            // `ready` keeps the Restart row for another try. A stop without a failure
+            // returns to the idle check row but never erases a recorded failure.
+            switch self {
+            case .ready, .checkFailed:
+                return self
+            case .idle, .checking, .downloading:
+                return .idle
+            }
+        case .failed:
+            // The same never-regress rule: a failed immediate install from `ready` keeps
+            // the Restart row. Every other state shows the failure until the next check.
             if case .ready = self {
                 return self
             }
-            return .idle
+            return .checkFailed
         }
     }
 }
@@ -100,6 +113,9 @@ public enum UpdaterEvent: Sendable {
     /// fired at the end of every check regardless of outcome. The backstop that keeps
     /// `checking` from sticking.
     case checkFinished
-    /// The check, download, or validation failed or was aborted.
+    /// The check or the download stopped without a failure, such as Sparkle's no-update
+    /// abort or a cancelled download.
     case aborted
+    /// A check or a download failed.
+    case failed
 }

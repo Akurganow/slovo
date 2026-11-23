@@ -111,13 +111,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func makeMenu(
         _ input: DictationMenuInput,
         rows: DictationMenuRows,
-        indication: UpdateIndication,
+        updateRow: UpdateRow,
         muteAvailability: OutputMuteAvailability,
         inputDeviceChoice: InputDeviceChoice
     ) -> NSMenu {
         let built = DictationMenuBuilder(target: self).make(input, rows: rows)
         statusTextItem = built.statusItem
-        renderUpdateIndication(indication)
+        renderUpdateRow(updateRow)
         renderMuteAvailability(muteAvailability)
         renderMicrophoneMenu(inputDeviceChoice)
         return built.menu
@@ -293,7 +293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
             $0.inputDevices = CoreAudioInputDevices().inputDevices()
         }
-        renderUpdateIndication(store.state.updateIndication)
+        renderUpdateRow(store.state.updateRow)
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
         guard store.state.menuMode.isOnboarding else { return }

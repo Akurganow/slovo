@@ -182,6 +182,10 @@ is a file's content, the entry names the file.
 - The Check for Updates menu action calls the update coordinator's manual check.
 - The manual check runs the silent background check, only when the updater can
   check, and shows Checking at once.
+- The check row acts only while the updater can check. A KVO observation writes
+  that answer into the state.
+- A failed check or download keeps the failed row until the next check starts. A
+  no-update abort and a cancelled download are not failures.
 - The app builds one updater directly. It uses no stock updater controller, no
   legacy updater class and no check that shows an alert.
 - The saved Automatically Install Updates choice is applied before the updater

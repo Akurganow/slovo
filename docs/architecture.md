@@ -208,10 +208,13 @@ The app is packaged as an `LSUIElement` menu-bar app with no Dock icon. Its
 including Nash "Ⱀ" when an update is ready) and
 its dropdown holds a single live status line (carrying the hold-to-talk hint
 when idle) plus an always-visible update row — **Check for Updates…** when idle
-(a manual silent check), **Checking…**
-during any check, then silent download progress and the hybrid **Update Ready —
-v… / Restart** line, rendering the pure `UpdateIndication` state folded from the
-silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up
+(a manual silent check, greyed out while the updater reports it cannot check),
+**Checking…** during any check, then silent download progress and the hybrid
+**Update Ready — v… / Restart** line, or **Update Check Failed** (a grey line
+that reads **Check for Updates…** under highlight) after a failed check or
+download until the next check starts. The row renders the pure `UpdateIndication`
+state folded from the silent Sparkle pipeline, with the check action following
+the updater's own `canCheckForUpdates` answer in the app state. Below it sits the cleanup block: the **Clean Up
 Dictation** switch, cleanup model selection, and the translate-to target
 language; while no OpenRouter key is saved the whole block collapses to a single
 **Add OpenRouter Key…** item that opens a dedicated key-entry window. Then come

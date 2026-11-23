@@ -246,6 +246,10 @@ real signatures). After a change to the update path, verify by hand:
   v<next>", then the hybrid "Update Ready — v<next>" row (grey status line;
   "Restart" in white under highlight), while the resting menu-bar glyph switches
   to Nash "Ⱀ" (U+2C10).
+- **Failed check and busy updater:** with the network off, a check ends on the
+  grey "Update Check Failed" row ("Check for Updates…" in white under highlight)
+  that stays until the next check starts. While the updater cannot check, the
+  "Check for Updates…" and "Update Check Failed" rows are greyed out and do nothing.
 - **Both apply paths:** clicking **Restart** installs and relaunches into the new
   version; ignoring it and Quitting normally installs on the way out, so the next
   launch is the new version. The app never restarts on its own.

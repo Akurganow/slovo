@@ -115,9 +115,10 @@ tuned.
   in the menu bar opens it.
 - Silent automatic updates with an always-visible menu-bar update row:
   **Check for Updates…** runs a manual silent check, **Checking…** shows while
-  any check runs, **Downloading v…** shows while an update downloads, and a
-  downloaded update switches the status bar glyph to `Ⱀ` and offers **Update
-  Ready — v…** / **Restart**. The **Automatically Install Updates** switch
+  any check runs, **Update Check Failed** shows after a failed check or
+  download until the next check starts, **Downloading v…** shows while an update
+  downloads, and a downloaded update switches the status bar glyph to `Ⱀ` and
+  offers **Update Ready — v…** / **Restart**. The **Automatically Install Updates** switch
   (Settings → General, on by default) turns scheduled checking off.
 - Strict Swift build, test, concurrency, lint, and ast-grep rule checks.
 

@@ -38,7 +38,7 @@ extension AppDelegate {
                 statusItem?.menu = makeMenu(
                     structure.input,
                     rows: DictationMenuRows(statusLine: state.statusLineText, isFnKeySystemAssigned: state.isFnKeySystemAssigned),
-                    indication: state.updateIndication,
+                    updateRow: state.updateRow,
                     muteAvailability: state.outputMuteAvailability,
                     inputDeviceChoice: state.inputDeviceChoice
                 )
@@ -54,8 +54,8 @@ extension AppDelegate {
         store.listen(\.isFnKeySystemAssigned) { [weak self] isAssigned in
             self?.fnConflictMenuItem?.isHidden = !isAssigned
         }
-        store.listen(\.updateIndication) { [weak self] indication in
-            self?.renderUpdateIndication(indication)
+        store.listen(\.updateRow) { [weak self] row in
+            self?.renderUpdateRow(row)
         }
         store.listen(\.outputMuteAvailability) { [weak self] availability in
             self?.renderMuteAvailability(availability)

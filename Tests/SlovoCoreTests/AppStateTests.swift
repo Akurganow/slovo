@@ -261,4 +261,20 @@ struct AppStateTests {
         #expect(state.statusLine == .idle)
         #expect(state.statusLineText == "Hold Right ⌘ to talk")
     }
+
+    /// The update row follows both the indication and the updater's answer.
+    /// Stated sensitivity: pass a constant `true` (or ignore the indication) to `row` → RED.
+    @Test
+    func updateRowFollowsTheIndicationAndTheUpdatersAnswer() {
+        var state = AppState(config: .defaults, isOpenRouterKeyPresent: false)
+        #expect(state.updateRow.action == .noAction)
+        state.canCheckForUpdates = true
+        #expect(state.updateRow == UpdateIndication.idle.row(canCheckForUpdates: true))
+        #expect(state.updateRow.action == .checkNow)
+        state.updateIndication = .checkFailed
+        #expect(state.updateRow == UpdateIndication.checkFailed.row(canCheckForUpdates: true))
+        state.canCheckForUpdates = false
+        #expect(state.updateRow == UpdateIndication.checkFailed.row(canCheckForUpdates: false))
+        #expect(state.updateRow.action == .noAction)
+    }
 }
