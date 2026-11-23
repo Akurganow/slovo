@@ -123,8 +123,10 @@ cannot exist on a green `main`.
 - A violation of any SwiftLint rule `.swiftlint.yml` leaves enabled, in
   strict mode: every opt-in and analyzer rule except the disabled list.
 - An import of a target a module does not declare.
-- What a rule under `Lint/rules/` bans. Each rule's message states the harm
-  and the fix (`.agents/rules/text-residue.md`, "The fence").
+- What a rule under `Lint/rules/` bans, in code ast-grep's Swift grammar
+  parses ("What a green run does not prove", "The grammar gap of ast-grep").
+  Each rule's message states the harm and the fix
+  (`.agents/rules/text-residue.md`, "The fence").
 - A `.gitignore` that would admit a seed file, a local database or key
   material. The one test under `Tests/GateChecksTests` asks git.
 - A script that does not parse, and a plist or entitlements file that does
@@ -149,7 +151,7 @@ cannot exist on a green `main`.
   `.agents/rules/review-contracts.md`. A reviewer reads the change against
   them.
 - **The grammar gap of ast-grep.** Its Swift grammar fails to parse some valid
-  Swift. Known cases are `if let x = await <expr> {` and a local
+  Swift. Known cases include an `if let x = await <expr> {` binding and a local
   `nonisolated(unsafe) let`. After such a line, a rule can stay silent for the
   rest of the enclosing function, and the scan reports no error. Source: a run
   of the version `.github/workflows/swift.yml` installs, on a planted file.

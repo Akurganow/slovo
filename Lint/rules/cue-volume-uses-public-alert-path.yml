@@ -10,6 +10,8 @@ rule:
     - any:
         - kind: simple_identifier
         - kind: type_identifier
+        - kind: line_string_literal
+        - kind: multi_line_string_literal
       regex: soundCueVolume|dictationCueVolume|cueVolume|alertVolume|AudioServicesPlaySystemSound|AudioServicesSetProperty|AVAudioPlayer|NSSound
     - any:
         - kind: line_string_literal

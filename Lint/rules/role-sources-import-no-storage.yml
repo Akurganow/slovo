@@ -11,9 +11,10 @@ rule:
     kind: identifier
     regex: ^(GRDB|\w*Backend)(\.|$)
 # A role source is one under a Cleaners, Transcribers or Injectors directory,
-# or one whose file name contains Cleaner, Transcriber or Injector and is not
-# a *Tests or Mock* file. A `*` in a glob crosses `/`, so a name pattern also
-# reaches a directory whose own name holds the keyword.
+# or one whose file name contains Cleaner, Transcriber or Injector. Test doubles
+# are included, since a double that imported storage would break the seam as
+# well. A `*` in a glob crosses `/`, so a name pattern also reaches a directory
+# whose own name holds the keyword.
 files:
   - Sources/**/Cleaners/**/*.swift
   - Sources/**/Transcribers/**/*.swift
@@ -21,6 +22,3 @@ files:
   - Sources/**/*Cleaner*.swift
   - Sources/**/*Transcriber*.swift
   - Sources/**/*Injector*.swift
-ignores:
-  - Sources/**/*Tests.swift
-  - Sources/**/Mock*.swift

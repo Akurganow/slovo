@@ -45,11 +45,11 @@ Sources are cited, never restated.
    the bug.** Sharpen it if it exists. Add a test only for a scenario no test
    holds. A second test beside one that nearly held the case is redundancy
    born with the fix (§2.3, §2.7).
-7. **No test reads a repository file as text.** A contract about the code's
-   text is an ast-grep rule under `Lint/rules/` or an entry of
-   `.agents/rules/review-contracts.md`. A test that reads one is a finding
-   (§4.2, §2.2). The one exception is the menu-builder pins that
-   `docs/references/testing-swift.md`, §4.2, names, until behaviour tests
+7. **No test asserts on a repository file's text.** A contract about the
+   code's text is an ast-grep rule under `Lint/rules/` or an entry of
+   `.agents/rules/review-contracts.md`. A test that asserts on one is a
+   finding (§4.2, §2.2). The one exception is the source pins that
+   `docs/references/testing-swift.md`, §4.2, lists, until behaviour tests
    replace them.
 8. **A change that moves a test's protection elsewhere retires the test in
    the same change.** Legacy dies in the change that makes it legacy

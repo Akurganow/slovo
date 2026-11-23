@@ -538,7 +538,7 @@ Read at the commits named; licenses read from each `LICENSE` file.
   SwiftLint rides inside the build (`Package.swift:12-14`).
 - swift-mutants warns that tests reading source files fail under its
   instrumentation, and this repository's tests that read source as text are
-  the menu-builder pins that §4.2 names.
+  the source pins that §4.2 lists.
 - **License posture.** The FSF lists Expat ("MIT") as "compatible with the GNU
   GPL" and Apache-2.0 as "compatible with version 3 of the GNU GPL"
   ([license list](https://www.gnu.org/licenses/license-list.html)). A tool that
@@ -585,8 +585,20 @@ text and assert on it. The owner decided: «чтобы не было тесто�
 No test target depends on the `slovo` executable (§1.6), so a lint rule or a
 reviewer checks its wiring instead of a test. The ast-grep rules under
 `Lint/rules/` ban constructs, and `.agents/rules/review-contracts.md` holds the
-contracts that require something to be present, ordered or counted. The
-menu-builder pins are the one exception, until behaviour tests replace them.
+contracts that require something to be present, ordered or counted.
+
+The one exception is the source pins over the app target that still use
+`Tests/SlovoCoreTests/Support/SourceText.swift`, until behaviour tests of the
+app target replace them. They live in these suites:
+
+- `Tests/SlovoCoreTests/AboutPaneTests.swift`
+- `Tests/SlovoCoreTests/AppDelegateHotkeyWiringSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/AppRuntimeSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/CleanupPaneObservationSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/RemoveKeySourceGuardTests.swift`
+- `Tests/SlovoCoreTests/SettingsSurfaceSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/TranslateModeWiringSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/UpdateRowWiringSourceGuardTests.swift`
 
 ### 4.3 Environment gates and shared state
 

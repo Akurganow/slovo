@@ -16,11 +16,20 @@ rule:
     - has:
         kind: call_suffix
         regex: ^\(\s*!\s*availability
-  inside:
-    kind: property_declaration
-    stopBy: end
-    has:
-      field: name
-      regex: ^apiKeySection$
+    # Gated from inside the property, or from outside as a modifier chained on
+    # `apiKeySection`.
+    - any:
+        - inside:
+            kind: property_declaration
+            stopBy: end
+            has:
+              field: name
+              regex: ^apiKeySection$
+        - has:
+            kind: navigation_expression
+            has:
+              stopBy: end
+              kind: simple_identifier
+              regex: ^apiKeySection$
 files:
   - Sources/slovo/Settings/CleanupSettingsPane.swift

@@ -9,7 +9,6 @@ message: >-
 rule:
   any:
     - kind: call_expression
-      regex: ^(try\s+)?PersonalizationDatabase\.open\(
       has:
         kind: navigation_expression
         regex: ^PersonalizationDatabase\.open$

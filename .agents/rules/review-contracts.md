@@ -46,8 +46,8 @@ is a file's content, the entry names the file.
   on a modifier alone.
 - After the key tap dies, the stop the app synthesizes carries the mode of the
   dead hold. A translate dictation is not downgraded to plain.
-- A key-down that is not the trigger reports only that a key went down. Only the
-  modifier-change case reads a key code, to detect the trigger key.
+- A key-down that is not the trigger reports only that a key went down. The
+  modifier-change case reads the key code to detect the trigger key.
 
 ## Menu and glyph
 
@@ -333,8 +333,11 @@ is a file's content, the entry names the file.
 ## At most once
 
 Each entry below has exactly one site. Zero sites is as much a defect as two.
-For the first three, an ast-grep rule bans a site outside the one allowed place.
-These entries hold the count.
+For the first three, an ast-grep rule bans a site outside the one allowed place:
+`Lint/rules/single-relaunch-call-site.yml`,
+`Lint/rules/config-loaded-once-never-saved.yml` and
+`Lint/rules/personalization-database-opened-once.yml`. These entries hold the
+count.
 
 - The app calls the install-and-relaunch action from exactly one place. Zero
   calls would leave no Restart path.

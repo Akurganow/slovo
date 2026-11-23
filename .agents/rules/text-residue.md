@@ -101,8 +101,8 @@ the docs.
   - `no-print-in-sources` bans a print-family call under `Sources/`: the
     logger redacts, standard output does not;
   - `no-empty-catch` bans an empty `catch`: errors must reach the failure
-    glyph. A reason inside the braces passes, and swallowing
-    `CancellationError` is exempt.
+    glyph. A reason inside the braces passes, and an empty
+    `catch is CancellationError` is exempt.
 
   The other rules ban code constructs that the review of a change would
   otherwise have to catch. Each rule's message states its harm. CI is strict,
@@ -117,8 +117,9 @@ the docs.
   Source: ast-grep documentation, `guide/project/severity.md`, in
   `ast-grep/ast-grep.github.io` at commit
   `e24a8920b93a46e3b8ef6ae50b9297150960c9f3`.
-- Anything a fence names cannot exist on a green `main`. A report of it is a
-  misread. Residue is judged strictly above the fence.
+- Anything a fence names cannot exist on a green `main`, in code ast-grep's
+  Swift grammar parses (`.agents/rules/verification.md`, "What a green run
+  does not prove"). A report of it there is a misread. Residue is judged strictly above the fence.
 - A tell that recurs and could be matched by a pattern is a proposal in a
   report, never a check added on the spot.
 

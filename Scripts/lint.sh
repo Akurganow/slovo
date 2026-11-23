@@ -168,6 +168,8 @@ run_swiftlint_analyze() {
 # `sgconfig.yml` names Lint/rules/; every rule there is severity `error`, so one
 # finding fails the stage. Stdin is closed so the scan never waits on a pipe.
 ast_grep_scan() {
+    # CI pins the version; a local binary may differ, so the log names it.
+    ast-grep --version || return 1
     ast-grep scan --report-style short < /dev/null
 }
 

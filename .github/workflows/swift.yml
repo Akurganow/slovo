@@ -60,7 +60,8 @@ jobs:
       - name: Install ast-grep
         # Scripts/lint.sh runs the rules under Lint/rules/ with this binary. The
         # release is pinned by version and SHA-256; Renovate moves both together
-        # through the customManagers entry in renovate.json.
+        # through the customManagers entry in renovate.json, whose regex expects
+        # the comment and the two env lines below, adjacent and in this order.
         env:
           # renovate: datasource=github-release-attachments depName=ast-grep/ast-grep
           AST_GREP_VERSION: 0.51.1
