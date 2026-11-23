@@ -10,7 +10,7 @@ public enum ModelGate: Equatable, Sendable {
 
 /// What the menu-bar glyph shows when nothing else is drawing on it.
 public enum RestingGlyph: Equatable, Sendable {
-    /// A dictation or a failure flash owns the glyph, so nothing is painted.
+    /// A dictation or the dictation-failure flash owns the glyph, so nothing is painted.
     case leave
     /// The pulsing preparing-speech-model glyph.
     case loading

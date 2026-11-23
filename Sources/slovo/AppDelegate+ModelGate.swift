@@ -1,4 +1,3 @@
-import AppKit
 import SlovoCore
 
 // Dictation is gated until the ASR model is resident: a key-down before the model

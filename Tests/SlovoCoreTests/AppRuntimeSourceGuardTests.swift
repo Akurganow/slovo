@@ -302,8 +302,8 @@ struct AppRuntimeSourceGuardTests {
     }
 
     /// Stated sensitivity: write the status row directly instead of `statusLine`, set
-    /// the idle line unconditionally in settleToIdle, or drop any pinned latch or
-    /// order → RED.
+    /// the idle line unconditionally in settleToIdle, drop the settle repaint, or drop
+    /// any pinned latch or order → RED.
     @Test
     func transientProgressAndSadToFailStatusDoNotBecomeSticky() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
@@ -367,6 +367,9 @@ struct AppRuntimeSourceGuardTests {
             "self?.settleToIdle()",
         ], in: cancelArm),
         "a silent cancel must cancel, drain the pipeline, then settle to idle — in that order")
+        // Sensitivity: delete paintRestingGlyph() from settleToIdle → RED.
+        #expect(settleToIdleBody.contains("paintRestingGlyph()"),
+                "settling a dictation must repaint the resting glyph")
         // Presence-only for the if-guard (its negation spelling is free).
         // Sensitivity: set the idle line unconditionally (drop the guard) → its flag
         // vanishes → RED.

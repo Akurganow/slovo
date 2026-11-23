@@ -269,8 +269,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
+    /// Re-reads three system facts into state in one update: the live macOS fn
+    /// assignment, the default output device's mute availability and the input
+    /// devices. Their row listeners update the fn notice, the mute item and the
+    /// Microphone submenu. Then it re-renders the update row from state, which undoes
+    /// a highlight swap that left "Restart" on the row. The reads here keep the
+    /// dropdown right even when a CoreAudio listener failed to register or was lost
+    /// to an audio service reset. Apple's `NSMenuDelegate` documentation places this
+    /// change in `menuNeedsUpdate(_:)`: "the delegate can change the menu by adding,
+    /// removing, or modifying menu items". `menuWillOpen(_:)` says: "Don't modify the
+    /// structure of the menu or the menu items during this method."
     func menuNeedsUpdate(_ menu: NSMenu) {
-        resyncMenuFacts()
+        store.update {
+            $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned
+            $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
+            $0.inputDevices = CoreAudioInputDevices().inputDevices()
+        }
+        renderUpdateIndication(store.state.updateIndication)
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
         guard store.state.menuMode.isOnboarding else { return }

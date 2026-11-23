@@ -115,7 +115,7 @@ struct SparkleWiringGuardTests {
     /// from the open-time re-sync → the matching pin → RED.
     /// Stated sensitivity: drop `renderUpdateIndication(` from the re-sync → RED.
     @Test
-    func updateRowIsPersistentInPlaceAndAccessible() throws {
+    func updateRowIsPersistentInPlaceAndReRenderedOnOpen() throws {
         let sources = try Self.appSources()
         let renderers = sources.filter { $0.source.contains("func renderUpdateIndication(") }
         #expect(!renderers.isEmpty, "an app-target renderer must write the update indication")
@@ -123,7 +123,7 @@ struct SparkleWiringGuardTests {
             #expect(!renderer.source.contains("NSMenuItem("),
                     "\(renderer.path) must mutate the persistent row, not rebuild it")
         }
-        let resync = try #require(Self.slice(fromToken: "func resyncMenuFacts", in: sources),
+        let resync = try #require(Self.slice(fromToken: "func menuNeedsUpdate", in: sources),
                                   "the dropdown must re-sync its rows on open")
         #expect(resync.contains("renderUpdateIndication("),
                 "the open-time re-sync must re-render the update row from state")

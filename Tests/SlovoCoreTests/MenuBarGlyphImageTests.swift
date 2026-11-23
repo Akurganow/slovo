@@ -37,10 +37,9 @@ struct MenuBarGlyphImageTests {
         #expect(image.isTemplate == true)
     }
 
-    /// The update-ready Nash is drawn from the Glagolitic font, a macOS system font
-    /// that Slovo does not bundle. This checks that the normal tint draws visible
-    /// pixels: a font or codepoint that is not there makes `image(for:tint:)`
-    /// return nil or draw nothing, and the caller would fall back to the mic symbol.
+    /// `MenuBarGlyph.image(for:tint:)` returns nil when `NotoSansGlagolitic-Regular`
+    /// does not load. This checks that the update-ready Nash image is non-nil and
+    /// draws visible pixels.
     /// Sensitivity: a nil image or zero opaque pixels → RED.
     @Test
     func updateReadyGlyphRendersVisiblePixels() throws {

@@ -50,23 +50,6 @@ extension AppDelegate {
         item.apply(row, highlighted: false)
     }
 
-    /// Re-reads three system facts into state in one update: the live macOS fn
-    /// assignment, the default output device's mute availability and the input
-    /// devices. Their row listeners update the fn notice, the mute item and the
-    /// Microphone submenu. Then it re-renders the update row from state, which undoes
-    /// a highlight swap that left "Restart" on the row. The reads here keep the
-    /// dropdown right even when a CoreAudio listener failed to register or was lost
-    /// to an audio service reset. Called from `menuNeedsUpdate`, the callback Apple
-    /// documents for changing menu items; `menuWillOpen` must not modify them.
-    func resyncMenuFacts() {
-        store.update {
-            $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned
-            $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
-            $0.inputDevices = CoreAudioInputDevices().inputDevices()
-        }
-        renderUpdateIndication(store.state.updateIndication)
-    }
-
     /// The hybrid row: a grey status-line "Update ready — v…" when unhighlighted,
     /// swapping to a plain white "Restart" under highlight (like every actionable
     /// row). Only in the ready state; the accessibility label stays put across the swap.

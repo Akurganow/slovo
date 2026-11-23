@@ -8,7 +8,10 @@ extension AppDelegate {
     /// build subscriber then draws.
     func startStoreEffects() {
         let keyProvider = openRouterKeyProvider
-        let scopeFetchSession = URLSession(configuration: .ephemeral)
+        let scopeFetchConfiguration = URLSessionConfiguration.ephemeral
+        // No URL cache: fetches under different keys must never share a cached response.
+        scopeFetchConfiguration.urlCache = nil
+        let scopeFetchSession = URLSession(configuration: scopeFetchConfiguration)
         AppStoreEffects.wire(store, to: AppStoreEffectTargets(
             defaults: defaults,
             reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) },

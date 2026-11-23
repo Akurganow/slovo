@@ -364,40 +364,39 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The system facts the dropdown shows must be re-read on every menu OPEN, not
     /// only at a rebuild: the user changes the fn assignment in System Settings, the
     /// default output device or the input devices while the app runs, and the very
-    /// next open must reflect it. menuNeedsUpdate runs resyncMenuFacts, which writes
+    /// next open must reflect it. menuNeedsUpdate writes
     /// the three live values into state; the row listeners update the fn notice, the
     /// mute item and the Microphone submenu.
-    /// Stated sensitivity: drop any write from resyncMenuFacts → RED.
+    /// Stated sensitivity: drop any write from menuNeedsUpdate → RED.
     @Test
     func systemFactsAreReReadOnMenuOpen() throws {
-        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
-        let resync = try SourceText.functionBody(named: "resyncMenuFacts", in: updateMenu)
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let resync = try SourceText.functionBody(named: "menuNeedsUpdate", in: delegate)
         #expect(resync.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
-                "resyncMenuFacts must write the live fn-assignment value into state")
+                "menuNeedsUpdate must write the live fn-assignment value into state")
         #expect(resync.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
-                "resyncMenuFacts must write the live output mute availability into state")
+                "menuNeedsUpdate must write the live output mute availability into state")
         #expect(resync.contains("inputDevices = CoreAudioInputDevices().inputDevices()"),
-                "resyncMenuFacts must write the live input devices into state")
+                "menuNeedsUpdate must write the live input devices into state")
     }
 
     /// The fn verdict reaches the menu only through state: the init seed and
-    /// resyncMenuFacts read the reader, the build subscriber passes the state's verdict,
+    /// menuNeedsUpdate read the reader, the build subscriber passes the state's verdict,
     /// and makeMenu passes its `rows` argument to `make`. The fn rendering itself is
     /// pinned in DictationMenuTests through `items`.
     /// Stated sensitivity: hardcode the build subscriber's argument, build fresh rows
-    /// inside makeMenu, hardcode the verdict in the init seed or resyncMenuFacts — e.g.
+    /// inside makeMenu, hardcode the verdict in the init seed or menuNeedsUpdate — e.g.
     /// `isFnKeySystemAssigned: false` — or drop the reader from the seed → RED.
     @Test
     func makeMenuPassesTheLiveFnAssignmentValue() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let makeMenu = try SourceText.functionBody(named: "makeMenu", in: delegate)
         let initBody = try SourceText.slice(
             of: delegate,
             from: "fnKeyAssignmentReader: FnKeyAssignmentReading =",
             to: "func applicationDidFinishLaunching"
         )
-        let resync = try SourceText.functionBody(named: "resyncMenuFacts", in: updateMenu)
+        let resync = try SourceText.functionBody(named: "menuNeedsUpdate", in: delegate)
         let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift")
         #expect(storeWiring.contains("isFnKeySystemAssigned: state.isFnKeySystemAssigned"),
                 "the build subscriber must pass the verdict held in state")
@@ -409,7 +408,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "isFnKeySystemAssigned: false", "isFnKeySystemAssigned: true",
             "isFnKeySystemAssigned = false", "isFnKeySystemAssigned = true",
         ]
-        for (name, body) in [("init", initBody), ("resyncMenuFacts", resync), ("AppDelegate+Store", storeWiring)] {
+        for (name, body) in [("init", initBody), ("menuNeedsUpdate", resync), ("AppDelegate+Store", storeWiring)] {
             for literal in literals {
                 #expect(!body.contains(literal), "\(name) must never hardcode the fn verdict: \(literal)")
             }

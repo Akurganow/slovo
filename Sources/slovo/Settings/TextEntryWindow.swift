@@ -72,8 +72,7 @@ final class TextEntryWindow {
     }
 }
 
-/// The entry form. Kept separate from the window so the SwiftUI body stays small
-/// and previewable.
+/// The entry form. Kept separate from the window so the SwiftUI body stays small.
 @MainActor
 private struct TextEntryView: View {
     let content: TextEntryWindow.Content
@@ -110,11 +109,10 @@ private struct TextEntryView: View {
     }
 }
 
-/// A text field that grabs first-responder when it joins the window, so the user can
-/// type immediately — the codebase's proven route for reliable initial focus in an
-/// `NSHostingController` window (SwiftUI `@FocusState`-on-appear is unreliable there).
-/// A secure field is an `NSSecureTextField`, which cannot share a subclass with the
-/// plain `NSTextField`, so each has a one-line subclass over `claimFirstResponder`.
+/// A text field that claims first responder when it joins the window, so the user can
+/// type immediately. A secure field is an `NSSecureTextField`, which cannot share a
+/// subclass with the plain `NSTextField`, so each has a one-line subclass over
+/// `claimFirstResponder`.
 @MainActor
 private struct InitialFocusField: NSViewRepresentable {
     let placeholder: String

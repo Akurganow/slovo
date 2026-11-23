@@ -9,27 +9,31 @@ extension AppDelegate {
     /// state: a direct `setStatusGlyph(.idle)` call would silently drop the
     /// update-ready Nash Ⱀ while a downloaded update awaits Restart. Every Sparkle
     /// callback calls this, because the Nash rides the idle slot; the decision keeps
-    /// that repaint off a dictation glyph and a failure flash.
+    /// that repaint off a dictation or the dictation-failure flash. The user-action
+    /// failure flash sets no latch, so a later Sparkle event repaints over it on
+    /// purpose (`docs/architecture.md`, "App State").
     func paintRestingGlyph() {
-        let button = statusItem?.button
-        switch RestingGlyph.derive(
+        guard let button = statusItem?.button else { return }
+        let resting = RestingGlyph.derive(
             isPipelineActive: isPipelineActive,
             isShowingBriefStatus: isShowingBriefStatus,
             gate: modelGate
-        ) {
+        )
+        // Only `.loading` keeps the pulse. Any other result ends it, so a dictation glyph
+        // painted over the loading glyph does not keep pulsing.
+        if resting != .loading { stopModelLoadingPulse(on: button) }
+        switch resting {
         case .leave:
             break
         case .loading:
             setStatusGlyph(status: .preparingSpeechModel, on: button)
             startModelLoadingPulse(on: button)
         case .idle:
-            stopModelLoadingPulse(on: button)
             paintIdleGlyph(on: button)
         }
     }
 
-    private func paintIdleGlyph(on button: NSStatusBarButton?) {
-        guard let button else { return }
+    private func paintIdleGlyph(on button: NSStatusBarButton) {
         let isUpdateReady: Bool
         if case .ready = store.state.updateIndication {
             isUpdateReady = true
@@ -97,8 +101,7 @@ extension AppDelegate {
     /// attention-pulse feel: ease-in-out, ~1.5 s full cycle (0.75 s per leg),
     /// dimming to 30% — slower than the 1 Hz text caret, faster than the 3–5 s
     /// sleep-indicator breath, so it reads as "working", not "alarmed".
-    private func startModelLoadingPulse(on button: NSStatusBarButton?) {
-        guard let button else { return }
+    private func startModelLoadingPulse(on button: NSStatusBarButton) {
         button.wantsLayer = true
         guard button.layer?.animation(forKey: Self.modelLoadingPulseKey) == nil else { return }
         let pulse = CABasicAnimation(keyPath: "opacity")
@@ -111,8 +114,8 @@ extension AppDelegate {
         button.layer?.add(pulse, forKey: Self.modelLoadingPulseKey)
     }
 
-    private func stopModelLoadingPulse(on button: NSStatusBarButton?) {
-        button?.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
-        button?.layer?.opacity = 1
+    private func stopModelLoadingPulse(on button: NSStatusBarButton) {
+        button.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
+        button.layer?.opacity = 1
     }
 }
