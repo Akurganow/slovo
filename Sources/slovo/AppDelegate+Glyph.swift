@@ -16,9 +16,8 @@ extension AppDelegate {
     func paintRestingGlyph() {
         guard let button = statusItem?.button else { return }
         let resting = RestingGlyph.derive(
-            isPipelineActive: isPipelineActive,
             isShowingBriefStatus: isShowingBriefStatus,
-            isGlyphHeldByNotice: isGlyphHeldByNotice,
+            liveDictation: liveDictation,
             gate: modelGate
         )
         // Only `.loading` keeps the pulse. Any other result ends it, so a dictation glyph
@@ -51,9 +50,9 @@ extension AppDelegate {
     /// Ⱍ clean / Ⰳ raw / Ⱂ translate while the key is held, the processing glyph
     /// after key-up. The only read of the live cleanup setting for this glyph, so
     /// raw wins over a translate key that joined mid-hold.
-    func paintHoldGlyph() {
-        guard let button = statusItem?.button else { return }
-        let glyph = MenuBarGlyph.forHold(holdPhase, isCleanupOn: store.state.cleanupAvailability.isOn)
+    private func paintHoldGlyph() {
+        guard let button = statusItem?.button, case .hold(let phase) = liveDictation else { return }
+        let glyph = MenuBarGlyph.forHold(phase, isCleanupOn: store.state.cleanupAvailability.isOn)
         paint(glyph, tint: .normal, fallbackSymbol: "mic", on: button)
     }
 

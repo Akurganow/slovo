@@ -36,9 +36,8 @@ is a file's content, the entry names the file.
   translate key joining mid-hold repaints the glyph, and raw wins over translate.
 - During a dictation every repaint of the glyph goes through
   `RestingGlyph.derive`. A failure flash, or a notice that ended the dictation,
-  owns the glyph; otherwise the glyph shows the hold's phase. The key-up and
-  translate-latch arms set the phase and repaint through it; only key-down paints
-  the hold glyph directly.
+  owns the glyph; otherwise the glyph shows the hold's phase. The key-down,
+  key-up and translate-latch arms set the live dictation and repaint through it.
 - The dictation gate opens only when the model load finished successfully, and
   only for the composition that is still current. The composition exposes the
   load as a task the gate awaits.
@@ -96,8 +95,9 @@ is a file's content, the entry names the file.
   hint.
 - The menu is built from one input and the live rows, and the builder reads every
   value from them, never from the store. The menu cannot show a value that
-  bypasses the app state. The build takes the fn verdict and the update
-  indication as arguments, not from the live reader or the updater coordinator.
+  bypasses the app state. The build takes the fn verdict and the update row
+  (`AppState.updateRow`, from the indication and `canCheckForUpdates`) as
+  arguments, not from the live reader or the updater coordinator.
 - The resting-glyph painter reads the update indication from the store and
   picks the glyph through the core projection.
 - Every updater event repaints the resting glyph, once and under no condition,
@@ -137,7 +137,8 @@ is a file's content, the entry names the file.
 - The Cleanup pane's translate caption names the configured keys and the right
   gesture for an additional and a standalone translate key.
 - The Vocabulary pane has a selectable list with a visible minus control. The
-  control removes the selection and is disabled while nothing is selected.
+  control removes the selection and is disabled while nothing is selected. The
+  pane re-reads the table each time it appears.
   While the vocabulary is unavailable, the pane says so in place of the empty
   state and disables both controls.
 - The Settings window activates the app before it shows, so it does not open

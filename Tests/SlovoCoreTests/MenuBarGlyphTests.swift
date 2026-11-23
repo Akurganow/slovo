@@ -1,6 +1,6 @@
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 
 // Menu-bar glyph mapping only. Real NSStatusItem/NSImage rendering and font
 // fallback are out of scope here; this slice locks the state/mode/status → glyph

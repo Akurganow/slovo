@@ -1,3 +1,4 @@
+import CoreAudio
 import Testing
 
 @testable import SlovoCore
@@ -67,5 +68,18 @@ struct SystemAudioControllerTests {
     @Test
     func muteLeverFallsBackToASettableVolume() {
         #expect(CoreAudioOutputMute.muteLever(hasSettableMute: false, hasSettableVolume: true) == .virtualMasterVolume)
+    }
+
+    /// A restore that fails because the pinned device is gone has nothing left to undo.
+    /// Stated sensitivity: return false always, or match only the bad-object status → RED.
+    @Test(arguments: [
+        (OSStatus(kAudioHardwareBadObjectError), true),
+        (OSStatus(kAudioHardwareBadDeviceError), true),
+        (OSStatus(kAudioHardwareUnspecifiedError), false),
+        (OSStatus(kAudioHardwareIllegalOperationError), false),
+        (OSStatus(noErr), false),
+    ])
+    func vanishedDeviceIsOnlyTheTwoBadObjectStatuses(status: OSStatus, expected: Bool) {
+        #expect(CoreAudioOutputMute.isVanishedDevice(status) == expected)
     }
 }

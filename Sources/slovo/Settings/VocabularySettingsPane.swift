@@ -48,6 +48,11 @@ struct VocabularySettingsPane: View {
         }
         .padding()
         .frame(width: 420, height: 360)
+        .onAppear {
+            // A read that failed leaves the list unavailable, and the edits that
+            // re-read it are disabled then, so each appearance re-reads it.
+            actions.reloadVocabulary()
+        }
     }
 
     private var table: some View {

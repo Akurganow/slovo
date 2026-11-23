@@ -47,7 +47,7 @@ public enum MenuBarGlyph {
         isUpdateReady ? updateReadyGlyph : forState(.idle)
     }
 
-    public static func forState(_ state: DictationState) -> Character {
+    static func forState(_ state: DictationState) -> Character {
         switch state {
         case .recording:
             return forRecording(mode: .clean)
@@ -62,7 +62,7 @@ public enum MenuBarGlyph {
     /// is effectively on. Raw wins whenever cleanup is off — however the hold came to
     /// translate — because a translate hold cannot run without cleanup; with cleanup
     /// on, a translate hold shows translate and a plain one shows clean.
-    public static func recordingGlyphMode(mode: DictationMode, isCleanupOn: Bool) -> RecordingGlyphMode {
+    static func recordingGlyphMode(mode: DictationMode, isCleanupOn: Bool) -> RecordingGlyphMode {
         guard isCleanupOn else { return .raw }
         switch mode {
         case .plain:
@@ -78,7 +78,7 @@ public enum MenuBarGlyph {
     /// U+2C1D, mnemonic "чистота"/clean — cleanup will run) marks clean mode; Glagoli
     /// Ⰳ (U+2C03, glagoli = "speak" — lands as spoken) marks raw mode; Pokoji Ⱂ
     /// (U+2C12) marks a translate hold. The menu bar tells the three apart at a glance.
-    public static func forRecording(mode: RecordingGlyphMode) -> Character {
+    static func forRecording(mode: RecordingGlyphMode) -> Character {
         switch mode {
         case .clean:
             return "\u{2C1D}"

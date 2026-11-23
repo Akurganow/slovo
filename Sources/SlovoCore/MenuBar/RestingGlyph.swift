@@ -8,6 +8,14 @@ public enum ModelGate: Equatable, Sendable {
     case open
 }
 
+/// A live dictation, as the glyph sees it.
+public enum LiveDictation: Equatable, Sendable {
+    /// Nothing owns the glyph: it shows what the dictation is doing.
+    case hold(HoldPhase)
+    /// A notice that ended the dictation owns the glyph until it settles.
+    case heldByNotice
+}
+
 /// What the menu-bar glyph shows when nothing else is drawing on it.
 public enum RestingGlyph: Equatable, Sendable {
     /// A failure flash, or a notice that ended the dictation, owns the glyph, so
@@ -24,13 +32,15 @@ public enum RestingGlyph: Equatable, Sendable {
     /// over everything; a live dictation wins over the gate, so a repaint never
     /// lands idle or loading on a live glyph.
     public static func derive(
-        isPipelineActive: Bool,
         isShowingBriefStatus: Bool,
-        isGlyphHeldByNotice: Bool,
+        liveDictation: LiveDictation?,
         gate: ModelGate
     ) -> RestingGlyph {
         if isShowingBriefStatus { return .leave }
-        if isPipelineActive { return isGlyphHeldByNotice ? .leave : .hold }
-        return gate == .loading ? .loading : .idle
+        switch liveDictation {
+        case .heldByNotice: return .leave
+        case .hold: return .hold
+        case nil: return gate == .loading ? .loading : .idle
+        }
     }
 }

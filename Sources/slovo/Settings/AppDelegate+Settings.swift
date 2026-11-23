@@ -79,6 +79,10 @@ extension AppDelegate: SettingsActions {
         store.update { $0.vocabulary = listVocabulary() }
     }
 
+    func reloadVocabulary() {
+        store.update { $0.vocabulary = listVocabulary() }
+    }
+
     /// Opens the third-party license notices bundled in the app's Resources
     /// (THIRD-PARTY-NOTICES.md, staged there by the packaging scripts) in the
     /// user's default handler.
@@ -91,7 +95,7 @@ extension AppDelegate: SettingsActions {
     }
 
     /// The vocabulary mirror's one read of the database, for the seed in
-    /// `startPipeline` and both edits. Not part of `SettingsActions`.
+    /// `startPipeline`, both edits and the pane's reload. Not part of `SettingsActions`.
     func listVocabulary() -> VocabularyList {
         VocabularyList(reading: personalization.map { database in
             {

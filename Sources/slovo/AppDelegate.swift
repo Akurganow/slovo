@@ -41,12 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self?.saveOpenRouterKey(key)
     }
     private var didShowPipelineStatus = false
-    // What the live dictation is doing, for the glyph a repaint gives back to it.
-    var holdPhase = HoldPhase.recording(.plain)
-    // A notice that ended the dictation keeps the glyph until the dictation settles,
+    // The live dictation, for the glyph a repaint gives back to it: nil between
+    // dictations. A notice that ended the dictation keeps the glyph until it settles,
     // so no repaint brings the recording or processing glyph back over it.
-    var isGlyphHeldByNotice = false
-    var isPipelineActive = false
+    var liveDictation: LiveDictation?
+    var isPipelineActive: Bool { liveDictation != nil }
     // A brief self-clearing failure glyph is on screen; settleToIdle must not stomp
     // it back to idle mid-window.
     var isShowingBriefStatus = false
@@ -200,22 +199,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// A new hold owns the glyph, so a flash left from the previous dictation ends
     /// here: its reset is cancelled and its latch cleared, and the hold glyph is
-    /// painted directly. Otherwise the hold's next phase would wait out that flash.
+    /// painted at once. Otherwise the hold's next phase would wait out that flash.
     private func beginHold(_ mode: DictationMode) {
         briefStatusResetTask?.cancel()
         isShowingBriefStatus = false
-        isPipelineActive = true
         didShowPipelineStatus = false
-        isGlyphHeldByNotice = false
-        holdPhase = .recording(mode)
-        paintHoldGlyph()
+        liveDictation = .hold(.recording(mode))
+        paintRestingGlyph()
         store.update { $0.statusLine = .recording }
     }
 
     /// Repaints through the resting decision, so a failure flash, or a notice that
     /// ended the dictation, keeps the glyph and the new phase shows once it is free.
     private func enterHoldPhase(_ phase: HoldPhase) {
-        holdPhase = phase
+        if case .hold = liveDictation { liveDictation = .hold(phase) }
         paintRestingGlyph()
     }
 
@@ -223,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// when a session settles (normal stop or a silent cancel), leaving a
     /// sad-to-fail notice or an already-shown pipeline status untouched.
     private func settleToIdle() {
-        isPipelineActive = false
+        liveDictation = nil
         paintRestingGlyph()
         if !didShowPipelineStatus {
             store.update { $0.statusLine = .idle }
@@ -334,8 +331,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if status.isPersistentNotice || status.isSadToFailNotice {
             didShowPipelineStatus = true
         }
-        if status.holdsGlyph {
-            isGlyphHeldByNotice = true
+        if status.holdsGlyph, liveDictation != nil {
+            liveDictation = .heldByNotice
         }
         if status.isFailureNotice {
             flashBriefStatusGlyph(status)

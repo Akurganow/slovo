@@ -279,7 +279,7 @@ settings pane. `AppState.recordSettingsPane` never records About, so
 The status menu is a projection of that state. One build subscriber, keyed on
 the menu mode plus the values the dictation dropdown shows, builds and installs
 the menu for the mode and seeds its rows from state. Five row listeners — on the
-status line, the fn verdict, the update indication, the output device's mute
+status line, the fn verdict, the update row, the output device's mute
 availability and the microphone choice — update their rows in place. So a rebuild
 keeps the status line, and a status change never rebuilds the menu. Opening the
 menu re-reads the fn assignment, the output device's mute availability and the

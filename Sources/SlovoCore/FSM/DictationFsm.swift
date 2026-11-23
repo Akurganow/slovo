@@ -74,7 +74,14 @@ public enum StatusMessage: Equatable, Sendable {
         switch self {
         case .outputMuteFailed, .outputRestoreFailed:
             return false
-        default:
+        case .preparingSpeechModel,
+             .cleanupUnavailableInsertedAsSpoken,
+             .noSpeechDetected,
+             .accessibilityDenied,
+             .transcriptionFailed,
+             .secureFieldActive,
+             .injectionFailed,
+             .microphoneUnavailable:
             return isPersistentNotice || isSadToFailNotice
         }
     }
