@@ -69,7 +69,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         #expect(SourceText.containsInOrder([
             "case .down(let mode):",
             "guard !edge.arrivedWhileBusy",
-            "isModelReady",
+            "modelGate",
             "self?.isPipelineActive = true",
             "orchestrator.deliver(edge)",
         ], in: startPipeline),
@@ -89,11 +89,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         #expect(SourceText.containsInOrder([
             "case .down(let mode):",
-            "isModelReady",
-            "showModelLoadingState",
+            "modelGate == .open",
             "orchestrator.deliver(edge)",
         ], in: startPipeline),
-        "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
+        "the .down arm must gate on model readiness before any session starts")
     }
 
     /// The recording glyph must be DERIVED from the session's mode and the LIVE
@@ -199,12 +198,12 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// The model warm-up must be an observable gate end to end: the composition
     /// exposes the preload as an awaitable task; the delegate enters the loading
-    /// state in startPipeline and opens the gate (stopping the pulse) only when the
+    /// state in startPipeline and opens the gate only when the
     /// warm-up task succeeds, which it does only on a loaded model — and only for the
     /// composition still wired, so a superseded preload's outcome cannot answer for
     /// the current one.
     /// Killing mutation: return to fire-and-forget preload, never flip
-    /// isModelReady, open the gate on any completion (`_ = await
+    /// modelGate = .open, open the gate on any completion (`_ = await
     /// live.modelWarmUp.result`, which also passes a cancelled warm-up), discard the
     /// result and open anyway (`_ = try? await live.modelWarmUp.value`), or delete
     /// the currency comparison from the gate task -> RED.
@@ -221,13 +220,12 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         let gate = try SourceText.code("Sources/slovo/AppDelegate+ModelGate.swift")
         #expect(SourceText.containsInOrder([
-            "showModelLoadingState",
+            "modelGate = .loading",
             "guard (try? await live.modelWarmUp.value) != nil",
             "composition?.modelWarmUp",
-            "isModelReady = true",
-            "stopModelLoadingPulse",
+            "modelGate = .open",
         ], in: gate),
-        "the CURRENT composition's warm-up must open the gate and stop the loading pulse")
+        "the CURRENT composition's warm-up must open the gate")
     }
 
     /// A composition that is never gated must leave no pulse behind. The onboarding
@@ -251,7 +249,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "prepareModelGate",
         ], in: startPipeline),
         "the onboarding return is the path that reaches no model gate")
-        #expect(presentOnboarding.contains("clearModelLoadingState()"),
+        #expect(presentOnboarding.contains("modelGate = .notGated"),
                 "an ungated composition must stop the loading pulse it inherited")
     }
 

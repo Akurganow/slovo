@@ -343,7 +343,7 @@ struct AppRuntimeSourceGuardTests {
         #expect(SourceText.containsInOrder([
             "Task { @MainActor",
             "Task.sleep(",
-            "paintIdleGlyph",
+            "paintRestingGlyph",
         ], in: flashBriefStatusGlyphBody))
         #expect(SourceText.statementCount(#"self\?\.isPipelineActive\s*=\s*true"#, in: startPipelineBody) == 1)
         #expect(SourceText.statementCount(#"isPipelineActive\s*=\s*false"#, in: settleToIdleBody) == 1)
@@ -367,11 +367,9 @@ struct AppRuntimeSourceGuardTests {
             "self?.settleToIdle()",
         ], in: cancelArm),
         "a silent cancel must cancel, drain the pipeline, then settle to idle — in that order")
-        // Presence-only for the two independent if-guards (their relative order and
-        // negation spelling are free). Sensitivity: set the idle glyph or the idle
-        // line unconditionally (drop either guard) → its flag vanishes → RED.
-        #expect(SourceText.containsInOrder(["if", "isShowingBriefStatus", "paintIdleGlyph"], in: settleToIdleBody),
-                "the idle glyph must stay guarded by the brief-status flag")
+        // Presence-only for the if-guard (its negation spelling is free).
+        // Sensitivity: set the idle line unconditionally (drop the guard) → its flag
+        // vanishes → RED.
         #expect(SourceText.containsInOrder(["if", "didShowPipelineStatus", "statusLine = .idle"], in: settleToIdleBody),
                 "the idle line must stay guarded by the shown-pipeline-status flag")
     }
@@ -460,7 +458,7 @@ struct AppRuntimeSourceGuardTests {
     /// without a pipeline rebuild. The toggle writes the store; the push is the
     /// store's subscriber (`AppStoreEffectsTests.muteAndBiasReachTheOrchestrator`).
     /// Stated sensitivity: route the toggle through a rebuild
-    /// (retrySetup/startPipeline/prepareModelGate/showModelLoadingState), write
+    /// (retrySetup/startPipeline/prepareModelGate), write
     /// anything but the toggled field, or hard-code the builder's menu flag → RED.
     @Test
     func changingMuteWhileDictatingAppliesLiveWithoutPipelineRebuild() throws {
@@ -468,7 +466,7 @@ struct AppRuntimeSourceGuardTests {
         let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
         let toggleBody = try SourceText.functionBody(named: "toggleMuteWhileDictating", in: delegate)
 
-        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate", "showModelLoadingState"] {
+        for forbidden in ["retrySetup", "startPipeline", "prepareModelGate"] {
             #expect(!toggleBody.contains(forbidden),
                     "changing the mute switch must not \(forbidden): that re-warms ASR and shows the loading pulse")
         }

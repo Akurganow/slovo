@@ -9,22 +9,11 @@ extension AppDelegate {
     func startUpdater() {
         let coordinator = UpdaterCoordinator(
             store: store,
-            onUpdaterEvent: { [weak self] in self?.repaintIdleGlyphForUpdateState() },
+            onUpdaterEvent: { [weak self] in self?.paintRestingGlyph() },
             onInstallFailedAfterRestart: { [weak self] in self?.flashUserActionFailure() }
         )
         updaterCoordinator = coordinator
         coordinator.start(automaticUpdatesEnabled: store.state.config.automaticallyInstallsUpdates)
-    }
-
-    /// The update-ready Nash rides the IDLE glyph slot, so every Sparkle callback
-    /// repaints it — but never over a live dictation glyph, a brief failure flash, or
-    /// the model-loading pulse; those paths re-derive the idle glyph through
-    /// paintIdleGlyph when they settle. Onboarding never opens the model gate, so the
-    /// onboarding menu mode stands in for model readiness there.
-    func repaintIdleGlyphForUpdateState() {
-        guard !isPipelineActive, !isShowingBriefStatus,
-              isModelReady || store.state.menuMode.isOnboarding else { return }
-        paintIdleGlyph(on: statusItem?.button)
     }
 
     /// The user-initiated Restart: installs the downloaded update and relaunches.

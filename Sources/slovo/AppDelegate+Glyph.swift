@@ -3,11 +3,32 @@ import QuartzCore
 import SlovoCore
 
 extension AppDelegate {
-    /// The single funnel for the resting menu-bar glyph: idle is a projection of
-    /// update state, so every "back to idle" path routes through here — a direct
-    /// `setStatusGlyph(.idle)` call would silently drop the update-ready Nash Ⱀ
-    /// while a downloaded update awaits Restart.
-    func paintIdleGlyph(on button: NSStatusBarButton?) {
+    /// Paints the glyph the menu bar shows when nothing else draws on it: the
+    /// loading glyph and its pulse, or idle. The decision is `RestingGlyph.derive`.
+    /// Idle is reached only through here, since idle is a projection of update
+    /// state: a direct `setStatusGlyph(.idle)` call would silently drop the
+    /// update-ready Nash Ⱀ while a downloaded update awaits Restart. Every Sparkle
+    /// callback calls this, because the Nash rides the idle slot; the decision keeps
+    /// that repaint off a dictation glyph and a failure flash.
+    func paintRestingGlyph() {
+        let button = statusItem?.button
+        switch RestingGlyph.derive(
+            isPipelineActive: isPipelineActive,
+            isShowingBriefStatus: isShowingBriefStatus,
+            gate: modelGate
+        ) {
+        case .leave:
+            break
+        case .loading:
+            setStatusGlyph(status: .preparingSpeechModel, on: button)
+            startModelLoadingPulse(on: button)
+        case .idle:
+            stopModelLoadingPulse(on: button)
+            paintIdleGlyph(on: button)
+        }
+    }
+
+    private func paintIdleGlyph(on button: NSStatusBarButton?) {
         guard let button else { return }
         let isUpdateReady: Bool
         if case .ready = store.state.updateIndication {
@@ -55,7 +76,7 @@ extension AppDelegate {
 
     /// Briefly flashes the red failure glyph (the empty-dictation pattern) when an
     /// action the user explicitly took fails — a Restart install, a key save or a
-    /// key removal — then restores idle. Background failures stay silent.
+    /// key removal — then restores the resting glyph. Background failures stay silent.
     func flashUserActionFailure() {
         guard let button = statusItem?.button else { return }
         paint(MenuBarGlyph.failureGlyph, tint: .error, fallbackSymbol: "exclamationmark.circle", on: button)
@@ -65,8 +86,8 @@ extension AppDelegate {
         userActionFailureResetTask?.cancel()
         userActionFailureResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, self?.isPipelineActive == false else { return }
-            self?.paintIdleGlyph(on: self?.statusItem?.button)
+            guard !Task.isCancelled else { return }
+            self?.paintRestingGlyph()
         }
     }
 
@@ -76,7 +97,7 @@ extension AppDelegate {
     /// attention-pulse feel: ease-in-out, ~1.5 s full cycle (0.75 s per leg),
     /// dimming to 30% — slower than the 1 Hz text caret, faster than the 3–5 s
     /// sleep-indicator breath, so it reads as "working", not "alarmed".
-    func startModelLoadingPulse(on button: NSStatusBarButton?) {
+    private func startModelLoadingPulse(on button: NSStatusBarButton?) {
         guard let button else { return }
         button.wantsLayer = true
         guard button.layer?.animation(forKey: Self.modelLoadingPulseKey) == nil else { return }
@@ -90,7 +111,7 @@ extension AppDelegate {
         button.layer?.add(pulse, forKey: Self.modelLoadingPulseKey)
     }
 
-    func stopModelLoadingPulse(on button: NSStatusBarButton?) {
+    private func stopModelLoadingPulse(on button: NSStatusBarButton?) {
         button?.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
         button?.layer?.opacity = 1
     }

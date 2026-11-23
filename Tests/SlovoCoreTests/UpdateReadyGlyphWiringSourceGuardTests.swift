@@ -5,12 +5,12 @@ import Testing
 // on the `slovo` executable, so these read its source; the core projection is tested by
 // MenuBarGlyphTests.idleGlyphProjectsUpdateReadiness.
 // The icon is the resting-idle glyph replacement when an update is downloaded and
-// awaiting restart. Every return to idle must route through paintIdleGlyph(on:),
-// and indication changes must trigger a gated repaint.
+// awaiting restart. Every return to idle must route through paintRestingGlyph(),
+// and indication changes must trigger a repaint.
 @Suite("Update-ready glyph wiring source guards")
 struct UpdateReadyGlyphWiringSourceGuardTests {
     /// Every "return to idle" site in the app target must route through
-    /// `paintIdleGlyph(on:)` instead of calling `setStatusGlyph(.idle, …)` directly,
+    /// `paintRestingGlyph()` instead of calling `setStatusGlyph(.idle, …)` directly,
     /// so an update-ready state is never silently wiped back to Slovo Ⱄ.
     /// Stated sensitivity: calling `setStatusGlyph(.idle` in any Swift file under
     /// `Sources/slovo` → RED.
@@ -19,7 +19,7 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
         for file in try SourceText.swiftFiles(under: "Sources/slovo") {
             let contents = try SourceText.code(file)
             #expect(!contents.contains("setStatusGlyph(.idle"),
-                    "\(file) must route through paintIdleGlyph(on:) rather than calling setStatusGlyph(.idle directly")
+                    "\(file) must route through paintRestingGlyph() rather than calling setStatusGlyph(.idle directly")
         }
     }
 
@@ -41,26 +41,23 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
     /// Every Sparkle callback repaints the idle glyph, changed indication or not;
     /// this is the one effect outside the store's equality guard (docs/architecture.md,
     /// "App State"). So a later update event repaints idle over a failed Restart's red
-    /// flash. The repaint never runs over a live dictation, a brief failure flash or
-    /// the loading pulse; onboarding stands in for model readiness.
-    /// Stated sensitivity: drop the call from `startUpdater`'s `onUpdaterEvent`,
+    /// flash. Whether the repaint may run over a live dictation, a brief failure flash
+    /// or the loading pulse is `RestingGlyph.derive`, tested by `RestingGlyphTests`.
+    /// Stated sensitivity: drop the call from `startUpdater`'s `onUpdaterEvent`, or
     /// make `reduce` call `onUpdaterEvent()` under a condition or move the repaint
-    /// into a store listener, drop any gate (`isPipelineActive`,
-    /// `isShowingBriefStatus`, `isModelReady`, `store.state.menuMode.isOnboarding`),
-    /// negate the onboarding term or join the readiness terms with `&&` → RED.
+    /// into a store listener → RED.
     @Test
-    func everyUpdaterEventRepaintsIdleGlyphWithGates() throws {
+    func everyUpdaterEventRepaintsTheRestingGlyph() throws {
         let updateMenuSource = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let coordinatorSource = try SourceText.code("Sources/slovo/UpdaterCoordinator.swift")
         let startUpdaterBody = try SourceText.functionBody(named: "startUpdater", in: updateMenuSource)
-        let repaintBody = try SourceText.functionBody(named: "repaintIdleGlyphForUpdateState", in: updateMenuSource)
         let reduceBody = try SourceText.functionBody(named: "reduce", in: coordinatorSource)
         let eventClosure = try SourceText.slice(
             of: startUpdaterBody, from: "onUpdaterEvent:", to: "onInstallFailedAfterRestart:"
         )
 
-        #expect(eventClosure.contains("repaintIdleGlyphForUpdateState()"),
-                "startUpdater's per-event callback must trigger repaintIdleGlyphForUpdateState()")
+        #expect(eventClosure.contains("paintRestingGlyph()"),
+                "startUpdater's per-event callback must trigger paintRestingGlyph()")
         #expect(SourceText.containsInOrder([
             "store.update",
             "$0.updateIndication = $0.updateIndication.applying(event)",
@@ -71,11 +68,5 @@ struct UpdateReadyGlyphWiringSourceGuardTests {
                 "reduce must report every event exactly once, as a statement of its own")
         #expect(!reduceBody.contains("if ") && !reduceBody.contains("guard "),
                 "reduce must report the event under no condition")
-        let gate = try SourceText.slice(of: repaintBody, from: "guard", to: "else { return }")
-        for condition in ["!isPipelineActive", "!isShowingBriefStatus", "isModelReady || store.state.menuMode.isOnboarding"] {
-            #expect(gate.contains(condition), "repaintIdleGlyphForUpdateState must be gated on \(condition)")
-        }
-        #expect(SourceText.containsInOrder(["else { return }", "paintIdleGlyph(on: statusItem?.button)"], in: repaintBody),
-                "the repaint must run only after the gate")
     }
 }
