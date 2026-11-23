@@ -83,7 +83,7 @@ jobs:
       - name: "Spike: import check recompiles the probe, and refuses an undeclared import"
         if: github.event_name == 'pull_request'
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
           touch Tests/SlovoAppTests/ShellSpikeProbeTests.swift
           swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error 2>&1 | tee "$RUNNER_TEMP/clean.log"
           clean=${PIPESTATUS[0]}
