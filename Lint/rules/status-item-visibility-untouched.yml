@@ -1,0 +1,20 @@
+id: status-item-visibility-untouched
+language: swift
+severity: error
+message: >-
+  A stale visibility record can wipe the status item's stored position. Slovo
+  seeds the position only; remove the "NSStatusItem Visible" key and the
+  `isVisible` assignment.
+rule:
+  any:
+    - any:
+        - kind: line_string_literal
+        - kind: multi_line_string_literal
+      regex: NSStatusItem Visible
+    - kind: assignment
+      has:
+        field: target
+        regex: \.isVisible$
+files:
+  - Sources/slovo/**/*.swift
+  - Sources/SlovoCore/**/*.swift

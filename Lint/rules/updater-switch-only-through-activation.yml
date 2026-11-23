@@ -1,0 +1,14 @@
+id: updater-switch-only-through-activation
+language: swift
+severity: error
+message: >-
+  A direct assignment to `automaticallyChecksForUpdates` bypasses the
+  activation policy that owns the updater switch. Go through
+  `UpdaterActivation.apply` instead.
+rule:
+  kind: assignment
+  has:
+    field: target
+    regex: \.automaticallyChecksForUpdates$
+files:
+  - Sources/slovo/**/*.swift

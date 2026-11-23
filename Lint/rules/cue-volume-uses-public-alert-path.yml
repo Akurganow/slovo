@@ -1,0 +1,20 @@
+id: cue-volume-uses-public-alert-path
+language: swift
+severity: error
+message: >-
+  Sound-cue loudness follows the macOS system alert volume, and Slovo owns no
+  cue volume or alternate player. Play cues through the alert-sound service
+  and read or write no volume setting.
+rule:
+  any:
+    - any:
+        - kind: simple_identifier
+        - kind: type_identifier
+      regex: soundCueVolume|dictationCueVolume|cueVolume|alertVolume|AudioServicesPlaySystemSound|AudioServicesSetProperty|AVAudioPlayer|NSSound
+    - any:
+        - kind: line_string_literal
+        - kind: multi_line_string_literal
+      regex: Sound Cue Volume|com\.apple\.sound\.beep\.volume|com\.apple\.systemsound
+files:
+  - Sources/SlovoCore/**/*.swift
+  - Sources/slovo/**/*.swift

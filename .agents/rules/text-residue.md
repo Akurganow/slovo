@@ -67,10 +67,7 @@ the docs.
    under `docs/references/`. The Glagolitic glyph letters `AGENTS.md`,
    "Product intent — how the app must work", names are product text.
 6. **Test input:** planted junk in fixtures, and any value a rule has to be
-   exercised with. The `.swifttext` specimens under
-   `Tests/GateChecksTests/Fixtures` are the gate checks' planted positive and
-   negative cases. `Package.swift` keeps them out of the build graph, and
-   `.swiftlint.yml` keeps them out of lint.
+   exercised with.
 7. **Machine-written text:** `CHANGELOG.md`, which the release pipeline
    writes; the version fields of `Resources/Info.plist`, which the release
    pipeline stamps; `Package.resolved`, which the package manager writes. A
@@ -96,30 +93,35 @@ the docs.
 - **No check keys on vocabulary.** Words have legitimate readings, and a
   scan cannot draw the line judgement draws. Almost every phrase has a
   legitimate use somewhere, and strict CI turns each hit into a build
-  failure.
-- **What is fenced is constructs**, each with the harm it does. Here the two
-  `custom_rules` in `.swiftlint.yml` fence two:
-  - a print-family call under `Sources/`: the logger redacts, standard
-    output does not;
-  - an empty `catch`: errors must reach the failure glyph. A reason inside
-    the braces passes, and swallowing `CancellationError` is exempt.
+  failure. An ast-grep rule matches a syntax node, never a word in a comment
+  or in prose.
+- **What is fenced is constructs**, each with the harm it does. The fence is
+  the ast-grep rules under `Lint/rules/`, which `sgconfig.yml` lists. Two of
+  them replace the former SwiftLint `custom_rules`:
+  - `no-print-in-sources` bans a print-family call under `Sources/`: the
+    logger redacts, standard output does not;
+  - `no-empty-catch` bans an empty `catch`: errors must reach the failure
+    glyph. A reason inside the braces passes, and swallowing
+    `CancellationError` is exempt.
 
-  CI is strict, so each is a build failure.
-- **The admission test for a fence rule.** A new rule passes all of these.
-  The two rules above predate the test and have no fixture yet. A change to
-  either adds one:
+  The other rules ban code constructs that the review of a change would
+  otherwise have to catch. Each rule's message states its harm. CI is strict,
+  so each is a build failure.
+- **The admission test for a fence rule.** A new rule passes all of these:
   - the construct does harm and has no legitimate reading;
   - it has zero hits on the whole tree;
-  - a fixture holds positive cases and must-not-trip negatives;
   - the legitimate cousin is carved out. A rule keyed on the words a stub
     message begins with is a vocabulary rule in disguise.
-- A legitimate exception is silenced inline for the next line, with the
-  reason on the line above.
+- A legitimate exception is silenced for the next line with the comment
+  `// ast-grep-ignore: <rule-id>` on the line above, and the reason beside it.
+  Source: ast-grep documentation, `guide/project/severity.md`, in
+  `ast-grep/ast-grep.github.io` at commit
+  `e24a8920b93a46e3b8ef6ae50b9297150960c9f3`.
 - Anything a fence names cannot exist on a green `main`. A report of it is a
   misread. Residue is judged strictly above the fence.
 - A tell that recurs and could be matched by a pattern is a proposal in a
   report, never a check added on the spot.
 
-This file describes the fence in `.swiftlint.yml` and the files the release
-pipeline and the package manager write. Where those disagree with it, they
-win and this file is stale.
+This file describes the ast-grep rules under `Lint/rules/`, which
+`sgconfig.yml` lists, and the files the release pipeline and the package
+manager write. Where those disagree with it, they win and this file is stale.

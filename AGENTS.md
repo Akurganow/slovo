@@ -345,6 +345,9 @@ What agents share is in `.agents/rules/`, one file per job:
   standard every document that instructs an agent is written to;
 - `.agents/rules/verification.md`: the gate CI runs, what a green run does
   not prove, and what a result may claim;
+- `.agents/rules/review-contracts.md`: the contracts of the product's code
+  that no test or lint rule holds, which every reviewer of a change checks by
+  reading;
 - `.agents/rules/boundaries.md`: paths closed to hand edits, what never
   enters the tree or a published page, and the decisions only a person
   makes.

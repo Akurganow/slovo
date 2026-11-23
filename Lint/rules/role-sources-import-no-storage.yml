@@ -1,0 +1,26 @@
+id: role-sources-import-no-storage
+language: swift
+severity: error
+message: >-
+  A cleaner, transcriber or injector source must not import GRDB or a sibling
+  backend, so persistence and backends stay out of the role modules. Move the
+  storage access behind a seam in the storage layer.
+rule:
+  kind: import_declaration
+  has:
+    kind: identifier
+    regex: ^(GRDB|\w*Backend)(\.|$)
+# A role source is one under a Cleaners, Transcribers or Injectors directory,
+# or one whose file name contains Cleaner, Transcriber or Injector and is not
+# a *Tests or Mock* file. A `*` in a glob crosses `/`, so a name pattern also
+# reaches a directory whose own name holds the keyword.
+files:
+  - Sources/**/Cleaners/**/*.swift
+  - Sources/**/Transcribers/**/*.swift
+  - Sources/**/Injectors/**/*.swift
+  - Sources/**/*Cleaner*.swift
+  - Sources/**/*Transcriber*.swift
+  - Sources/**/*Injector*.swift
+ignores:
+  - Sources/**/*Tests.swift
+  - Sources/**/Mock*.swift

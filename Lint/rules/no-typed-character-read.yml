@@ -1,0 +1,12 @@
+id: no-typed-character-read
+language: swift
+severity: error
+message: >-
+  Reading the typed character of a key event lets keystroke content be logged
+  or retained. A non-trigger key press contributes only the fact that a key
+  went down; remove the read.
+rule:
+  kind: simple_identifier
+  regex: ^keyboardGetUnicodeString$
+files:
+  - Sources/**/*.swift

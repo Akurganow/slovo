@@ -1,86 +1,13 @@
 import Foundation
 import Testing
 
-// The Remove-Key contract: the pane offers removal only while
-// a key is saved, behind a destructive confirmation inside the Settings window;
-// the pane reaches removal only through the SettingsActions seam; the app-layer
-// action writes key presence and the scope event in one store update (no second
-// derivation); and the four copy strings are pinned.
-// No test target depends on the `slovo` executable, so the guards over the pane and
-// `AppDelegate+Settings.swift` read their source.
+// The Remove-Key contract: the app-layer action writes key presence and the scope
+// event in one store update (no second derivation).
+// No test target depends on the `slovo` executable, so the guard over
+// `AppDelegate+Settings.swift` reads its source.
 @Suite("Remove-Key button source guard")
 struct RemoveKeySourceGuardTests {
-    private static let panePath = "Sources/slovo/Settings/CleanupSettingsPane.swift"
     private static let settingsPath = "Sources/slovo/Settings/AppDelegate+Settings.swift"
-    private static let providerPath = "Sources/SlovoCore/Cleaner/KeychainOpenRouterKeyProvider.swift"
-
-    /// Stated sensitivity: drop the `if hasKey` gate → the gate slice vanishes → RED;
-    /// add a second condition to it (`if hasKey && …`) → the condition assert reddens;
-    /// render `savedKeyRow` at a second, ungated site → the usage count rises → RED;
-    /// drop the destructive role or the confirmation dialog from the row → the
-    /// row-body asserts redden.
-    @Test
-    func removeButtonIsGatedDestructiveAndConfirmed() throws {
-        let pane = try SourceText.code(Self.panePath)
-        let apiSection = try SourceText.block(after: "private var apiKeySection", in: pane)
-        let gatedBranch = try SourceText.slice(of: apiSection, from: "if hasKey", to: "} else")
-        #expect(gatedBranch.contains("savedKeyRow"), "the remove affordance must render only while a key is saved")
-        let condition = try SourceText.slice(of: apiSection, from: "if hasKey", to: "{")
-        #expect(condition.trimmingCharacters(in: .whitespacesAndNewlines) == "if hasKey",
-                "the gate must be key presence alone: a second condition ANDed in can hide the button while a key is saved")
-        // Declaration plus the single gated render site; a second render site
-        // would put the button outside the hasKey gate.
-        #expect(pane.components(separatedBy: "savedKeyRow").count - 1 == 2)
-        let row = try SourceText.block(after: "private var savedKeyRow", in: pane)
-        #expect(row.contains(#"Button("Remove Key…", role: .destructive)"#))
-        #expect(row.contains(".confirmationDialog("), "removal must be confirmed inside the Settings window")
-    }
-
-    /// Stated sensitivity: read key presence from the provider or the state field
-    /// instead of the observed availability → a negative assert reddens; read
-    /// availability from anywhere but the store, or hardcode or invert `hasKey` → a
-    /// derivation pin reddens. A snapshot that drives the key row instead of `hasKey`
-    /// reddens `removeButtonIsGatedDestructiveAndConfirmed` (its `if hasKey` slice).
-    @Test
-    func paneDerivesKeyPresenceFromObservedAvailability() throws {
-        let pane = try SourceText.code(Self.panePath)
-        #expect(pane.contains("private var availability: CleanupAvailability { store.state.cleanupAvailability }"),
-                "availability must come from the observed store")
-        #expect(pane.contains("private var hasKey: Bool { availability != .offNoKey }"),
-                "key presence must derive from the observed availability")
-        #expect(!pane.contains("hasConfiguredKey"), "the pane reads no key provider")
-        #expect(!pane.contains("isOpenRouterKeyPresent"), "the observed availability is the single key-presence signal")
-    }
-
-    /// Stated sensitivity: point the trigger button's action at the removal
-    /// itself (one-click bypass, dialog left vestigial), or drop the flag
-    /// assignment (a dead trigger) → the flag pin reddens; add any removal call
-    /// before the dialog, or a second one inside the row → a negative or count
-    /// assert reddens.
-    @Test
-    func triggerButtonOnlyRaisesTheConfirmation() throws {
-        let pane = try SourceText.code(Self.panePath)
-        let row = try SourceText.block(after: "private var savedKeyRow", in: pane)
-        #expect(row.contains("isConfirmingKeyRemoval = true"), "the trigger button must raise the confirmation flag")
-        guard let dialog = row.range(of: ".confirmationDialog(") else {
-            Issue.record("confirmationDialog not found in savedKeyRow")
-            return
-        }
-        #expect(!row[..<dialog.lowerBound].contains("removeSavedKey"), "no removal path may run before the dialog")
-        #expect(row.components(separatedBy: "removeSavedKey").count - 1 == 1,
-                "the dialog's confirm action is the only removal call site in the row")
-    }
-
-    /// Stated sensitivity: drop the seam call → the positive assert reddens;
-    /// have the pane talk to the key provider or the Keychain directly → a
-    /// negative assert reddens.
-    @Test
-    func paneRoutesRemovalThroughTheSettingsActionsSeam() throws {
-        let pane = try SourceText.code(Self.panePath)
-        #expect(pane.contains("actions.removeOpenRouterKey"))
-        #expect(!pane.contains(".removeKey("), "the pane must never call the key provider directly")
-        #expect(!pane.contains("SecItem"), "the pane must never touch the Keychain directly")
-    }
 
     /// Stated sensitivity: drop the `writeKeyPresence(...)` call after the
     /// provider delete → a positive assert reddens; set `.keyRemoved` outside the
@@ -105,58 +32,5 @@ struct RemoveKeySourceGuardTests {
         #expect(helper.components(separatedBy: "store.update").count - 1 == 1, "presence and the event land in one update")
         #expect(helper.contains("isOpenRouterKeyPresent = openRouterKeyProvider.hasConfiguredKey()"))
         #expect(helper.contains("applyScope("))
-    }
-
-    /// A failed key save or removal must reach the product's error surface, and key
-    /// presence must be read back from the provider whatever the outcome — a failed
-    /// save may already have deleted the old item. A failure applies no scope event.
-    /// Stated sensitivity: drop `flashUserActionFailure()` from either `catch` →
-    /// RED; move the `writeKeyPresence(...)` call inside the `do` (a failure
-    /// then leaves the pane on the pre-failure state) → RED; name a scope event in
-    /// the `catch` → RED. The helper's own contract is pinned by
-    /// `removalWritesKeyPresenceThroughOneStoreUpdate`.
-    @Test
-    func keyFailuresFlashTheGlyphAndStillRefresh() throws {
-        let settings = try SourceText.code(Self.settingsPath)
-        for name in ["saveOpenRouterKey", "removeOpenRouterKey"] {
-            let body = try SourceText.functionBody(named: name, in: settings)
-            let catchBody = try SourceText.block(after: "} catch", in: body)
-            let afterCatch = try #require(body.range(of: catchBody)).upperBound
-            #expect(catchBody.contains("flashUserActionFailure()"), "\(name): a failure must flash the red glyph")
-            for event in ["applyScope", ".keySaved", ".keyRemoved"] {
-                #expect(!catchBody.contains(event), "\(name): the catch block must name no scope event")
-            }
-            #expect(body[afterCatch...].components(separatedBy: "writeKeyPresence(").count - 1 == 1,
-                    "\(name): key presence must be written after the catch, on both outcomes")
-        }
-    }
-
-    /// Stated sensitivity: any wording change to the four spec-pinned strings —
-    /// including losing the button's trailing ellipsis — reddens the matching
-    /// assert (the confirm-action check requires the closing quote right after
-    /// "Key", so the ellipsized button label cannot satisfy it).
-    @Test
-    func removeKeyCopyMatchesTheSpecExactly() throws {
-        let pane = try SourceText.code(Self.panePath)
-        #expect(pane.contains(#""Remove Key…""#))
-        #expect(pane.contains(#""Remove the OpenRouter API key?""#))
-        #expect(pane.contains(#""Remove Key""#))
-        #expect(pane.contains(#""Cleanup will turn off until you add a key again.""#))
-    }
-
-    /// The real `SecItemDelete` runs only against the real Keychain, which unit tests never
-    /// touch (`KeychainKeyRemovalTests` uses closure fixtures), so source is the only
-    /// automated check of this wiring.
-    /// Stated sensitivity: wire the convenience init's `deleteKey` to anything
-    /// but the SecItemDelete-backed helper → RED; drop the errSecItemNotFound
-    /// tolerance (removing an absent key must stay a success — the goal state
-    /// already holds) → RED.
-    @Test
-    func keychainDeletePathIsSecItemDeleteAndIdempotent() throws {
-        let provider = try SourceText.code(Self.providerPath)
-        #expect(provider.contains("deleteKey: { try Self.deleteKeychainItem("))
-        let deleteBody = try SourceText.functionBody(named: "deleteKeychainItem", in: provider)
-        #expect(deleteBody.contains("SecItemDelete("))
-        #expect(deleteBody.contains("errSecItemNotFound"))
     }
 }

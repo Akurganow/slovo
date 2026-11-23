@@ -3,5 +3,15 @@
   "extends": [
     "config:recommended"
   ],
-  "minimumReleaseAge": "7 days"
+  "minimumReleaseAge": "7 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "ast-grep release pinned by version and SHA-256 in the Swift workflow",
+      "managerFilePatterns": ["/^\\.github/workflows/swift\\.yml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\n\\s+AST_GREP_VERSION: (?<currentValue>\\S+)\\n\\s+AST_GREP_SHA256: (?<currentDigest>[a-f0-9]{64})"
+      ]
+    }
+  ]
 }

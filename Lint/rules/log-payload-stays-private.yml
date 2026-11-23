@@ -1,0 +1,63 @@
+id: log-payload-stays-private
+language: swift
+severity: error
+message: >-
+  A log interpolation marked `privacy: .public`, or built with
+  `String(describing:)`, writes the raw value into the unified log, where
+  transcript text can leak. Log a `.count`, one of the allow-listed metrics
+  (durations, status tokens, plan cases) or a value left private; add a new
+  metric to the allow-list in this rule only after a review.
+# `\(x, privacy: .public)` parses as two sibling interpolations, `x` and
+# `privacy: .public`, with the separating comma between them as a node of its
+# own. Each `follows` below therefore hops over that comma to the argument
+# before it.
+rule:
+  any:
+    - kind: interpolated_expression
+      regex: ^privacy:\s*\.public$
+      not:
+        any:
+          # A length reduction: `value.count`.
+          - follows:
+              regex: ^,$
+              follows:
+                kind: interpolated_expression
+                regex: '[A-Za-z_][A-Za-z0-9_]*\.count$'
+          # The allow-listed metric expressions, matched exactly. They are
+          # millisecond durations, a fixed failure token and an HTTP status, a
+          # `StatusMessage` case name, a decode-plan case name, a 0/1 retry
+          # flag and a bundled cue's file name, never payload text.
+          - follows:
+              regex: ^,$
+              follows:
+                kind: interpolated_expression
+                regex: '^(biasRetried \? 1 : 0|cue\.resourceName|decodeMs|drainMs|elapsedMs|failureKind|failureMs|failureStatus|loadMs|planCase|requestMs|status\.logToken)$'
+          # `confirmedEndSeconds`, a stream position in seconds, with its format.
+          - follows:
+              regex: ^,$
+              follows:
+                kind: interpolated_expression
+                regex: '^format:\s*\.fixed\(precision:\s*2\)$'
+                follows:
+                  regex: ^,$
+                  follows:
+                    kind: interpolated_expression
+                    regex: '^streamState\.confirmedEndSeconds$'
+    - kind: call_expression
+      regex: '^String\(\s*describing:'
+      all:
+        # Only a bare `\(String(describing: x))`: with an argument after it,
+        # such as `, privacy: .private`, the interpolation is not matched.
+        - inside:
+            kind: interpolated_expression
+            not:
+              precedes:
+                regex: ^,$
+        - inside:
+            kind: call_expression
+            stopBy: end
+            has:
+              kind: navigation_expression
+              regex: \.(log|info|error|debug|notice|fault|warning)$
+files:
+  - Sources/**/*.swift

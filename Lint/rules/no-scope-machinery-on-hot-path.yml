@@ -1,0 +1,38 @@
+id: no-scope-machinery-on-hot-path
+language: swift
+severity: error
+message: >-
+  The orchestrator and the state machine must never touch the cleanup-scope
+  reducer, its fetcher or `applyScope`, because the scope fetch never runs on
+  the key-up path. Move the reference to the app target or the scope layer.
+rule:
+  any:
+    - kind: simple_identifier
+    - kind: type_identifier
+  regex: ^(CleanupScopeReducer|OpenRouterModelScopeFetcher|applyScope)$
+# The same file set as no-blocking-wait-in-orchestration, written out the same
+# way because a `*` in a glob crosses `/`.
+files:
+  - Sources/SlovoCore/*.swift
+  - Sources/SlovoCore/FSM/**/*.swift
+ignores:
+  - Sources/SlovoCore/ASR/**
+  - Sources/SlovoCore/About/**
+  - Sources/SlovoCore/Audio/**
+  - Sources/SlovoCore/Cleaner/**
+  - Sources/SlovoCore/Composition/**
+  - Sources/SlovoCore/Config/**
+  - Sources/SlovoCore/Contracts/**
+  - Sources/SlovoCore/Hints/**
+  - Sources/SlovoCore/Hotkey/**
+  - Sources/SlovoCore/Injection/**
+  - Sources/SlovoCore/Logging/**
+  - Sources/SlovoCore/MenuBar/**
+  - Sources/SlovoCore/Onboarding/**
+  - Sources/SlovoCore/Permissions/**
+  - Sources/SlovoCore/Personalization/**
+  - Sources/SlovoCore/Resources/**
+  - Sources/SlovoCore/Storage/**
+  - Sources/SlovoCore/Store/**
+  - Sources/SlovoCore/Update/**
+

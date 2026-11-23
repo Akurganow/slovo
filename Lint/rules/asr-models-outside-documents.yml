@@ -1,0 +1,32 @@
+id: asr-models-outside-documents
+language: swift
+severity: error
+message: >-
+  The WhisperKit default download folder is under the user's Documents, so the
+  speech model must be placed under Application Support through an explicit
+  download base. Remove the Documents path, and build every configuration
+  through the engine's helpers that take the base, not a `WhisperKitConfig`
+  inside `load()`.
+rule:
+  any:
+    - kind: simple_identifier
+      regex: ^(documentDirectory|documentsDirectory)$
+    - any:
+        - kind: line_string_literal
+        - kind: multi_line_string_literal
+      regex: Documents
+    - kind: call_expression
+      has:
+        kind: simple_identifier
+        regex: ^WhisperKitConfig$
+      inside:
+        kind: function_declaration
+        stopBy: end
+        has:
+          field: name
+          regex: ^load$
+files:
+  - Package.swift
+  - Sources/SlovoCore/ASR/**/*.swift
+  - Sources/SlovoCore/Composition/**/*.swift
+  - Sources/slovo/**/*.swift

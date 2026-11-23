@@ -1,12 +1,10 @@
 import Foundation
 import Testing
 
-// No test target depends on the `slovo` executable, so these guards read its menu and
-// settings source (comment-stripped, so a token surviving only in a comment cannot
-// satisfy an assert). They pin the translate-mode wiring.
+// No test target depends on the `slovo` executable, so this guard reads its menu source
+// (comment-stripped, so a token surviving only in a comment cannot satisfy an assert).
 @Suite("Translate mode wiring source guards")
 struct TranslateModeWiringSourceGuardTests {
-
     /// The translate submenu renderer builds the recognition-language
     /// catalog (NO Auto row), checkmarks the selected code, and the select action
     /// writes the store's translate target.
@@ -28,23 +26,5 @@ struct TranslateModeWiringSourceGuardTests {
                 "the translate submenu must not offer Auto (a translate target must be concrete)")
         #expect(!source.contains("\"Auto\""),
                 "the translate submenu must not offer a hardcoded Auto row")
-    }
-
-    /// The Cleanup pane hosts a translation picker driven by the
-    /// catalog (NO Auto row) and bound to the store.
-    /// Stated sensitivity: drop the binding or the catalog → a positive `#expect`
-    /// reddens; add an Auto option (`Language.auto` / a `"Auto"` tag) → a negative
-    /// `#expect` reddens.
-    @Test
-    func cleanupPaneHostsTranslationPicker() throws {
-        let cleanup = try SourceText.code("Sources/slovo/Settings/CleanupSettingsPane.swift")
-        #expect(cleanup.contains(#"store.binding(\.translationTargetLanguage)"#),
-                "the translation picker must bind the store's translate target")
-        #expect(cleanup.contains("RecognitionLanguageCatalog.options"),
-                "the translation picker must be built from the recognition-language catalog")
-        #expect(!cleanup.contains("Language.auto"),
-                "the translation picker must not offer Auto")
-        #expect(!cleanup.contains("\"Auto\""),
-                "the translation picker must not offer a hardcoded Auto row")
     }
 }

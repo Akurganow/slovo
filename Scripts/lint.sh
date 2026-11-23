@@ -165,6 +165,12 @@ run_swiftlint_analyze() {
     echo "SwiftLint analyze passed on $analyzed_count files; full log: $analyze_log"
 }
 
+# `sgconfig.yml` names Lint/rules/; every rule there is severity `error`, so one
+# finding fails the stage. Stdin is closed so the scan never waits on a pipe.
+ast_grep_scan() {
+    ast-grep scan --report-style short < /dev/null
+}
+
 run_stage "explicit-target-imports" swift_build_resolved \
     --explicit-target-dependency-import-check error
 
@@ -173,6 +179,8 @@ for script in Scripts/*.sh; do
 done
 
 run_stage "plist-lint" plutil -lint Resources/Info.plist slovo.entitlements
+
+run_stage "ast-grep-scan" ast_grep_scan
 
 run_stage "swiftlint-strict" swift_package_plugin swiftlint
 run_stage "swiftlint-compiler-log" generate_swiftlint_compiler_log

@@ -1,0 +1,15 @@
+id: scope-layer-persists-nothing
+language: swift
+severity: error
+message: >-
+  The cleanup-scope fetcher and reducer persist nothing: the scope lives in
+  the app state for the session. Remove the UserDefaults or FileManager use
+  and keep the scope in memory.
+rule:
+  any:
+    - kind: simple_identifier
+    - kind: type_identifier
+  regex: ^(UserDefaults|FileManager)$
+files:
+  - Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift
+  - Sources/SlovoCore/Cleaner/CleanupScopeReducer.swift

@@ -93,8 +93,7 @@ let package = Package(
         // Unit/behavioral tests for the core library. The database fixture is
         // read from disk via `#filePath`, not loaded as a SwiftPM resource, so
         // it is excluded from the build graph. The exclusion names the file, not
-        // the directory as `GateChecksTests` does, because `Fixtures/` also
-        // holds Swift sources.
+        // the directory, because `Fixtures/` also holds Swift sources.
         .testTarget(
             name: "SlovoCoreTests",
             dependencies: ["SlovoCore", "SlovoTestSupport", "SlovoObjC"],
@@ -107,14 +106,10 @@ let package = Package(
             dependencies: ["CleanupBenchmark", "SlovoCore"],
             swiftSettings: strictSwiftSettings
         ),
-        // The L1 prevention gates, implemented as source-tree-scanning tests. The
-        // scanner (`GateChecks`) lives in this target — it is a build-time gate,
-        // not shipped product code, so it does not depend on `SlovoCore`. The
-        // `.swifttext` fixtures are read from disk via `#filePath`, not loaded as
-        // SwiftPM resources, so they are excluded from the build graph.
+        // The `.gitignore` hardening gate. It is a build-time gate, not shipped
+        // product code, so it does not depend on `SlovoCore`.
         .testTarget(
             name: "GateChecksTests",
-            exclude: ["Fixtures"],
             swiftSettings: strictSwiftSettings
         ),
     ]

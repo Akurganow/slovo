@@ -1,0 +1,13 @@
+id: no-nsalert
+language: swift
+severity: error
+message: >-
+  NSAlert steals focus from the app the user is typing into. Surface the error
+  through the menu-bar glyph and status line instead.
+rule:
+  kind: call_expression
+  has:
+    kind: simple_identifier
+    regex: ^NSAlert$
+files:
+  - Sources/**/*.swift

@@ -1,0 +1,12 @@
+id: app-glyph-sets-no-template-flag
+language: swift
+severity: error
+message: >-
+  The menu bar re-tints template images, which drops the failure glyph's red.
+  The core glyph renderer owns the template flag, so the app must not set it;
+  draw the glyph through `MenuBarGlyph.image(for:tint:)`.
+rule:
+  kind: simple_identifier
+  regex: ^isTemplate$
+files:
+  - Sources/slovo/**/*.swift

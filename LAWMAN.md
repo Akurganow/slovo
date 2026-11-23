@@ -46,7 +46,6 @@ contract_version: 4
 - CHANGELOG.md
 - Benchmarks/cleanup
 - data
-- Tests/GateChecksTests/Fixtures
 - Tests/SlovoCoreTests/Fixtures
 - Sources/SlovoCore/Resources
 - Resources/Slovo.icon
@@ -69,6 +68,7 @@ contract_version: 4
 - .agents/rules/context.md
 - .agents/rules/boundaries.md
 - .agents/rules/verification.md
+- .agents/rules/review-contracts.md
 
 ## Labels
 

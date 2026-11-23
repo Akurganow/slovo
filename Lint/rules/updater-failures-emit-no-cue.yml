@@ -1,0 +1,14 @@
+id: updater-failures-emit-no-cue
+language: swift
+severity: error
+message: >-
+  Updater failures must not play dictation cues: the cues announce a
+  dictation, and an update problem is not one. Remove the cue call from the
+  update menu code.
+rule:
+  any:
+    - kind: simple_identifier
+    - kind: type_identifier
+  regex: DictationCue|cueController
+files:
+  - Sources/slovo/AppDelegate+UpdateMenu.swift

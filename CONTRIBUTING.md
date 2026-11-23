@@ -11,6 +11,10 @@ Requirements:
   needs macOS 26.2 or newer on the build machine. The shipped app runs on
   macOS 15 (Sequoia) or newer.
 - A stable code-signing identity for packaged app testing.
+- [ast-grep](https://ast-grep.github.io/), for `Scripts/lint.sh` and so for
+  `Scripts/diagnose.sh`. Install the version `.github/workflows/swift.yml` pins
+  (`AST_GREP_VERSION`) from the [ast-grep releases](https://github.com/ast-grep/ast-grep/releases)
+  and put its `ast-grep` binary on `PATH`.
 
 Install Swift package dependencies from the checked-in lockfile:
 
@@ -41,7 +45,8 @@ What it runs, and how CI uses it, is in [docs/development.md](docs/development.m
 
 ## Tests
 
-Slovo uses Swift Testing and source-tree gate checks. New behavior should have a
+Slovo uses Swift Testing, and ast-grep rules under `Lint/rules/` check the code's
+constructs. New behavior should have a
 test that can fail on a concrete broken implementation, not just pass on the
 current code. What else a test must earn here is in
 [.agents/rules/tests.md](.agents/rules/tests.md).

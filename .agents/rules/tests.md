@@ -45,9 +45,12 @@ Sources are cited, never restated.
    the bug.** Sharpen it if it exists. Add a test only for a scenario no test
    holds. A second test beside one that nearly held the case is redundancy
    born with the fix (§2.3, §2.7).
-7. **A source guard only where no behavioural seam exists.** A source guard
-   reads production source as text. Write the missing seam's reason in the
-   file. Pin the contract, not incidental text (§4.2, §2.2).
+7. **No test reads a repository file as text.** A contract about the code's
+   text is an ast-grep rule under `Lint/rules/` or an entry of
+   `.agents/rules/review-contracts.md`. A test that reads one is a finding
+   (§4.2, §2.2). The one exception is the menu-builder pins that
+   `docs/references/testing-swift.md`, §4.2, names, until behaviour tests
+   replace them.
 8. **A change that moves a test's protection elsewhere retires the test in
    the same change.** Legacy dies in the change that makes it legacy
    (`AGENTS.md`, "Standing owner directives", 2).
@@ -97,25 +100,23 @@ only to catch a named mutation can pin the implementation and become a
 
 ## Protected: never a finding
 
-1. A test whose contract is the source text itself: a gate that scans the
-   tree for what must never, or must always, be written.
-2. A probe that exists to prove a gate can fail: a planted specimen and the
-   test that checks the gate catches it.
-3. A test gated off CI with a stated reason. It can still be
+1. A probe that exists to prove a gate can fail: the armed gate self-test,
+   which goes red only when `SLOVO_GATE_SELFTEST` is armed.
+2. A test gated off CI with a stated reason. It can still be
    `environment-coupled` if skipping it leaves its contract with no CI
    signal (§4.3).
-4. The platform, tested on purpose, in three cases:
+3. The platform, tested on purpose, in three cases:
    - the one designated test of a platform seam, named as such;
    - a visual result that is itself the requirement;
    - a platform behaviour that has broken the product before, on record.
-5. Exactness that is itself the requirement: a prompt sent verbatim, a
+4. Exactness that is itself the requirement: a prompt sent verbatim, a
    byte-exact wire format, a call count or order with side effects.
-6. Duplication kept for clarity: setup repeated so each test reads alone, or
+5. Duplication kept for clarity: setup repeated so each test reads alone, or
    tests left apart because merging would hurt readability (§2.5).
-7. A distinct regression input. A test feeding a case no other test feeds is
+6. A distinct regression input. A test feeding a case no other test feeds is
    not redundant because another test runs the same lines (§2.3).
-8. A shape with a recorded reason, for as long as the reason is true.
-9. Sensitivity notes, as prose (`.agents/rules/text-residue.md` protects
+7. A shape with a recorded reason, for as long as the reason is true.
+8. Sensitivity notes, as prose (`.agents/rules/text-residue.md` protects
    them too).
 
 ## Neighbours

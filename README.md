@@ -117,7 +117,7 @@ tuned.
   downloaded update switches the status bar glyph to `Ⱀ` and offers **Update
   ready — v…** / **Restart**. The **Automatically install updates** switch
   (Settings → General, on by default) turns scheduled checking off.
-- Strict Swift build, test, concurrency, lint, and static guard checks.
+- Strict Swift build, test, concurrency, lint, and ast-grep rule checks.
 
 ## Requirements
 

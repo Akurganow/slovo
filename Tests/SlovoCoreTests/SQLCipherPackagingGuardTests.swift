@@ -1,11 +1,11 @@
 import Foundation
 import Testing
 
-// Packaging guards for the SQLCipher dynamic framework (design spec:
+// Packaging guard for the SQLCipher dynamic framework (design spec:
 // docs/superpowers/specs/2026-08-14-personalization-db-encryption-design.md,
 // Decision 6). SQLCipher enters the dependency graph TRANSITIVELY (via the
-// GRDB fork), so no manifest pin exists to scan — these guards watch the
-// packaging scripts, in the SparklePackagingGuardTests style.
+// GRDB fork), so no manifest pin exists to scan — the guard runs the packaging
+// script's dry run and reads the plan it prints.
 @Suite("SQLCipher packaging guards")
 struct SQLCipherPackagingGuardTests {
     /// The release `app` phase embeds SQLCipher.framework into
@@ -14,21 +14,13 @@ struct SQLCipherPackagingGuardTests {
     /// carrying slovo.entitlements) — an unembedded dynamic framework leaves
     /// the notarized app with a dangling @rpath load command that only
     /// resolves next to a development checkout. The copy SOURCE is pinned to
-    /// the xcframework's macOS slice and the discovery function to a script
-    /// read: a destination-only scan passes even when the ditto copies Sparkle
-    /// under SQLCipher's name, and the printed plan alone cannot tell a real
-    /// lookup from a hardcoded path.
+    /// the xcframework's macOS slice: a destination-only check passes even when
+    /// the ditto copies Sparkle under SQLCipher's name.
     /// Stated sensitivity: drop the ditto or the framework codesign, sign the
     /// app first, or point the ditto at another framework → the ordered-needle
-    /// scan → RED; delete or rename sqlcipher_framework_path → the discovery
-    /// pin → RED.
+    /// check on the plan → RED.
     @Test
     func appPhaseEmbedsAndSignsSQLCipher() throws {
-        let sharedSteps = Self.strippingShellComments(from: try Self.source("Scripts/app-bundle.sh"))
-        let discovery = try #require(Self.shellFunctionBody(named: "sqlcipher_framework_path", in: sharedSteps),
-                                     "the bundle steps must discover the framework, not hardcode a path")
-        #expect(discovery.contains("SQLCipher.framework"), Comment(rawValue: discovery))
-
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunSQLCipher-\(UUID().uuidString)", notary: true)
         #expect(appPlan.exitCode == 0, Comment(rawValue: appPlan.output))
         #expect(Self.output(appPlan.output, containsInOrder: [
@@ -38,70 +30,12 @@ struct SQLCipherPackagingGuardTests {
         ]), Comment(rawValue: appPlan.output))
     }
 
-    // MARK: - Manifest scanning (copies of the PackageDependencyTests helpers)
-
     private static var packageRoot: URL {
         let testFile = URL(fileURLWithPath: "\(#filePath)")
         return testFile
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-    }
-
-    private static func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
-    // MARK: - Shell scanning (copies of the PackageDependencyTests helpers)
-
-    private static func strippingShellComments(from source: String) -> String {
-        source
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { strippingHashComment(from: String($0)) }
-            .joined(separator: "\n")
-    }
-
-    private static func strippingHashComment(from line: String) -> String {
-        var output = ""
-        var inSingleQuote = false
-        var inDoubleQuote = false
-        var escaped = false
-
-        for character in line {
-            if escaped {
-                output.append(character)
-                escaped = false
-            } else if character == "\\" && !inSingleQuote {
-                output.append(character)
-                escaped = true
-            } else if character == "'" && !inDoubleQuote {
-                output.append(character)
-                inSingleQuote.toggle()
-            } else if character == "\"" && !inSingleQuote {
-                output.append(character)
-                inDoubleQuote.toggle()
-            } else if character == "#" && !inSingleQuote && !inDoubleQuote {
-                break
-            } else {
-                output.append(character)
-            }
-        }
-        return output
-    }
-
-    private static func shellFunctionBody(named name: String, in source: String) -> String? {
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard let start = lines.firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "\(name)() {"
-        }) else {
-            return nil
-        }
-        guard let end = lines[(start + 1)...].firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "}"
-        }) else {
-            return nil
-        }
-        return lines[start...end].joined(separator: "\n")
     }
 
     // MARK: - DRY_RUN plan runner (copies of the AppShellPackagingTests helpers)

@@ -1,0 +1,26 @@
+id: model-row-reads-no-key-state
+language: swift
+severity: error
+message: >-
+  The model picker must gray out with the other dependent rows, through the
+  availability gate on the Cleanup section, so with no key it reads no key
+  state of its own. Remove the key-presence read, and the `availability ==
+  .offNoKey` branch, from the pane.
+rule:
+  any:
+    - kind: equality_expression
+      has:
+        field: lhs
+        kind: simple_identifier
+        regex: ^availability$
+      regex: ^availability\s*==\s*\.offNoKey$
+    - kind: simple_identifier
+      regex: (?i)availability|hasKey|offNoKey|isOpenRouterKeyPresent
+      inside:
+        kind: property_declaration
+        stopBy: end
+        has:
+          field: name
+          regex: ^modelRow$
+files:
+  - Sources/slovo/Settings/CleanupSettingsPane.swift

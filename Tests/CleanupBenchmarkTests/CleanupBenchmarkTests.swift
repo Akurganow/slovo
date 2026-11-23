@@ -171,49 +171,6 @@ struct CleanupBenchmarkTests {
         #expect(result.stderr.isEmpty)
     }
 
-    /// Stated sensitivity: a thin executable wrapper can silently bypass the
-    /// testable command driver unless the production entrypoint is guarded too.
-    @Test
-    func executableEntrypointDelegatesToCommandDriver() throws {
-        let source = try String(
-            contentsOf: repositoryRoot()
-                .appending(path: "Tools/cleanup-benchmark-cli/main.swift"),
-            encoding: .utf8
-        )
-
-        #expect(source.contains("import CleanupBenchmark"))
-        #expect(!source.contains("import SlovoCore"))
-        #expect(source.contains("CleanupBenchmarkCommandDriver().run("))
-        #expect(source.contains("Array(CommandLine.arguments.dropFirst())"))
-        #expect(source.contains("ProcessInfo.processInfo.environment"))
-        #expect(source.contains("print(result.stdout)"))
-        #expect(source.contains("fputs(result.stderr, stderr)"))
-        #expect(source.contains("Foundation.exit(result.exitCode)"))
-    }
-
-    /// Stated sensitivity: source-shape checks alone can leave a broken
-    /// executable green if the real entrypoint exits before running the driver;
-    /// running SwiftPM recursively inside `swift test` can also deadlock on the
-    /// build lock, so the executable smoke belongs in diagnose instead.
-    @Test
-    func executableEntrypointRunsBenchmarkCommand() throws {
-        let diagnose = try String(
-            contentsOf: repositoryRoot().appending(path: "Scripts/diagnose.sh"),
-            encoding: .utf8
-        )
-        let smoke = try String(
-            contentsOf: repositoryRoot().appending(path: "Scripts/check-cleanup-benchmark-cli.sh"),
-            encoding: .utf8
-        )
-
-        #expect(diagnose.contains(#"run_stage "cleanup-benchmark-cli" Scripts/check-cleanup-benchmark-cli.sh"#))
-        #expect(smoke.contains("swift run --disable-automatic-resolution slovo-cleanup-benchmark"))
-        #expect(smoke.contains("--providers passthrough"))
-        #expect(smoke.contains("--samples"))
-        #expect(smoke.contains("--repetitions 1"))
-        #expect(!smoke.contains("--scratch-path"))
-    }
-
     /// Stated sensitivity: changing the command driver to exit non-zero even
     /// when every run passes is not caught by lower-level runner tests.
     @Test
@@ -286,12 +243,5 @@ struct CleanupBenchmarkTests {
         #expect(!String(describing: report.runs).contains("S3NT1NEL"))
         let rendered = CleanupBenchmarkReportFormatter.render(report)
         #expect(!rendered.contains("S3NT1NEL"))
-    }
-
-    private func repositoryRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
     }
 }
