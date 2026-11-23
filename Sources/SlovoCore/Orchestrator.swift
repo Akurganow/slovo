@@ -84,6 +84,9 @@ public actor Orchestrator {
 
     private var state: DictationState = .idle
     private var stashedPriorAudio: PriorAudioState?
+    /// A restore that failed, kept until one succeeds, so a later dictation never takes
+    /// Slovo's own mute as its baseline.
+    private var owedRestore: PriorAudioState?
     private var sessionVocabulary: [Term] = []
     /// The mode latched at key-up, read at clean time; reset in `.returnToIdle`.
     private var sessionMode: DictationMode = .plain
@@ -305,7 +308,18 @@ public actor Orchestrator {
             return nil
 
         case .muteSystemOutput:
-            // MUTE is gated on the session's flag; RESTORE stays stash-gated.
+            // A failed earlier restore is retried before anything else, so the mute below
+            // never reads Slovo's own mute as the baseline. While it still fails, output
+            // stays muted by Slovo: no new mute, and the key-up restore retries it.
+            if let owed = owedRestore {
+                do {
+                    try deps.audio.restoreSystemOutput(owed)
+                    owedRestore = nil
+                } catch {
+                    return nil
+                }
+            }
+            // MUTE is gated on the session's flag; RESTORE is gated on a prior state to put back.
             guard sessionSettings.mutesSystemAudio else { return nil }
             // A failed mute is reported at once, and the hold records on.
             do {
@@ -329,11 +343,13 @@ public actor Orchestrator {
             return nil
 
         case .restoreSystemOutput:
-            guard let prior = stashedPriorAudio else { return nil }
+            guard let prior = stashedPriorAudio ?? owedRestore else { return nil }
             do {
                 try deps.audio.restoreSystemOutput(prior)
+                owedRestore = nil
                 return nil
             } catch {
+                owedRestore = prior
                 // Deferred behind the transition's other effects: at key-up its Error
                 // follows End, and on a cancel or a stage failure `.returnToIdle` has
                 // already ended the cue session, so it plays none.

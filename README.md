@@ -211,6 +211,7 @@ as **Secure Field Active** when Slovo refused to paste because secure input was
 on, and it stays until your next dictation. **Sound Not Muted** and **Could
 Not Restore Sound** stay the same way: Slovo could not silence system audio for
 the hold, or could not turn it back on afterward; neither stops the dictation.
+Slovo tries the failed restore again at your next dictation.
 **Inserted as Spoken**, after a cleanup fallback, clears after about a second,
 and a hold with no speech shows
 only the glyph. With nothing to report, that row reads the hold hint, for

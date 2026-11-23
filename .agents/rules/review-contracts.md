@@ -213,7 +213,9 @@ is a file's content, the entry names the file.
   completion, and disposes it.
 - A failed mute is reported at once and the hold records on. A failed restore is
   reported after its transition's other effects, so its Error follows End and a
-  cancel plays none. A device with no mute or volume lever reports nothing.
+  cancel plays none. A device with no mute or volume lever reports nothing. Slovo
+  keeps a failed restore and tries it again at the next dictation's mute step and
+  restore step, until one succeeds.
 - The cue sound files, their packaging checks, their license notice and the
   README feature line stay in step. `Scripts/build_and_run.sh` checks each
   packaged cue file under verify. `THIRD-PARTY-NOTICES.md` keeps the CC0
