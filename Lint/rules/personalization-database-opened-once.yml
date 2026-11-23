@@ -30,6 +30,12 @@ rule:
         all:
           - inside:
               kind: init_declaration
+          - inside:
+              kind: class_declaration
+              stopBy: end
+              has:
+                field: name
+                regex: ^AppDelegate$
           - follows:
               kind: parameter
               stopBy:

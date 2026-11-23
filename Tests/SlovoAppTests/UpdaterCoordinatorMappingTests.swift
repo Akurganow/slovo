@@ -1,5 +1,4 @@
 import Foundation
-import SlovoTestSupport
 import Sparkle
 import Testing
 @testable import slovo
@@ -8,8 +7,8 @@ import Testing
 /// How `UpdaterCoordinator` folds Sparkle's callbacks into the update indication.
 /// Each test calls the delegate method directly on a coordinator whose updater was
 /// never started. That updater reads the process's standard defaults when the host
-/// bundle names no defaults domain (Sparkle 2.10.1, `Sparkle/SUHost.m:65-69`). It
-/// writes nothing, and no assertion depends on what it reads.
+/// bundle names no defaults domain (Sparkle 2.10.1, `Sparkle/SUHost.m:65-69`), and
+/// no assertion depends on what it reads.
 @MainActor
 @Suite("Updater coordinator mapping")
 struct UpdaterCoordinatorMappingTests {
@@ -34,9 +33,8 @@ struct UpdaterCoordinatorMappingTests {
 
     /// A scheduled check shows "Checking…": Sparkle's permission gate answers without
     /// throwing, the store shows the check and the event is reported once.
-    /// Stated sensitivity: the gate drops or replaces its `.checkStarted` event, the
-    /// call is left in the text but cannot run, or the method throws and refuses the
-    /// check → RED.
+    /// Stated sensitivity: the gate drops or replaces its `.checkStarted` event, or the
+    /// method throws and refuses the check → RED.
     @Test
     func scheduledCheckShowsChecking() throws {
         let (coordinator, store, reports) = makeCoordinator(indication: .idle)

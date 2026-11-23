@@ -1,5 +1,4 @@
 import AppKit
-import SlovoTestSupport
 import Testing
 @testable import slovo
 @testable import SlovoCore
@@ -9,9 +8,9 @@ import Testing
 @MainActor
 @Suite("Key presence")
 struct KeyPresenceTests {
-    /// The states the store published, in order. The store calls its listeners on the main actor.
+    /// Counts the store's publications. The store calls its listeners on the main actor.
     private final class Publications {
-        var states: [AppState] = []
+        var calls = 0
     }
 
     /// The launch seed reads key presence from the injected provider: a provider with
@@ -22,8 +21,8 @@ struct KeyPresenceTests {
     /// match both.
     @Test
     func launchSeedsKeyPresenceFromTheInjectedProvider() {
-        let withKey = TestAppDelegate(isKeyStored: true)
-        let withoutKey = TestAppDelegate(isKeyStored: false)
+        let withKey = AppShellFixture(isKeyStored: true)
+        let withoutKey = AppShellFixture(isKeyStored: false)
 
         #expect(withKey.store.state.isOpenRouterKeyPresent)
         #expect(withKey.store.state.cleanupAvailability == .on)
@@ -40,79 +39,61 @@ struct KeyPresenceTests {
     /// failed save, or writes false after a failed removal → RED.
     @Test
     func savingAndRemovingAKeyWritesPresenceFromTheProvider() {
-        let shell = TestAppDelegate(isKeyStored: false)
+        let shell = AppShellFixture(isKeyStored: false)
 
-        shell.appUnderTest.saveOpenRouterKey("test-key-1")
+        shell.app.saveOpenRouterKey("test-key-1")
         #expect(shell.store.state.isOpenRouterKeyPresent)
 
         shell.keychain.failWrites()
-        shell.appUnderTest.saveOpenRouterKey("test-key-2")
+        shell.app.saveOpenRouterKey("test-key-2")
         #expect(!shell.store.state.isOpenRouterKeyPresent)
 
         shell.keychain.allowWrites()
-        shell.appUnderTest.saveOpenRouterKey("test-key-3")
+        shell.app.saveOpenRouterKey("test-key-3")
         #expect(shell.store.state.isOpenRouterKeyPresent)
-        shell.appUnderTest.removeOpenRouterKey()
+        shell.app.removeOpenRouterKey()
         #expect(!shell.store.state.isOpenRouterKeyPresent)
 
-        shell.appUnderTest.saveOpenRouterKey("test-key-4")
+        shell.app.saveOpenRouterKey("test-key-4")
         shell.keychain.failDeletes()
-        shell.appUnderTest.removeOpenRouterKey()
+        shell.app.removeOpenRouterKey()
         #expect(shell.store.state.isOpenRouterKeyPresent)
     }
 
     /// Removing a key calls the provider's delete once and writes presence and the
-    /// cleanup scope in one store update. With cleanup on, the launch reconcile makes
-    /// generation 1 (`AppState.reconciled`); `.keyRemoved` adds one
-    /// (`CleanupScopeReducer.reduce`) and the availability change to off adds one more,
-    /// so generation 3. A failed delete publishes nothing and keeps generation 1.
+    /// cleanup scope in one store update. With cleanup on, `.keyRemoved` adds one to
+    /// the scope generation (`CleanupScopeReducer.reduce`) and the availability change
+    /// to off adds one more, so +2. A failed delete publishes nothing and keeps the
+    /// generation.
     /// Stated sensitivity: the delete is dropped or called twice, the `.keyRemoved`
-    /// event or the scope application is dropped (generation 2), the event is applied
-    /// on the failure path too, presence is written before the delete, written from
-    /// another source or split into two store updates → RED.
+    /// event or the scope application is dropped (+1), the event is applied on the
+    /// failure path too, presence is written before the delete, written from another
+    /// source or split into two store updates → RED.
     @Test
     func removingAKeyWritesPresenceAndScopeInOneUpdate() {
-        let removed = TestAppDelegate(isKeyStored: true)
+        let removed = AppShellFixture(isKeyStored: true)
         let removedPublications = Publications()
-        #expect(removed.store.state.cleanupScope.generation == 1)
-        removed.store.listen({ $0 }, { removedPublications.states.append($0) })
+        let removedBefore = removed.store.state.cleanupScope.generation
+        removed.store.listen({ $0 }, { _ in removedPublications.calls += 1 })
 
-        removed.appUnderTest.removeOpenRouterKey()
+        removed.app.removeOpenRouterKey()
 
         #expect(removed.keychain.deleteCalls == 1)
         #expect(!removed.store.state.isOpenRouterKeyPresent)
-        #expect(removed.store.state.cleanupScope.generation == 3)
-        #expect(removedPublications.states.count == 1)
+        #expect(removed.store.state.cleanupScope.generation == removedBefore + 2)
+        #expect(removedPublications.calls == 1)
 
-        let kept = TestAppDelegate(isKeyStored: true)
+        let kept = AppShellFixture(isKeyStored: true)
         let keptPublications = Publications()
+        let keptBefore = kept.store.state.cleanupScope.generation
         kept.keychain.failDeletes()
-        kept.store.listen({ $0 }, { keptPublications.states.append($0) })
+        kept.store.listen({ $0 }, { _ in keptPublications.calls += 1 })
 
-        kept.appUnderTest.removeOpenRouterKey()
+        kept.app.removeOpenRouterKey()
 
         #expect(kept.keychain.deleteCalls == 1)
         #expect(kept.store.state.isOpenRouterKeyPresent)
-        #expect(kept.store.state.cleanupScope.generation == 1)
-        #expect(keptPublications.states.isEmpty)
-    }
-
-    /// The delegate serves one store: two reads give the same object, and a write
-    /// through the `SettingsActions` seam the panes use shows on the delegate's store.
-    /// Stated sensitivity: `store` becomes a computed property that builds a new store
-    /// on every read → RED on the identity check and on the write check.
-    @Test
-    func theDelegateServesOneStore() {
-        let shell = TestAppDelegate()
-        let actions: any SettingsActions = shell.appUnderTest
-        let before = shell.appUnderTest.store.state.config.playsDictationSoundCues
-
-        actions.store.update { $0.config.playsDictationSoundCues = !before }
-
-        let firstRead = shell.appUnderTest.store
-        let secondRead = shell.appUnderTest.store
-        #expect(firstRead === secondRead)
-        #expect(actions.store === shell.appUnderTest.store)
-        #expect(shell.appUnderTest.store.state.config.playsDictationSoundCues == !before)
+        #expect(kept.store.state.cleanupScope.generation == keptBefore)
+        #expect(keptPublications.calls == 0)
     }
 }

@@ -16,7 +16,6 @@ final class FakeKeychainItem: Sendable {
         var isStored: Bool
         var writeFails = false
         var deleteFails = false
-        var writeCalls = 0
         var deleteCalls = 0
     }
 
@@ -26,8 +25,7 @@ final class FakeKeychainItem: Sendable {
         state = Mutex(State(isStored: isStored))
     }
 
-    var isStored: Bool { state.withLock { $0.isStored } }
-    var writeCalls: Int { state.withLock { $0.writeCalls } }
+    private var isStored: Bool { state.withLock { $0.isStored } }
     var deleteCalls: Int { state.withLock { $0.deleteCalls } }
 
     func failWrites() { state.withLock { $0.writeFails = true } }
@@ -36,7 +34,6 @@ final class FakeKeychainItem: Sendable {
 
     func write() throws {
         try state.withLock {
-            $0.writeCalls += 1
             $0.isStored = false
             if $0.writeFails { throw Failure() }
             $0.isStored = true
@@ -69,33 +66,27 @@ struct FixedFnKeyAssignmentReader: FnKeyAssignmentReading {
 /// An `AppDelegate` built from fakes: in-memory defaults, a key provider over
 /// `FakeKeychainItem`, no personalization database and a fixed fn verdict. It has
 /// no status item and no composition; no test launches it.
-///
-/// `DictationMenuBuilder` holds its target `unowned` and `NSMenuItem.target` is
-/// weak, so every delegate stays in `retained` for the rest of the process.
 @MainActor
-final class TestAppDelegate {
-    private static var retained: [AppDelegate] = []
-
-    let appUnderTest: AppDelegate
+final class AppShellFixture {
+    let app: AppDelegate
     let keychain: FakeKeychainItem
 
     init(isKeyStored: Bool = true) {
         keychain = FakeKeychainItem(isStored: isKeyStored)
-        appUnderTest = AppDelegate(
+        app = AppDelegate(
             logger: Logger(subsystem: "com.slovo.tests", category: "shell"),
             defaults: FakeUserDefaults(),
             fnKeyAssignmentReader: FixedFnKeyAssignmentReader(isFnKeySystemAssigned: false),
             openRouterKeyProvider: keychain.makeProvider(),
             personalization: nil
         )
-        Self.retained.append(appUnderTest)
     }
 
-    var store: AppStore { appUnderTest.store }
+    var store: AppStore { app.store }
 
     /// The dictation menu for the store's current state.
     func buildMenu(statusLine: String = "Hold fn to talk", isFnKeySystemAssigned: Bool = false) -> DictationMenuBuilder.Built {
-        DictationMenuBuilder(target: appUnderTest).make(
+        DictationMenuBuilder(target: app).make(
             store.state.dictationMenuInput,
             rows: DictationMenuRows(statusLine: statusLine, isFnKeySystemAssigned: isFnKeySystemAssigned)
         )
