@@ -181,3 +181,28 @@ jobs:
           timed_rebuild "base-manifest"
           git checkout -- Package.swift
           mv "$RUNNER_TEMP/SlovoAppTests" Tests/SlovoAppTests
+
+  # SPIKE (never merged): the base manifest under Swift Build on the default
+  # toolchain, so a Swift Build failure of the spike job can be told apart from
+  # one main already has.
+  spike-swiftbuild-base:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: "Spike: switch to the base manifest"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          swift --version
+          git fetch --depth=1 origin "$BASE_REF"
+          git show FETCH_HEAD:Package.swift > Package.swift
+          rm -rf Tests/SlovoAppTests
+          git diff --stat
+      - name: "Spike: base manifest, swift build --build-tests under Swift Build"
+        run: /usr/bin/time -p swift build --disable-automatic-resolution --build-system swiftbuild --build-tests
+      - name: "Spike: base manifest, swift test under Swift Build"
+        if: ${{ !cancelled() }}
+        run: swift test --disable-automatic-resolution --build-system swiftbuild
