@@ -103,6 +103,10 @@ is a file's content, the entry names the file.
 - Every updater event repaints the resting glyph, once and under no condition,
   so a later event overwrites a failed Restart's red flash. The core glyph logic
   decides whether the repaint may run over a live dictation.
+- `Add Vocabulary…` is disabled while the vocabulary is unavailable. Its flag
+  comes from the menu input.
+- A failed vocabulary edit, and an open of the notices file or a System Settings
+  pane that fails, flash the user-action failure glyph.
 
 ## Settings panes
 
@@ -134,6 +138,8 @@ is a file's content, the entry names the file.
   gesture for an additional and a standalone translate key.
 - The Vocabulary pane has a selectable list with a visible minus control. The
   control removes the selection and is disabled while nothing is selected.
+  While the vocabulary is unavailable, the pane says so in place of the empty
+  state and disables both controls.
 - The Settings window activates the app before it shows, so it does not open
   behind other apps. The opener uses no Settings link route.
 - The menu's add-key item shows the key window, and the window's Save routes

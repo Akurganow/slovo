@@ -90,7 +90,9 @@ tuned.
 - Local SQLite personalization store for vocabulary hints, encrypted at rest
   with SQLCipher — add and remove terms in **Settings → Vocabulary**, or use the
   menu-bar **Add Vocabulary…** quick action — to protect your own terms during
-  cleanup.
+  cleanup. If the database cannot be opened or read, the pane says the
+  vocabulary is unavailable, adding and removing are disabled, and dictation
+  continues without vocabulary.
 - Menu-bar status glyphs (Glagolitic letters) for idle, recording, and
   processing states — resting idle shows `Ⱄ` normally, swapping to `Ⱀ`
   when a downloaded update awaits restart; the recording glyph names the mode:

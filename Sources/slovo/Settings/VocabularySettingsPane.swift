@@ -24,7 +24,8 @@ struct VocabularySettingsPane: View {
         _store = ObservedObject(wrappedValue: actions.store)
     }
 
-    private var records: [VocabularyRecord] { store.state.vocabulary }
+    private var vocabulary: VocabularyList { store.state.vocabulary }
+    private var records: [VocabularyRecord] { vocabulary.records }
 
     private var trimmedNewTerms: String {
         newTerms.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -61,12 +62,10 @@ struct VocabularySettingsPane: View {
             .overlay {
                 // Centered in the empty list so the pane explains itself before any
                 // term exists, rather than showing a blank box.
-                if records.isEmpty {
-                    Text("No terms yet — add words cleanup should never rewrite.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding()
+                if !vocabulary.isEditable {
+                    emptyOverlay("Vocabulary is unavailable. Dictation works without it.")
+                } else if records.isEmpty {
+                    emptyOverlay("No terms yet — add words cleanup should never rewrite.")
                 }
             }
             Divider()
@@ -79,6 +78,14 @@ struct VocabularySettingsPane: View {
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(.quaternary, lineWidth: 1)
         }
+    }
+
+    private func emptyOverlay(_ text: String) -> some View {
+        Text(text)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding()
     }
 
     // The bottom-left ＋ / － bar of a macOS editable table. Icon-only borderless
@@ -94,6 +101,7 @@ struct VocabularySettingsPane: View {
                     .contentShape(Rectangle())
                     .accessibilityLabel("Add Term")
             }
+            .disabled(!vocabulary.isEditable)
             .popover(isPresented: $isAddingTerm, arrowEdge: .bottom) {
                 addTermPopover
             }
@@ -104,7 +112,7 @@ struct VocabularySettingsPane: View {
                     .contentShape(Rectangle())
                     .accessibilityLabel("Remove Selected")
             }
-            .disabled(selection.isEmpty)
+            .disabled(selection.isEmpty || !vocabulary.isEditable)
 
             Spacer()
         }

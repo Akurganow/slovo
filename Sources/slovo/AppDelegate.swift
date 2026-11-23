@@ -438,8 +438,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func openSettingsPane(_ pane: String) {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
-            NSWorkspace.shared.open(url)
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"),
+              NSWorkspace.shared.open(url) else {
+            flashUserActionFailure()
+            return
         }
     }
 

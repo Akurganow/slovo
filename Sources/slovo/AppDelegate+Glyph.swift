@@ -80,8 +80,9 @@ extension AppDelegate {
     }
 
     /// Briefly flashes the red failure glyph (the empty-dictation pattern) when an
-    /// action the user explicitly took fails — a Restart install, a key save or a
-    /// key removal — then restores the resting glyph. Background failures stay silent.
+    /// action the user explicitly took fails — a Restart install, a key save or removal,
+    /// a vocabulary edit, or opening the notices file or a System Settings pane — then
+    /// restores the resting glyph. Background failures stay silent.
     func flashUserActionFailure() {
         guard let button = statusItem?.button else { return }
         paint(MenuBarGlyph.failureGlyph, tint: .error, fallbackSymbol: "exclamationmark.circle", on: button)

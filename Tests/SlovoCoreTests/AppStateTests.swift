@@ -91,6 +91,17 @@ struct AppStateTests {
         }
     }
 
+    /// The menu's Add Vocabulary… item follows the vocabulary mirror through the menu input.
+    /// Stated sensitivity: hard-code `isVocabularyEditable` to `true` → RED.
+    @Test
+    func menuInputReportsWhetherTheVocabularyIsEditable() {
+        var state = Self.makeState()
+        #expect(state.dictationMenuInput.isVocabularyEditable, "an empty table is editable")
+        state.vocabulary = .unavailable
+        #expect(!state.dictationMenuInput.isVocabularyEditable)
+        #expect(state.menuStructure != Self.makeState().menuStructure, "the menu must rebuild when it changes")
+    }
+
     /// Stated sensitivity: skip `reconciled()` in `update` or in `init`, or let the
     /// `.availabilityChanged` arm return before it sets `cleanupIsOn` → RED.
     @Test
