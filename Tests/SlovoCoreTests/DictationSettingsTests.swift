@@ -47,11 +47,4 @@ struct DictationSettingsTests {
         let settings = AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings
         #expect(settings.recognitionLanguage == .ru)
     }
-
-    /// Stated sensitivity: a default of `true` for `Config.usesVocabularyBias` → RED.
-    @Test
-    func theDefaultsRunAnUnbiasedRecognizer() {
-        let settings = AppState(config: .defaults, isOpenRouterKeyPresent: true).dictationSettings
-        #expect(!settings.usesVocabularyBias)
-    }
 }

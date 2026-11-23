@@ -88,7 +88,8 @@ public actor Orchestrator {
     /// The mode latched at key-up, read at clean time; reset in `.returnToIdle`.
     private var sessionMode: DictationMode = .plain
     /// The settings the current dictation read when its recording began; assigned
-    /// once per dictation, never reset.
+    /// once per dictation, never reset. Its initial value is never read: every
+    /// reader runs after the assignment in `beginCapture`.
     private var sessionSettings = AppState(config: .defaults, isOpenRouterKeyPresent: false).dictationSettings
     /// Pipes live capture chunks into the open transcription session during the
     /// hold, tallying feed outcomes it returns at key-up. Spawned at key-down,
@@ -121,7 +122,9 @@ public actor Orchestrator {
         }
     }
 
-    /// The only entry for hotkey edges.
+    /// The only entry for hotkey edges. The caller awaits each call before it hands
+    /// over the next edge, as `HotkeyEdgeSequencer` does: no guard here covers an
+    /// edge that lands while another is still being handled.
     public func deliver(_ edge: HotkeyEdge) async {
         switch edge.phase {
         case .down: await handle(.startRequested)

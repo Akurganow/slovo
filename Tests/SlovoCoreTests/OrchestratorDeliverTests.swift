@@ -83,7 +83,8 @@ struct OrchestratorDeliverTests {
     }
 
     /// Stated sensitivity: map `.translateLatched` to `.startRequested` → the idle
-    /// orchestrator starts recording → RED.
+    /// orchestrator starts recording → RED. Map it to `.stopRequested(.translate)` or
+    /// to `.cancelRequested` → a live hold ends → RED.
     @Test
     func translateLatchedEdgeChangesNothing() async {
         let rig = Rig()
@@ -92,5 +93,15 @@ struct OrchestratorDeliverTests {
 
         #expect(await rig.orchestrator.currentState() == .idle, "a translate latch is the sink's repaint, not an orchestrator event")
         #expect(rig.recorder.engineStartCount == 0, "a translate latch must not start the capture engine")
+
+        await rig.deliver(.down(.plain))
+        await rig.deliver(.translateLatched)
+
+        #expect(await rig.orchestrator.currentState() == .recording, "a translate latch must not end a live hold")
+        #expect(rig.transcriber.cancelCount == 0, "a translate latch must not cancel the ASR session")
+        #expect(rig.recorder.engineStartCount == 1, "a translate latch must not restart the capture engine")
+
+        await rig.deliver(.cancel)
+        await rig.orchestrator.awaitPipelineDrain()
     }
 }

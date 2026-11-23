@@ -35,17 +35,7 @@ struct OrchestratorSettingsTests {
         let spell = FakeSpellCheckHintProvider(findings: [SpellFinding(token: "teh", guesses: ["the"])])
 
         init(source: FakeSettingsSource) {
-            orchestrator = Self.makeOrchestrator(source: source, cleaner: cleaner, injector: injector, audio: audio, spell: spell)
-        }
-
-        private static func makeOrchestrator(
-            source: FakeSettingsSource,
-            cleaner: FakeCleaner,
-            injector: FakeInjector,
-            audio: FakeSystemAudioController,
-            spell: FakeSpellCheckHintProvider
-        ) -> Orchestrator {
-            PipelineFactory.makeOrchestrator(
+            orchestrator = PipelineFactory.makeOrchestrator(
                 dependencies: Dependencies(
                     transcriber: FakeTranscriber(outcome: .success("raw")),
                     cleaner: cleaner,

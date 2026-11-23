@@ -255,8 +255,8 @@ does when it completes.
 
 This supersedes K11's list of fetch, push and rebuild commands in
 `docs/tasks/openrouter-key-scope-and-catalog.md`. The fetch is the
-`pendingFetch` selector with a subscriber. The push and the menu rebuild are
-subscribers.
+`pendingFetch` selector with a subscriber. The menu rebuild is a subscriber, and
+a dictation reads its settings itself instead of receiving a push.
 
 The seven runtime fields are never persisted:
 
