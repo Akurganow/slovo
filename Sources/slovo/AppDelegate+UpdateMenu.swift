@@ -50,7 +50,7 @@ extension AppDelegate {
         item.apply(row, highlighted: false)
     }
 
-    /// The hybrid row: a grey status-line "Update ready — v…" when unhighlighted,
+    /// The hybrid row: a grey status-line "Update Ready — v…" when unhighlighted,
     /// swapping to a plain white "Restart" under highlight (like every actionable
     /// row). Only in the ready state; the accessibility label stays put across the swap.
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {

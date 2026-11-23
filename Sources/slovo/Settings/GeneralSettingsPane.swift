@@ -24,11 +24,18 @@ struct GeneralSettingsPane: View {
         Form {
             dictationSettings
             Section("Startup") {
-                Toggle("Open at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, newValue in actions.setLaunchAtLogin(newValue) }
+                // Shows the system's state after the write, not the click: registration
+                // can fail, and the login item can change outside Slovo.
+                Toggle("Open at Login", isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { newValue in
+                        actions.setLaunchAtLogin(newValue)
+                        launchAtLogin = actions.launchAtLoginEnabled()
+                    }
+                ))
             }
             Section("Updates") {
-                Toggle("Automatically install updates", isOn: store.binding(\.automaticallyInstallsUpdates))
+                Toggle("Automatically Install Updates", isOn: store.binding(\.automaticallyInstallsUpdates))
             }
         }
         .formStyle(.grouped)
@@ -42,7 +49,7 @@ struct GeneralSettingsPane: View {
 
     private var dictationSettings: some View {
         Section("Dictation") {
-            Picker("Push-to-talk key", selection: store.binding(\.trigger)) {
+            Picker("Push-to-Talk Key", selection: store.binding(\.trigger)) {
                 ForEach(HotkeyTrigger.allCases, id: \.self) { option in
                     Text(option.displayName).tag(option)
                         // One key cannot hold both roles: the other role's key stays
@@ -59,7 +66,7 @@ struct GeneralSettingsPane: View {
                     Text(option.displayName).tag(Language(rawValue: option.code))
                 }
             } label: {
-                Text("Recognition language")
+                Text("Recognition Language")
                 Text("Auto handles mixed-language speech best.")
             }
             vocabularyBiasRow
@@ -109,7 +116,7 @@ struct GeneralSettingsPane: View {
     /// title-and-subtitle builder), as on `additionalKeyRow`.
     private var vocabularyBiasRow: some View {
         Toggle(isOn: store.binding(\.usesVocabularyBias)) {
-            Text("Vocabulary bias (experimental)")
+            Text("Vocabulary Bias (Experimental)")
             Text("Experimental features may misbehave — use with care.")
         }
     }
@@ -118,12 +125,12 @@ struct GeneralSettingsPane: View {
     /// reads `<main key> + [key]`, so the two-key gesture is legible without extra
     /// copy; standalone drops the prefix and the dropdown stands alone.
     private var translateKeyRow: some View {
-        LabeledContent("Translate key") {
+        LabeledContent("Translate Key") {
             HStack(spacing: 6) {
                 if store.state.config.translateKeyIsAdditional {
                     Text("\(store.state.config.trigger.displayName) +")
                 }
-                Picker("Translate key", selection: store.binding(\.translateTrigger)) {
+                Picker("Translate Key", selection: store.binding(\.translateTrigger)) {
                     ForEach(HotkeyTrigger.allCases, id: \.self) { option in
                         Text(option.displayName).tag(option)
                             .selectionDisabled(option == store.state.config.trigger)
@@ -143,7 +150,7 @@ struct GeneralSettingsPane: View {
     /// same row, where a sibling Text would become a row of its own behind a divider.
     private var additionalKeyRow: some View {
         Toggle(isOn: store.binding(\.translateKeyIsAdditional)) {
-            Text("Use as additional key")
+            Text("Use as Additional Key")
             Text("Off, hold it on its own to dictate with translation.")
         }
     }

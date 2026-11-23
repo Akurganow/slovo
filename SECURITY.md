@@ -6,7 +6,7 @@ simple: raw audio stays on the Mac.
 ## Supported Versions
 
 Only the latest release is supported; fixes ship only in a new release. With
-**Automatically install updates** on (the default), Slovo downloads it and
+**Automatically Install Updates** on (the default), Slovo downloads it and
 offers **Restart** in the menu to install it.
 
 ## Reporting A Vulnerability

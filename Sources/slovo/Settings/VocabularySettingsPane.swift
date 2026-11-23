@@ -92,7 +92,7 @@ struct VocabularySettingsPane: View {
                 Image(systemName: "plus")
                     .frame(width: 26, height: 22)
                     .contentShape(Rectangle())
-                    .accessibilityLabel("Add term")
+                    .accessibilityLabel("Add Term")
             }
             .popover(isPresented: $isAddingTerm, arrowEdge: .bottom) {
                 addTermPopover
@@ -102,7 +102,7 @@ struct VocabularySettingsPane: View {
                 Image(systemName: "minus")
                     .frame(width: 26, height: 22)
                     .contentShape(Rectangle())
-                    .accessibilityLabel("Remove selected")
+                    .accessibilityLabel("Remove Selected")
             }
             .disabled(selection.isEmpty)
 
@@ -123,6 +123,7 @@ struct VocabularySettingsPane: View {
             // Comma-separated bulk add is preserved: the seam splits the input.
             TextField("GitHub, OAuth, PostgreSQL", text: $newTerms)
                 .frame(width: 240)
+                .accessibilityLabel("Terms")
             HStack {
                 Spacer()
                 Button("Add", action: addTerms)

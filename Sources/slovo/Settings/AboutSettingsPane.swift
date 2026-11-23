@@ -129,8 +129,8 @@ struct AboutSettingsPane: View {
 
     private var privacyNote: some View {
         Text(
-            "Speech is recognized on your Mac. Nothing leaves your device unless cleanup is on "
-                + "— then only the transcript text goes to your own OpenRouter account."
+            "Speech is recognized on your Mac, and your audio never leaves it. "
+                + "With cleanup on, each dictation's transcript, your vocabulary and a few language hints go to your own OpenRouter account."
         )
             .font(.system(size: 11))
             .foregroundStyle(.secondary)

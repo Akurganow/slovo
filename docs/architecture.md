@@ -209,7 +209,7 @@ including Nash "Ⱀ" when an update is ready) and
 its dropdown holds a single live status line (carrying the hold-to-talk hint
 when idle) plus an always-visible update row — **Check for Updates…** when idle
 (a manual silent check), **Checking…**
-during any check, then silent download progress and the hybrid **Update ready —
+during any check, then silent download progress and the hybrid **Update Ready —
 v… / Restart** line, rendering the pure `UpdateIndication` state folded from the
 silent Sparkle pipeline. Below it sits the cleanup block: the **Clean Up
 Dictation** switch, cleanup model selection, and the translate-to target

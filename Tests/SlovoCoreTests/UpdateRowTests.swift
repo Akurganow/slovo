@@ -37,7 +37,7 @@ struct UpdateRowTests {
             isStatusStyle: true, accessibilityLabel: nil, highlightedTitle: nil
         ))
         #expect(UpdateIndication.ready(version: "1.2.3").row == UpdateRow(
-            title: "Update ready — v1.2.3", action: .restart,
+            title: "Update Ready — v1.2.3", action: .restart,
             isStatusStyle: true,
             accessibilityLabel: "Update ready, version 1.2.3, activate to restart",
             highlightedTitle: "Restart"
@@ -82,8 +82,8 @@ struct UpdateRowTests {
         #expect(item.accessibilityLabel() == ready.accessibilityLabel)
 
         item.apply(ready, highlighted: false)
-        #expect(item.title == "Update ready — v1.2.3")
-        #expect(item.attributedTitle?.string == "Update ready — v1.2.3")
+        #expect(item.title == "Update Ready — v1.2.3")
+        #expect(item.attributedTitle?.string == "Update Ready — v1.2.3")
         #expect(item.accessibilityLabel() == ready.accessibilityLabel)
     }
 }

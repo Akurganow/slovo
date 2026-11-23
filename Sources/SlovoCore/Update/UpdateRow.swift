@@ -50,7 +50,7 @@ public extension UpdateIndication {
             UpdateRow(title: "Downloading v\(version)", action: .noAction, isStatusStyle: true)
         case .ready(let version):
             UpdateRow(
-                title: "Update ready — v\(version)",
+                title: "Update Ready — v\(version)",
                 action: .restart,
                 isStatusStyle: true,
                 accessibilityLabel: "Update ready, version \(version), activate to restart",

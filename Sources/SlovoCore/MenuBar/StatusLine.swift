@@ -26,7 +26,7 @@ public enum StatusLine: Equatable, Sendable {
         case .preparingSpeechModel:
             return "Preparing Speech Model"
         case .cleanupUnavailableInsertedAsSpoken:
-            return "Inserted As Spoken"
+            return "Inserted as Spoken"
         case .accessibilityDenied:
             return "Accessibility Denied"
         case .transcriptionFailed:

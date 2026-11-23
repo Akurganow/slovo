@@ -60,7 +60,7 @@ struct CleanupSettingsPane: View {
                 get: { availability.isOn },
                 set: { enabled in store.update { $0.config.cleanupEnabled = enabled } }
             )) {
-                Text("Clean up dictation")
+                Text("Clean Up Dictation")
                 if let status = availability.settingsStatusLine {
                     Text(status)
                 }
@@ -103,7 +103,9 @@ struct CleanupSettingsPane: View {
             HStack(spacing: 8) {
                 TextField("openrouter/model-id", text: $customModelId)
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Custom Model ID")
                 Button("Use", action: useCustomModel)
+                    .accessibilityLabel("Use Custom Model ID")
                     .disabled(trimmedCustomModelId.isEmpty)
             }
             // The warning REPLACES the informational caption while it applies (spec K2).
@@ -116,10 +118,10 @@ struct CleanupSettingsPane: View {
     }
 
     private var writingStyleRow: some View {
-        Picker("Writing style", selection: store.binding(\.writingStyle)) {
+        Picker("Writing Style", selection: store.binding(\.writingStyle)) {
             Text("Formal").tag(WritingStyle.formal)
             Text("Casual").tag(WritingStyle.casual)
-            Text("Very casual").tag(WritingStyle.veryCasual)
+            Text("Very Casual").tag(WritingStyle.veryCasual)
         }
     }
 
@@ -132,7 +134,7 @@ struct CleanupSettingsPane: View {
                 Text(option.displayName).tag(Language(rawValue: option.code))
             }
         } label: {
-            Text("Translate to")
+            Text("Translate To")
             Text(translateCaption)
         }
     }
@@ -150,7 +152,7 @@ struct CleanupSettingsPane: View {
     }
 
     private var apiKeySection: some View {
-        Section("OpenRouter API key") {
+        Section("OpenRouter API Key") {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     SecureField("Enter a new key", text: $apiKey)
@@ -193,9 +195,9 @@ struct CleanupSettingsPane: View {
 
     private var spellCheckHintsSection: some View {
         // The input-language hint has no toggle; only the checker pass is user-gated.
-        Section("Language hints") {
+        Section("Language Hints") {
             Toggle(isOn: store.binding(\.useSpellCheckHints)) {
-                Text("Use system spell and grammar hints")
+                Text("Use System Spell and Grammar Hints")
                 Text("Your Mac's checker guides cleanup to the right words; grammar is English-only.")
             }
         }

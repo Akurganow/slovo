@@ -29,7 +29,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Alexander Kurganov</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Slovo records dictation audio only while the hold-to-talk trigger is pressed.</string>
+	<string>Slovo records audio only while you hold the push-to-talk key.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUAutomaticallyUpdate</key>

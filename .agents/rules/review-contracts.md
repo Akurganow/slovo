@@ -114,8 +114,8 @@ is a file's content, the entry names the file.
   effect outside the store goes through the settings actions seam. Only a user
   action writes the cleanup model: the picker and the custom model button. The
   Cleanup pane renders the state's model selection and derives none of its own.
-- The General pane re-reads Launch at Login each time it appears, since the
-  setting can change outside Slovo while the window is cached.
+- The General pane re-reads Open at Login each time it appears and after every
+  change, since the setting can change outside Slovo while the window is cached.
 - The General mute switch is disabled, with the reason in its row, where macOS
   can set neither mute nor volume.
 - The Microphone picker lists the present devices and an absent chosen device,
@@ -172,7 +172,7 @@ is a file's content, the entry names the file.
   check, and shows Checking at once.
 - The app builds one updater directly. It uses no stock updater controller, no
   legacy updater class and no check that shows an alert.
-- The saved Automatically install updates choice is applied before the updater
+- The saved Automatically Install Updates choice is applied before the updater
   starts, so a user who chose Off gets no first check.
 - The install-on-quit answer is yes, and the handler the updater passes is kept
   for the Restart click.
@@ -183,7 +183,7 @@ is a file's content, the entry names the file.
 - The update row is one persistent menu item that is changed in place. The
   renderer builds no menu items, and the menu-open re-sync renders the row from
   state.
-- Settings, General has the Automatically install updates switch, bound to the
+- Settings, General has the Automatically Install Updates switch, bound to the
   store.
 
 ## Sound cues

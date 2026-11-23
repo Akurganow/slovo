@@ -97,7 +97,7 @@ Clarifications:
   and that one dictation translates. Slovo sees ⌃ and fn in every keystroke, so
   they also count when already down as the hold begins; a sided ⌘, ⌥ or ⇧ is
   noticed only when that key itself moves, so it must go down during the hold.
-  With "Use as additional key" off it is *standalone* — a push-to-talk key of
+  With "Use as Additional Key" off it is *standalone* — a push-to-talk key of
   its own whose every dictation translates, while the main key keeps dictating
   plainly. Either way the single cleanup step also translates the result into
   the target language chosen in Settings or the menu-bar dropdown, then inserts

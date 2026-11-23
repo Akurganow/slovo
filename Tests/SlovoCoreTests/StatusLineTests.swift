@@ -13,7 +13,7 @@ struct StatusLineTests {
     func messagesKeepTheirTitles() {
         let titles: [(StatusMessage, String)] = [
             (.preparingSpeechModel, "Preparing Speech Model"),
-            (.cleanupUnavailableInsertedAsSpoken, "Inserted As Spoken"),
+            (.cleanupUnavailableInsertedAsSpoken, "Inserted as Spoken"),
             (.accessibilityDenied, "Accessibility Denied"),
             (.transcriptionFailed, "Transcription Failed"),
             (.secureFieldActive, "Secure Field Active"),

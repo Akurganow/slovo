@@ -74,6 +74,7 @@ extension AppDelegate {
     private func paint(_ glyph: Character, tint: MenuBarGlyphTint, fallbackSymbol: String, on button: NSStatusBarButton) {
         button.title = ""
         button.contentTintColor = nil
+        button.setAccessibilityLabel("Slovo")
         button.image = MenuBarGlyph.image(for: glyph, tint: tint)
             ?? NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: "Slovo")
     }

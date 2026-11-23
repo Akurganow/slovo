@@ -183,7 +183,7 @@ extension UpdaterCoordinator: SPUUpdaterDelegate {
 
 extension UpdaterCoordinator: SPUStandardUserDriverDelegate {
     /// Opt into gentle reminders so a downloaded-but-uninstalled update never
-    /// escalates to a modal; our own menu-bar "Update ready" line is the reminder.
+    /// escalates to a modal; our own menu-bar "Update Ready" line is the reminder.
     /// `nonisolated` because this protocol (unlike `SPUUpdaterDelegate`) is not
     /// main-actor-annotated and the answer is a constant.
     nonisolated var supportsGentleScheduledUpdateReminders: Bool {
@@ -192,7 +192,7 @@ extension UpdaterCoordinator: SPUStandardUserDriverDelegate {
 
     /// Return false: the delegate owns showing scheduled updates, and by
     /// deliberately not implementing `standardUserDriverWillHandleShowingUpdate`,
-    /// nothing is shown — the menu-bar "Update ready" line is the only reminder.
+    /// nothing is shown — the menu-bar "Update Ready" line is the only reminder.
     /// Returning true would let the stock Sparkle alert appear on the fallback
     /// path (a translocated or non-writable /Applications copy).
     nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(

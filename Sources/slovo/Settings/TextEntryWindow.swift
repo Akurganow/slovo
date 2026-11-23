@@ -15,6 +15,7 @@ final class TextEntryWindow {
         let windowTitle: String
         let caption: String
         let placeholder: String
+        let accessibilityLabel: String
         let confirmTitle: String
         let isSecure: Bool
 
@@ -22,6 +23,7 @@ final class TextEntryWindow {
             windowTitle: "Add OpenRouter Key",
             caption: "Stored in your Keychain. Create one at openrouter.ai/keys.",
             placeholder: "Enter your OpenRouter API key",
+            accessibilityLabel: "OpenRouter API Key",
             confirmTitle: "Save",
             isSecure: true
         )
@@ -30,6 +32,7 @@ final class TextEntryWindow {
             windowTitle: "Add Vocabulary",
             caption: "Comma-separated terms that cleanup must preserve verbatim.",
             placeholder: "GitHub, OAuth, PostgreSQL",
+            accessibilityLabel: "Vocabulary Terms",
             confirmTitle: "Add",
             isSecure: false
         )
@@ -89,7 +92,7 @@ private struct TextEntryView: View {
             Text(content.caption)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            InitialFocusField(placeholder: content.placeholder, isSecure: content.isSecure, text: $text)
+            InitialFocusField(placeholder: content.placeholder, accessibilityLabel: content.accessibilityLabel, isSecure: content.isSecure, text: $text)
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -116,6 +119,7 @@ private struct TextEntryView: View {
 @MainActor
 private struct InitialFocusField: NSViewRepresentable {
     let placeholder: String
+    let accessibilityLabel: String
     let isSecure: Bool
     @Binding var text: String
 
@@ -126,6 +130,7 @@ private struct InitialFocusField: NSViewRepresentable {
     func makeNSView(context: Context) -> NSTextField {
         let field: NSTextField = isSecure ? InitialFirstResponderSecureField() : InitialFirstResponderTextField()
         field.placeholderString = placeholder
+        field.setAccessibilityLabel(accessibilityLabel)
         field.delegate = context.coordinator
         field.isBezeled = true
         field.isEditable = true
