@@ -41,52 +41,24 @@ extension AppDelegate {
         updaterCoordinator?.checkForUpdates()
     }
 
-    /// Mutates the ONE persistent update row in place from the indication — title
-    /// and visibility only, never a rebuild, so the highlight callbacks survive a
-    /// transition that happens while the dropdown is tracking.
+    /// Writes the indication's row to the ONE persistent update row in place — never a
+    /// rebuild, so the highlight callbacks survive a transition that happens while the
+    /// dropdown is tracking. The row value (`UpdateIndication.row`) holds the texts and
+    /// styles; this maps its action to the selector it triggers.
     func renderUpdateIndication(_ indication: UpdateIndication) {
         guard let item = updateMenuItem else { return }
-        switch indication {
-        case .idle:
-            // Always visible and actionable: an idle row offers a manual check.
-            // Plain actionable style (not the grey status attributedTitle) — this is an
-            // action the user takes, so it reads like every other actionable row.
-            item.isHidden = false
-            item.isEnabled = true
+        let row = indication.row
+        switch row.action {
+        case .noAction:
+            item.action = nil
+        case .checkNow:
             item.target = self
             item.action = #selector(checkForUpdatesManually)
-            item.title = "Check for Updates…"
-            item.attributedTitle = nil
-            // A ready-state label must not outlive the state: VoiceOver would keep
-            // announcing "activate to restart" on a row that no longer restarts.
-            item.setAccessibilityLabel(nil)
-        case .checking:
-            // Transient feedback while any check (scheduled or manual) is in flight;
-            // grey status style, not actionable until the check finishes.
-            item.isHidden = false
-            item.isEnabled = false
-            item.action = nil
-            item.title = "Checking…"
-            item.attributedTitle = Self.updateStatusTitle("Checking…")
-            item.setAccessibilityLabel(nil)
-        case .downloading(let version):
-            item.isHidden = false
-            item.isEnabled = false
-            item.action = nil
-            item.title = "Downloading v\(version)"
-            item.attributedTitle = Self.updateStatusTitle("Downloading v\(version)")
-            item.setAccessibilityLabel(nil)
-        case .ready(let version):
-            item.isHidden = false
-            item.isEnabled = true
+        case .restart:
             item.target = self
             item.action = #selector(restartToInstallUpdate)
-            item.title = "Update ready — v\(version)"
-            item.attributedTitle = Self.updateStatusTitle("Update ready — v\(version)")
-            // Stable action label independent of the highlight-driven title swap, so
-            // VoiceOver and keyboard users get the action without the visual hover.
-            item.setAccessibilityLabel("Update ready, version \(version), activate to restart")
         }
+        item.apply(row, highlighted: false)
     }
 
     /// Re-reads three system facts into state in one update: the live macOS fn
@@ -95,8 +67,9 @@ extension AppDelegate {
     /// Microphone submenu. Then it re-renders the update row from state, which undoes
     /// a highlight swap that left "Restart" on the row. The reads here keep the
     /// dropdown right even when a CoreAudio listener failed to register or was lost
-    /// to an audio service reset.
-    func menuWillOpen(_ menu: NSMenu) {
+    /// to an audio service reset. Called from `menuNeedsUpdate`, the callback Apple
+    /// documents for changing menu items; `menuWillOpen` must not modify them.
+    func resyncMenuFacts() {
         store.update {
             $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned
             $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
@@ -110,20 +83,8 @@ extension AppDelegate {
     /// row). Only in the ready state; the accessibility label stays put across the swap.
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
         guard let updateItem = updateMenuItem,
-              case .ready(let version) = store.state.updateIndication
+              case .ready = store.state.updateIndication
         else { return }
-        if item === updateItem {
-            updateItem.attributedTitle = nil
-            updateItem.title = "Restart"
-        } else {
-            updateItem.title = "Update ready — v\(version)"
-            updateItem.attributedTitle = Self.updateStatusTitle("Update ready — v\(version)")
-        }
-    }
-
-    /// A status-line-styled attributed title (secondaryLabelColor) so the update row
-    /// reads like the disabled header lines until it is highlighted.
-    private static func updateStatusTitle(_ text: String) -> NSAttributedString {
-        NSAttributedString(string: text, attributes: [.foregroundColor: NSColor.secondaryLabelColor])
+        updateItem.apply(store.state.updateIndication.row, highlighted: item === updateItem)
     }
 }

@@ -22,7 +22,7 @@ struct DictationMenuBuilder {
         // translate submenu and the no-key toggle that this builder disables.
         menu.autoenablesItems = false
         // The status dropdown is its own menu delegate: the hybrid update row needs
-        // the willHighlight swap and the menuWillOpen re-sync.
+        // the willHighlight swap and the menuNeedsUpdate re-sync.
         menu.delegate = target
         // Each build owns its rows: drop the previous menu's notice so a key change
         // away from fn cannot leave the open-time re-sync holding a row that is no

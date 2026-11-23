@@ -267,6 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        resyncMenuFacts()
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
         guard store.state.menuMode.isOnboarding else { return }
