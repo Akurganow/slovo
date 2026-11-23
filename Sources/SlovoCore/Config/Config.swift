@@ -93,7 +93,6 @@ public struct Config: Equatable, Sendable {
         CleanupConfig(
             model: cleanupModel,
             writingStyle: writingStyle,
-            language: language,
             useSpellCheckHints: useSpellCheckHints,
             translationTargetLanguage: translationTargetLanguage,
             // Preference only — the key fact joins in the app layer.

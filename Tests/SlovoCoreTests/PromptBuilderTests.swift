@@ -12,7 +12,7 @@ struct PromptBuilderTests {
     private static func plainSystemText(style: WritingStyle = .casual, vocabulary: [Term] = []) -> String {
         PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: style, language: .auto),
+            config: CleanupConfig(writingStyle: style),
             context: PersonalizationContext(vocabulary: vocabulary)
         ).systemBlocks.joined(separator: "\n")
     }
@@ -140,7 +140,7 @@ struct PromptBuilderTests {
     func promptModelComesFromCleanupConfig() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(model: "custom/provider-model", writingStyle: .formal, language: .auto),
+            config: CleanupConfig(model: "custom/provider-model", writingStyle: .formal),
             context: PersonalizationContext(vocabulary: [])
         )
 
@@ -154,7 +154,7 @@ struct PromptBuilderTests {
         let raw = "1 2 3 проверяем 1 2 3"
         let prompt = PromptBuilder().buildPrompt(
             raw: raw,
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n")
@@ -190,7 +190,7 @@ struct PromptBuilderTests {
     func promptCarriesTranslateTrapAndAntiCompressionExamples() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "короче я сейчас попробую поговорить подольше ну чтобы проверить как работает cleanup",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
         let systemText = prompt.systemBlocks.joined(separator: "\n")
@@ -213,7 +213,7 @@ struct PromptBuilderTests {
         )
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
@@ -235,7 +235,7 @@ struct PromptBuilderTests {
     func noAdvisoryBlockWhenHintsEmpty() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints()
         )
@@ -251,7 +251,7 @@ struct PromptBuilderTests {
     func localeLineRemainsButSpellSentencesAbsentWhenNoFindings() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints(inputLocale: "en", spellFindings: [])
         )
@@ -278,7 +278,7 @@ struct PromptBuilderTests {
         )
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
@@ -304,7 +304,7 @@ struct PromptBuilderTests {
         )
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
@@ -321,7 +321,7 @@ struct PromptBuilderTests {
     func grammarSentencesAbsentWhenNoGrammarFindings() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints(spellFindings: [SpellFinding(token: "teh", guesses: ["the"])])
         )
@@ -337,7 +337,7 @@ struct PromptBuilderTests {
     func threeArgOverloadEmitsNoAdvisoryBlock() {
         let prompt = PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
 

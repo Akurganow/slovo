@@ -1,18 +1,18 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Cleanup-off sessions skip the cleaner and hints entirely, inject the raw
-// transcript, ignore a translate hold, and latch the flag at key-down so a
-// mid-hold config push cannot split one session into half-raw, half-cleaned.
+// transcript, and ignore a translate hold.
 @Suite("Orchestrator cleanup toggle")
 struct OrchestratorCleanupToggleTests {
     private static func deps(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
-        injector: FakeInjector
+        injector: FakeInjector,
+        settings: DictationSettings
     ) -> Dependencies {
         Dependencies(
             transcriber: transcriber, cleaner: cleaner, injector: injector,
@@ -22,14 +22,9 @@ struct OrchestratorCleanupToggleTests {
             ),
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: FakeDictationCueController(),
-            log: RedactionSafeLog(subsystem: "slovo", category: "toggle-test")
+            log: RedactionSafeLog(subsystem: "slovo", category: "toggle-test"),
+            settings: FakeSettingsSource(settings).provider
         )
-    }
-
-    private static func cleanupConfig(runsCleaner: Bool) -> CleanupConfig {
-        var cleanupConfig = Config().cleanupConfig
-        cleanupConfig.runsCleaner = runsCleaner
-        return cleanupConfig
     }
 
     /// Stated sensitivity: route the translate mode around the guard (e.g. run
@@ -38,10 +33,14 @@ struct OrchestratorCleanupToggleTests {
     func offIgnoresTranslateHold() async {
         let cleaner = FakeCleaner(outcome: .success("TRANSLATED"))
         let injector = FakeInjector(outcome: .success)
+        let rawMode = AppState(config: Config(cleanupEnabled: false), isOpenRouterKeyPresent: true).dictationSettings
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(transcriber: FakeTranscriber(outcome: .success("сырой текст")), cleaner: cleaner, injector: injector),
-            cleanupConfig: Self.cleanupConfig(runsCleaner: false)
+            dependencies: Self.deps(
+                transcriber: FakeTranscriber(outcome: .success("сырой текст")),
+                cleaner: cleaner,
+                injector: injector,
+                settings: rawMode
+            )
         )
 
         await orchestrator.handle(.startRequested)
@@ -50,48 +49,5 @@ struct OrchestratorCleanupToggleTests {
 
         #expect(cleaner.calls.isEmpty, "a translate hold with cleanup off must stay raw")
         #expect(injector.calls.last == "сырой текст")
-    }
-
-    /// Stated sensitivity: read `cleanupConfig.runsCleaner` directly in
-    /// `cleanAndContinue` instead of the `.beginCapture` latch → the mid-hold
-    /// push flips the in-flight session → RED.
-    @Test
-    func midHoldPushToOffStillCleansTheLatchedSession() async {
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(transcriber: FakeTranscriber(outcome: .success("raw")), cleaner: cleaner, injector: injector)
-        )
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.updateCleanupConfig(Self.cleanupConfig(runsCleaner: false))
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(cleaner.calls.count == 1, "the session latched ON at key-down must still clean")
-        #expect(injector.calls.last == "CLEANED")
-    }
-
-    /// Stated sensitivity: same mutation as above, opposite direction — a
-    /// session latched OFF must stay raw even if the push turns cleanup on
-    /// mid-hold → RED.
-    @Test
-    func midHoldPushToOnStaysRawForTheLatchedSession() async {
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let injector = FakeInjector(outcome: .success)
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
-            dependencies: Self.deps(transcriber: FakeTranscriber(outcome: .success("raw")), cleaner: cleaner, injector: injector),
-            cleanupConfig: Self.cleanupConfig(runsCleaner: false)
-        )
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.updateCleanupConfig(Self.cleanupConfig(runsCleaner: true))
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(cleaner.calls.isEmpty)
-        #expect(injector.calls.last == "raw")
     }
 }

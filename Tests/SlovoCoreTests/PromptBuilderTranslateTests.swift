@@ -16,7 +16,6 @@ struct PromptBuilderTranslateTests {
             raw: "прибери мусор and clean up the code",
             config: CleanupConfig(
                 writingStyle: style,
-                language: .auto,
                 translationTargetLanguage: target,
                 translate: true
             ),
@@ -144,7 +143,6 @@ struct PromptBuilderTranslateTests {
             raw: raw,
             config: CleanupConfig(
                 writingStyle: .casual,
-                language: .auto,
                 translationTargetLanguage: .ru,
                 translate: true
             ),

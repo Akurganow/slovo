@@ -100,7 +100,6 @@ public enum CleanupDefaults {
 public struct CleanupConfig: Equatable, Sendable {
     public var model: String
     public var writingStyle: WritingStyle
-    public var language: Language
     /// When on, the orchestrator runs the on-device spell pass and passes its
     /// findings to the model as advisory hints. The input-language hint is
     /// unaffected — it has no toggle.
@@ -112,17 +111,16 @@ public struct CleanupConfig: Equatable, Sendable {
     /// a translate pass into `translationTargetLanguage`, off keeps today's
     /// transcription-only cleanup.
     public var translate: Bool
-    /// Whether the cleanup step runs at all for the NEXT session — the EFFECTIVE
-    /// value (stored preference AND key present), derived in the app layer so
-    /// the orchestrator never learns about keys. Latched per session at
-    /// key-down; `CleanupConfig` mixes provenance deliberately: tunables (how),
-    /// `translate` (per-call), and this (whether-to-run) all ride one push.
+    /// Whether the cleanup step runs, the EFFECTIVE value (stored preference AND
+    /// key present), read once per dictation. The app layer derives it, so the
+    /// orchestrator never learns about keys. `CleanupConfig` mixes provenance so a
+    /// dictation reads its whole cleanup setup as one value: tunables (how),
+    /// `translate` (per-call), and this (whether-to-run).
     public var runsCleaner: Bool
 
     public init(
         model: String = CleanupDefaults.openRouterModel,
         writingStyle: WritingStyle,
-        language: Language,
         useSpellCheckHints: Bool = true,
         translationTargetLanguage: Language = .en,
         translate: Bool = false,
@@ -130,7 +128,6 @@ public struct CleanupConfig: Equatable, Sendable {
     ) {
         self.model = model
         self.writingStyle = writingStyle
-        self.language = language
         self.useSpellCheckHints = useSpellCheckHints
         self.translationTargetLanguage = translationTargetLanguage
         self.translate = translate

@@ -107,7 +107,7 @@ struct CleanupBenchmarkTests {
                 CleanupBenchmarkCandidate(provider: "fake-b", model: "b", cleaner: second),
             ],
             samples: samples,
-            config: CleanupConfig(model: "unused", writingStyle: .casual, language: .auto),
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
 
@@ -143,7 +143,7 @@ struct CleanupBenchmarkTests {
                 CleanupBenchmarkCandidate(provider: "fake", model: "hot", cleaner: cleaner),
             ],
             samples: [sample],
-            config: CleanupConfig(model: "unused", writingStyle: .casual, language: .auto),
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
             context: PersonalizationContext(vocabulary: []),
             repetitions: 1,
             warmupRepetitions: 2
@@ -276,7 +276,7 @@ struct CleanupBenchmarkTests {
                 ),
             ],
             samples: [sample],
-            config: CleanupConfig(model: "unused", writingStyle: .casual, language: .auto),
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
 

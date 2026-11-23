@@ -1,6 +1,6 @@
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The orchestrator must close the cue session when a dictation ends, whatever ended
@@ -17,7 +17,6 @@ struct OrchestratorCueSessionTests {
     func completedDictationClosesTheCueSession() async {
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(transcript: "hi", cues: cues)
         )
 
@@ -40,7 +39,6 @@ struct OrchestratorCueSessionTests {
     func cancelledDictationClosesTheCueSession() async {
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(transcript: "hi", cues: cues)
         )
 
@@ -66,6 +64,7 @@ struct OrchestratorCueSessionTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: cues,
             log: RedactionSafeLog(subsystem: "slovo", category: "cue-session-test"),
+            settings: FakeSettingsSource().provider,
             statusReporter: { _ in }
         )
     }

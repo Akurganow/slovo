@@ -1,14 +1,14 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The mute-while-dictating switch, exercised through the REAL running composition
 // (`PipelineFactory.makeOrchestrator` over the seam fakes — never a hand-wired
-// copy). The switch is a CAPTURE-stage flag: MUTE is gated on the live flag, while
-// RESTORE stays gated ONLY on the stashed prior audio, so a mid-session toggle can
-// never corrupt the mute/restore invariant.
+// copy). The switch is a CAPTURE-stage flag: MUTE is gated on the flag the dictation
+// read when its recording began, while RESTORE stays gated ONLY on the stashed prior
+// audio, so the mute/restore invariant never depends on the switch.
 @Suite("Orchestrator mute-while-dictating")
 struct OrchestratorMuteWhileDictatingTests {
     private static var vocab: [Term] {
@@ -29,8 +29,8 @@ struct OrchestratorMuteWhileDictatingTests {
         mutingEnabled: Bool,
         audio: FakeSystemAudioController
     ) -> Orchestrator {
-        PipelineFactory.makeOrchestrator(
-            config: Config(mutesSystemAudioWhileDictating: mutingEnabled),
+        let state = AppState(config: Config(mutesSystemAudioWhileDictating: mutingEnabled), isOpenRouterKeyPresent: true)
+        return PipelineFactory.makeOrchestrator(
             dependencies: Dependencies(
                 transcriber: FakeTranscriber(outcome: .success("hi")),
                 cleaner: FakeCleaner(outcome: .success("HI")),
@@ -39,7 +39,8 @@ struct OrchestratorMuteWhileDictatingTests {
                 audio: audio,
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
                 cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-mute-test")
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-mute-test"),
+                settings: FakeSettingsSource(state.dictationSettings).provider
             )
         )
     }
@@ -67,91 +68,5 @@ struct OrchestratorMuteWhileDictatingTests {
 
         #expect(audio.muteCount == 0, "muting disabled must skip the mute; got \(audio.muteCount)")
         #expect(audio.restoredDeviceIDs.isEmpty, "nothing muted → nothing restored; got \(audio.restoredDeviceIDs)")
-    }
-
-    /// AC5: disabling muting applies to the NEXT dictation live on the SAME running
-    /// orchestrator (no rebuild), mirroring `updatedCleanupModelReachesNextDictationLive`.
-    /// Stated sensitivity: make `updateMutesSystemAudioWhileDictating` a no-op → the
-    /// second session still mutes → muteCount == 2 → RED.
-    @Test
-    func disablingMutingReachesNextDictationLive() async {
-        let audio = Self.mutingAudio()
-        let orchestrator = Self.orchestrator(mutingEnabled: true, audio: audio)
-
-        await Self.runSession(orchestrator)
-        #expect(audio.muteCount == 1, "the first dictation mutes with the flag on")
-
-        await orchestrator.updateMutesSystemAudioWhileDictating(false)
-        await Self.runSession(orchestrator)
-
-        #expect(audio.muteCount == 1, "disabling muting reaches the next dictation live; the second session must not mute; got \(audio.muteCount)")
-    }
-
-    /// AC6: enabling muting applies to the NEXT dictation live on the SAME running
-    /// orchestrator (no rebuild).
-    /// Stated sensitivity: make `updateMutesSystemAudioWhileDictating` a no-op → the
-    /// second session still skips the mute → muteCount stays 0 → RED.
-    @Test
-    func enablingMutingReachesNextDictationLive() async {
-        let audio = Self.mutingAudio()
-        let orchestrator = Self.orchestrator(mutingEnabled: false, audio: audio)
-
-        await Self.runSession(orchestrator)
-        #expect(audio.muteCount == 0, "the first dictation does not mute with the flag off")
-
-        await orchestrator.updateMutesSystemAudioWhileDictating(true)
-        await Self.runSession(orchestrator)
-
-        #expect(audio.muteCount == 1, "enabling muting reaches the next dictation; the second session mutes; got \(audio.muteCount)")
-    }
-
-    /// AC7(a): toggling the switch OFF mid-session must NOT corrupt the restore
-    /// invariant. A session that muted under the old flag must still
-    /// restore exactly once, because RESTORE is gated on the stashed prior audio, not
-    /// the live flag — otherwise an error would leave system output stuck muted.
-    /// Stated sensitivity: gate restore on the live flag instead of the stash →
-    /// restore skipped → audio left muted → restoredDeviceIDs empty → RED.
-    @Test
-    func togglingOffMidSessionStillRestores() async {
-        let audio = Self.mutingAudio()
-        let orchestrator = Self.orchestrator(mutingEnabled: true, audio: audio)
-
-        await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()                         // mutes; stash set
-        await orchestrator.updateMutesSystemAudioWhileDictating(false) // flip mid-session
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(audio.muteCount == 1, "the session muted under the old flag")
-        #expect(audio.restoredDeviceIDs.count == 1, "restore is stash-gated; toggling off mid-session still restores once; got \(audio.restoredDeviceIDs)")
-    }
-
-    /// AC7(b): toggling the switch ON mid-session, when the session began with muting
-    /// OFF (nothing muted, stash nil), must NOT fabricate a restore — restore stays a
-    /// no-op because there is no stashed prior audio. This is the flag-ON-direction
-    /// complement to `togglingOffMidSessionStillRestores` (AC7a), which is the
-    /// load-bearing guard that a mid-session flip cannot SUPPRESS a real restore (it
-    /// reddens on ANY flag-gate spelling of restore).
-    /// Stated sensitivity: this test reddens on a restore that fires WITHOUT a real
-    /// stash — dropping the `if let prior = stashedPriorAudio` guard so restore runs
-    /// unconditionally, or fabricating a default `PriorAudioState` → a restore is
-    /// recorded with nothing muted → restoredDeviceIDs non-empty → RED. It does NOT
-    /// claim to catch flag-gating of restore (with stash nil both the correct code
-    /// and a flag-gate skip restore) — that direction is AC7a's job.
-    @Test
-    func togglingOnMidSessionDoesNotRestoreWhenNothingMuted() async {
-        let audio = Self.mutingAudio()
-        let orchestrator = Self.orchestrator(mutingEnabled: false, audio: audio)
-
-        await orchestrator.handle(.startRequested)
-        // Awaiting the cue is what makes this observation real: the mute point has
-        // passed, so a muteCount of zero is a decision, not a race not yet run.
-        await orchestrator.awaitReadinessCue()
-        await orchestrator.updateMutesSystemAudioWhileDictating(true) // flip mid-session
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
-
-        #expect(audio.muteCount == 0, "muting was off for that hold, so nothing was muted")
-        #expect(audio.restoredDeviceIDs.isEmpty, "restore stays stash-gated; toggling on must not fabricate a restore; got \(audio.restoredDeviceIDs)")
     }
 }

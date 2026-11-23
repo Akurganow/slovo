@@ -1,7 +1,7 @@
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Silence is intercepted before cleanup and injection in EITHER mode — no OpenRouter
@@ -22,7 +22,6 @@ struct OrchestratorEmptyResultTests {
         let injector = FakeInjector(outcome: .success)
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(outcome: .success("")),
                 cleaner: cleaner,
@@ -51,14 +50,13 @@ struct OrchestratorEmptyResultTests {
         let reported = Mutex<[StatusMessage]>([])
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(outcome: .success("")),
                 cleaner: FakeCleaner(outcome: .success("UNUSED")),
                 injector: injector,
+                cleanupEnabled: false,
                 statusReporter: { status in reported.withLock { $0.append(status) } }
-            ),
-            cleanupConfig: Self.cleanupConfig(runsCleaner: false)
+            )
         )
 
         await Self.runSession(orchestrator)
@@ -69,18 +67,13 @@ struct OrchestratorEmptyResultTests {
         #expect(await orchestrator.currentState() == .idle, "raw-mode silence must return the session to idle")
     }
 
-    private static func cleanupConfig(runsCleaner: Bool) -> CleanupConfig {
-        var cleanupConfig = Config().cleanupConfig
-        cleanupConfig.runsCleaner = runsCleaner
-        return cleanupConfig
-    }
-
     /// Dependencies with the seam fakes, mirroring the sibling orchestrator suites.
     private static func deps(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
         injector: FakeInjector,
         cues: FakeDictationCueController = FakeDictationCueController(),
+        cleanupEnabled: Bool = true,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
@@ -92,6 +85,9 @@ struct OrchestratorEmptyResultTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: cues,
             log: RedactionSafeLog(subsystem: "slovo", category: "empty-result-test"),
+            settings: FakeSettingsSource(
+                AppState(config: Config(cleanupEnabled: cleanupEnabled), isOpenRouterKeyPresent: true).dictationSettings
+            ).provider,
             statusReporter: statusReporter
         )
     }

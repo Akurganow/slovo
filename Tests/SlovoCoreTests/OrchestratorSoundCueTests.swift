@@ -218,31 +218,28 @@ struct OrchestratorSoundCueTests {
                 "key-up ends the recording before cleanup fails; got \(cues.playedCues)")
     }
 
-    /// A release during readiness waits for capture readiness, never for audio, and
-    /// silence still ends a recording.
-    /// Sensitivity: key-up gated on the Start cue; mute at readiness; End dropped from
-    /// the key-up transition.
+    /// A release while the Start cue still plays waits for no audio, and silence still
+    /// ends a recording.
+    /// Stated sensitivity: queueing End before Start; omitting Error after a silent
+    /// transcript; gating key-up on the Start cue; muting output at readiness → RED.
     @Test
     func quickReleaseOnSilenceQueuesStartThenEndThenError() async {
         let timeline = CueTimeline()
-        let transcriber = ControllableTranscriber(timeline: timeline, blocksBegin: true, blocksFinish: true, finishText: "")
+        let transcriber = ControllableTranscriber(timeline: timeline, finishText: "")
         let cues = ControllableCueController(timeline: timeline, blocksStart: true)
         let orchestrator = Self.makeOrchestrator(timeline: timeline, transcriber: transcriber, cues: cues)
 
-        let keyDown = Task { await orchestrator.handle(.startRequested) }
-        await transcriber.beginLatch.waitUntilArrived()
-        let keyUp = Task { await orchestrator.handle(.stopRequested(.plain)) }
-        await transcriber.beginLatch.release()
-        let didStop = await waitUntil { timeline.events.contains(.recorderStopped) }
+        await orchestrator.handle(.startRequested)
         await cues.startCueLatch.waitUntilArrived()
+        let keyUp = Task { await orchestrator.handle(.stopRequested(.plain)) }
+        let didStop = await waitUntil { timeline.events.contains(.recorderStopped) }
 
         #expect(didStop, "key-up must close capture while the Start cue is still playing")
         #expect(!timeline.events.contains(.systemMuted), "output is muted only by a finished cue, so this hold never mutes")
 
         await cues.startCueLatch.release()
-        await transcriber.finishLatch.release()
-        await keyDown.value
         await keyUp.value
+        await orchestrator.awaitReadinessCue()
         await orchestrator.awaitPipelineDrain()
 
         #expect(timeline.cueOrder == [.start, .end, .error],
@@ -256,12 +253,12 @@ struct OrchestratorSoundCueTests {
         let cues = FakeDictationCueController()
         let audio = FakeSystemAudioController(muteReturns: mutedState)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config.defaults,
             dependencies: Dependencies(
                 transcriber: transcriber, cleaner: FakeCleaner(outcome: .success("HI")),
                 injector: FakeInjector(outcome: .success), personalization: FakePersonalizationSource(terms: []),
                 audio: audio, recorder: recorder, cueController: cues,
-                log: RedactionSafeLog(subsystem: "slovo", category: "cue-start-failure-test")
+                log: RedactionSafeLog(subsystem: "slovo", category: "cue-start-failure-test"),
+                settings: FakeSettingsSource().provider
             )
         )
         await orchestrator.handle(.startRequested)
@@ -284,9 +281,9 @@ struct OrchestratorSoundCueTests {
                 personalization: FakePersonalizationSource(terms: []),
                 audio: audio ?? TimelineAudioController(timeline: timeline),
                 recorder: recorder ?? TimelineRecorder(timeline: timeline),
-                cueController: cues, log: RedactionSafeLog(subsystem: "slovo", category: "cue-orchestrator-test")
-            ),
-            cleanupConfig: Config.defaults.cleanupConfig
+                cueController: cues, log: RedactionSafeLog(subsystem: "slovo", category: "cue-orchestrator-test"),
+                settings: FakeSettingsSource().provider
+            )
         )
     }
 }
@@ -469,9 +466,7 @@ private final class ControllableTranscriber: Transcriber {
     /// How many captured chunks reached recognition.
     var fedChunkCount: Int { fedChunks.withLock { $0 } }
 
-    func setRecognitionLanguage(_ language: Language) {}
-
-    func begin(biasTerms: [Term]) async throws {
+    func begin(biasTerms: [Term], language: Language) async throws {
         timeline?.record(.asrBeginEntered)
         await beginLatch.arrive()
         if beginFails { throw TranscriptionError.backendUnavailable }

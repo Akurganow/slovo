@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Running pipeline + degradation + the FOLDED vocab→biasTerms, single-flight (no
@@ -25,10 +25,6 @@ struct OrchestratorTests {
         ]
     }
 
-    private static var cleanupConfig: Config {
-        Config()
-    }
-
     /// Builds Dependencies with the given seam fakes (mic authorized; a pinned
     /// PriorAudioState for mute/restore).
     private static func deps(
@@ -41,13 +37,14 @@ struct OrchestratorTests {
         ),
         recorder: FakeAudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
         log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
+        settings: FakeSettingsSource = FakeSettingsSource(),
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
             transcriber: transcriber, cleaner: cleaner, injector: injector,
             personalization: FakePersonalizationSource(terms: vocabulary),
             audio: audio, recorder: recorder, cueController: FakeDictationCueController(),
-            log: log, statusReporter: statusReporter
+            log: log, settings: settings.provider, statusReporter: statusReporter
         )
     }
 
@@ -76,13 +73,14 @@ struct OrchestratorTests {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let injector = FakeInjector(outcome: .success)
+        let biased = AppState(config: Config(usesVocabularyBias: true), isOpenRouterKeyPresent: true).dictationSettings
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(usesVocabularyBias: true),
             dependencies: Self.deps(
                 transcriber: transcriber,
                 cleaner: cleaner,
                 injector: injector,
-                vocabulary: vocabulary
+                vocabulary: vocabulary,
+                settings: FakeSettingsSource(biased)
             )
         )
 
@@ -94,37 +92,6 @@ struct OrchestratorTests {
                 "cleaner context must carry the same 65 terms; got \(cleaner.calls.last?.context.vocabulary.count ?? 0)")
     }
 
-    /// #2: switching the cleanup model applies to the NEXT dictation live — the
-    /// SAME running orchestrator (no rebuild) cleans with the new model on the
-    /// following session. This is why the app never needs a pipeline rebuild (and
-    /// its ASR re-warm + loading pulse) to change the cleanup model.
-    /// Stated sensitivity: make `updateCleanupConfig` a no-op (don't store the new
-    /// config) → the second dictation still cleans with the old model → RED.
-    @Test
-    func updatedCleanupModelReachesNextDictationLive() async {
-        let cleaner = FakeCleaner(outcome: .success("HI"))
-        let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(openRouterModel: "openai/model-a"),
-            dependencies: Self.deps(
-                transcriber: FakeTranscriber(outcome: .success("hi")),
-                cleaner: cleaner,
-                injector: FakeInjector(outcome: .success)
-            )
-        )
-
-        await Self.runSession(orchestrator)
-        #expect(cleaner.calls.last?.config.model == "openai/model-a",
-                "the first dictation cleans with the initially configured model")
-
-        await orchestrator.updateCleanupConfig(
-            CleanupConfig(model: "anthropic/model-b", writingStyle: .casual, language: .auto)
-        )
-        await Self.runSession(orchestrator)
-
-        #expect(cleaner.calls.last?.config.model == "anthropic/model-b",
-                "the switched cleanup model must reach the next dictation on the SAME orchestrator, without a rebuild")
-    }
-
     /// A failing cleaner ⇒ the RAW transcript is injected (never lose the words).
     /// Stated sensitivity: break the degradation (don't advance to PassThrough on
     /// `.transport`) → the raw transcript is NOT injected → RED.
@@ -134,7 +101,7 @@ struct OrchestratorTests {
         let cleaner = FakeCleaner(outcome: .failure(.transport))
         let injector = FakeInjector(outcome: .success)
         let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let orchestrator = PipelineFactory.makeOrchestrator(config: Self.cleanupConfig, dependencies: dependencies)
+        let orchestrator = PipelineFactory.makeOrchestrator(dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
@@ -143,19 +110,20 @@ struct OrchestratorTests {
     }
 
     /// A persisted `cleanup.enabled=false` is a first-class user-off mode, not a
-    /// degradation: loaded end-to-end from the stored blob, the orchestrator skips
-    /// the cleaner and injects the RAW transcript. A later push of the same config
-    /// with `runsCleaner` true cleans again, so the skip is a runtime latch and the
-    /// composition still holds the cleaner. This is the only test covering the full
-    /// path (stored blob → `ConfigStore.load` → `Config.cleanupConfig.runsCleaner`
-    /// → session latch); the override-based `OrchestratorCleanupToggleTests` bypass
-    /// that mapping.
-    /// Stated sensitivity: restore the discard-decode (`_ = decodeIfPresent` for
-    /// `cleanup.enabled`), or drop the `Config.cleanupConfig → runsCleaner`
-    /// mapping, or remove the `sessionRunsCleaner` guard -> `runsCleaner` reads
+    /// degradation: loaded end-to-end from the stored blob, the dictation reads
+    /// `runsCleaner` false, skips the cleaner and injects the RAW transcript. A
+    /// settings value with `runsCleaner` true then cleans again, so the skip is
+    /// decided per dictation and the composition still holds the cleaner. This is
+    /// the only test covering the full path (stored blob → `ConfigStore.load` →
+    /// `AppState.dictationSettings` → the dictation's read); the override-based
+    /// `OrchestratorCleanupToggleTests` bypass that mapping.
+    /// Stated sensitivity: restore the discard-decode (`cleanup.enabled` read as
+    /// its default), or drop both `runsCleaner` derivations (`Config.cleanupConfig`
+    /// and the availability override in `AppState.effectiveCleanupConfig`), or
+    /// remove the `sessionSettings.cleanup.runsCleaner` guard -> `runsCleaner` reads
     /// `true`, the cleaner is called, and "HI" is injected -> RED. Build the
-    /// factory's chain without `dependencies.cleaner` when `runsCleaner` is false
-    /// -> the second dictation injects "hi" -> RED.
+    /// factory's chain without `dependencies.cleaner` -> the second dictation
+    /// injects "hi" -> RED.
     @Test
     func persistedDisabledConfigSkipsCleanerEndToEnd() async throws {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
@@ -178,8 +146,9 @@ struct OrchestratorTests {
             }
             """.utf8),
         ]))
-        let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector)
-        let orchestrator = PipelineFactory.makeOrchestrator(config: config, dependencies: dependencies)
+        let settings = FakeSettingsSource(AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings)
+        let dependencies = Self.deps(transcriber: transcriber, cleaner: cleaner, injector: injector, settings: settings)
+        let orchestrator = PipelineFactory.makeOrchestrator(dependencies: dependencies)
 
         await Self.runSession(orchestrator)
 
@@ -188,9 +157,9 @@ struct OrchestratorTests {
         #expect(injector.calls.last == "hi",
                 "cleanup-off injects the raw transcript, not a cleaned result; got \(String(describing: injector.calls.last))")
 
-        var cleanupOn = config.cleanupConfig
-        cleanupOn.runsCleaner = true
-        await orchestrator.updateCleanupConfig(cleanupOn)
+        var turnedOn = AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings
+        turnedOn.cleanup.runsCleaner = true
+        settings.replace(with: turnedOn)
         await Self.runSession(orchestrator)
 
         #expect(injector.calls.last == "HI",
@@ -211,7 +180,6 @@ struct OrchestratorTests {
         let injector = FakeInjector(outcome: .success)
         let cues = FakeDictationCueController()
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Self.cleanupConfig,
             dependencies: Dependencies(
                 transcriber: FakeTranscriber(outcome: .success("hi")),
                 cleaner: ThrowingCleaner(CancellationError()),
@@ -223,6 +191,7 @@ struct OrchestratorTests {
                 recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
                 cueController: cues,
                 log: RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
+                settings: FakeSettingsSource().provider,
                 statusReporter: { status in reported.withLock { $0.append(status) } }
             )
         )
@@ -248,7 +217,6 @@ struct OrchestratorTests {
     func transcriptionFailureDoesNotInjectAndReturnsToIdle() async {
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 transcriber: FakeTranscriber(outcome: .failure(.backendUnavailable)),
                 cleaner: FakeCleaner(outcome: .success("HI")),
@@ -278,7 +246,6 @@ struct OrchestratorTests {
         )
         let recorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Dependencies(
                 transcriber: transcriber,
                 cleaner: cleaner,
@@ -287,7 +254,8 @@ struct OrchestratorTests {
                 audio: audio,
                 recorder: recorder,
                 cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test")
+                log: RedactionSafeLog(subsystem: "slovo", category: "orch-test"),
+                settings: FakeSettingsSource().provider
             )
         )
 

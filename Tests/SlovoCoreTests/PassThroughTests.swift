@@ -14,7 +14,7 @@ struct PassThroughTests {
     @Test
     func returnsInputUnchanged() async throws {
         let input = "Um, so like, запушь the PR, you know"
-        let config = CleanupConfig(writingStyle: .formal, language: .auto)
+        let config = CleanupConfig(writingStyle: .formal)
         let context = PersonalizationContext(vocabulary: [])
 
         let output = try await PassThrough().clean(input, config: config, context: context)

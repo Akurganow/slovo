@@ -17,7 +17,6 @@ struct PromptBuilderTranslateGoldenTests {
             raw: "hello",
             config: CleanupConfig(
                 writingStyle: .casual,
-                language: .auto,
                 translationTargetLanguage: Language(rawValue: "es"),
                 translate: true
             ),

@@ -246,23 +246,6 @@ struct AppRuntimeSourceGuardTests {
         #expect(saves == 0, "only the store's persistence subscriber may save Config; found \(saves) app-side saves")
     }
 
-    /// Every orchestrator push is a store subscriber in SlovoCore, so the app target
-    /// pushes nothing itself.
-    /// Stated sensitivity: an app-side push beside the store wiring → RED.
-    @Test
-    func appTargetPushesNothingToTheOrchestrator() throws {
-        let pushes = [
-            "updateCleanupConfig(", "updateMutesSystemAudioWhileDictating(",
-            "updateUsesVocabularyBias(", "updateRecognitionLanguage(",
-        ]
-        for file in try SourceText.swiftFiles(under: "Sources/slovo") {
-            let source = try SourceText.code(file)
-            for push in pushes {
-                #expect(!source.contains(push), "\(file) pushes \(push) beside the store wiring")
-            }
-        }
-    }
-
     /// Stated sensitivity: build the submenu from the catalog instead of the
     /// `options` parameter, or write anything but the chosen id → RED.
     @Test
@@ -368,18 +351,18 @@ struct AppRuntimeSourceGuardTests {
         // Sliced per switch arm: a whole-body ordered search stays green when the
         // .cancel arm loses its settle call or the .up arm settles before draining,
         // because the sibling arm still supplies a drain→settle pair.
-        let upArm = try SourceText.slice(of: startPipelineBody, from: "case .up(", to: "case .cancel:")
+        let upArm = try SourceText.slice(of: startPipelineBody, from: "case .up:", to: "case .cancel:")
         let cancelArm = try SourceText.slice(of: startPipelineBody, from: "case .cancel:")
         // Sensitivity: reorder settle before drain in the .up arm → RED.
         #expect(SourceText.containsInOrder([
-            "orchestrator.handle(.stopRequested(",
+            "orchestrator.deliver(edge)",
             "awaitPipelineDrain()",
             "self?.settleToIdle()",
         ], in: upArm),
         "key-up must stop, drain the pipeline, then settle to idle — in that order")
         // Sensitivity: delete settleToIdle() from the .cancel arm → RED.
         #expect(SourceText.containsInOrder([
-            "orchestrator.handle(.cancelRequested)",
+            "orchestrator.deliver(edge)",
             "awaitPipelineDrain()",
             "self?.settleToIdle()",
         ], in: cancelArm),

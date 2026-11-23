@@ -1,12 +1,12 @@
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Each effect of AppState is a subscriber wired in SlovoCore. Every test wires a
-// store to fake targets, changes one slice, and observes the target, through a
-// real orchestrator wherever the effect reaches one.
+// store to fake targets, changes one slice, and observes the target. The one
+// dictation test runs a real orchestrator over the store's settings provider.
 @Suite("App store effects")
 @MainActor
 struct AppStoreEffectsTests {
@@ -18,7 +18,6 @@ struct AppStoreEffectsTests {
 
     private static func targets(
         defaults: FakeUserDefaults = FakeUserDefaults(),
-        orchestrator: Orchestrator? = nil,
         reconfigureHotkeys: @escaping (HotkeyConfiguration) -> Void = { _ in },
         cueController: (any DictationCueController)? = nil,
         updaterSwitch: (any UpdaterSwitch)? = nil,
@@ -27,46 +26,12 @@ struct AppStoreEffectsTests {
     ) -> AppStoreEffectTargets {
         AppStoreEffectTargets(
             defaults: defaults,
-            orchestrator: { orchestrator },
             reconfigureHotkeys: reconfigureHotkeys,
             cueController: { cueController },
             updaterSwitch: { updaterSwitch },
             updateInputDevice: updateInputDevice,
             fetchScopeIds: fetchScopeIds
         )
-    }
-
-    /// An orchestrator seeded from the store the way `AppComposition.makeLive` seeds one.
-    private static func makeOrchestrator(
-        store: AppStore,
-        transcriber: any Transcriber = FakeTranscriber(outcome: .success("raw words")),
-        cleaner: FakeCleaner = FakeCleaner(outcome: .success("CLEANED")),
-        audio: FakeSystemAudioController = FakeSystemAudioController(
-            muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
-        )
-    ) -> Orchestrator {
-        PipelineFactory.makeOrchestrator(
-            config: store.state.config,
-            dependencies: Dependencies(
-                transcriber: transcriber,
-                cleaner: cleaner,
-                injector: FakeInjector(outcome: .success),
-                personalization: FakePersonalizationSource(terms: vocabulary),
-                audio: audio,
-                recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
-                cueController: FakeDictationCueController(),
-                log: RedactionSafeLog(subsystem: "slovo", category: "store-effects-test")
-            ),
-            cleanupConfig: store.state.effectiveCleanupConfig
-        )
-    }
-
-    /// A hold that outlasts the readiness cue, which is when muting happens.
-    private static func runDictation(on orchestrator: Orchestrator) async {
-        await orchestrator.handle(.startRequested)
-        await orchestrator.awaitReadinessCue()
-        await orchestrator.handle(.stopRequested(.plain))
-        await orchestrator.awaitPipelineDrain()
     }
 
     /// Stated sensitivity: `subscribe` instead of `listen` for the persistence
@@ -81,58 +46,53 @@ struct AppStoreEffectsTests {
         #expect(ConfigStore.load(from: defaults).writingStyle == .formal)
     }
 
-    /// Stated sensitivity: drop the cleanup listener → RED.
+    /// A dictation reads the store's state when its recording begins, not the state
+    /// the orchestrator was built from: every change made after composition
+    /// reaches its consumer without a push.
+    /// Stated sensitivity: a provider that captures the state when it is made
+    /// (`let snapshot = state.dictationSettings; return { snapshot }`) → every
+    /// assertion fails.
     @Test
-    func cleanupConfigReachesTheOrchestrator() async {
-        let store = Self.makeStore()
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let orchestrator = Self.makeOrchestrator(store: store, cleaner: cleaner)
-        AppStoreEffects.wire(store, to: Self.targets(orchestrator: orchestrator))
-        let chosen = "anthropic/claude-haiku-5.5"
-        store.update { $0.config.openRouterModel = chosen }
-        await settle(orchestrator)
-        await Self.runDictation(on: orchestrator)
-        #expect(store.state.effectiveCleanupConfig.model == chosen)
-        #expect(cleaner.calls.last?.config.model == chosen, "the next dictation must clean with the effective model")
-    }
-
-    /// Stated sensitivity: drop either the mute or the vocabulary-bias listener → RED.
-    @Test
-    func muteAndBiasReachTheOrchestrator() async {
+    func aDictationReadsTheStoreAsItIsWhenItsRecordingBegins() async {
         let store = Self.makeStore()
         let transcriber = FakeTranscriber(outcome: .success("raw words"))
+        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
         let audio = FakeSystemAudioController(
             muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
         )
-        let orchestrator = Self.makeOrchestrator(store: store, transcriber: transcriber, audio: audio)
-        AppStoreEffects.wire(store, to: Self.targets(orchestrator: orchestrator))
+        let orchestrator = PipelineFactory.makeOrchestrator(
+            dependencies: Dependencies(
+                transcriber: transcriber,
+                cleaner: cleaner,
+                injector: FakeInjector(outcome: .success),
+                personalization: FakePersonalizationSource(terms: Self.vocabulary),
+                audio: audio,
+                recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+                cueController: FakeDictationCueController(),
+                log: RedactionSafeLog(subsystem: "slovo", category: "store-effects-test"),
+                settings: store.dictationSettingsProvider
+            )
+        )
+        let chosen = "anthropic/claude-haiku-5.5"
+        store.update {
+            $0.config.openRouterModel = chosen
+            $0.config.mutesSystemAudioWhileDictating = false
+            $0.config.usesVocabularyBias = true
+            $0.config.language = .ru
+        }
 
-        store.update { $0.config.mutesSystemAudioWhileDictating = false }
-        await settle(orchestrator)
-        await Self.runDictation(on: orchestrator)
+        await orchestrator.handle(.startRequested)
+        // A release that beats the readiness cue never mutes, so `muteCount == 0`
+        // would hold with the switch still on.
+        await orchestrator.awaitReadinessCue()
+        await orchestrator.handle(.stopRequested(.plain))
+        await orchestrator.awaitPipelineDrain()
+
+        #expect(cleaner.calls.last?.config.model == chosen, "the dictation must clean with the effective model")
         #expect(audio.muteCount == 0, "the dictation after switching mute off must not mute")
-
-        store.update { $0.config.usesVocabularyBias = true }
-        await settle(orchestrator)
-        await Self.runDictation(on: orchestrator)
         #expect(transcriber.calls.last?.biasTerms.map(\.term) == ["ExampleCorp"],
                 "the dictation after switching bias on must hand the recognizer the vocabulary")
-    }
-
-    /// Stated sensitivity: drop the recognition-language listener → RED.
-    @Test
-    func recognitionLanguageReachesTheTranscriber() async {
-        let store = Self.makeStore()
-        let engine = FakeSpeechEngine(finalize: .success("raw words"))
-        let orchestrator = Self.makeOrchestrator(
-            store: store,
-            transcriber: TranscriberFixtures.makeTranscriber(engine: engine)
-        )
-        AppStoreEffects.wire(store, to: Self.targets(orchestrator: orchestrator))
-        store.update { $0.config.language = .ru }
-        await settle(orchestrator)
-        await Self.runDictation(on: orchestrator)
-        #expect(engine.sessionLanguages.last == .ru, "the next session must decode the language the store holds")
+        #expect(transcriber.calls.last?.language == .ru, "the session must decode the language the store holds")
     }
 
     /// Stated sensitivity: drop the hotkey listener → RED.

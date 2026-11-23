@@ -8,14 +8,9 @@ import SlovoTestSupport
 enum TranscriberFixtures {
     static func makeTranscriber(
         engine: FakeSpeechEngine,
-        converter: FakeAudioConverter = FakeAudioConverter(outcomes: [.samples([0.1])]),
-        language: Language = Config.defaults.language
+        converter: FakeAudioConverter = FakeAudioConverter(outcomes: [.samples([0.1])])
     ) -> WhisperKitTranscriber {
-        WhisperKitTranscriber(
-            language: language,
-            engine: engine,
-            converter: converter
-        )
+        WhisperKitTranscriber(engine: engine, converter: converter)
     }
 
     /// `count` constant Float samples — a scripted converter output; only the count

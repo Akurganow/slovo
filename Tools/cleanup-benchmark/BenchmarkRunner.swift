@@ -80,8 +80,7 @@ public struct CleanupBenchmarkRunner: Sendable {
     private func candidateConfig(for candidate: CleanupBenchmarkCandidate, base: CleanupConfig) -> CleanupConfig {
         CleanupConfig(
             model: candidate.model,
-            writingStyle: base.writingStyle,
-            language: base.language
+            writingStyle: base.writingStyle
         )
     }
 

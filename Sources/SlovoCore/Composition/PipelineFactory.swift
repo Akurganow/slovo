@@ -7,11 +7,7 @@
 public enum PipelineFactory {
     /// Builds the orchestrator from the injected dependencies (production passes
     /// the real adapters; tests pass fakes).
-    public static func makeOrchestrator(
-        config: Config,
-        dependencies: Dependencies,
-        cleanupConfig: CleanupConfig? = nil
-    ) -> Orchestrator {
+    public static func makeOrchestrator(dependencies: Dependencies) -> Orchestrator {
         let fallback = FallbackCleaner(
             chain: [dependencies.cleaner, PassThrough()],
             statusReporter: { status in
@@ -21,11 +17,6 @@ public enum PipelineFactory {
         )
         var assembled = dependencies
         assembled.cleaner = fallback
-        return Orchestrator(
-            dependencies: assembled,
-            cleanupConfig: cleanupConfig ?? config.cleanupConfig,
-            mutesSystemAudioWhileDictating: config.mutesSystemAudioWhileDictating,
-            usesVocabularyBias: config.usesVocabularyBias
-        )
+        return Orchestrator(dependencies: assembled)
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 /// Collects log lines from the orchestrator and the detached reporter alike.
@@ -46,18 +46,15 @@ struct OrchestratorTermMissTests {
         let recorder = FakeTermMissRecorder()
         let injector = FakeInjector(outcome: .success)
         let events = CapturedEvents()
-        var cleanupConfig = Config().cleanupConfig
-        cleanupConfig.runsCleaner = runsCleaner
         return Harness(
             orchestrator: PipelineFactory.makeOrchestrator(
-                config: Config(),
                 dependencies: dependencies(
                     cleaner: cleaner,
                     injector: injector,
                     missRecorder: recorder,
-                    log: RedactionSafeLog(subsystem: "test", category: "orchestrator") { events.append($0) }
-                ),
-                cleanupConfig: cleanupConfig
+                    log: RedactionSafeLog(subsystem: "test", category: "orchestrator") { events.append($0) },
+                    runsCleaner: runsCleaner
+                )
             ),
             recorder: recorder,
             injector: injector,
@@ -69,7 +66,8 @@ struct OrchestratorTermMissTests {
         cleaner: any Cleaner,
         injector: FakeInjector,
         missRecorder: any TermMissRecording,
-        log: RedactionSafeLog
+        log: RedactionSafeLog,
+        runsCleaner: Bool = true
     ) -> Dependencies {
         Dependencies(
             transcriber: FakeTranscriber(outcome: .success(rawTranscript)),
@@ -84,6 +82,9 @@ struct OrchestratorTermMissTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: FakeDictationCueController(),
             log: log,
+            settings: FakeSettingsSource(
+                AppState(config: Config(cleanupEnabled: runsCleaner), isOpenRouterKeyPresent: true).dictationSettings
+            ).provider,
             termMissRecorder: missRecorder
         )
     }
@@ -136,7 +137,7 @@ struct OrchestratorTermMissTests {
         #expect(!Self.detectionRan(harness.events))
     }
 
-    /// Cleanup-off (the `guard sessionRunsCleaner` early return) spawns no
+    /// Cleanup-off (the `guard sessionSettings.cleanup.runsCleaner` early return) spawns no
     /// detection.
     /// Stated sensitivity: spawn detection on the cleanup-off branch with the
     /// raw transcript as cleaned → the detection line appears → RED.
@@ -187,7 +188,6 @@ struct OrchestratorTermMissTests {
         let recorder = BlockingTermMissRecorder()
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.dependencies(
                 cleaner: FakeCleaner(outcome: .success(Self.cleanedTranscript)),
                 injector: injector,

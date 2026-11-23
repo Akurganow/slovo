@@ -29,11 +29,10 @@ public struct SharedSpeechModel: Sendable {
 
     /// The production model for `config`. `asrModel` is read here, once per launch —
     /// a hand edit of it applies at the next launch — unlike the recognition
-    /// language, which is pushed live into the running transcriber.
+    /// language, which rides each dictation's `begin`.
     public init(config: Config) {
         self.init(
             transcriber: WhisperKitTranscriber(
-                language: config.language,
                 engine: WhisperKitEngine(model: config.asrModel),
                 converter: WhisperSampleConverter()
             ),

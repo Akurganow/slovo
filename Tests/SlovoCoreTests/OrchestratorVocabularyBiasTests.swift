@@ -1,8 +1,7 @@
 import Foundation
-import Synchronization
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // The experimental switch gates ONLY what reaches the speech engine; the cleaner's
@@ -20,7 +19,7 @@ struct OrchestratorVocabularyBiasTests {
     private static func dependencies(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
-        recorder: any AudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+        settings: DictationSettings
     ) -> Dependencies {
         Dependencies(
             transcriber: transcriber,
@@ -30,23 +29,23 @@ struct OrchestratorVocabularyBiasTests {
             audio: FakeSystemAudioController(
                 muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
             ),
-            recorder: recorder,
+            recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: FakeDictationCueController(),
-            log: RedactionSafeLog(subsystem: "slovo", category: "vocabulary-bias-test")
+            log: RedactionSafeLog(subsystem: "slovo", category: "vocabulary-bias-test"),
+            settings: FakeSettingsSource(settings).provider
         )
     }
 
     private static func makeOrchestrator(
         transcriber: any Transcriber,
         cleaner: FakeCleaner,
-        usesVocabularyBias: Bool,
-        recorder: any AudioRecorder = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
+        usesVocabularyBias: Bool
     ) -> Orchestrator {
         var config = Config()
         config.usesVocabularyBias = usesVocabularyBias
+        let settings = AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings
         return PipelineFactory.makeOrchestrator(
-            config: config,
-            dependencies: dependencies(transcriber: transcriber, cleaner: cleaner, recorder: recorder)
+            dependencies: dependencies(transcriber: transcriber, cleaner: cleaner, settings: settings)
         )
     }
 
@@ -98,98 +97,5 @@ struct OrchestratorVocabularyBiasTests {
         #expect(engine.sessionBiasTerms.map { $0.map(\.term) } == [["RCV", "GitHub"]],
                 "the switch is on, so the session vocabulary must reach the speech engine")
         #expect(cleaner.calls.last?.context.vocabulary.map(\.term) == ["RCV", "GitHub"])
-    }
-
-    /// The orchestrator's OWN default is off, so a composition that forgets to pass
-    /// the persisted flag ships the experiment disabled rather than enabled.
-    /// Stated sensitivity: flip `Orchestrator.init`'s `usesVocabularyBias` default to
-    /// `true` → this session records the vocabulary → RED. Every other test reaches
-    /// the orchestrator through `PipelineFactory` with an explicit flag, so nothing
-    /// else constrains that default.
-    @Test
-    func orchestratorDefaultsToAnUnbiasedRecognizer() async {
-        let engine = FakeSpeechEngine(finalize: .success("raw words"))
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let orchestrator = Orchestrator(
-            dependencies: Self.dependencies(transcriber: TranscriberFixtures.makeTranscriber(engine: engine), cleaner: cleaner),
-            cleanupConfig: Config().cleanupConfig
-        )
-
-        await Self.runDictation(on: orchestrator)
-
-        #expect(engine.sessionBiasTerms.map { $0.map(\.term) } == [[]],
-                "the orchestrator's own default must leave the recognizer unbiased")
-    }
-
-    /// The gate is LATCHED at capture start: `recorder.start()` spans microphone
-    /// startup and an actor admits other messages there, so a toggle push landing
-    /// during it must not change what this session began with.
-    /// Stated sensitivity: read `usesVocabularyBias` live at the `speechBiasTerms`
-    /// line instead of the latch → the push lands first and the session records
-    /// ["RCV", "GitHub"] → RED.
-    @Test
-    func aPushLandingInsideRecorderStartCannotChangeTheLatchedSession() async {
-        let transcriber = FakeTranscriber(outcome: .success("raw words"))
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let recorder = StartGateRecorder()
-        let orchestrator = Self.makeOrchestrator(
-            transcriber: transcriber,
-            cleaner: cleaner,
-            usesVocabularyBias: false,
-            recorder: recorder
-        )
-        // Runs INSIDE the orchestrator's `recorder.start()` await — before the
-        // vocabulary is even read.
-        recorder.onStart { await orchestrator.updateUsesVocabularyBias(true) }
-
-        await Self.runDictation(on: orchestrator)
-
-        #expect(transcriber.calls.map { $0.biasTerms.map(\.term) } == [[]],
-                "the session must begin with the value latched before capture opened")
-    }
-
-    /// The live push decides the NEXT dictation, so a switch flipped between
-    /// dictations changes what the engine is handed without a pipeline rebuild.
-    /// Stated sensitivity: make `updateUsesVocabularyBias` a no-op (or have it write
-    /// a field `beginCapture` does not read) → the second session still records []
-    /// → RED.
-    @Test
-    func pushedSwitchAppliesToTheNextDictation() async {
-        let engine = FakeSpeechEngine(finalize: .success("raw words"))
-        let cleaner = FakeCleaner(outcome: .success("CLEANED"))
-        let orchestrator = Self.makeOrchestrator(
-            transcriber: TranscriberFixtures.makeTranscriber(engine: engine),
-            cleaner: cleaner,
-            usesVocabularyBias: false
-        )
-
-        await Self.runDictation(on: orchestrator)
-        await orchestrator.updateUsesVocabularyBias(true)
-        await Self.runDictation(on: orchestrator)
-
-        #expect(engine.sessionBiasTerms.map { $0.map(\.term) } == [[], ["RCV", "GitHub"]])
-    }
-}
-
-/// A recorder that runs a hook INSIDE `start()` — `beginCapture`'s first and longest
-/// suspension — and otherwise behaves exactly like `FakeAudioRecorder`.
-private final class StartGateRecorder: AudioRecorder, Sendable {
-    private let base = FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true))
-    private let duringStart = Mutex<(@Sendable () async -> Void)?>(nil)
-
-    /// Installs the work to interleave at the recorder-start suspension point.
-    @preconcurrency
-    func onStart(_ body: @escaping @Sendable () async -> Void) {
-        duringStart.withLock { $0 = body }
-    }
-
-    func start() async throws -> AsyncStream<AudioChunk> {
-        let interleaved = duringStart.withLock { $0 }
-        await interleaved?()
-        return try await base.start()
-    }
-
-    func stop() async {
-        await base.stop()
     }
 }

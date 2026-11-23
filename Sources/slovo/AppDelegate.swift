@@ -121,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             openRouterKeyProvider: openRouterKeyProvider,
             speechModel: speechModel,
             personalization: personalization,
+            settings: store.dictationSettingsProvider,
             statusReporter: { [weak self] status in
                 Task { @MainActor [weak self] in
                     self?.showStatus(status)
@@ -153,23 +154,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     self?.applyRecordingGlyph(mode)
                     self?.store.update { $0.statusLine = .recording }
                 }
-                await orchestrator.handle(.startRequested)
+                await orchestrator.deliver(edge)
             case .translateLatched:
                 guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                 await MainActor.run { self?.applyRecordingGlyph(.translate) }
-            case .up(let mode): guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
+            case .up: guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
                 await MainActor.run {
                     self?.setStatusGlyph(.processing, on: self?.statusItem?.button)
                     if self?.didShowPipelineStatus == false {
                         self?.store.update { $0.statusLine = .processing }
                     }
                 }
-                await orchestrator.handle(.stopRequested(mode))
+                await orchestrator.deliver(edge)
                 await orchestrator.awaitPipelineDrain()
                 await MainActor.run { self?.settleToIdle() }
             case .cancel:
                 guard await MainActor.run(body: { self?.isPipelineActive == true }) else { return }
-                await orchestrator.handle(.cancelRequested)
+                await orchestrator.deliver(edge)
                 await orchestrator.awaitPipelineDrain()
                 await MainActor.run { self?.settleToIdle() }
             }

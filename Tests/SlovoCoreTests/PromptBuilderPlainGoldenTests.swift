@@ -15,7 +15,7 @@ struct PromptBuilderPlainGoldenTests {
     private static func plainBlock(examples: PromptExampleCatalog = emptyCatalog) -> String {
         PromptBuilder(examples: examples).buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         ).systemBlocks[0]
     }

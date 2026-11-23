@@ -14,7 +14,7 @@ struct OpenRouterCleanerTests {
     private static let sentinelKey = "S3NT1NEL-OPENROUTER-KEY-18e7-DO-NOT-LOG"
 
     private static var config: CleanupConfig {
-        CleanupConfig(model: "openai/gpt-6-luna", writingStyle: .casual, language: .auto)
+        CleanupConfig(model: "openai/gpt-6-luna", writingStyle: .casual)
     }
 
     private static var context: PersonalizationContext {

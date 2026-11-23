@@ -31,10 +31,10 @@ struct ContractsTests {
         #expect(noExpansion.expansion == nil)
         #expect(noExpansion.lang == .auto)
 
-        // CleanupConfig: `writingStyle` is assignable (`var`); `language` keeps its init value.
-        var config = CleanupConfig(writingStyle: .formal, language: .ru)
+        // CleanupConfig: `writingStyle` is assignable (`var`).
+        var config = CleanupConfig(writingStyle: .formal)
         config.writingStyle = .veryCasual
-        #expect(config.language == .ru)
+        #expect(config.writingStyle == .veryCasual)
 
         // PersonalizationContext: vocabulary: [Term].
         let context = PersonalizationContext(vocabulary: [term])

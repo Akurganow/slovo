@@ -13,7 +13,7 @@ struct PromptBuilderVocabularyGoldenTests {
     private static func blocks(hints: CleanupHints = CleanupHints()) -> [String] {
         PromptBuilder().buildPrompt(
             raw: "hello",
-            config: CleanupConfig(writingStyle: .casual, language: .auto),
+            config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [
                 Term(term: "RCV", expansion: "RingCentral Video", lang: .en, weight: 9),
             ]),

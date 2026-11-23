@@ -3,7 +3,7 @@ import Testing
 import SlovoCore
 
 // One derivation for "cleanup is effectively off, and why" — every UI surface
-// and the orchestrator push consume this value instead of re-deriving it.
+// and the dictation settings consume this value instead of re-deriving it.
 @Suite("CleanupAvailability")
 struct CleanupAvailabilityTests {
     /// Stated sensitivity: swap the guard order (check preference before key) →

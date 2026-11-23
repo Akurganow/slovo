@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 @Suite("Orchestrator cleanup hints")
@@ -16,7 +16,8 @@ struct OrchestratorCleanupHintsTests {
     private static func deps(
         cleaner: FakeCleaner,
         inputSource: (any InputSourceLanguageReading)?,
-        spell: (any SpellCheckHintProviding)?
+        spell: (any SpellCheckHintProviding)?,
+        config: Config = Config()
     ) -> Dependencies {
         Dependencies(
             transcriber: FakeTranscriber(outcome: .success("hi")),
@@ -29,6 +30,9 @@ struct OrchestratorCleanupHintsTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: FakeDictationCueController(),
             log: RedactionSafeLog(subsystem: "slovo", category: "orch-hints-test"),
+            settings: FakeSettingsSource(
+                AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings
+            ).provider,
             inputSourceLanguage: inputSource,
             spellCheckHints: spell
         )
@@ -48,7 +52,6 @@ struct OrchestratorCleanupHintsTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let findings = [SpellFinding(token: "teh", guesses: ["the"])]
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 cleaner: cleaner,
                 inputSource: FakeInputSourceLanguageReader(language: "ru"),
@@ -70,7 +73,6 @@ struct OrchestratorCleanupHintsTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let provider = FakeSpellCheckHintProvider(findings: [])
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 cleaner: cleaner,
                 inputSource: nil,
@@ -93,11 +95,11 @@ struct OrchestratorCleanupHintsTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let provider = FakeSpellCheckHintProvider(findings: [SpellFinding(token: "teh", guesses: ["the"])])
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(useSpellCheckHints: false),
             dependencies: Self.deps(
                 cleaner: cleaner,
                 inputSource: FakeInputSourceLanguageReader(language: "en"),
-                spell: provider
+                spell: provider,
+                config: Config(useSpellCheckHints: false)
             )
         )
 
@@ -115,7 +117,6 @@ struct OrchestratorCleanupHintsTests {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let grammar = [GrammarFinding(fragment: "is", message: "may not agree", corrections: ["are"])]
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 cleaner: cleaner,
                 inputSource: nil,

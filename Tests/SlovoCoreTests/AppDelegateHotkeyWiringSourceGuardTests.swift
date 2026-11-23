@@ -30,7 +30,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
                 "the hotkey onTrigger must forward the monitor's phase through the sequencer")
         #expect(!onTriggerClosure.contains("Task"),
                 "the onTrigger closure must not dispatch each edge on its own Task (the stuck-mute race)")
-        #expect(!onTriggerClosure.contains("orchestrator.handle"),
+        #expect(!onTriggerClosure.contains("orchestrator.deliver"),
                 "the onTrigger closure must not drive the orchestrator directly; ordering lives in the single consumer")
     }
 
@@ -71,7 +71,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "guard !edge.arrivedWhileBusy",
             "isModelReady",
             "self?.isPipelineActive = true",
-            "orchestrator.handle(.startRequested)",
+            "orchestrator.deliver(edge)",
         ], in: startPipeline),
         "a press stamped busy must be refused before any session state is touched")
         #expect(startPipeline.components(separatedBy: "arrivedWhileBusy").count - 1 == 1,
@@ -91,7 +91,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "case .down(let mode):",
             "isModelReady",
             "showModelLoadingState",
-            "orchestrator.handle(.startRequested)",
+            "orchestrator.deliver(edge)",
         ], in: startPipeline),
         "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
     }
@@ -183,16 +183,16 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// A key-up whose key-down was swallowed by the readiness gate must be
     /// swallowed too, and so must the release of a refused press.
     /// Killing mutation: drop the active-pipeline guard from the `.up` arm and an
-    /// idle key-up drives stopRequested and overwrites the loading glyph -> RED.
+    /// idle key-up reaches the orchestrator via deliver and overwrites the loading glyph -> RED.
     @Test
     func keyUpPairsWithTheGatedKeyDown() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let startPipeline = try SourceText.functionBody(named: "startPipeline", in: delegate)
 
         #expect(SourceText.containsInOrder([
-            "case .up(let mode):",
+            "case .up:",
             "isPipelineActive",
-            "orchestrator.handle(.stopRequested(",
+            "orchestrator.deliver(edge)",
         ], in: startPipeline),
         "the .up arm must never stop a session that was never started")
     }

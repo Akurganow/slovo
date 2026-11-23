@@ -36,6 +36,7 @@ enum AppComposition {
         openRouterKeyProvider: KeychainOpenRouterKeyProvider,
         speechModel: SharedSpeechModel,
         personalization: GRDBPersonalizationSource?,
+        settings: @escaping @Sendable () async -> DictationSettings,
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in },
         onCleanupFailure: (@Sendable (CleanupError) -> Void)? = nil
     ) -> Live {
@@ -71,6 +72,7 @@ enum AppComposition {
             recorder: recorder,
             cueController: cueController,
             log: log,
+            settings: settings,
             statusReporter: statusReporter,
             inputSourceLanguage: SystemInputSourceLanguageReader(),
             spellCheckHints: SystemSpellCheckHintProvider(),
@@ -79,14 +81,7 @@ enum AppComposition {
         dependencies.onCleanupFailure = onCleanupFailure
 
         return Live(
-            orchestrator: PipelineFactory.makeOrchestrator(
-                config: config,
-                dependencies: dependencies,
-                // The derived model and the effective on/off, so the first
-                // dictation never races a push. The orchestrator never learns
-                // about keys.
-                cleanupConfig: state.effectiveCleanupConfig
-            ),
+            orchestrator: PipelineFactory.makeOrchestrator(dependencies: dependencies),
             hotkeyMonitor: CGEventTapHotkeyMonitor(configuration: config.hotkeyConfiguration),
             onboardingSteps: FirstRunFlow.pendingSteps(
                 permissions: permissionPreflighter.preflight()

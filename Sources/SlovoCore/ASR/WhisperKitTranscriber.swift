@@ -17,18 +17,13 @@ public actor WhisperKitTranscriber: Transcriber {
     private let engine: any ModelLoading & SpeechStreamingSessionCreating & Sendable
     private let converter: any AudioConverting
 
-    private var recognitionLanguage: Language
     private var speechSession: (any SpeechStreamingSession)?
     private var loadTask: Task<Void, Error>?
 
-    /// `language` is the recognition language the first session decodes with. Later
-    /// changes arrive through `setRecognitionLanguage`, never through a new transcriber.
     public init(
-        language: Language = Config.defaults.language,
         engine: some ModelLoading & SpeechStreamingSessionCreating & Sendable,
         converter: sending some AudioConverting
     ) {
-        self.recognitionLanguage = language
         self.engine = engine
         self.converter = converter
     }
@@ -38,18 +33,7 @@ public actor WhisperKitTranscriber: Transcriber {
         try await ensureModelLoaded()
     }
 
-    /// Applies a new recognition language to the next session `begin` opens. The
-    /// loaded model is language-independent — the language reaches only the
-    /// decoder's per-session options — so a change costs no reload and no rebuilt
-    /// pipeline.
-    public func setRecognitionLanguage(_ language: Language) {
-        recognitionLanguage = language
-    }
-
-    public func begin(biasTerms: [Term]) async throws {
-        // Read before the dangling session's cancel suspends: a push landing there
-        // belongs to the next session.
-        let sessionLanguage = recognitionLanguage
+    public func begin(biasTerms: [Term], language: Language) async throws {
         if let speechSession {
             self.speechSession = nil
             await speechSession.cancel()
@@ -58,7 +42,7 @@ public actor WhisperKitTranscriber: Transcriber {
         do {
             let speechSession = try engine.makeSpeechStreamingSession(
                 biasTerms: biasTerms,
-                language: sessionLanguage
+                language: language
             )
             try await speechSession.start()
             self.speechSession = speechSession

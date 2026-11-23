@@ -1,7 +1,7 @@
 import Testing
 import Synchronization
 
-import SlovoCore
+@testable import SlovoCore
 import SlovoTestSupport
 
 // Translate mode threaded through the REAL running composition
@@ -16,6 +16,7 @@ struct OrchestratorTranslateTests {
     private static func deps(
         cleaner: FakeCleaner,
         injector: FakeInjector,
+        config: Config = Config(),
         statusReporter: @escaping @Sendable (StatusMessage) -> Void = { _ in }
     ) -> Dependencies {
         Dependencies(
@@ -29,6 +30,9 @@ struct OrchestratorTranslateTests {
             recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
             cueController: FakeDictationCueController(),
             log: RedactionSafeLog(subsystem: "slovo", category: "orch-translate-test"),
+            settings: FakeSettingsSource(
+                AppState(config: config, isOpenRouterKeyPresent: true).dictationSettings
+            ).provider,
             statusReporter: statusReporter
         )
     }
@@ -54,7 +58,6 @@ struct OrchestratorTranslateTests {
     func translateModeReachesCleanupAndResetsPerSession() async {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(cleaner: cleaner, injector: FakeInjector(outcome: .success))
         )
 
@@ -68,8 +71,7 @@ struct OrchestratorTranslateTests {
     }
 
     /// M3 — in translate mode the persisted target language reaches the cleaner
-    /// alongside the translate flag. The target flows Config→CleanupConfig in both
-    /// modes.
+    /// alongside the translate flag. The target rides in the settings in both modes.
     /// Stated sensitivity: drop the stashed-mode mapping → `translate` stays false →
     /// RED; drop the target from the clean config → `translationTargetLanguage` is
     /// not `.ru` → RED.
@@ -77,8 +79,11 @@ struct OrchestratorTranslateTests {
     func translateModeCarriesTheConfiguredTargetLanguageToTheCleaner() async {
         let cleaner = FakeCleaner(outcome: .success("HI"))
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(translationTargetLanguage: .ru),
-            dependencies: Self.deps(cleaner: cleaner, injector: FakeInjector(outcome: .success))
+            dependencies: Self.deps(
+                cleaner: cleaner,
+                injector: FakeInjector(outcome: .success),
+                config: Config(translationTargetLanguage: .ru)
+            )
         )
 
         await Self.runSession(orchestrator, mode: .translate)
@@ -102,7 +107,6 @@ struct OrchestratorTranslateTests {
         let cleaner = FakeCleaner(outcome: .failure(.transport))
         let injector = FakeInjector(outcome: .success)
         let orchestrator = PipelineFactory.makeOrchestrator(
-            config: Config(),
             dependencies: Self.deps(
                 cleaner: cleaner,
                 injector: injector,
