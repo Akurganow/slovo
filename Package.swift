@@ -16,7 +16,7 @@ let package = Package(
         // Zetetic's SQLCipher-enabled distribution of upstream GRDB (tags
         // mirror groue/GRDB.swift): the personalization DB is encrypted at rest.
         .package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.11.1"),
-        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.1.1"),
         // Command plugin only (Scripts/lint.sh). No target uses the build-tool
         // plugin: it hands its prebuild command the whole process environment
         // (SwiftLintPlugins 0.65.1 source, SwiftLintBuildToolPlugin.swift:87),
