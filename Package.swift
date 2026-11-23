@@ -28,7 +28,7 @@ let package = Package(
         // Sparkle 2 auto-update engine. App target only — SlovoCore stays
         // Sparkle-free, enforced by the SwiftPM target graph (an `import Sparkle`
         // in the core cannot compile).
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.5"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
     ],
     targets: [
         // Objective-C interop shims that Swift cannot express live here — a
