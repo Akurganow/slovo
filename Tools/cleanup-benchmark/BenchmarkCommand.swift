@@ -78,7 +78,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             let report = await runBenchmark(
                 candidates,
                 samples,
-                CleanupConfig(model: "selected-per-candidate", writingStyle: options.style, language: .auto),
+                CleanupConfig(model: "selected-per-candidate", writingStyle: options.style),
                 PersonalizationContext(vocabulary: []),
                 options.repetitions,
                 options.warmupRepetitions

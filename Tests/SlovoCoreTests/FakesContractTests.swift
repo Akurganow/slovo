@@ -29,7 +29,7 @@ struct FakesContractTests {
     @Test
     func fakeCleanerThrowsExactProgrammedCase() async {
         let fake = FakeCleaner(outcome: .failure(.transport))
-        let config = CleanupConfig(writingStyle: .formal, language: .en)
+        let config = CleanupConfig(writingStyle: .formal)
         let context = PersonalizationContext(vocabulary: [])
 
         do {
@@ -53,7 +53,7 @@ struct FakesContractTests {
     @Test
     func fakeCleanerRecordsTheCall() async {
         let fake = FakeCleaner(outcome: .failure(.transport))
-        let config = CleanupConfig(writingStyle: .casual, language: .ru)
+        let config = CleanupConfig(writingStyle: .casual)
         let context = PersonalizationContext(vocabulary: [])
 
         _ = try? await fake.clean("raw transcript", config: config, context: context)

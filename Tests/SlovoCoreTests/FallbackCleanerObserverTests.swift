@@ -4,7 +4,7 @@ import SlovoCore
 
 @Suite("FallbackCleaner failure observer (spec rev 3 §4 K8)")
 struct FallbackCleanerObserverTests {
-    private static var config: CleanupConfig { CleanupConfig(writingStyle: .formal, language: .auto) }
+    private static var config: CleanupConfig { CleanupConfig(writingStyle: .formal) }
     private static var context: PersonalizationContext { PersonalizationContext(vocabulary: []) }
 
     /// Lock-guarded recorder, same idiom as StubScenario: the observer closure is

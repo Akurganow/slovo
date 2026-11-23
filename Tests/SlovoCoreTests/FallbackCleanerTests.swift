@@ -9,7 +9,7 @@ import SlovoTestSupport
 @Suite("FallbackCleaner")
 struct FallbackCleanerTests {
     private static let raw = "Um, so like, запушь the PR"
-    private static var config: CleanupConfig { CleanupConfig(writingStyle: .formal, language: .auto) }
+    private static var config: CleanupConfig { CleanupConfig(writingStyle: .formal) }
     private static var context: PersonalizationContext { PersonalizationContext(vocabulary: []) }
 
     private static func fallback(

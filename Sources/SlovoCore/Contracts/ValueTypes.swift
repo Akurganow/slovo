@@ -100,7 +100,6 @@ public enum CleanupDefaults {
 public struct CleanupConfig: Equatable, Sendable {
     public var model: String
     public var writingStyle: WritingStyle
-    public var language: Language
     /// When on, the orchestrator runs the on-device spell pass and passes its
     /// findings to the model as advisory hints. The input-language hint is
     /// unaffected — it has no toggle.
@@ -122,7 +121,6 @@ public struct CleanupConfig: Equatable, Sendable {
     public init(
         model: String = CleanupDefaults.openRouterModel,
         writingStyle: WritingStyle,
-        language: Language,
         useSpellCheckHints: Bool = true,
         translationTargetLanguage: Language = .en,
         translate: Bool = false,
@@ -130,7 +128,6 @@ public struct CleanupConfig: Equatable, Sendable {
     ) {
         self.model = model
         self.writingStyle = writingStyle
-        self.language = language
         self.useSpellCheckHints = useSpellCheckHints
         self.translationTargetLanguage = translationTargetLanguage
         self.translate = translate
