@@ -117,5 +117,11 @@ let package = Package(
             exclude: ["Fixtures"],
             swiftSettings: strictSwiftSettings
         ),
+        // Tests of the app shell through `@testable import slovo`.
+        .testTarget(
+            name: "SlovoAppTests",
+            dependencies: ["slovo", "SlovoCore", "SlovoTestSupport"],
+            swiftSettings: strictSwiftSettings
+        ),
     ]
 )

@@ -45,6 +45,7 @@ jobs:
           set -euo pipefail
           swift --version
           xcodebuild -version
+          xcode-select -p
           # The cache key takes this value, so it must be one line without commas.
           xcode_version="$(xcodebuild -version | paste -sd ' ' - | tr -d ',')"
           echo "xcode_version=${xcode_version}" >> "$GITHUB_OUTPUT"
@@ -74,3 +75,110 @@ jobs:
             exit 1
           fi
           echo "armed gate-integrity self-test failed as expected — the gate can go red"
+      # SPIKE (never merged): the steps below measure whether a test target can
+      # depend on the slovo executable target. They run after the gate.
+      - name: "Spike: import check over the test targets"
+        if: github.event_name == 'pull_request'
+        run: swift build --disable-automatic-resolution --build-tests --explicit-target-dependency-import-check error
+      - name: "Spike: rebuild time of the shell files, base manifest and spike manifest"
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          timed_rebuild() {
+            for run in 1 2; do
+              git ls-files -z 'Sources/slovo/*.swift' | xargs -0 touch
+              /usr/bin/time -p swift build --disable-automatic-resolution --build-tests > "$RUNNER_TEMP/build.log" 2> "$RUNNER_TEMP/time.txt" || { cat "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/time.txt"; exit 1; }
+              echo "SPIKE TIME native $1 run $run: $(grep '^real' "$RUNNER_TEMP/time.txt")"
+            done
+          }
+          timed_rebuild "spike-manifest"
+          git fetch --depth=1 origin "$BASE_REF"
+          git show FETCH_HEAD:Package.swift > Package.swift
+          mv Tests/SlovoAppTests "$RUNNER_TEMP/SlovoAppTests"
+          swift build --disable-automatic-resolution --build-tests
+          timed_rebuild "base-manifest"
+          git checkout -- Package.swift
+          mv "$RUNNER_TEMP/SlovoAppTests" Tests/SlovoAppTests
+
+  # SPIKE (never merged): the same probes under the build system the gate does not
+  # use. The gate's toolchain defaults to the native build system; Swift Build is
+  # measured on the newest installed Xcode whose Swift is 6.4 or newer.
+  spike-swiftbuild:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: "Spike: choose an Xcode with Swift 6.4 or newer"
+        id: xcode
+        run: |
+          set -euo pipefail
+          chosen=""
+          best=0
+          for app in /Applications/Xcode*.app; do
+            dev="$app/Contents/Developer"
+            line=$(DEVELOPER_DIR="$dev" xcrun swift --version 2>/dev/null | grep -o 'Swift version [0-9][0-9]*\.[0-9][0-9]*' | head -1 || true)
+            echo "SPIKE XCODE $app: ${line:-no swift}"
+            [ -n "$line" ] || continue
+            version=${line#Swift version }
+            score=$(( ${version%%.*} * 100 + ${version#*.} ))
+            if [ "$score" -ge 604 ] && [ "$score" -gt "$best" ]; then
+              best=$score
+              chosen=$dev
+            fi
+          done
+          if [ -z "$chosen" ]; then
+            echo "SPIKE: no Xcode with Swift 6.4 or newer on this runner; criterion 7 not run"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "DEVELOPER_DIR=$chosen" >> "$GITHUB_ENV"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+      - name: "Spike: toolchain"
+        if: steps.xcode.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          swift --version
+          xcodebuild -version
+          xcode-select -p
+          xcrun --find swift
+      - name: "Spike: swift test under Swift Build"
+        if: steps.xcode.outputs.found == 'true'
+        run: /usr/bin/time -p swift test --disable-automatic-resolution --build-system swiftbuild
+      - name: "Spike: the armed self-test goes red under Swift Build"
+        if: steps.xcode.outputs.found == 'true'
+        env:
+          SLOVO_GATE_SELFTEST: red
+        run: |
+          if swift test --disable-automatic-resolution --build-system swiftbuild --filter gateGoesRedWhenSelfTestArmed; then
+            echo "::error::armed self-test passed under Swift Build"
+            exit 1
+          fi
+          echo "SPIKE: armed self-test failed as expected under Swift Build"
+      - name: "Spike: import check over the test targets under Swift Build"
+        if: steps.xcode.outputs.found == 'true'
+        run: swift build --disable-automatic-resolution --build-system swiftbuild --build-tests --explicit-target-dependency-import-check error
+      - name: "Spike: rebuild time of the shell files under Swift Build, base manifest and spike manifest"
+        if: steps.xcode.outputs.found == 'true'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          timed_rebuild() {
+            for run in 1 2; do
+              git ls-files -z 'Sources/slovo/*.swift' | xargs -0 touch
+              /usr/bin/time -p swift build --disable-automatic-resolution --build-system swiftbuild --build-tests > "$RUNNER_TEMP/build.log" 2> "$RUNNER_TEMP/time.txt" || { cat "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/time.txt"; exit 1; }
+              echo "SPIKE TIME swiftbuild $1 run $run: $(grep '^real' "$RUNNER_TEMP/time.txt")"
+            done
+          }
+          timed_rebuild "spike-manifest"
+          git fetch --depth=1 origin "$BASE_REF"
+          git show FETCH_HEAD:Package.swift > Package.swift
+          mv Tests/SlovoAppTests "$RUNNER_TEMP/SlovoAppTests"
+          swift build --disable-automatic-resolution --build-system swiftbuild --build-tests
+          timed_rebuild "base-manifest"
+          git checkout -- Package.swift
+          mv "$RUNNER_TEMP/SlovoAppTests" Tests/SlovoAppTests
