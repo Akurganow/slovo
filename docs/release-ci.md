@@ -82,12 +82,32 @@ in a trailing comment such as `# v2.90.3`. GitHub's security guide,
 [Using third-party actions](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions)
 (`github/docs` revision `ecafe7144a016cab7a88e3e77437f38ce1a4ee73`), advises a commit
 SHA, and a tag only for creators one trusts, because a tag can be moved or deleted if a
-bad actor gains access to the repository storing the action. The `github-actions`
-ecosystem entry in [`.github/dependabot.yml`](../.github/dependabot.yml) runs weekly.
-GitHub's Dependabot guide,
-[Keeping your actions up to date with Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/auto-update-actions)
-(`github/docs` revision `741a335e09c4a2e47c1fb20643833c3d35e72b90`), says it keeps
-action references in workflow files up to date.
+bad actor gains access to the repository storing the action. Renovate, configured
+in [`renovate.json`](../renovate.json), opens the update pull requests for these
+pins and for the Swift packages. Its `github-actions` manager updates a pinned
+commit SHA to follow the version tag in the trailing comment (Renovate's
+documentation, `lib/modules/manager/github-actions/readme.md`, "Digest pinning and
+updating", tag `44.257.9`). `minimumReleaseAge` holds each new version for 7 days
+after its release, and a security update skips that wait (Renovate's documentation,
+`docs/usage/key-concepts/minimum-release-age.md`, "What happens to security
+updates?", tag `44.257.9`).
+
+Two limits of that setup, both read in Renovate's source at tag `44.257.9`:
+
+- **The release date comes from git.** Every dependency here resolves through
+  `github-tags`. It takes the commit date for a lightweight tag and the tagger
+  date for an annotated one (`lib/util/github/graphql/query-adapters/tags-query-adapter.ts`).
+  Whoever makes the tag sets both dates, so a backdated tag passes the 7-day hold
+  at once. Switching to `github-releases` would close this hole and stop other
+  updates. `github/codeql-action` and `sindresorhus/Settings` publish their
+  versions as tags without a GitHub Release, so their updates would no longer
+  arrive.
+- **Only the updated package's pin moves.** For a Swift update, Renovate rewrites
+  that package's version and revision in `Package.resolved` and runs no resolution
+  (`lib/modules/manager/swift/artifacts.ts`, `updatePinInJson`). A new version
+  that needs a newer transitive package fails the gate, which builds with
+  `--disable-automatic-resolution`. Fix such a pull request with
+  `swift package resolve` on its branch.
 
 ## Dev builds on demand
 
