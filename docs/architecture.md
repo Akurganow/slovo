@@ -111,19 +111,22 @@ standalone WhisperKit package). What leaves the Mac is listed in
 - `Injector` inserts the final text into the focused field with an atomic paste.
 - `CleanupAvailability` is the app layer's single source of truth for whether
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
-  key). The menu, Settings, the recording glyph, and the orchestrator push all
-  read this one derivation (`preference && keyPresent`), so the state is never
-  re-derived divergently. Its derivation is the `cleanupAvailability` selector
-  on `AppState` (see App State); the store publishes synchronously, so the
-  Settings pane and the menu reflect a change within one runloop turn.
+  key). The menu, Settings, the recording glyph, and the dictation's settings
+  all read this one derivation (`preference && keyPresent`), so the state is
+  never re-derived divergently. Its derivation is the `cleanupAvailability`
+  selector on `AppState` (see App State); the store publishes synchronously, so
+  the Settings pane and the menu reflect a change within one runloop turn.
 - `PersonalizationSource` supplies local vocabulary hints.
 - `InputSourceLanguageReading` and `SpellCheckHintProviding` supply on-device
   cleanup hints — the active keyboard language and system spell-check
   suggestions — as advisory context for the cleanup prompt.
 - `Orchestrator` owns the runtime state transitions (`DictationFsm`).
   `HotkeyEdgeSequencer` orders production key edges and stamps those sent while
-  an earlier edge is still in flight, which the key-down arm refuses. Per-session
-  identity prevents a resumed readiness continuation from mutating its replacement.
+  an earlier edge is still in flight, which the key-down arm refuses. `deliver`
+  is the orchestrator's only entry for key edges. A dictation reads
+  `AppState.dictationSettings` once, when its recording begins. A readiness
+  continuation that outlives its dictation is cancelled when the dictation
+  returns to idle.
 
 The app target owns OS-specific adapters and production composition. The speech
 model is built once per process and injected into every composition, so a rebuild —
@@ -238,9 +241,9 @@ the scope state always agrees with availability. It refuses a `Config` that
 nothing.
 
 Effects are subscribers keyed on slices of the state. `AppStoreEffects.wire` in
-SlovoCore registers them: saving `Config`, the orchestrator pushes, the hotkey
-tap and the cue controller. It also registers the recorder's input device, the
-updater switch and the scope fetch. The app target
+SlovoCore registers them: saving `Config`, the hotkey tap and the cue
+controller. It also registers the recorder's input device, the updater switch
+and the scope fetch. The app target
 adds only what needs AppKit: the menu's build subscriber and its five row
 listeners, described below.
 

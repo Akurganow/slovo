@@ -10,7 +10,7 @@ everything Slovo sends off the Mac.
 |---|---|---|
 | Raw microphone audio | Local process memory | Never sent |
 | Whisper ASR model | App-owned cache under `~/Library/Application Support/slovo/models` | Loaded from the app cache with no request, except that a tokenizer file missing from the cache, or one that cannot be loaded, is fetched from Hugging Face inside that load; the download path asks Hugging Face only when the local load fails — see Speech Model |
-| Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** is on, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, while cleanup is on — see Cloud Cleanup |
+| Cleanup request: the transcript; every vocabulary term, with its expansion; the keyboard input language, when macOS reports one (no setting turns it off); while **Use system spell and grammar hints** was on when the dictation's recording began, the words and fragments of the transcript the on-device checker flagged, with its suggestions; the cleanup model id and the writing style; when translating, the target language | Local process memory; the keyboard language and the checker's findings are computed at each dictation and not stored | Sent to OpenRouter for each dictation whose transcript has a non-whitespace character, when cleanup was on as the dictation's recording began — see Cloud Cleanup |
 | Personal vocabulary | Local SQLCipher-encrypted SQLite database | Only in the cleanup request; never logged |
 | Key-scope request: `GET /api/v1/models/user`, carrying the API key and no dictated content | — | Sent to OpenRouter on each occasion listed under Cloud Cleanup |
 | Cleaned text | Local process memory and target app field | Not logged |
@@ -197,10 +197,14 @@ Cleanup is text-only and runs through OpenRouter while cleanup is on (the
 default): **Clean Up Dictation** in the menu bar, **Clean up dictation** in
 Settings → Cleanup. What each cleanup request carries is the cleanup-request row
 of Data Paths. The request also names the app in two headers, `X-Title: Slovo`
-and `HTTP-Referer: https://github.com/Akurganow/slovo`. With the setting off — or
-with no OpenRouter key stored, which is the same effective off mode — the cleanup
-path is never taken: no cleanup request is made, nothing is sent to OpenRouter,
-and the raw final transcript is pasted once at key-up.
+and `HTTP-Referer: https://github.com/Akurganow/slovo`. The setting is read once
+per dictation, when its recording begins. With the setting off at that moment —
+or with no OpenRouter key stored, which is the same effective off mode — the
+cleanup path is never taken: no cleanup request is made, nothing is sent to
+OpenRouter, and the raw final transcript is pasted once at key-up. A setting
+changed during the hold applies from the next dictation, so a dictation that
+began with cleanup on sends its transcript even if the setting is switched off
+before key-up.
 
 A dictation set to translate by the translate key is translated in the same
 request; there is no second request. Raw audio still never leaves.

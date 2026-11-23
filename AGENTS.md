@@ -67,7 +67,8 @@ Slovo is a private, on-device push-to-talk dictation app for macOS. One dictatio
    Up Dictation" toggle off (menu bar or Settings) — or with no OpenRouter key
    configured, which is the same effective off mode automatically — the raw
    final transcript is inserted once at key-up with zero network requests;
-   translation is unavailable there.
+   translation is unavailable there. The cleanup setting is read once, when
+   recording begins.
 6. The final text — cleaned when cleanup is on, raw in raw mode — is inserted
    into the focused app.
 
@@ -113,6 +114,8 @@ Clarifications:
   translate: with cleanup off the glyph stays Glagoli. The resting idle glyph
   shows Slovo "Ⱄ" (U+2C14) normally, swapping to Nash "Ⱀ" (U+2C10) while a
   downloaded update awaits Restart. The failure glyph "Ⱁ" (U+2C11) is unchanged.
+  During a hold the glyph follows the current switch, not the setting the
+  dictation began with.
 - **Mute while dictating.** A switch in Settings → General and in the menu-bar
   dropdown (on by default) silences system audio output while the key is held and
   restores it afterward; turning it off leaves system audio untouched during
@@ -125,6 +128,12 @@ Clarifications:
   the system default with no failure glyph and no cue. Only Settings says so,
   naming both devices. A change applies from the next dictation; a dictation in progress
   keeps its device.
+- **Settings during a hold.** A dictation keeps the settings it had when its
+  recording began: cleanup on or off, spell and grammar hints, cleanup model,
+  writing style, target language, mute while dictating, vocabulary bias and
+  recognition language. A change made during a hold applies from the next
+  dictation. A hold that began with cleanup on sends its transcript for cleanup
+  even if cleanup is switched off before key-up.
 - **Sound cues.** A switch in Settings → General and beside Mute in the menu-bar
   dropdown is on by default.
   - **Cues are fire-and-forget: no dictation step ever waits on audio.** A cue that
