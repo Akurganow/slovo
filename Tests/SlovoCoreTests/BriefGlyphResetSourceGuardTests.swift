@@ -40,7 +40,7 @@ struct BriefGlyphResetSourceGuardTests {
             return false
         }
         return SourceText.containsInOrder(
-            [abortStatement, latchClear, pipelineGate, "self.paintIdleGlyph("],
+            [abortStatement, latchClear, "self.paintRestingGlyph(", pipelineGate],
             in: afterSleep
         )
     }

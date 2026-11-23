@@ -8,17 +8,22 @@ extension AppDelegate {
     /// build subscriber then draws.
     func startStoreEffects() {
         let keyProvider = openRouterKeyProvider
+        let scopeFetchConfiguration = URLSessionConfiguration.ephemeral
+        // No URL cache: fetches under different keys must never share a cached response.
+        scopeFetchConfiguration.urlCache = nil
+        let scopeFetchSession = URLSession(configuration: scopeFetchConfiguration)
         AppStoreEffects.wire(store, to: AppStoreEffectTargets(
             defaults: defaults,
             reconfigureHotkeys: { [weak self] in self?.composition?.hotkeyMonitor.reconfigure(configuration: $0) },
             cueController: { [weak self] in self?.composition?.cueController },
             updaterSwitch: { [weak self] in self?.updaterCoordinator?.updater },
             updateInputDevice: { [weak self] in self?.composition?.recorder.updatePreferredInputDevice($0) },
-            // Built per fetch over the app's one key provider: no second Keychain
-            // read path, no stored fetcher.
+            // One session for the app's lifetime; the fetcher is built per fetch over
+            // the app's one key provider: no second Keychain read path, no stored
+            // fetcher.
             fetchScopeIds: {
                 try await OpenRouterModelScopeFetcher(
-                    session: URLSession(configuration: .ephemeral),
+                    session: scopeFetchSession,
                     keyProvider: keyProvider
                 ).fetchScopeIds()
             }

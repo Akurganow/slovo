@@ -90,7 +90,7 @@ struct SparkleWiringGuardTests {
     }
 
     /// The dictation dropdown itself owns a menu delegate: the hybrid Restart
-    /// row needs willHighlight callbacks and the menuWillOpen re-sync. Scoped
+    /// row needs willHighlight callbacks and the menuNeedsUpdate re-sync. Scoped
     /// to the file that renders `DictationMenu.items(` so the onboarding
     /// menu's existing delegate cannot satisfy the pin — this deliberately
     /// couples the delegate wiring to the dropdown builder's file.
@@ -105,51 +105,28 @@ struct SparkleWiringGuardTests {
                 "the dropdown builder's file must wire the status menu delegate")
     }
 
-    /// The update row is ONE persistent item mutated in place: the
-    /// indication-transition renderer touches title/visibility only and never
+    /// The update row is ONE persistent item mutated in place: the renderer never
     /// constructs menu items (rebuilding would break highlight callbacks
-    /// mid-tracking); the delegate re-syncs the row on every open; the ready
-    /// state exposes a stable NON-nil accessibility label independent of the
-    /// highlight-driven title swap. The title/visibility/label pins are scoped
-    /// to the indication switch itself: elsewhere in the renderer's file the
-    /// failure-flash `button.title` and the reset `setAccessibilityLabel(nil)`
-    /// calls keep the bare tokens alive, so a whole-file scan stays green even
-    /// with the renderer gutted. The renderer's whole FILE must stay free of
-    /// `NSMenuItem(` — construction belongs to the builder.
-    /// Catches: rebuilding the item on transition, dropping retitle/visibility
-    /// from the switch, dropping the update-row render from menuWillOpen, or deleting,
-    /// nil-ing, or blanking the ready-state label → the matching pin → RED.
-    /// Stated sensitivity: drop `renderUpdateIndication(` from menuWillOpen → RED.
+    /// mid-tracking), and the delegate re-syncs the row on every open. Its
+    /// texts, enablement, label and highlight title are pinned by UpdateRowTests;
+    /// the renderer's whole FILE must stay free of `NSMenuItem(` — construction
+    /// belongs to the builder.
+    /// Catches: rebuilding the item on transition, or dropping the update-row render
+    /// from the open-time re-sync → the matching pin → RED.
+    /// Stated sensitivity: drop `renderUpdateIndication(` from the re-sync → RED.
     @Test
-    func updateRowIsPersistentInPlaceAndAccessible() throws {
+    func updateRowIsPersistentInPlaceAndReRenderedOnOpen() throws {
         let sources = try Self.appSources()
-        let renderers = sources.filter { $0.source.contains("case .downloading(") }
-        #expect(!renderers.isEmpty, "an app-target renderer must switch over the update indication")
+        let renderers = sources.filter { $0.source.contains("func renderUpdateIndication(") }
+        #expect(!renderers.isEmpty, "an app-target renderer must write the update indication")
         for renderer in renderers {
-            let indicationSwitch = try #require(
-                Self.enclosingBlock(around: "case .downloading(", in: renderer.source),
-                Comment(rawValue: renderer.path)
-            )
-            #expect(indicationSwitch.contains(".title"), "\(renderer.path) must retitle the persistent row")
-            #expect(indicationSwitch.contains(".isHidden"), "\(renderer.path) must show/hide the persistent row")
-            let readyRange = try #require(indicationSwitch.range(of: "case .ready"),
-                                          "\(renderer.path) must render the ready indication")
-            // The arm ends at the next `case ` label (or the switch end), so the
-            // pin holds wherever .ready sits in the case order.
-            let armEnd = indicationSwitch
-                .range(of: "case .", range: readyRange.upperBound..<indicationSwitch.endIndex)?
-                .lowerBound ?? indicationSwitch.endIndex
-            let readyArm = String(indicationSwitch[readyRange.lowerBound..<armEnd])
-            // `nil` and a blank label are equally broken for VoiceOver: reject both.
-            #expect(Self.firstMatch(in: readyArm, pattern: #"setAccessibilityLabel\(\s*(?!nil\b|"\s*")"#) != nil,
-                    "\(renderer.path) must give the ready row a non-nil, non-blank accessibility label")
             #expect(!renderer.source.contains("NSMenuItem("),
                     "\(renderer.path) must mutate the persistent row, not rebuild it")
         }
-        let menuWillOpen = try #require(Self.slice(fromToken: "func menuWillOpen", in: sources),
-                                        "the dropdown must re-sync its rows on open")
-        #expect(menuWillOpen.contains("renderUpdateIndication("),
-                "menuWillOpen must re-render the update row from state")
+        let resync = try #require(Self.slice(fromToken: "func menuNeedsUpdate", in: sources),
+                                  "the dropdown must re-sync its rows on open")
+        #expect(resync.contains("renderUpdateIndication("),
+                "the open-time re-sync must re-render the update row from state")
     }
 
     /// Settings → General carries the "Automatically install updates" switch, bound
@@ -226,26 +203,6 @@ struct SparkleWiringGuardTests {
                   let block = balancedBlock(openingAt: openBrace, in: file.source)
             else { continue }
             return file.source[tokenRange.lowerBound..<openBrace] + block
-        }
-        return nil
-    }
-
-    /// The innermost `{…}` block containing `token`: brace balance walked
-    /// backward to the opening brace, then forward to its balanced close. Scopes
-    /// a pin to the block that owns the token (e.g. the renderer's indication
-    /// switch), where a whole-file scan could green off unrelated token uses.
-    private static func enclosingBlock(around token: String, in source: String) -> String? {
-        guard let tokenRange = source.range(of: token) else { return nil }
-        var depth = 0
-        var index = tokenRange.lowerBound
-        while index > source.startIndex {
-            index = source.index(before: index)
-            if source[index] == "}" {
-                depth += 1
-            } else if source[index] == "{" {
-                if depth == 0 { return balancedBlock(openingAt: index, in: source) }
-                depth -= 1
-            }
         }
         return nil
     }

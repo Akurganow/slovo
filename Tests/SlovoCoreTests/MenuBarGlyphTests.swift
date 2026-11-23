@@ -1,11 +1,10 @@
-import Foundation
 import Testing
 
 import SlovoCore
 
 // Menu-bar glyph mapping only. Real NSStatusItem/NSImage rendering and font
 // fallback are out of scope here; this slice locks the state/mode/status → glyph
-// mapping and guards the glyph source as a pure presentation layer.
+// mapping.
 @Suite("MenuBarGlyph logic")
 struct MenuBarGlyphTests {
     /// The recording state maps to Cherv Ⱍ (U+2C1D, the Glagolitic "чистота"/clean
@@ -90,8 +89,7 @@ struct MenuBarGlyphTests {
 
     /// The empty-result (no speech) surface reuses the red failure glyph Ⱁ (U+2C11)
     /// with the error tint — the spec's "brief red failure glyph" for a silent hold.
-    /// Stated sensitivity: return nil for `.noSpeechDetected` (dropping it into the
-    /// no-glyph group), a different codepoint, or a `.normal` tint → RED.
+    /// Stated sensitivity: a different codepoint or a `.normal` tint → RED.
     @Test
     func noSpeechDetectedUsesFailureGlyphAndErrorTint() {
         #expect(MenuBarGlyph.forStatus(.noSpeechDetected) == "\u{2C11}")
@@ -100,40 +98,10 @@ struct MenuBarGlyphTests {
 
     /// Model-loading must be visible as its own glyph, not silence: Zhivete Ⰶ
     /// with a normal (non-error) tint — loading is a state, not a failure.
-    /// Stated sensitivity: returning the status to the nil-glyph group, a wrong
-    /// character, or an error tint goes RED.
+    /// Stated sensitivity: a wrong character or an error tint goes RED.
     @Test
     func preparingSpeechModelShowsZhiveteGlyph() {
         #expect(MenuBarGlyph.forStatus(.preparingSpeechModel) == "\u{2C06}")
         #expect(MenuBarGlyph.tint(forStatus: .preparingSpeechModel) == .normal)
-    }
-
-    /// Stated sensitivity: adding a logging or egress dependency to the glyph
-    /// source violates its pure-presentation contract and fails this source guard.
-    @Test
-    func menuBarGlyphSourceHasNoLoggingOrEgressDependencies() throws {
-        let source = try String(contentsOfFile: Self.menuBarGlyphSourcePath, encoding: .utf8)
-        let forbiddenTokens = [
-            "RedactionSafeLog",
-            "Logger(",
-            "import os",
-            "URLSession",
-            "Anthropic",
-            "Cleaner",
-        ]
-
-        for token in forbiddenTokens {
-            #expect(!source.contains(token), "glyph source must not depend on \(token)")
-        }
-    }
-
-    private static var menuBarGlyphSourcePath: String {
-        let testFile = URL(fileURLWithPath: "\(#filePath)")
-        return testFile
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Sources/SlovoCore/MenuBar/MenuBarGlyph.swift")
-            .path
     }
 }

@@ -8,8 +8,7 @@ extension AppDelegate {
         let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let menu = NSMenu(title: title)
         for option in options {
-            let item = NSMenuItem(title: option.displayName, action: #selector(selectCleanupModel(_:)), keyEquivalent: "")
-            item.target = self
+            let item = actionItem(option.displayName, #selector(selectCleanupModel(_:)))
             item.representedObject = option
             item.state = option.id == selectedModel ? .on : .off
             menu.addItem(item)

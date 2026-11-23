@@ -3,30 +3,49 @@ import QuartzCore
 import SlovoCore
 
 extension AppDelegate {
-    /// The single funnel for the resting menu-bar glyph: idle is a projection of
-    /// update state, so every "back to idle" path routes through here — a direct
-    /// `setStatusGlyph(.idle)` call would silently drop the update-ready Nash Ⱀ
-    /// while a downloaded update awaits Restart.
-    func paintIdleGlyph(on button: NSStatusBarButton?) {
-        guard let button else { return }
+    /// Paints the glyph the menu bar shows when nothing else draws on it: the
+    /// loading glyph and its pulse, or idle. The decision is `RestingGlyph.derive`.
+    /// Idle is reached only through here, since idle is a projection of update
+    /// state: a direct `setStatusGlyph(.idle)` call would silently drop the
+    /// update-ready Nash Ⱀ while a downloaded update awaits Restart. Every Sparkle
+    /// callback calls this, because the Nash rides the idle slot; the decision keeps
+    /// that repaint off a dictation or the dictation-failure flash. The user-action
+    /// failure flash sets no latch, so a later Sparkle event repaints over it on
+    /// purpose (`docs/architecture.md`, "App State").
+    func paintRestingGlyph() {
+        guard let button = statusItem?.button else { return }
+        let resting = RestingGlyph.derive(
+            isPipelineActive: isPipelineActive,
+            isShowingBriefStatus: isShowingBriefStatus,
+            gate: modelGate
+        )
+        // Only `.loading` keeps the pulse. Any other result ends it, so a dictation glyph
+        // painted over the loading glyph does not keep pulsing.
+        if resting != .loading { stopModelLoadingPulse(on: button) }
+        switch resting {
+        case .leave:
+            break
+        case .loading:
+            setStatusGlyph(status: .preparingSpeechModel, on: button)
+            startModelLoadingPulse(on: button)
+        case .idle:
+            paintIdleGlyph(on: button)
+        }
+    }
+
+    private func paintIdleGlyph(on button: NSStatusBarButton) {
         let isUpdateReady: Bool
         if case .ready = store.state.updateIndication {
             isUpdateReady = true
         } else {
             isUpdateReady = false
         }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: MenuBarGlyph.idleGlyph(isUpdateReady: isUpdateReady), tint: .normal)
-            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+        paint(MenuBarGlyph.idleGlyph(isUpdateReady: isUpdateReady), tint: .normal, fallbackSymbol: "mic", on: button)
     }
 
     func setStatusGlyph(_ state: DictationState, on button: NSStatusBarButton?) {
         guard let button else { return }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: MenuBarGlyph.forState(state), tint: .normal)
-            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+        paint(MenuBarGlyph.forState(state), tint: .normal, fallbackSymbol: "mic", on: button)
     }
 
     /// Paints the recording glyph for the session's mode — the semantic family
@@ -35,39 +54,44 @@ extension AppDelegate {
     /// the key is still held.
     func setStatusGlyph(recording mode: RecordingGlyphMode, on button: NSStatusBarButton?) {
         guard let button else { return }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: MenuBarGlyph.forRecording(mode: mode), tint: .normal)
-            ?? NSImage(systemSymbolName: "mic", accessibilityDescription: "Slovo")
+        paint(MenuBarGlyph.forRecording(mode: mode), tint: .normal, fallbackSymbol: "mic", on: button)
     }
 
     func setStatusGlyph(status: StatusMessage, on button: NSStatusBarButton?) {
-        guard let button, let glyph = MenuBarGlyph.forStatus(status) else { return }
+        guard let button else { return }
+        paint(
+            MenuBarGlyph.forStatus(status),
+            tint: MenuBarGlyph.tint(forStatus: status),
+            fallbackSymbol: "exclamationmark.circle",
+            on: button
+        )
+    }
+
+    /// The one write of a glyph to the status button. The glyph color rides on the
+    /// image itself (see `MenuBarGlyph.image(for:tint:)`), so a tint left on the
+    /// button from an earlier paint is cleared. `fallbackSymbol` shows when the
+    /// glyph image cannot be built.
+    private func paint(_ glyph: Character, tint: MenuBarGlyphTint, fallbackSymbol: String, on button: NSStatusBarButton) {
         button.title = ""
-        // Clear any prior tint; the glyph color now rides on the image itself
-        // (see MenuBarGlyph.image(for:tint:)).
         button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: glyph, tint: MenuBarGlyph.tint(forStatus: status))
-            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
+        button.image = MenuBarGlyph.image(for: glyph, tint: tint)
+            ?? NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: "Slovo")
     }
 
     /// Briefly flashes the red failure glyph (the empty-dictation pattern) when an
     /// action the user explicitly took fails — a Restart install, a key save or a
-    /// key removal — then restores idle. Background failures stay silent.
+    /// key removal — then restores the resting glyph. Background failures stay silent.
     func flashUserActionFailure() {
         guard let button = statusItem?.button else { return }
-        button.title = ""
-        button.contentTintColor = nil
-        button.image = MenuBarGlyph.image(for: MenuBarGlyph.failureGlyph, tint: .error)
-            ?? NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Slovo")
+        paint(MenuBarGlyph.failureGlyph, tint: .error, fallbackSymbol: "exclamationmark.circle", on: button)
         // Tracked reset, mirroring briefStatusResetTask: cancel any pending reset before
         // scheduling anew, and skip the reset if superseded or if a dictation started
         // within the window (its recording glyph must not be stomped back to idle).
         userActionFailureResetTask?.cancel()
         userActionFailureResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, self?.isPipelineActive == false else { return }
-            self?.paintIdleGlyph(on: self?.statusItem?.button)
+            guard !Task.isCancelled else { return }
+            self?.paintRestingGlyph()
         }
     }
 
@@ -77,8 +101,7 @@ extension AppDelegate {
     /// attention-pulse feel: ease-in-out, ~1.5 s full cycle (0.75 s per leg),
     /// dimming to 30% — slower than the 1 Hz text caret, faster than the 3–5 s
     /// sleep-indicator breath, so it reads as "working", not "alarmed".
-    func startModelLoadingPulse(on button: NSStatusBarButton?) {
-        guard let button else { return }
+    private func startModelLoadingPulse(on button: NSStatusBarButton) {
         button.wantsLayer = true
         guard button.layer?.animation(forKey: Self.modelLoadingPulseKey) == nil else { return }
         let pulse = CABasicAnimation(keyPath: "opacity")
@@ -91,8 +114,8 @@ extension AppDelegate {
         button.layer?.add(pulse, forKey: Self.modelLoadingPulseKey)
     }
 
-    func stopModelLoadingPulse(on button: NSStatusBarButton?) {
-        button?.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
-        button?.layer?.opacity = 1
+    private func stopModelLoadingPulse(on button: NSStatusBarButton) {
+        button.layer?.removeAnimation(forKey: Self.modelLoadingPulseKey)
+        button.layer?.opacity = 1
     }
 }

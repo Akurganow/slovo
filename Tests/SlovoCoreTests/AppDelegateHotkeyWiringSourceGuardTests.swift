@@ -69,7 +69,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
         #expect(SourceText.containsInOrder([
             "case .down(let mode):",
             "guard !edge.arrivedWhileBusy",
-            "isModelReady",
+            "modelGate",
             "self?.isPipelineActive = true",
             "orchestrator.deliver(edge)",
         ], in: startPipeline),
@@ -89,11 +89,10 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         #expect(SourceText.containsInOrder([
             "case .down(let mode):",
-            "isModelReady",
-            "showModelLoadingState",
+            "modelGate == .open",
             "orchestrator.deliver(edge)",
         ], in: startPipeline),
-        "the .down arm must gate on model readiness and re-assert the loading state before any session starts")
+        "the .down arm must gate on model readiness before any session starts")
     }
 
     /// The recording glyph must be DERIVED from the session's mode and the LIVE
@@ -199,12 +198,12 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
     /// The model warm-up must be an observable gate end to end: the composition
     /// exposes the preload as an awaitable task; the delegate enters the loading
-    /// state in startPipeline and opens the gate (stopping the pulse) only when the
+    /// state in startPipeline and opens the gate only when the
     /// warm-up task succeeds, which it does only on a loaded model — and only for the
     /// composition still wired, so a superseded preload's outcome cannot answer for
     /// the current one.
     /// Killing mutation: return to fire-and-forget preload, never flip
-    /// isModelReady, open the gate on any completion (`_ = await
+    /// modelGate = .open, open the gate on any completion (`_ = await
     /// live.modelWarmUp.result`, which also passes a cancelled warm-up), discard the
     /// result and open anyway (`_ = try? await live.modelWarmUp.value`), or delete
     /// the currency comparison from the gate task -> RED.
@@ -221,13 +220,12 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
 
         let gate = try SourceText.code("Sources/slovo/AppDelegate+ModelGate.swift")
         #expect(SourceText.containsInOrder([
-            "showModelLoadingState",
+            "modelGate = .loading",
             "guard (try? await live.modelWarmUp.value) != nil",
             "composition?.modelWarmUp",
-            "isModelReady = true",
-            "stopModelLoadingPulse",
+            "modelGate = .open",
         ], in: gate),
-        "the CURRENT composition's warm-up must open the gate and stop the loading pulse")
+        "the CURRENT composition's warm-up must open the gate")
     }
 
     /// A composition that is never gated must leave no pulse behind. The onboarding
@@ -251,7 +249,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "prepareModelGate",
         ], in: startPipeline),
         "the onboarding return is the path that reaches no model gate")
-        #expect(presentOnboarding.contains("clearModelLoadingState()"),
+        #expect(presentOnboarding.contains("modelGate = .notGated"),
                 "an ungated composition must stop the loading pulse it inherited")
     }
 
@@ -366,40 +364,39 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
     /// The system facts the dropdown shows must be re-read on every menu OPEN, not
     /// only at a rebuild: the user changes the fn assignment in System Settings, the
     /// default output device or the input devices while the app runs, and the very
-    /// next open must reflect it. menuWillOpen writes the three live values into
-    /// state; the row listeners update the fn notice, the mute item and the
-    /// Microphone submenu.
-    /// Stated sensitivity: drop any write from menuWillOpen → RED.
+    /// next open must reflect it. menuNeedsUpdate writes
+    /// the three live values into state; the row listeners update the fn notice, the
+    /// mute item and the Microphone submenu.
+    /// Stated sensitivity: drop any write from menuNeedsUpdate → RED.
     @Test
     func systemFactsAreReReadOnMenuOpen() throws {
-        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
-        let menuWillOpen = try SourceText.functionBody(named: "menuWillOpen", in: updateMenu)
-        #expect(menuWillOpen.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
-                "menuWillOpen must write the live fn-assignment value into state")
-        #expect(menuWillOpen.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
-                "menuWillOpen must write the live output mute availability into state")
-        #expect(menuWillOpen.contains("inputDevices = CoreAudioInputDevices().inputDevices()"),
-                "menuWillOpen must write the live input devices into state")
+        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
+        let resync = try SourceText.functionBody(named: "menuNeedsUpdate", in: delegate)
+        #expect(resync.contains("isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned"),
+                "menuNeedsUpdate must write the live fn-assignment value into state")
+        #expect(resync.contains("outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()"),
+                "menuNeedsUpdate must write the live output mute availability into state")
+        #expect(resync.contains("inputDevices = CoreAudioInputDevices().inputDevices()"),
+                "menuNeedsUpdate must write the live input devices into state")
     }
 
     /// The fn verdict reaches the menu only through state: the init seed and
-    /// menuWillOpen read the reader, the build subscriber passes the state's verdict,
+    /// menuNeedsUpdate read the reader, the build subscriber passes the state's verdict,
     /// and makeMenu passes its `rows` argument to `make`. The fn rendering itself is
     /// pinned in DictationMenuTests through `items`.
     /// Stated sensitivity: hardcode the build subscriber's argument, build fresh rows
-    /// inside makeMenu, hardcode the verdict in the init seed or menuWillOpen — e.g.
+    /// inside makeMenu, hardcode the verdict in the init seed or menuNeedsUpdate — e.g.
     /// `isFnKeySystemAssigned: false` — or drop the reader from the seed → RED.
     @Test
     func makeMenuPassesTheLiveFnAssignmentValue() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let updateMenu = try SourceText.code("Sources/slovo/AppDelegate+UpdateMenu.swift")
         let makeMenu = try SourceText.functionBody(named: "makeMenu", in: delegate)
         let initBody = try SourceText.slice(
             of: delegate,
             from: "fnKeyAssignmentReader: FnKeyAssignmentReading =",
             to: "func applicationDidFinishLaunching"
         )
-        let menuWillOpen = try SourceText.functionBody(named: "menuWillOpen", in: updateMenu)
+        let resync = try SourceText.functionBody(named: "menuNeedsUpdate", in: delegate)
         let storeWiring = try SourceText.code("Sources/slovo/AppDelegate+Store.swift")
         #expect(storeWiring.contains("isFnKeySystemAssigned: state.isFnKeySystemAssigned"),
                 "the build subscriber must pass the verdict held in state")
@@ -411,7 +408,7 @@ struct AppDelegateHotkeyWiringSourceGuardTests {
             "isFnKeySystemAssigned: false", "isFnKeySystemAssigned: true",
             "isFnKeySystemAssigned = false", "isFnKeySystemAssigned = true",
         ]
-        for (name, body) in [("init", initBody), ("menuWillOpen", menuWillOpen), ("AppDelegate+Store", storeWiring)] {
+        for (name, body) in [("init", initBody), ("menuNeedsUpdate", resync), ("AppDelegate+Store", storeWiring)] {
             for literal in literals {
                 #expect(!body.contains(literal), "\(name) must never hardcode the fn verdict: \(literal)")
             }

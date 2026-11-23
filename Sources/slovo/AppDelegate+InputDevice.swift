@@ -34,8 +34,7 @@ extension AppDelegate {
         submenu.removeAllItems()
         let rows: [InputDevice?] = [nil] + choice.present.map { Optional($0) }
         for device in rows {
-            let item = NSMenuItem(title: device?.name ?? "System Default", action: #selector(selectInputDevice(_:)), keyEquivalent: "")
-            item.target = self
+            let item = actionItem(device?.name ?? "System Default", #selector(selectInputDevice(_:)))
             item.representedObject = device
             item.state = device == choice.selection ? .on : .off
             submenu.addItem(item)

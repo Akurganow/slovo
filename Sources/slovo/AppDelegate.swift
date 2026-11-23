@@ -34,14 +34,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Set with the controller by the Settings opener in its own file. Releasing it
     // would stop recording which pane the user views.
     var settingsPaneObservation: NSKeyValueObservation?
-    private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
-    private var openRouterKeyWindow: OpenRouterKeyWindow?
+    private lazy var vocabularyQuickAddWindow = TextEntryWindow(content: .vocabulary) { [weak self] terms in
+        self?.addVocabulary(terms)
+    }
+    private lazy var openRouterKeyWindow = TextEntryWindow(content: .openRouterKey) { [weak self] key in
+        self?.saveOpenRouterKey(key)
+    }
     private var didShowPipelineStatus = false
     var isPipelineActive = false
     // A brief self-clearing failure glyph is on screen; settleToIdle must not stomp
     // it back to idle mid-window.
     var isShowingBriefStatus = false
-    var isModelReady = false
+    // Every write repaints the resting glyph, so the loading glyph, its pulse and
+    // the idle glyph always follow the gate.
+    var modelGate = ModelGate.notGated { didSet { paintRestingGlyph() } }
     private var briefStatusResetTask: Task<Void, Never>?
     // Sibling of briefStatusResetTask: the pending reset of the user-action-failure
     // glyph flash, cancelled before a new flash so overlaps don't stack.
@@ -87,8 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         StatusItemPlacement.seedPreferredPositionIfAbsent(in: defaults)
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = StatusItemPlacement.autosaveName
-        paintIdleGlyph(on: item.button)
         statusItem = item
+        paintRestingGlyph()
         startStoreEffects()
         startObservingOutputMuteAvailability()
         startObservingInputDevices()
@@ -143,8 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // sink. Servicing it now would open the microphone after its own key
             // was released, and the repaint below would overwrite the live glyph.
             case .down(let mode): guard !edge.arrivedWhileBusy else { return await MainActor.run { self?.logRefusedPress() } }
-                guard await MainActor.run(body: { self?.isModelReady == true })
-                else { return await MainActor.run { self?.showModelLoadingState() } }
+                guard await MainActor.run(body: { self?.modelGate == .open }) else { return }
                 await MainActor.run {
                     self?.isPipelineActive = true
                     self?.didShowPipelineStatus = false
@@ -211,9 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// sad-to-fail notice or an already-shown pipeline status untouched.
     private func settleToIdle() {
         isPipelineActive = false
-        if !isShowingBriefStatus {
-            paintIdleGlyph(on: statusItem?.button)
-        }
+        paintRestingGlyph()
         if !didShowPipelineStatus {
             store.update { $0.statusLine = .idle }
         }
@@ -227,8 +230,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // on the shrinking set of still-pending steps.
         // This composition is not gated (startPipeline returned above
         // prepareModelGate), so nothing else would ever stop a pulse inherited from
-        // the composition it replaced.
-        clearModelLoadingState()
+        // the composition it replaced: leaving the loading gate repaints idle.
+        modelGate = .notGated
         store.update { $0.menuMode = .onboarding(steps) }
     }
 
@@ -266,7 +269,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
+    /// Re-reads three system facts into state in one update: the live macOS fn
+    /// assignment, the default output device's mute availability and the input
+    /// devices. Their row listeners update the fn notice, the mute item and the
+    /// Microphone submenu. Then it re-renders the update row from state, which undoes
+    /// a highlight swap that left "Restart" on the row. The reads here keep the
+    /// dropdown right even when a CoreAudio listener failed to register or was lost
+    /// to an audio service reset. Apple's `NSMenuDelegate` documentation places this
+    /// change in `menuNeedsUpdate(_:)`: "the delegate can change the menu by adding,
+    /// removing, or modifying menu items". `menuWillOpen(_:)` says: "Don't modify the
+    /// structure of the menu or the menu items during this method."
     func menuNeedsUpdate(_ menu: NSMenu) {
+        store.update {
+            $0.isFnKeySystemAssigned = fnKeyAssignmentReader.isFnKeySystemAssigned
+            $0.outputMuteAvailability = CoreAudioOutputMute().outputMuteAvailability()
+            $0.inputDevices = CoreAudioInputDevices().inputDevices()
+        }
+        renderUpdateIndication(store.state.updateIndication)
         // The dictation dropdown shares this delegate; only the onboarding menu
         // wants the pending-permission refresh.
         guard store.state.menuMode.isOnboarding else { return }
@@ -330,15 +349,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             //    this the superseded reset runs on and clears the newer flash.
             guard !Task.isCancelled, let self else { return }
             // 2. Unconditionally, and before any other exit: this line is the ONLY
-            //    writer that clears the latch, and settleToIdle, the model gate and
-            //    the update menu all read it as a do-not-repaint-idle veto — a return
-            //    above it strands the latch set and suppresses idle indefinitely.
+            //    writer that clears the latch, and every resting-glyph repaint reads
+            //    it as a do-not-repaint veto — a return above it strands the latch
+            //    set and suppresses idle indefinitely.
             self.isShowingBriefStatus = false
-            // 3. The PAINT alone is gated: a dictation that began inside the window
-            //    owns the glyph, and idle here would blank its recording glyph until
-            //    key-up. Its own settleToIdle repaints idle, the latch now cleared.
+            // 3. The repaint decides for itself whether a dictation owns the glyph.
+            //    The status line is gated here: a dictation that began inside the
+            //    window owns it too, and idle would overwrite its status.
+            self.paintRestingGlyph()
             guard !self.isPipelineActive else { return }
-            self.paintIdleGlyph(on: self.statusItem?.button)
             if !status.isPersistentNotice {
                 self.store.update { $0.statusLine = .idle }
             }
@@ -368,12 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc
     func showVocabularyQuickAdd() {
-        if vocabularyQuickAddWindow == nil {
-            vocabularyQuickAddWindow = VocabularyQuickAddWindow(onAdd: { [weak self] terms in
-                self?.addVocabulary(terms)
-            })
-        }
-        vocabularyQuickAddWindow?.show()
+        vocabularyQuickAddWindow.show()
     }
 
     /// Opens the dedicated Add-OpenRouter-Key window — the no-key menu-bar affordance.
@@ -382,12 +396,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// for a pane save; the window closes itself on save or cancel.
     @objc
     func showAddOpenRouterKeyWindow() {
-        if openRouterKeyWindow == nil {
-            openRouterKeyWindow = OpenRouterKeyWindow(onSave: { [weak self] key in
-                self?.saveOpenRouterKey(key)
-            })
-        }
-        openRouterKeyWindow?.show()
+        openRouterKeyWindow.show()
     }
 
     @objc

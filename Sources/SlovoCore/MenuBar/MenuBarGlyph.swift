@@ -80,7 +80,7 @@ public enum MenuBarGlyph {
         }
     }
 
-    public static func forStatus(_ status: StatusMessage) -> Character? {
+    public static func forStatus(_ status: StatusMessage) -> Character {
         status.isFailureNotice ? failureGlyph : "\u{2C06}"
     }
 

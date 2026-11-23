@@ -19,15 +19,11 @@ struct MenuBarGlyphWiringSourceGuardTests {
         let glyphSource = try SourceText.code("Sources/slovo/AppDelegate+Glyph.swift")
         let statusBody = try SourceText.functionBody(named: "setStatusGlyph(status:", in: glyphSource)
         let stateBody = try SourceText.functionBody(named: "setStatusGlyph(_ state:", in: glyphSource)
+        let paintBody = try SourceText.functionBody(named: "paint", in: glyphSource)
 
-        #expect(SourceText.containsInOrder([
-            "MenuBarGlyph.image(for:",
-            "tint: MenuBarGlyph.tint(forStatus: status)",
-        ], in: statusBody))
-        #expect(SourceText.containsInOrder([
-            "MenuBarGlyph.image(for:",
-            "tint: .normal",
-        ], in: stateBody))
+        #expect(statusBody.contains("tint: MenuBarGlyph.tint(forStatus: status)"))
+        #expect(stateBody.contains("tint: .normal"))
+        #expect(paintBody.contains("MenuBarGlyph.image(for: glyph, tint: tint)"))
     }
 
     /// Template management belongs to the core renderer, not the app: the menu bar
