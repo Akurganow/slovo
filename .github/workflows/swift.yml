@@ -148,7 +148,7 @@ jobs:
         if: steps.xcode.outputs.found == 'true'
         run: /usr/bin/time -p swift test --disable-automatic-resolution --build-system swiftbuild
       - name: "Spike: the armed self-test goes red under Swift Build"
-        if: !cancelled() && steps.xcode.outputs.found == 'true'
+        if: ${{ !cancelled() && steps.xcode.outputs.found == 'true' }}
         env:
           SLOVO_GATE_SELFTEST: red
         run: |
@@ -158,10 +158,10 @@ jobs:
           fi
           echo "SPIKE: armed self-test failed as expected under Swift Build"
       - name: "Spike: import check over the test targets under Swift Build"
-        if: !cancelled() && steps.xcode.outputs.found == 'true'
+        if: ${{ !cancelled() && steps.xcode.outputs.found == 'true' }}
         run: swift build --disable-automatic-resolution --build-system swiftbuild --build-tests --explicit-target-dependency-import-check error
       - name: "Spike: rebuild time of the shell files under Swift Build, base manifest and spike manifest"
-        if: !cancelled() && steps.xcode.outputs.found == 'true'
+        if: ${{ !cancelled() && steps.xcode.outputs.found == 'true' }}
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
