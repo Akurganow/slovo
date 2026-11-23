@@ -189,36 +189,6 @@ struct SettingsSurfaceSourceGuardTests {
         #expect(vocabulary.contains(".disabled(selection.isEmpty)"))
     }
 
-    /// The quick-add window's controller is cached, but the view it hosts must be
-    /// rebuilt fresh on every `show()` — otherwise text left over from a cancelled
-    /// add would still be in the field on reopen.
-    /// Stated sensitivity: move view construction back inside
-    /// `if windowController == nil { ... }` (so a cached window reuses its old
-    /// view) → this `#expect` goes RED, since the reused-branch's
-    /// `contentViewController` reassignment is what proves a fresh view replaces
-    /// the stale one.
-    @Test
-    func quickAddWindowRebuildsViewOnEveryShow() throws {
-        let source = try SourceText.code("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
-    }
-
-    /// The quick-add field must become the AppKit window's first responder after
-    /// joining its view hierarchy so the user can type immediately.
-    /// Stated sensitivity: remove the `viewDidMoveToWindow` override, the
-    /// `initialFirstResponder` assignment, or the `makeFirstResponder` call →
-    /// the corresponding expectation goes RED.
-    @Test
-    func quickAddWindowFocusesTheTermFieldByDefault() throws {
-        let source = try SourceText.code("Sources/slovo/Settings/VocabularyQuickAddWindow.swift")
-        #expect(source.contains("InitialFocusTextField("))
-        #expect(source.contains("override func viewDidMoveToWindow()"))
-        #expect(source.contains("window.initialFirstResponder = self"))
-        #expect(source.contains("window.makeFirstResponder(self)"))
-        #expect(!source.contains("@FocusState"))
-        #expect(!source.contains(".defaultFocus("))
-    }
-
     /// The window presenter activates the app before showing (the `.accessory`
     /// quirk) and avoids the broken SwiftUI Settings route.
     /// Stated sensitivity: drop `NSApp.activate(ignoringOtherApps: true)` → RED
@@ -370,92 +340,82 @@ struct SettingsSurfaceSourceGuardTests {
 
     /// The menu's add-key affordance must actually OPEN THE KEY WINDOW and route its
     /// Save through the app's key-save funnel — pinning the selector name alone is not
-    /// enough: a no-op body, or one that opened Settings, or one whose onSave bypassed
+    /// enough: a no-op body, or one that opened Settings, or one whose onConfirm bypassed
     /// the funnel, would still satisfy a name-only guard yet defeat the affordance.
-    /// Scope to the method body and assert it constructs and shows OpenRouterKeyWindow
-    /// with onSave wired to saveOpenRouterKey.
+    /// The window is a lazy property of the delegate, so the guard reads the method
+    /// body (it shows the window) and the property's closure (it wires the funnel).
     /// Stated sensitivity: empty the body (a no-op), open Settings instead, or route
-    /// onSave anywhere but `saveOpenRouterKey` (bypassing the funnel) → RED.
+    /// onConfirm anywhere but `saveOpenRouterKey` (bypassing the funnel) → RED.
     @Test
     func addKeySelectorOpensTheKeyWindowThroughTheFunnel() throws {
         let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
         let body = try SourceText.functionBody(named: "showAddOpenRouterKeyWindow", in: delegate)
-        #expect(body.contains("OpenRouterKeyWindow"),
+        let window = try SourceText.slice(of: delegate, from: "lazy var openRouterKeyWindow", to: "\n    }")
+        #expect(window.contains("TextEntryWindow("),
                 "the add-key affordance must build the dedicated key window")
-        #expect(body.contains("saveOpenRouterKey"),
+        #expect(window.contains("saveOpenRouterKey"),
                 "the window's Save must route through the existing key-save funnel, not a new path")
-        #expect(body.contains("openRouterKeyWindow?.show()"),
+        #expect(body.contains("openRouterKeyWindow.show()"),
                 "the add-key affordance must actually show the window")
     }
 
-    /// The key window rebuilds a fresh view on every show (no stale key lingering in
-    /// the field on reopen) and its secure field grabs first responder on join, via
-    /// the codebase's proven NSView route (SwiftUI @FocusState-on-appear is unreliable
+    /// The entry window rebuilds a fresh view on every show (no stale text lingering in
+    /// a field on reopen) and its field grabs first responder on join, via the
+    /// codebase's proven NSView route (SwiftUI @FocusState-on-appear is unreliable
     /// in a hosted window). Stated sensitivity: reuse the stale view (drop the
     /// contentViewController reassignment), or remove the first-responder override /
     /// assignment / call → the corresponding expectation goes RED.
     @Test
-    func keyWindowRebuildsViewAndFocusesTheKeyField() throws {
-        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
+    func textEntryWindowRebuildsViewAndFocusesTheField() throws {
+        let source = try SourceText.code("Sources/slovo/Settings/TextEntryWindow.swift")
         #expect(source.contains(".window?.contentViewController = NSHostingController(rootView:"))
+        #expect(source.contains("InitialFocusField("))
         #expect(source.contains("NSSecureTextField"))
         #expect(source.contains("override func viewDidMoveToWindow()"))
         #expect(source.contains("window.initialFirstResponder = self"))
         #expect(source.contains("window.makeFirstResponder(self)"))
+        #expect(!source.contains("@FocusState"))
+        #expect(!source.contains(".defaultFocus("))
     }
 
-    /// The key window's Save routes the trimmed key through `onSave` (wired to the
-    /// save funnel by the presenter) and closes; Cancel closes WITHOUT saving; an
-    /// empty key cannot be saved; Esc cancels; the app activates before showing (the
-    /// `.accessory` quirk). Cancel's close is read from the `onCancel:` closure, so only
-    /// its content counts, not how it wraps. Stated sensitivity: wire Cancel to save,
-    /// drop Cancel's close, drop the empty-key guard, drop the Esc shortcut, or drop
-    /// the activate → RED.
+    /// The entry window's confirm routes the trimmed text through `onConfirm` (wired to
+    /// the key-save funnel or the vocabulary add by the presenter) and closes; Cancel
+    /// closes WITHOUT confirming; empty text cannot be confirmed; Esc cancels; the app
+    /// activates before showing (the `.accessory` quirk). Cancel's close is read from
+    /// the `onCancel:` closure, so only its content counts, not how it wraps. Stated
+    /// sensitivity: wire Cancel to confirm, drop Cancel's close, drop the empty-text
+    /// guard, drop the Esc shortcut, or drop the activate → RED.
     @Test
-    func keyWindowSaveThroughOnSaveAndCancelDoesNotSave() throws {
-        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
-        #expect(source.contains(#"Button("Save", action: save)"#))
-        #expect(source.contains("onSave(trimmedKey)"))
+    func textEntryWindowConfirmsThroughOnConfirmAndCancelDoesNotConfirm() throws {
+        let source = try SourceText.code("Sources/slovo/Settings/TextEntryWindow.swift")
+        #expect(source.contains("Button(content.confirmTitle, action: confirm)"))
+        #expect(source.contains("onConfirm(trimmedText)"))
         #expect(source.contains(#"Button("Cancel", action: onCancel)"#))
-        #expect(source.contains(".disabled(trimmedKey.isEmpty)"))
+        #expect(source.contains(".disabled(trimmedText.isEmpty)"))
         #expect(source.contains(".keyboardShortcut(.cancelAction)"))
         #expect(source.contains("NSApp.activate(ignoringOtherApps: true)"))
         let onCancel = try SourceText.block(after: "onCancel:", in: source)
         #expect(onCancel.contains("close()"), "Cancel must close the window")
     }
 
-    /// Saving must CLOSE the window itself — otherwise a window still holding the
-    /// entered secret lingers and a second save is possible. Scope to the onSave
+    /// Confirming must CLOSE the window itself — otherwise a window still holding the
+    /// entered secret lingers and a second save is possible. Scope to the onConfirm
     /// closure body: a file-wide `close()` check is satisfied by onCancel's close
-    /// alone, so removing close from onSave would survive it.
-    /// Stated sensitivity: drop `self?.close()` from the onSave closure (leaving
+    /// alone, so removing close from onConfirm would survive it.
+    /// Stated sensitivity: drop `self?.close()` from the onConfirm closure (leaving
     /// onCancel's) → RED; onCancel's close alone must not satisfy this.
     @Test
-    func keyWindowClosesItselfOnSave() throws {
-        let source = try SourceText.code("Sources/slovo/Settings/OpenRouterKeyWindow.swift")
-        guard let onSaveStart = source.range(of: "onSave: {"),
-              let closeBrace = source.range(of: "}", range: onSaveStart.upperBound..<source.endIndex)
+    func textEntryWindowClosesItselfOnConfirm() throws {
+        let source = try SourceText.code("Sources/slovo/Settings/TextEntryWindow.swift")
+        guard let onConfirmStart = source.range(of: "onConfirm: {"),
+              let closeBrace = source.range(of: "}", range: onConfirmStart.upperBound..<source.endIndex)
         else {
-            Issue.record("onSave closure not found")
+            Issue.record("onConfirm closure not found")
             return
         }
-        let onSaveClosure = source[onSaveStart.upperBound..<closeBrace.lowerBound]
-        #expect(onSaveClosure.contains("close()"),
-                "saving must close the window itself — a window holding the secret must not linger, and a second save must be impossible")
-    }
-
-    /// The key window is lazily built ONCE and reused (the VocabularyQuickAdd
-    /// single-window discipline): the presenter guards on `openRouterKeyWindow == nil`
-    /// before constructing. Dropping the guard spawns a fresh window + controller on
-    /// every open, leaking controllers and stacking duplicate windows.
-    /// Stated sensitivity: drop the `openRouterKeyWindow == nil` guard (construct
-    /// unconditionally per open) → RED.
-    @Test
-    func keyWindowIsASingleReusedInstance() throws {
-        let delegate = try SourceText.code("Sources/slovo/AppDelegate.swift")
-        let body = try SourceText.functionBody(named: "showAddOpenRouterKeyWindow", in: delegate)
-        #expect(body.contains("openRouterKeyWindow == nil"),
-                "the window must be built once and reused, not respawned per open (which leaks controllers and stacks windows)")
+        let onConfirmClosure = source[onConfirmStart.upperBound..<closeBrace.lowerBound]
+        #expect(onConfirmClosure.contains("close()"),
+                "confirming must close the window itself — a window holding the secret must not linger, and a second save must be impossible")
     }
 
     /// `makeMenu` hands the builder its input whole and the live rows, and the

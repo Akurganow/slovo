@@ -34,8 +34,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Set with the controller by the Settings opener in its own file. Releasing it
     // would stop recording which pane the user views.
     var settingsPaneObservation: NSKeyValueObservation?
-    private var vocabularyQuickAddWindow: VocabularyQuickAddWindow?
-    private var openRouterKeyWindow: OpenRouterKeyWindow?
+    private lazy var vocabularyQuickAddWindow = TextEntryWindow(content: .vocabulary) { [weak self] terms in
+        self?.addVocabulary(terms)
+    }
+    private lazy var openRouterKeyWindow = TextEntryWindow(content: .openRouterKey) { [weak self] key in
+        self?.saveOpenRouterKey(key)
+    }
     private var didShowPipelineStatus = false
     var isPipelineActive = false
     // A brief self-clearing failure glyph is on screen; settleToIdle must not stomp
@@ -369,12 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc
     func showVocabularyQuickAdd() {
-        if vocabularyQuickAddWindow == nil {
-            vocabularyQuickAddWindow = VocabularyQuickAddWindow(onAdd: { [weak self] terms in
-                self?.addVocabulary(terms)
-            })
-        }
-        vocabularyQuickAddWindow?.show()
+        vocabularyQuickAddWindow.show()
     }
 
     /// Opens the dedicated Add-OpenRouter-Key window — the no-key menu-bar affordance.
@@ -383,12 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// for a pane save; the window closes itself on save or cancel.
     @objc
     func showAddOpenRouterKeyWindow() {
-        if openRouterKeyWindow == nil {
-            openRouterKeyWindow = OpenRouterKeyWindow(onSave: { [weak self] key in
-                self?.saveOpenRouterKey(key)
-            })
-        }
-        openRouterKeyWindow?.show()
+        openRouterKeyWindow.show()
     }
 
     @objc
