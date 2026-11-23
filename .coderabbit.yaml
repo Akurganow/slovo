@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Inheritance keeps the settings made in the CodeRabbit web app.
+# Without it, every key this file omits falls to the schema default.
+# Source: https://docs.coderabbit.ai/configuration/inheritance-and-merging.md
+# SHA-256 of the page text: fa3d81cd62f365dab3e74faf462ad996891a2fef1c44ec389652a0bcd27915d3
+inheritance: true
+reviews:
+  auto_review:
+    base_branches:
+      - ".*"
