@@ -2,9 +2,7 @@ import Testing
 
 import SlovoCore
 
-// No test target depends on the `slovo` executable, so the About menu entry is pinned by
-// scanning source. The one piece that is pure and importable — the version line
-// formatter — is unit-tested directly.
+// The About menu row is tested in `Tests/SlovoAppTests/DictationMenuRowTests.swift`.
 @Suite("About pane")
 struct AboutPaneTests {
     /// The version line is composed from the bundle's marketing and build numbers,
@@ -32,16 +30,5 @@ struct AboutPaneTests {
             AboutInfo.versionLine(marketingVersion: "0.19.0-ci.777", buildNumber: "777", isDevBuild: false)
                 == "Version 0.19.0-ci.777 (777)"
         )
-    }
-
-    /// The menu builder renders the About entry and wires it to the About opener.
-    /// Stated sensitivity: drop the "About Slovo" title or the
-    /// `#selector(AppDelegate.showAboutPane)` action → the matching `#expect` goes
-    /// RED, proving the dropdown entry no longer opens the About pane.
-    @Test
-    func menuBuilderWiresAboutItem() throws {
-        let builder = try SourceText.code("Sources/slovo/DictationMenuBuilder.swift")
-        #expect(builder.contains("\"About Slovo\""))
-        #expect(builder.contains("#selector(AppDelegate.showAboutPane)"))
     }
 }

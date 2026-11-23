@@ -202,8 +202,10 @@ concerns Swift Testing.
   > All the code in the executable except for the main entry point itself is
   > available to the unit test. … This feature is available to tests defined in
   > packages that have a tools version of `5.5` or newer.
-- None of this repository's test targets depends on the `slovo` executable
-  (`Package.swift:101-124`). What that leaves untestable is recorded in §4.2.
+- The `SlovoAppTests` target in `Package.swift` depends on the `slovo`
+  executable and tests the app shell by running its code. What it cannot reach
+  yet is checked by a lint rule or an entry of
+  `.agents/rules/review-contracts.md` (§4.2).
 
 ---
 
@@ -537,8 +539,8 @@ Read at the commits named; licenses read from each `LICENSE` file.
   and its README warns that a mutated tree trips linters in the build — here
   SwiftLint rides inside the build (`Package.swift:12-14`).
 - swift-mutants warns that tests reading source files fail under its
-  instrumentation, and this repository's tests that read source as text are
-  the source pins that §4.2 lists.
+  instrumentation, and this repository has no test that reads source as text
+  (§4.2).
 - **License posture.** The FSF lists Expat ("MIT") as "compatible with the GNU
   GPL" and Apache-2.0 as "compatible with version 3 of the GNU GPL"
   ([license list](https://www.gnu.org/licenses/license-list.html)). A tool that
@@ -582,23 +584,10 @@ something no mutant of the product touches (§2.1).
 The suite no longer holds source guards, tests that read production source as
 text and assert on it. The owner decided: «чтобы не было тестов, которые читают
 исходники. Чтение исходников — это уровень линтера, а не тестирования.»
-No test target depends on the `slovo` executable (§1.6), so a lint rule or a
-reviewer checks its wiring instead of a test. The ast-grep rules under
+What no behaviour test of the app target reaches is checked by a lint rule or a
+reviewer instead (§1.6). The ast-grep rules under
 `Lint/rules/` ban constructs, and `.agents/rules/review-contracts.md` holds the
 contracts that require something to be present, ordered or counted.
-
-The one exception is the source pins over the app target that still use
-`Tests/SlovoCoreTests/Support/SourceText.swift`, until behaviour tests of the
-app target replace them. They live in these suites:
-
-- `Tests/SlovoCoreTests/AboutPaneTests.swift`
-- `Tests/SlovoCoreTests/AppDelegateHotkeyWiringSourceGuardTests.swift`
-- `Tests/SlovoCoreTests/AppRuntimeSourceGuardTests.swift`
-- `Tests/SlovoCoreTests/CleanupPaneObservationSourceGuardTests.swift`
-- `Tests/SlovoCoreTests/RemoveKeySourceGuardTests.swift`
-- `Tests/SlovoCoreTests/SettingsSurfaceSourceGuardTests.swift`
-- `Tests/SlovoCoreTests/TranslateModeWiringSourceGuardTests.swift`
-- `Tests/SlovoCoreTests/UpdateRowWiringSourceGuardTests.swift`
 
 ### 4.3 Environment gates and shared state
 

@@ -48,9 +48,7 @@ Sources are cited, never restated.
 7. **No test asserts on a repository file's text.** A contract about the
    code's text is an ast-grep rule under `Lint/rules/` or an entry of
    `.agents/rules/review-contracts.md`. A test that asserts on one is a
-   finding (§4.2, §2.2). The one exception is the source pins that
-   `docs/references/testing-swift.md`, §4.2, lists, until behaviour tests
-   replace them.
+   finding (§4.2, §2.2).
 8. **A change that moves a test's protection elsewhere retires the test in
    the same change.** Legacy dies in the change that makes it legacy
    (`AGENTS.md`, "Standing owner directives", 2).

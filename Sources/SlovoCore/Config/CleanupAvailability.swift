@@ -10,7 +10,7 @@ public enum CleanupAvailability: Equatable, Sendable {
     /// `preference` is the stored `Config.cleanupEnabled`; `keyPresent` is the
     /// Keychain fact. A missing key wins: without one, cleanup cannot run
     /// regardless of preference, and the preference itself is never rewritten.
-    public static func derive(preference: Bool, keyPresent: Bool) -> CleanupAvailability {
+    static func derive(preference: Bool, keyPresent: Bool) -> CleanupAvailability {
         guard keyPresent else { return .offNoKey }
         return preference ? .on : .offByChoice
     }
