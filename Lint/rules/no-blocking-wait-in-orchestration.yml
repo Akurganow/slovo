@@ -1,0 +1,42 @@
+id: no-blocking-wait-in-orchestration
+language: swift
+severity: error
+message: >-
+  A sleep, timer, semaphore or condition in the orchestrator or the state
+  machine delays key-up and the inserted text. Wait on an event or a state
+  instead; waits belong in the audio, ASR and injection code behind a seam.
+rule:
+  any:
+    - kind: simple_identifier
+      regex: ^((u|nano)?sleep|asyncAfter)$|^scheduledTimer
+    - any:
+        - kind: simple_identifier
+        - kind: type_identifier
+      regex: ^(DispatchSemaphore|NSCondition)
+# Orchestration is the files directly under Sources/SlovoCore/ plus everything
+# under FSM/. A `*` in a glob crosses `/`, so every other subdirectory is
+# ignored by name; a new subdirectory is scanned until it is listed here.
+files:
+  - Sources/SlovoCore/*.swift
+  - Sources/SlovoCore/FSM/**/*.swift
+ignores:
+  - Sources/SlovoCore/ASR/**
+  - Sources/SlovoCore/About/**
+  - Sources/SlovoCore/Audio/**
+  - Sources/SlovoCore/Cleaner/**
+  - Sources/SlovoCore/Composition/**
+  - Sources/SlovoCore/Config/**
+  - Sources/SlovoCore/Contracts/**
+  - Sources/SlovoCore/Hints/**
+  - Sources/SlovoCore/Hotkey/**
+  - Sources/SlovoCore/Injection/**
+  - Sources/SlovoCore/Logging/**
+  - Sources/SlovoCore/MenuBar/**
+  - Sources/SlovoCore/Onboarding/**
+  - Sources/SlovoCore/Permissions/**
+  - Sources/SlovoCore/Personalization/**
+  - Sources/SlovoCore/Resources/**
+  - Sources/SlovoCore/Storage/**
+  - Sources/SlovoCore/Store/**
+  - Sources/SlovoCore/Update/**
+

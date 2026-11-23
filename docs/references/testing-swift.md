@@ -537,8 +537,8 @@ Read at the commits named; licenses read from each `LICENSE` file.
   and its README warns that a mutated tree trips linters in the build — here
   SwiftLint rides inside the build (`Package.swift:12-14`).
 - swift-mutants warns that tests reading source files fail under its
-  instrumentation, and this repository has tests that read source as text, its
-  source guards among them (§4.2).
+  instrumentation, and this repository's tests that read source as text are
+  the source pins that §4.2 lists.
 - **License posture.** The FSF lists Expat ("MIT") as "compatible with the GNU
   GPL" and Apache-2.0 as "compatible with version 3 of the GNU GPL"
   ([license list](https://www.gnu.org/licenses/license-list.html)). A tool that
@@ -579,24 +579,26 @@ something no mutant of the product touches (§2.1).
 
 ### 4.2 Source guards
 
-A source guard is a test that reads production source as text and asserts on
-it. Two recorded reasons stand behind the shape here:
+The suite no longer holds source guards, tests that read production source as
+text and assert on it. The owner decided: «чтобы не было тестов, которые читают
+исходники. Чтение исходников — это уровень линтера, а не тестирования.»
+No test target depends on the `slovo` executable (§1.6), so a lint rule or a
+reviewer checks its wiring instead of a test. The ast-grep rules under
+`Lint/rules/` ban constructs, and `.agents/rules/review-contracts.md` holds the
+contracts that require something to be present, ordered or counted.
 
-- **No behavioural seam into the app target.** Many guards over the `slovo`
-  executable target record that it is not importable, and read its source
-  instead; not every guard over it records a reason. That it is not
-  importable is true of the manifest as written (§1.6: no test target depends
-  on `slovo`) and not of SwiftPM, which has let a test target link an
-  executable target since tools 5.5.
-- **A deterministic substitute for a timing test.** Where the time a
-  wall-clock budget would bound was observed to vary widely on shared
-  runners, a guard pins the absence of blocking primitives instead — the
-  trade §2.1 recommends against sleeps and timing assertions.
+The one exception is the source pins over the app target that still use
+`Tests/SlovoCoreTests/Support/SourceText.swift`, until behaviour tests of the
+app target replace them. They live in these suites:
 
-By Eagle's definition (§2.2) a guard that asserts a transformation of the code
-is a change-detector unless the text it pins is itself the contract. The
-recorded reasons make that a question to answer per guard, not a verdict on the
-shape.
+- `Tests/SlovoCoreTests/AboutPaneTests.swift`
+- `Tests/SlovoCoreTests/AppDelegateHotkeyWiringSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/AppRuntimeSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/CleanupPaneObservationSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/RemoveKeySourceGuardTests.swift`
+- `Tests/SlovoCoreTests/SettingsSurfaceSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/TranslateModeWiringSourceGuardTests.swift`
+- `Tests/SlovoCoreTests/UpdateRowWiringSourceGuardTests.swift`
 
 ### 4.3 Environment gates and shared state
 

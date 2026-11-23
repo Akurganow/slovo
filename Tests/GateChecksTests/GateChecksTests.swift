@@ -75,7 +75,12 @@ struct GitignoreHardeningTests {
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
         _ = try run("/usr/bin/git", ["-C", repo, "init", "-q"])
 
-        let realGitignore = URL(fileURLWithPath: GateTestPaths.packageRoot)
+        // The package root is three levels up from this file's own path, so the
+        // test finds the real `.gitignore` from any working directory.
+        let realGitignore = URL(fileURLWithPath: "\(#filePath)")
+            .deletingLastPathComponent()  // GateChecksTests
+            .deletingLastPathComponent()  // Tests
+            .deletingLastPathComponent()  // <pkg>
             .appendingPathComponent(".gitignore").path
         let contents = try String(contentsOfFile: realGitignore, encoding: .utf8)
         try contents.write(

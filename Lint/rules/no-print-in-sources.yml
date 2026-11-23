@@ -1,0 +1,17 @@
+id: no-print-in-sources
+language: swift
+severity: error
+message: >-
+  Sources log through the redaction-safe logger, and print-family calls bypass
+  it and can leak transcript text. Log through the logger instead; command-line
+  tools under Tools/ may print.
+rule:
+  kind: call_expression
+  has:
+    any:
+      - kind: simple_identifier
+        regex: ^(print|debugPrint|dump|NSLog)$
+      - kind: navigation_expression
+        regex: ^Swift\.(print|debugPrint|dump|NSLog)$
+files:
+  - Sources/**/*.swift

@@ -1,0 +1,46 @@
+id: single-relaunch-call-site
+language: swift
+severity: error
+message: >-
+  Installing an update and relaunching is reachable from one place only, the
+  Restart action in the update menu, so the app never restarts itself. Remove
+  this call, and trigger the relaunch from that action.
+rule:
+  kind: call_expression
+  has:
+    any:
+      - kind: simple_identifier
+        regex: ^installDownloadedUpdateAndRelaunch$
+      - kind: navigation_expression
+        regex: \.installDownloadedUpdateAndRelaunch$
+files:
+  - Sources/slovo/**/*.swift
+ignores:
+  - Sources/slovo/AppDelegate+UpdateMenu.swift
+---
+# The one allowed call lives in `restartToInstallUpdate` of the update menu
+# file, so a second call elsewhere in that file fires.
+id: single-relaunch-call-site-in-update-menu
+language: swift
+severity: error
+message: >-
+  Installing an update and relaunching is reachable from one place only, the
+  Restart action in the update menu, so the app never restarts itself. Remove
+  this call, and trigger the relaunch from `restartToInstallUpdate`.
+rule:
+  kind: call_expression
+  has:
+    any:
+      - kind: simple_identifier
+        regex: ^installDownloadedUpdateAndRelaunch$
+      - kind: navigation_expression
+        regex: \.installDownloadedUpdateAndRelaunch$
+  not:
+    inside:
+      kind: function_declaration
+      stopBy: end
+      has:
+        field: name
+        regex: ^restartToInstallUpdate$
+files:
+  - Sources/slovo/AppDelegate+UpdateMenu.swift

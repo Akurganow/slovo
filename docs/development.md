@@ -69,8 +69,12 @@ The lint script runs:
 - explicit target dependency import checks
 - shell syntax checks
 - plist and entitlements linting
-- strict SwiftLint, including the `custom_rules` that fence generator
-  residue (catalogue: `.agents/rules/text-residue.md`)
+- the ast-grep scan: every rule in the directory `sgconfig.yml` names
+  (`Lint/rules/`) fences a construct with no legitimate reading here, such as
+  generator residue (catalogue: `.agents/rules/text-residue.md`) or a banned
+  call. Each rule's `message` states the harm and the fix, and one finding
+  fails the stage
+- strict SwiftLint
 - SwiftLint analyzer checks over `Sources/` and `Tools/`, backed by a
   compiler log. The log must carry a `swiftc` invocation for every module
   the analyzer reads, and SwiftPM logs only what it actually compiles, so the

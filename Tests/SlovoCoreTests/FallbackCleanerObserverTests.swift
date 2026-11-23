@@ -1,6 +1,7 @@
 import Foundation
 import Testing
-import SlovoCore
+@testable import SlovoCore
+import SlovoTestSupport
 
 @Suite("FallbackCleaner failure observer (spec rev 3 §4 K8)")
 struct FallbackCleanerObserverTests {
@@ -60,19 +61,41 @@ struct FallbackCleanerObserverTests {
         #expect(box.values.isEmpty)
     }
 
-    // K8 chain, link (a): the factory THREADS the observer into the FallbackCleaner
-    // it builds inline. A closure cannot be compared, so this is a source pin —
-    // the v5-verification's G1: drop the threading and every behavioral test stays
-    // green while the K4d self-heal ships dead. Sensitivity: remove the argument
-    // from PipelineFactory → RED.
+    /// K8 chain, link (a): the composition root threads the observer into the
+    /// `FallbackCleaner` it builds around the configured cleaner. A dictation whose
+    /// cleaner fails must reach the observer, and still insert the raw transcript.
+    /// Stated sensitivity: drop `onCleanupFailure:` from the `FallbackCleaner` that
+    /// `PipelineFactory.makeOrchestrator` builds → the observer sees nothing → RED.
     @Test
-    func factoryThreadsTheObserverIntoTheFallback() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let factory = try String(
-            contentsOf: root.appendingPathComponent("Sources/SlovoCore/Composition/PipelineFactory.swift"),
-            encoding: .utf8
+    func factoryThreadsTheObserverIntoTheFallback() async {
+        let box = ErrorBox()
+        let injector = FakeInjector(outcome: .success)
+        var dependencies = Dependencies(
+            transcriber: FakeTranscriber(outcome: .success("raw words")),
+            cleaner: FakeCleaner(outcome: .failure(.apiError(status: 404))),
+            injector: injector,
+            personalization: FakePersonalizationSource(terms: []),
+            audio: FakeSystemAudioController(
+                muteReturns: PriorAudioState(deviceID: 42, method: .mute, wasAlreadyMuted: false, priorVolumeScalar: nil)
+            ),
+            recorder: FakeAudioRecorder(authorizer: FakeMicrophoneAuthorizer(authorized: true)),
+            cueController: FakeDictationCueController(),
+            log: RedactionSafeLog(subsystem: "slovo", category: "observer-test"),
+            settings: FakeSettingsSource().provider
         )
-        #expect(factory.contains("onCleanupFailure: dependencies.onCleanupFailure"))
+        dependencies.onCleanupFailure = { box.append($0) }
+        let orchestrator = PipelineFactory.makeOrchestrator(dependencies: dependencies)
+
+        await orchestrator.handle(.startRequested)
+        await orchestrator.handle(.stopRequested(.plain))
+        await orchestrator.awaitPipelineDrain()
+
+        #expect(injector.calls.last == "raw words", "the failed cleanup must degrade to the raw transcript")
+        if case .apiError(let status) = box.values.first {
+            #expect(status == 404)
+        } else {
+            Issue.record("the observer must receive the cleaner's failure; saw \(box.values)")
+        }
+        #expect(box.values.count == 1)
     }
 }

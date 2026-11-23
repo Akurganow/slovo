@@ -1,234 +1,26 @@
 import Foundation
 import Testing
 
-// Static CI checks for the app-shell/package artifacts. Real launch,
-// glyph rendering, signing, notarization, and TCC persistence are verified live.
+// Dry-run checks of the packaging scripts. Real launch, glyph rendering, signing,
+// notarization, and TCC persistence are verified live.
 @Suite("App shell and packaging artifacts")
 struct AppShellPackagingTests {
-    @Test
-    func appShellUsesAccessoryMenuBarShape() throws {
-        let main = try Self.strippingComments(from: String(
-            contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/main.swift").path,
-            encoding: .utf8
-        ))
-        let appMainMenu = try Self.strippingComments(from: String(
-            contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/AppMainMenu.swift").path,
-            encoding: .utf8
-        ))
-        let delegate = try Self.strippingComments(from: String(
-            contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/AppDelegate.swift").path,
-            encoding: .utf8
-        ))
-        let glyph = try Self.strippingComments(from: String(
-            contentsOfFile: Self.packageRoot.appending(path: "Sources/slovo/AppDelegate+Glyph.swift").path,
-            encoding: .utf8
-        ))
-
-        #expect(main.contains("setActivationPolicy(.accessory)"))
-        #expect(main.contains("app.mainMenu = AppMainMenu.make()"))
-        #expect(appMainMenu.contains(#"NSMenu(title: "Edit")"#))
-        #expect(appMainMenu.contains(#"#selector(NSText.paste(_:))"#))
-        #expect(appMainMenu.contains(#"#selector(NSText.selectAll(_:))"#))
-        #expect(delegate.contains("NSStatusItem"))
-        #expect(delegate.contains("paintRestingGlyph"))
-        #expect(glyph.contains("MenuBarGlyph.image(for:"))
-        #expect(glyph.contains("button.image"))
-        #expect(!glyph.contains("button?.title = String(MenuBarGlyph"))
-    }
-
-    @Test
-    func appShellBuildsProductionCompositionAndRoutesHotkey() throws {
-        let composition = try Self.strippingComments(from: Self.source("Sources/slovo/AppComposition.swift"))
-        let delegate = try Self.strippingComments(from: Self.source("Sources/slovo/AppDelegate.swift"))
-        let speechModel = try Self.strippingComments(from: Self.source("Sources/SlovoCore/ASR/SharedSpeechModel.swift"))
-
-        #expect(!composition.contains("ConfigStore.load("), "the composition is seeded from the state it is handed")
-        // Stated sensitivity: swap the production ASR off `WhisperKitTranscriber`
-        // in the process-wide speech model → the assertion goes RED.
-        #expect(speechModel.contains("WhisperKitTranscriber("))
-        #expect(composition.contains("OpenRouterCleaner("))
-        #expect(composition.contains("ClipboardPasteInjector("))
-        #expect(composition.contains("GRDBPersonalizationSource(database:"))
-        #expect(composition.contains("CoreAudioOutputMute()"))
-        #expect(composition.contains("AVAudioEngineRecorder(authorizer:"))
-        // Stated sensitivity: build the recorder without the stored preference (the
-        // first dictation after launch ignores the choice) → RED.
-        #expect(composition.contains("preferredInputDevice: config.preferredInputDevice"),
-                "the recorder must start from the stored microphone choice")
-        // Every orchestrator reads its settings from the store when a dictation's
-        // recording begins, so a new one never starts from a snapshot taken at
-        // composition. A source guard because no test target links the `slovo`
-        // executable; the SlovoCore half is held by `AppStoreEffectsTests`,
-        // `aDictationReadsTheStoreAsItIsWhenItsRecordingBegins`.
-        // Stated sensitivity: pass a closure over the state captured at composition
-        // (`settings: { state.dictationSettings }`) in either file → RED.
-        #expect(composition.contains("settings: settings,"),
-                "makeLive must hand the injected settings provider to Dependencies")
-        #expect(delegate.contains("settings: store.dictationSettingsProvider"),
-                "the app must pass the store's provider into the composition")
-        // Stated sensitivity: change the production prompt-builder call at all —
-        // reintroduce a term-cap argument, or drop `examples: .bundled` and take the
-        // default — → this exact call text is gone → RED.
-        #expect(composition.contains("PromptBuilder(examples: .bundled)"))
-        // Stated sensitivity: let `startWarmUp` stop calling the transcriber — every
-        // first dictation then pays the cold load — → RED. The bare needle "warmUp()"
-        // would not catch it: it matches inside "startWarmUp()".
-        #expect(speechModel.contains("transcriber.warmUp()"),
-                "the shared speech model must preload the resident ASR engine")
-        #expect(composition.contains("speechModel.startWarmUp()"),
-                "every composition must preload the model it was handed")
-        #expect(composition.contains("statusReporter: statusReporter"))
-        #expect(composition.contains("CGEventTapHotkeyMonitor(configuration:"))
-        let launchBody = try Self.functionBody(named: "applicationDidFinishLaunching", in: delegate)
-        #expect(Self.containsStatement(#"startPipeline\(\)"#, in: launchBody),
-                "launch must invoke the production composition starter, not merely define it elsewhere")
-        let startPipelineBody = try Self.functionBody(named: "startPipeline", in: delegate)
-        let showStatusBody = try Self.functionBody(named: "showStatus", in: delegate)
-        #expect(delegate.contains("guard live.onboardingSteps == [.ready]"))
-        #expect(delegate.contains("presentOnboarding(live.onboardingSteps)"))
-        #expect(delegate.contains("x-apple.systempreferences:com.apple.preference.security?"))
-        let menuBuilder = try Self.strippingComments(from: Self.source("Sources/slovo/DictationMenuBuilder.swift"))
-        // Multiline call (see SettingsSurfaceSourceGuardTests): call token and the
-        // threaded key configuration asserted separately, each independently RED-able.
-        #expect(menuBuilder.contains("DictationMenu.items("))
-        #expect(menuBuilder.contains("hotkeys: hotkeys,"))
-        #expect(menuBuilder.contains(#""Cleanup Model: \(CleanupModelCatalog.displayName(for: modelId))""#))
-        #expect(menuBuilder.contains("#selector(AppDelegate.showSettingsWindow)"))
-        #expect(menuBuilder.contains("#selector(AppDelegate.showVocabularyQuickAdd)"))
-        #expect(delegate.contains("statusReporter"))
-        #expect(delegate.contains("showStatus"))
-        #expect(delegate.contains("setStatusGlyph(status"))
-        #expect(delegate.contains("Task.sleep(for: .seconds(1))"))
-        #expect(delegate.contains("didShowPipelineStatus"))
-        #expect(Self.statementCount(#"self\?\.didShowPipelineStatus\s*=\s*false"#, in: startPipelineBody) == 1,
-                "pipeline status may reset at operation start, but key-up must preserve any start-failure status")
-        #expect(Self.containsStatement(#"if\s+self\?\.didShowPipelineStatus\s*==\s*false\s*\{"#, in: startPipelineBody))
-        #expect(Self.statementCount(#"if\s+self\?\.didShowPipelineStatus\s*==\s*false\s*\{"#, in: startPipelineBody) == 1,
-                "key-up must guard the Processing label so a start-failure status is not overwritten")
-        // The Idle label guard moved into settleToIdle (shared by key-up and the
-        // silent cancel); it must still guard so a start-failure status survives.
-        // The negation spelling is free — only "an if conditioned on the flag" is
-        // pinned. Sensitivity: set the Idle title unconditionally → RED.
-        let settleToIdleBody = try Self.functionBody(named: "settleToIdle", in: delegate)
-        #expect(Self.containsStatement(#"if\s+[^{]*didShowPipelineStatus[^{]*\{"#, in: settleToIdleBody),
-                "settling to Idle must guard the Idle label so a start-failure status is not overwritten")
-        #expect(Self.containsStatement(#"didShowPipelineStatus\s*=\s*true"#, in: showStatusBody))
-        #expect(delegate.contains("live.hotkeyMonitor.start()"))
-        #expect(delegate.contains("setStatusGlyph(recording:"))
-        #expect(delegate.contains("setStatusGlyph(.processing"))
-        #expect(delegate.contains("awaitPipelineDrain()"))
-        #expect(startPipelineBody.components(separatedBy: "orchestrator.deliver(edge)").count - 1 == 3,
-                "the sequencer sink must hand the down, up and cancel edges to the orchestrator")
-    }
-
-    @Test
-    func infoPlistDeclaresMenuBarAgentAndTccUsage() throws {
-        let data = try Data(contentsOf: Self.packageRoot.appending(path: "Resources/Info.plist"))
-        let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-
-        #expect(plist["LSUIElement"] as? Bool == true)
-        #expect(plist["CFBundleIdentifier"] as? String == "com.slovo.app")
-        #expect(plist["CFBundleExecutable"] as? String == "slovo")
-        #expect(plist["NSPrincipalClass"] as? String == "NSApplication")
-        #expect((plist["NSMicrophoneUsageDescription"] as? String)?.isEmpty == false)
-    }
-
-    /// One floor, seven stamps: Info.plist's LSMinimumSystemVersion is the reference,
-    /// every other stamp must state the same value — one stamp drifting goes RED,
-    /// an agreed floor raise (all seven moved together) stays green with no test edit.
-    /// A stamp that cannot be found fails loudly rather than skipping; one matched
-    /// twice fails as ambiguous rather than trusting the first hit. NOT a substitute
-    /// for the manual check on the floor OS: this catches silently diverged configs,
-    /// only a real run catches an agreed-but-broken runtime.
-    @Test
-    func deploymentFloorStampsAgree() throws {
-        let data = try Data(contentsOf: Self.packageRoot.appending(path: "Resources/Info.plist"))
-        let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-        let floor = try #require(plist["LSMinimumSystemVersion"] as? String,
-                                 "floor stamp not found: LSMinimumSystemVersion in Resources/Info.plist")
-        let major = try #require(floor.split(separator: ".").first.map(String.init),
-                                 "floor stamp unreadable: \"\(floor)\" has no major component")
-
-        let manifest = try Self.source("Package.swift")
-        let platforms = manifest.matches(of: /\.macOS\(\.v(\d+)\)/)
-        try #require(!platforms.isEmpty,
-                     "floor stamp not found: .macOS(.vNN) platform in Package.swift")
-        try #require(platforms.count == 1,
-                     "ambiguous floor stamp: .macOS(.vNN) platform in Package.swift")
-        #expect(String(platforms[0].1) == major)
-
-        let bundleSteps = try Self.source("Scripts/app-bundle.sh")
-        let targets = bundleSteps.matches(of: /--minimum-deployment-target (\d+(?:\.\d+)*)/)
-        try #require(!targets.isEmpty,
-                     "floor stamp not found: --minimum-deployment-target in Scripts/app-bundle.sh")
-        try #require(targets.count == 1,
-                     "ambiguous floor stamp: --minimum-deployment-target in Scripts/app-bundle.sh")
-        #expect(String(targets[0].1) == floor, "actool floor in Scripts/app-bundle.sh diverged from Info.plist")
-
-        let readme = try Self.source("README.md")
-        let badges = readme.matches(of: /macOS%20(\d+)%2B/)
-        try #require(!badges.isEmpty,
-                     "floor stamp not found: URL-encoded platform badge in README.md")
-        try #require(badges.count == 1,
-                     "ambiguous floor stamp: URL-encoded platform badge in README.md")
-        #expect(String(badges[0].1) == major)
-        for document in ["README.md", "CONTRIBUTING.md", "docs/development.md"] {
-            let text = try Self.source(document)
-            let stamps = text.matches(of: /macOS (\d+) \(\w+\) or newer/)
-            try #require(!stamps.isEmpty,
-                         "floor stamp not found: requirements line in \(document)")
-            try #require(stamps.count == 1, "ambiguous floor stamp in \(document)")
-            #expect(String(stamps[0].1) == major, "prose floor in \(document) diverged from Info.plist")
-        }
-    }
-
-    @Test
-    func entitlementsAllowAudioInputWithoutSandbox() throws {
-        let data = try Data(contentsOf: Self.packageRoot.appending(path: "slovo.entitlements"))
-        let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-
-        #expect(plist["com.apple.security.device.audio-input"] as? Bool == true)
-        #expect(plist["com.apple.security.app-sandbox"] == nil)
-    }
-
     /// The shared bundle steps must stage the SlovoCore resource bundle into
-    /// Contents/Resources, and the dev launcher must assert it under --verify.
+    /// Contents/Resources.
     /// Stated sensitivity: deleting the `ditto … slovo_SlovoCore.bundle`
-    /// staging line, or the --verify presence check, goes RED here — a missing
-    /// bundle otherwise ships silently as example-free prompts.
+    /// staging line goes RED here — a missing bundle otherwise ships silently as
+    /// example-free prompts.
     @Test
     func packagingScriptsStageThePromptExamplesBundle() throws {
-        let devLauncher = try String(
-            contentsOf: Self.packageRoot.appending(path: "Scripts/build_and_run.sh"),
-            encoding: .utf8
-        )
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunPrompts-\(UUID().uuidString)")
 
         #expect(appPlan.output.split(separator: "\n").contains {
             $0.hasPrefix("DRY-RUN ditto ") && $0.hasSuffix("/Contents/Resources/slovo_SlovoCore.bundle")
         }, Comment(rawValue: appPlan.output))
-        #expect(devLauncher.contains("$core_resources/PromptExamples.xml"),
-                "--verify must assert the staged resource bundle")
     }
 
     @Test
-    func signingScriptUsesHardenedRuntimeAndOptionalNotarization() throws {
-        let source = try String(
-            contentsOf: Self.packageRoot.appending(path: "Scripts/sign-and-notarize.sh"),
-            encoding: .utf8
-        )
-
-        #expect(source.contains("codesign"))
-        #expect(source.contains("--options runtime"))
-        #expect(source.contains("slovo.entitlements"))
-        #expect(source.contains("notarytool"))
-        #expect(source.contains("--cache-path \"$SWIFTPM_CACHE_DIR\""))
-        #expect(source.contains("--config-path \"$SWIFTPM_CONFIG_DIR\""))
-        #expect(source.contains("--security-path \"$SWIFTPM_SECURITY_DIR\""))
-        #expect(source.contains("--disable-automatic-resolution"))
-        #expect(!source.contains("rm -rf"))
-        #expect(!(try Self.source("Scripts/app-bundle.sh")).contains("rm -rf"))
-
+    func signingScriptPlansTheAppAndDmgPhasesAndRejectsBadNames() throws {
         // `app` phase: build + sign + notarize the bundle. Stapling is the sole
         // manual step, so the phase never runs `stapler`; DMG packaging is separate.
         let appPlan = try Self.scriptPlan(["app"], appName: "DryRunTestBundle-\(UUID().uuidString)", notary: true)
@@ -280,10 +72,6 @@ struct AppShellPackagingTests {
         let output: String
     }
 
-    private static func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: packageRoot.appending(path: relativePath), encoding: .utf8)
-    }
-
     private static func run(
         _ executable: String,
         arguments: [String],
@@ -329,130 +117,6 @@ struct AppShellPackagingTests {
             searchStart = range.upperBound
         }
         return true
-    }
-
-    private static func containsStatement(_ pattern: String, in source: String) -> Bool {
-        statementCount(pattern, in: source) > 0
-    }
-
-    private static func statementCount(_ pattern: String, in source: String) -> Int {
-        let code = strippingStringLiterals(from: source)
-        let expression = try? NSRegularExpression(pattern: #"(?m)^\s*\#(pattern)\s*$"#)
-        let range = NSRange(code.startIndex..<code.endIndex, in: code)
-        return expression?.numberOfMatches(in: code, range: range) ?? 0
-    }
-
-    private static func strippingStringLiterals(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inString = false
-        var escaped = false
-
-        while index < source.endIndex {
-            let character = source[index]
-            if inString {
-                if character == "\n" {
-                    output.append(character)
-                } else if escaped {
-                    escaped = false
-                } else if character == "\\" {
-                    escaped = true
-                } else if character == "\"" {
-                    inString = false
-                    output.append(character)
-                }
-            } else {
-                output.append(character)
-                if character == "\"" {
-                    inString = true
-                }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static func strippingComments(from source: String) -> String {
-        var output = ""
-        var index = source.startIndex
-        var inLineComment = false
-        var inBlockComment = false
-        var inString = false
-
-        while index < source.endIndex {
-            let character = source[index]
-            let nextIndex = source.index(after: index)
-            let next = nextIndex < source.endIndex ? source[nextIndex] : "\0"
-
-            if inLineComment {
-                if character == "\n" {
-                    inLineComment = false
-                    output.append(character)
-                }
-            } else if inBlockComment {
-                if character == "*" && next == "/" {
-                    inBlockComment = false
-                    index = nextIndex
-                }
-            } else if inString {
-                output.append(character)
-                if character == "\"" {
-                    inString = false
-                }
-            } else if character == "/" && next == "/" {
-                inLineComment = true
-                index = nextIndex
-            } else if character == "/" && next == "*" {
-                inBlockComment = true
-                index = nextIndex
-            } else {
-                output.append(character)
-                if character == "\"" {
-                    inString = true
-                }
-            }
-            index = source.index(after: index)
-        }
-        return output
-    }
-
-    private static func functionBody(named name: String, in source: String) throws -> String {
-        guard let signature = source.range(of: "func \(name)") else {
-            throw NSError(domain: "AppShellPackagingTests", code: 1)
-        }
-        guard let openBrace = functionOpeningBrace(after: signature.lowerBound, in: source) else {
-            throw NSError(domain: "AppShellPackagingTests", code: 2)
-        }
-        var depth = 0
-        var index = openBrace
-        while index < source.endIndex {
-            if source[index] == "{" {
-                depth += 1
-            } else if source[index] == "}" {
-                depth -= 1
-                if depth == 0 {
-                    return String(source[openBrace...index])
-                }
-            }
-            index = source.index(after: index)
-        }
-        throw NSError(domain: "AppShellPackagingTests", code: 3)
-    }
-
-    private static func functionOpeningBrace(after start: String.Index, in source: String) -> String.Index? {
-        var index = start
-        var parenDepth = 0
-        while index < source.endIndex {
-            if source[index] == "(" {
-                parenDepth += 1
-            } else if source[index] == ")" {
-                parenDepth -= 1
-            } else if source[index] == "{", parenDepth == 0 {
-                return index
-            }
-            index = source.index(after: index)
-        }
-        return nil
     }
 
     private static var packageRoot: URL {

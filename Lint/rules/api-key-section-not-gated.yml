@@ -1,0 +1,35 @@
+id: api-key-section-not-gated
+language: swift
+severity: error
+message: >-
+  The OpenRouter API-key section is the way out of the no-key state, so
+  cleanup availability must never disable it. Remove the availability gate
+  from the section.
+rule:
+  kind: call_expression
+  has:
+    kind: navigation_expression
+    has:
+      kind: navigation_suffix
+      regex: ^\.disabled$
+  all:
+    - has:
+        kind: call_suffix
+        regex: ^\(\s*!\s*availability
+    # Gated from inside the property, or from outside as a modifier chained on
+    # `apiKeySection`.
+    - any:
+        - inside:
+            kind: property_declaration
+            stopBy: end
+            has:
+              field: name
+              regex: ^apiKeySection$
+        - has:
+            kind: navigation_expression
+            has:
+              stopBy: end
+              kind: simple_identifier
+              regex: ^apiKeySection$
+files:
+  - Sources/slovo/Settings/CleanupSettingsPane.swift

@@ -57,10 +57,29 @@ jobs:
           key: ${{ runner.os }}-spm-${{ steps.toolchain.outputs.xcode_version }}-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-${{ steps.toolchain.outputs.xcode_version }}-
+      - name: Install ast-grep
+        # Scripts/lint.sh runs the rules under Lint/rules/ with this binary. The
+        # release is pinned by version and SHA-256; Renovate moves both together
+        # through the customManagers entry in renovate.json, whose regex expects
+        # the comment and the two env lines below, adjacent and in this order.
+        env:
+          # renovate: datasource=github-release-attachments depName=ast-grep/ast-grep
+          AST_GREP_VERSION: 0.51.1
+          AST_GREP_SHA256: a95772097b4d02bd9d45ed63b300c37041ae3c36632b3bf19250cc7c10187dc4
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/ast-grep.zip"
+          curl --fail --silent --show-error --location --output "${archive}" \
+            "https://github.com/ast-grep/ast-grep/releases/download/${AST_GREP_VERSION}/app-aarch64-apple-darwin.zip"
+          echo "${AST_GREP_SHA256}  ${archive}" | shasum -a 256 -c -
+          mkdir -p "${RUNNER_TEMP}/ast-grep"
+          unzip -q "${archive}" -d "${RUNNER_TEMP}/ast-grep"
+          echo "${RUNNER_TEMP}/ast-grep" >> "${GITHUB_PATH}"
       - name: Run the full gate
         # Build, tests, the cleanup-benchmark CLI smoke check, and every
         # Scripts/lint.sh stage (explicit-import check, shell syntax, plist
-        # lint, strict SwiftLint, `swiftlint analyze` over a compiler log).
+        # lint, strict SwiftLint, `swiftlint analyze` over a compiler log, the
+        # ast-grep scan of Lint/rules/).
         # Stages never fail fast: the complete failure set is printed at the end.
         run: Scripts/diagnose.sh
       - name: Prove the test gate can fail

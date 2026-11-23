@@ -1,0 +1,23 @@
+id: cleanup-pane-holds-no-availability-state
+language: swift
+severity: error
+message: >-
+  A settings pane must render the app store, never its own copy of the cleanup
+  availability, or it can show a value no other surface agrees with. Delete
+  the `@State` snapshot and read the availability from the observed store.
+rule:
+  kind: property_declaration
+  has:
+    kind: modifiers
+    has:
+      kind: attribute
+      regex: ^@State
+  all:
+    - has:
+        any:
+          - kind: type_identifier
+          - kind: simple_identifier
+        regex: ^CleanupAvailability$
+        stopBy: end
+files:
+  - Sources/slovo/Settings/**/*.swift

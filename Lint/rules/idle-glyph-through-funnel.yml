@@ -1,0 +1,21 @@
+id: idle-glyph-through-funnel
+language: swift
+severity: error
+message: >-
+  Painting the idle glyph directly wipes the update-ready glyph back to the
+  plain resting one. Return to idle through `paintRestingGlyph()`, not
+  `setStatusGlyph(.idle…)`.
+rule:
+  kind: call_expression
+  has:
+    any:
+      - kind: simple_identifier
+        regex: ^setStatusGlyph$
+      - kind: navigation_expression
+        regex: \.setStatusGlyph$
+  all:
+    - has:
+        kind: call_suffix
+        regex: ^\(\s*\.idle
+files:
+  - Sources/slovo/**/*.swift

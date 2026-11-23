@@ -1,0 +1,28 @@
+id: keycode-read-only-in-flags-changed
+language: swift
+severity: error
+message: >-
+  The hotkey monitor may read a key code only for a flagsChanged event, where
+  it identifies the trigger key. Reading it for any other event retains the
+  identity of the user's keystrokes; a case that also lists another event
+  counts as one. Move the read into a case that handles flagsChanged alone,
+  or remove it.
+rule:
+  kind: simple_identifier
+  regex: ^keyboardEventKeycode$
+  not:
+    inside:
+      kind: switch_entry
+      stopBy:
+        kind: switch_entry
+      all:
+        - has:
+            kind: switch_pattern
+            regex: ^\.flagsChanged$
+        - not:
+            has:
+              kind: switch_pattern
+              not:
+                regex: ^\.flagsChanged$
+files:
+  - Sources/SlovoCore/Hotkey/CGEventTapHotkeyMonitor.swift

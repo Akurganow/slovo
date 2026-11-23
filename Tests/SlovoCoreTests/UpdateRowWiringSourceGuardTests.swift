@@ -3,35 +3,12 @@ import Testing
 
 // The update row is the app target's persistent NSMenuItem, mutated in place by
 // renderUpdateIndication. No test target depends on the `slovo` executable, so the
-// manual-check action and the Sparkle-callback wiring are pinned by reading
-// comment-stripped source; the state reduction is tested in UpdateIndicationTests and
-// the row's texts and the write to the item in UpdateRowTests.
+// Sparkle-callback wiring is pinned by reading comment-stripped source; the state
+// reduction is tested in UpdateIndicationTests and the row's texts and the write to the
+// item in UpdateRowTests.
 @Suite("Update row wiring source guards")
 struct UpdateRowWiringSourceGuardTests {
-    private static let updateMenu = "Sources/slovo/AppDelegate+UpdateMenu.swift"
     private static let coordinator = "Sources/slovo/UpdaterCoordinator.swift"
-
-    /// The manual menu action routes to the coordinator's silent check.
-    /// Stated sensitivity: empty the selector body or route it elsewhere → RED.
-    @Test
-    func manualCheckSelectorRoutesToCoordinator() throws {
-        let body = try SourceText.functionBody(named: "checkForUpdatesManually", in: SourceText.code(Self.updateMenu))
-        #expect(body.contains("updaterCoordinator?.checkForUpdates()"),
-                "the menu action must trigger the coordinator's manual check")
-    }
-
-    /// The manual check runs Sparkle's silent background check, guarded and with
-    /// immediate feedback. The ban on the alerting `updater.checkForUpdates(` call is
-    /// held by SparkleWiringGuardTests.updaterIsConstructedDirectlyWithoutLegacyOrAlertingCheck.
-    /// Stated sensitivity: drop the `updater.checkForUpdatesInBackground()` call, the
-    /// `canCheckForUpdates` guard or the optimistic `reduce(.checkStarted)` → RED.
-    @Test
-    func manualCheckUsesSilentBackgroundCheckNotTheAlertingOne() throws {
-        let body = try SourceText.functionBody(named: "checkForUpdates", in: SourceText.code(Self.coordinator))
-        #expect(body.contains("updater.checkForUpdatesInBackground()"), "must use the SILENT background check")
-        #expect(body.contains("canCheckForUpdates"), "guarded so Checking… only shows for a check that can actually start")
-        #expect(body.contains("reduce(.checkStarted)"), "optimistic immediate feedback for the manual click")
-    }
 
     /// "Checking…" must show for EVERY in-flight check, including scheduled ones —
     /// driven by Sparkle's per-check `mayPerform` gate, not the button alone.

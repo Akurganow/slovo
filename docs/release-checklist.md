@@ -152,8 +152,8 @@ xcrun stapler validate .build/dist/Slovo.dmg
   - The log shows `state=finished ms=… source=download`; the file is back.
   - The first dictation inserts text. The next launch shows `source=cache`.
 - The stuck loading pulse — a gated pipeline replaced by one that needs setup —
-  requires losing a permission while Slovo runs, so it is not checked by hand. The
-  source guard `aCompositionThatSkipsTheGateClearsTheLoadingState` pins it.
+  requires losing a permission while Slovo runs, so it is not checked by hand.
+  `.agents/rules/review-contracts.md` holds the contract for a reviewer.
 - Changing the recognition language in Settings → General while idle applies to the
   next dictation with no "Preparing Speech Model" pulse and no model reload, and
   that dictation recognises in the new language.

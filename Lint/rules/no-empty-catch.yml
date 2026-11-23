@@ -1,0 +1,26 @@
+id: no-empty-catch
+language: swift
+severity: error
+message: >-
+  An empty catch swallows the failure, so it never reaches the failure glyph.
+  Handle the error, rethrow it, or write the reason inside the braces; only
+  `catch is CancellationError` may stay empty.
+rule:
+  kind: catch_block
+  not:
+    any:
+      - has:
+          kind: statements
+      - has:
+          kind: comment
+      - has:
+          kind: multiline_comment
+      - has:
+          field: error
+          kind: pattern
+          regex: ^is\s+CancellationError$
+files:
+  - Package.swift
+  - Sources/**/*.swift
+  - Tests/**/*.swift
+  - Tools/**/*.swift

@@ -1,0 +1,17 @@
+id: resource-bundle-resolver-is-nonfatal
+language: swift
+severity: error
+message: >-
+  The SlovoCore resource-bundle resolver must return nil when the bundle is
+  missing. `Bundle.module` is SwiftPM's fatal accessor and `fatalError` ends
+  the process; look the bundle up by name and fall back to nil.
+rule:
+  any:
+    - kind: navigation_expression
+      regex: ^Bundle\.module$
+    - kind: call_expression
+      has:
+        kind: simple_identifier
+        regex: ^fatalError$
+files:
+  - Sources/SlovoCore/SlovoCoreResourceBundle.swift

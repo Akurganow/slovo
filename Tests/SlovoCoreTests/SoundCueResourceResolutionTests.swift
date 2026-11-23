@@ -3,8 +3,7 @@ import Testing
 @testable import SlovoCore
 
 // The only runtime check of the lookup that decides whether a cue is heard: asset
-// tests read the source tree, source guards match strings, packaging runs outside
-// `swift test`. Production reports what it resolved, so no literals are repeated here.
+// tests read the source tree, packaging runs outside `swift test`. Production reports what it resolved, so no literals are repeated here.
 @Suite("Sound cue resource resolution")
 struct SoundCueResourceResolutionTests {
     /// Sensitivity: a changed subdirectory or extension, or a bundle that does not

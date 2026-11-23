@@ -1,0 +1,24 @@
+id: config-loaded-once-never-saved
+language: swift
+severity: error
+message: >-
+  The app store is the app's one copy of the config: the app seeds it from
+  UserDefaults once, in an initializer, and the persistence subscriber in
+  SlovoCore is the only writer back. Read the config from the store, and never
+  call `ConfigStore.save` or a second `ConfigStore.load` in the app target.
+rule:
+  any:
+    - kind: call_expression
+      has:
+        kind: navigation_expression
+        regex: ^ConfigStore\.save$
+    - kind: call_expression
+      has:
+        kind: navigation_expression
+        regex: ^ConfigStore\.load$
+      not:
+        inside:
+          kind: init_declaration
+          stopBy: end
+files:
+  - Sources/slovo/**/*.swift

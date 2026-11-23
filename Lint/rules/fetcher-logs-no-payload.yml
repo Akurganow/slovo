@@ -1,0 +1,15 @@
+id: fetcher-logs-no-payload
+language: swift
+severity: error
+message: >-
+  The scope fetcher may log only its pinned event lines, never the response
+  body or the decoded entries. Remove the interpolation of `data`, `decoded`
+  or `entries`, and the `String(data:` conversion.
+rule:
+  any:
+    - kind: interpolated_expression
+      regex: ^(data|decoded|entries)
+    - kind: call_expression
+      regex: '^String\(\s*data:'
+files:
+  - Sources/SlovoCore/Cleaner/OpenRouterModelScopeFetcher.swift

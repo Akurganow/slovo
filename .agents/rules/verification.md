@@ -41,6 +41,7 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 | `explicit-target-imports` | Every module imports only the targets it declares as dependencies. The build of `swift-build` does not check this |
 | `bash-syntax:<script>` | `bash -n` parses each script under `Scripts/` |
 | `plist-lint` | `plutil -lint` parses `Resources/Info.plist` and `slovo.entitlements` |
+| `ast-grep-scan` | No file under the scanned paths holds a construct that a rule under `Lint/rules/` bans. `sgconfig.yml` lists the rules, and every rule has severity `error` |
 | `swiftlint-strict` | SwiftLint's command plugin lints the configuration's whole `included:` set in strict mode, `Package.swift` among it, so a warning fails |
 | `swiftlint-compiler-log` | After every Swift file under `Sources` and `Tools` is touched, a verbose build exits 0, writes its log to `.build/swiftlint-compiler.log`, and prints the modules with a compiler invocation in it. That every analyzed file has one is checked by `swiftlint-analyze` |
 | `swiftlint-analyze` | SwiftLint's analyzer rules pass in strict mode on every Swift file under `Sources` and `Tools`, and the analyzer read as many files as it was given |
@@ -48,9 +49,12 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 ### What needs the toolchain, and what writes
 
 - `bash -n` needs nothing but a shell, so it can run anywhere and be
-  confirmed. `plutil -lint` needs macOS, not the toolchain. Every other stage
-  needs the toolchain `CONTRIBUTING.md`, "Development Setup", requires.
-- `bash -n` and `plutil -lint` write nothing, so they may run in place.
+  confirmed. `plutil -lint` needs macOS, not the toolchain. `ast-grep-scan`
+  needs only the ast-grep binary, at the version `.github/workflows/swift.yml`
+  installs. Every other stage needs the toolchain `CONTRIBUTING.md`,
+  "Development Setup", requires.
+- `bash -n`, `plutil -lint` and `ast-grep-scan` write nothing, so they may run
+  in place.
 - Every other stage writes. Builds, tests and plugins write under `.build/`,
   which version control ignores. `Scripts/check-cleanup-benchmark-cli.sh`
   writes to the temporary directory. `swiftlint-compiler-log` touches the
@@ -117,16 +121,14 @@ cannot exist on a green `main`.
 - A compiler warning in any Swift target, an incomplete strict-concurrency
   check, or a static actor data-race violation.
 - A violation of any SwiftLint rule `.swiftlint.yml` leaves enabled, in
-  strict mode: every opt-in and analyzer rule except the disabled list, and
-  the two construct rules under `custom_rules`
-  (`.agents/rules/text-residue.md`, "The fence").
+  strict mode: every opt-in and analyzer rule except the disabled list.
 - An import of a target a module does not declare.
-- What the source-tree scans under `Tests/GateChecksTests` refuse: a
-  cleaner, transcriber or injector source that imports the database library
-  or a sibling backend; a logger interpolation that makes a payload value
-  public; any number of call sites of the update's install-and-relaunch
-  other than one; and a `.gitignore` that would admit a seed file, a local
-  database or key material.
+- What a rule under `Lint/rules/` bans, in code ast-grep's Swift grammar
+  parses ("What a green run does not prove", "The grammar gap of ast-grep").
+  Each rule's message states the harm and the fix
+  (`.agents/rules/text-residue.md`, "The fence").
+- A `.gitignore` that would admit a seed file, a local database or key
+  material. The one test under `Tests/GateChecksTests` asks git.
 - A script that does not parse, and a plist or entitlements file that does
   not lint.
 - Any defect a test in the suite turns red.
@@ -145,6 +147,16 @@ cannot exist on a green `main`.
   looks for dead code.
 - **Disabled lint rules.** Every rule `.swiftlint.yml` disables fences
   nothing, `force_unwrapping` among them.
+- **The review contracts.** No stage checks an entry of
+  `.agents/rules/review-contracts.md`. A reviewer reads the change against
+  them.
+- **The grammar gap of ast-grep.** Its Swift grammar fails to parse some valid
+  Swift. Known cases include an `if let x = await <expr> {` binding and a local
+  `nonisolated(unsafe) let`. After such a line, a rule can stay silent for the
+  rest of the enclosing function, and the scan reports no error. Source: a run
+  of the version `.github/workflows/swift.yml` installs, on a planted file.
+- **Whether a rule can fire.** No stage plants a violation to show that a rule
+  under `Lint/rules/` goes red. A rule that stops matching passes silently.
 - **The Objective-C target.** `Sources/SlovoObjC` is outside the Swift
   settings and the lint stages.
 - **The app's floor.** CI runs only on its macOS 26 image. Runtime on the
@@ -167,5 +179,5 @@ cannot exist on a green `main`.
   proves that toolchain only ("What a result may claim").
 
 This file describes `.github/workflows/swift.yml`, `Scripts/diagnose.sh`,
-`Scripts/lint.sh` and the workflows they serve. Where CI and this file
-disagree, CI is right and this file is stale.
+`Scripts/lint.sh`, `sgconfig.yml`, `Lint/rules/` and the workflows they serve.
+Where CI and this file disagree, CI is right and this file is stale.
