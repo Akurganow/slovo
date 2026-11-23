@@ -82,12 +82,15 @@ in a trailing comment such as `# v2.90.3`. GitHub's security guide,
 [Using third-party actions](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions)
 (`github/docs` revision `ecafe7144a016cab7a88e3e77437f38ce1a4ee73`), advises a commit
 SHA, and a tag only for creators one trusts, because a tag can be moved or deleted if a
-bad actor gains access to the repository storing the action. The `github-actions`
-ecosystem entry in [`.github/dependabot.yml`](../.github/dependabot.yml) runs weekly.
-GitHub's Dependabot guide,
-[Keeping your actions up to date with Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/auto-update-actions)
-(`github/docs` revision `741a335e09c4a2e47c1fb20643833c3d35e72b90`), says it keeps
-action references in workflow files up to date.
+bad actor gains access to the repository storing the action. Renovate, configured
+in [`renovate.json`](../renovate.json), opens the update pull requests for these
+pins and for the Swift packages. Its `github-actions` manager updates a pinned
+commit SHA to follow the version tag in the trailing comment (Renovate's
+documentation, `lib/modules/manager/github-actions/readme.md`, "Digest pinning and
+updating", tag `44.257.9`). `minimumReleaseAge` holds each new version for 7 days
+after its release, and a security update skips that wait (Renovate's documentation,
+`docs/usage/key-concepts/minimum-release-age.md`, "What happens to security
+updates?", tag `44.257.9`).
 
 ## Dev builds on demand
 
