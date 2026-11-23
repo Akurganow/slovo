@@ -1,10 +1,8 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-# Inheritance keeps the settings the CodeRabbit web app applies today; without
-# it, each key this file omits would fall to the schema default.
-# Source: documentation, https://docs.coderabbit.ai/configuration/inheritance-and-merging.md
-# The docs have no public source repository, so the page is pinned by the
-# SHA-256 of its fetched text:
-# fa3d81cd62f365dab3e74faf462ad996891a2fef1c44ec389652a0bcd27915d3
+# Inheritance keeps the settings made in the CodeRabbit web app.
+# Without it, every key this file omits falls to the schema default.
+# Source: https://docs.coderabbit.ai/configuration/inheritance-and-merging.md
+# SHA-256 of the page text: fa3d81cd62f365dab3e74faf462ad996891a2fef1c44ec389652a0bcd27915d3
 inheritance: true
 reviews:
   auto_review:
