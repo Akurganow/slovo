@@ -97,7 +97,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             samples: setup.samples,
             config: CleanupConfig(model: "selected-per-candidate", writingStyle: setup.options.style),
             context: PersonalizationContext(vocabulary: []),
-            repetitions: setup.options.repetitions,
+            repetitions: setup.repetitions,
             warmupRepetitions: setup.options.warmupRepetitions,
             previous: setup.previous,
             record: { setup.recorder?.record($0) }
@@ -119,6 +119,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
 
     private struct Setup {
         let options: CleanupBenchmarkCommandOptions
+        /// What `--repetitions` was, or the default for the run.
+        let repetitions: Int
         let samples: [CleanupBenchmarkSample]
         let datasetSHA256: String
         let candidates: [CleanupBenchmarkCandidate]
@@ -169,12 +171,16 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         let candidates = try makeCandidates(specs, mergedEnvironment)
 
         var judge: CleanupBenchmarkJudge?
+        var repetitions = options.repetitions ?? 1
         if options.judge {
             let settings = try CleanupBenchmarkJudgeSettings.decode(
                 try readDataFile(CleanupBenchmarkJudgeSettings.defaultPath)
             )
-            if options.baselinePath != nil || options.writeBaselinePath != nil, options.repetitions != settings.bar.repetitions {
-                throw CleanupBenchmarkCommandError.repetitionsMismatch(given: options.repetitions, required: settings.bar.repetitions)
+            if options.baselinePath != nil || options.writeBaselinePath != nil {
+                repetitions = options.repetitions ?? settings.bar.repetitions
+                guard repetitions == settings.bar.repetitions else {
+                    throw CleanupBenchmarkCommandError.repetitionsMismatch(given: repetitions, required: settings.bar.repetitions)
+                }
             }
             judge = CleanupBenchmarkJudge(transport: try makeTransport(mergedEnvironment), settings: settings)
         }
@@ -196,6 +202,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 let bar = judge.settings.bar
                 guard found.entry.repetitions == bar.repetitions, found.entry.dropWorst == bar.dropWorst else {
                     throw CleanupBenchmarkCommandError.baselineSchemeMismatch(found.name)
+                }
+                guard found.entry.style == options.style else {
+                    throw CleanupBenchmarkCommandError.baselineStyleMismatch(entry: found.name, style: found.entry.style.rawValue)
                 }
                 entries[candidate.name] = found
             }
@@ -225,6 +234,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         }
         return Setup(
             options: options,
+            repetitions: repetitions,
             samples: samples,
             datasetSHA256: digest,
             candidates: candidates,
@@ -287,7 +297,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                     candidateName: candidate.name,
                     runs: report.runs,
                     settings: judge.settings,
-                    datasetSHA256: setup.datasetSHA256
+                    datasetSHA256: setup.datasetSHA256,
+                    style: setup.options.style
                 )
             } catch {
                 var message = "\(error)"
@@ -329,7 +340,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       The passthrough candidate is the raw-mode (cleanup disabled) baseline: a no-op cleaner timed in place of the whole cleaner stage raw mode skips.
       Without --judge only the fuzzy coefficient is computed, no request leaves the Mac except the candidates' own, and no verdict is issued.
       --judge sends each sample's raw text, references and the candidate's output to OpenRouter (Jev decisions and embeddings) and needs OPENROUTER_API_KEY.
-      --baseline and --write-baseline need --repetitions 5 (bar.repetitions in judge.json): one scheme measures entry and candidate.
+      --baseline and --write-baseline use bar.repetitions in judge.json as --repetitions (another explicit value is refused):
+      one scheme measures entry and candidate.
       --baseline applies the bar: each candidate is judged against its own entry, or against the entry named by
       --baseline-candidate (default: openrouter:\(Config.defaultOpenRouterModel)) when it has none.
       A judged run uses --providers catalog or a named model: passthrough is judged like any candidate; it fails against another model's

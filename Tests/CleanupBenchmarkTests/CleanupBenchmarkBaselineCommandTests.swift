@@ -6,7 +6,8 @@ import CleanupBenchmark
 @Suite("Cleanup benchmark baseline command")
 struct CleanupBenchmarkBaselineCommandTests {
     private static let other = """
-    {"candidates": {"other:untouched": {"judgeSHA256": "j", "snapshots": [], "datasetSHA256": "x", "repetitions": 5, "dropWorst": 2, "samples": {}}}}
+    {"candidates": {"other:untouched": {"judgeSHA256": "j", "snapshots": [], "datasetSHA256": "x",
+      "repetitions": 5, "dropWorst": 2, "style": "casual", "samples": {}}}}
     """
 
     private func baseline(_ fixture: DriverFixture) throws -> CleanupBenchmarkBaselineFile {
@@ -21,7 +22,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         let fixture = try DriverFixture(files: ["baseline.json": Self.other])
 
         let result = await fixture.run([
-            "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "5",
+            "--providers", "openrouter:good,openrouter:bad", "--judge",
             "--write-baseline", "baseline.json",
         ])
 
@@ -34,7 +35,8 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(good.datasetSHA256.count == 64)
         #expect(good.judgeSHA256.count == 64)
         #expect(abs((good.samples["one"]?.jev ?? 0) - 0.05) < 1e-9)
-        #expect(good.repetitions == 5)
+        #expect(good.repetitions == (try judgeSettings()).bar.repetitions)
+        #expect(good.style == .casual)
         #expect(file.candidates["other:untouched"]?.datasetSHA256 == "x")
     }
 
@@ -46,12 +48,12 @@ struct CleanupBenchmarkBaselineCommandTests {
     func verdictDecidesTheExitCodeAndFallsBackToTheNamedEntry() async throws {
         let fixture = try DriverFixture()
         _ = await fixture.run([
-            "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json",
+            "--providers", "openrouter:good,openrouter:bad", "--judge", "--write-baseline", "baseline.json",
         ])
         let both = try #require(fixture.file("baseline.json"))
 
         let own = await fixture.run([
-            "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "5", "--baseline", "baseline.json",
+            "--providers", "openrouter:good,openrouter:bad", "--judge", "--baseline", "baseline.json",
         ])
         #expect(own.exitCode == 0)
         #expect(own.stdout.contains("candidate,baseline,category,samples,misses,allowed_misses,dropped_outside,"))
@@ -66,7 +68,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         let reduced = CleanupBenchmarkBaselineFile(candidates: ["fake:good": try #require(onlyGood.candidates["fake:good"])])
         let fallbackFixture = try DriverFixture(files: ["baseline.json": String(decoding: try reduced.encoded(), as: UTF8.self)])
         let fallback = await fallbackFixture.run([
-            "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "5",
+            "--providers", "openrouter:good,openrouter:bad", "--judge",
             "--baseline", "baseline.json", "--baseline-candidate", "fake:good",
         ])
         #expect(fallback.exitCode == 2)
@@ -83,12 +85,12 @@ struct CleanupBenchmarkBaselineCommandTests {
     func unusableBaselineOrFlagsStopBeforeAnyRequest() async throws {
         let fixture = try DriverFixture(files: ["baseline.json": Self.other])
 
-        let noEntry = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json"])
+        let noEntry = await fixture.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
         #expect(noEntry.exitCode == 64)
         #expect(noEntry.stderr.contains("baseline has no entry for fake:good"))
 
         let wrongDataset = await fixture.run([
-            "--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json",
+            "--providers", "openrouter:good", "--judge", "--baseline", "baseline.json",
             "--baseline-candidate", "other:untouched",
         ])
         #expect(wrongDataset.exitCode == 64)
@@ -115,7 +117,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         )
 
         let result = await fixture.run([
-            "--providers", "openrouter:good", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json",
+            "--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json",
         ])
 
         #expect(result.exitCode == 2)
@@ -123,7 +125,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(!result.stderr.contains("--outputs-file"))
 
         let withFile = await fixture.run([
-            "--providers", "openrouter:good", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json",
+            "--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json",
             "--outputs-file", "out.jsonl",
         ])
         #expect(withFile.stderr.contains("run again with the same --outputs-file to finish them"))
@@ -142,7 +144,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         )
 
         let result = await fixture.run([
-            "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json",
+            "--providers", "openrouter:good,openrouter:bad", "--judge", "--write-baseline", "baseline.json",
         ])
 
         #expect(result.exitCode == 2)
@@ -157,17 +159,18 @@ struct CleanupBenchmarkBaselineCommandTests {
     @Test
     func baselineFromAnotherJudgeIsRefusedBeforeAnyRequest() async throws {
         let fixture = try DriverFixture()
-        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json"])
+        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
         let written = try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
         let entry = try #require(written.candidates["fake:good"])
         let foreign = CleanupBenchmarkBaselineEntry(
-            judgeSHA256: "other-judge", snapshots: [], datasetSHA256: entry.datasetSHA256, repetitions: 5, dropWorst: 2, samples: entry.samples
+            judgeSHA256: "other-judge", snapshots: [], datasetSHA256: entry.datasetSHA256,
+            repetitions: 5, dropWorst: 2, style: entry.style, samples: entry.samples
         )
         let other = try DriverFixture(files: [
             "baseline.json": String(decoding: try CleanupBenchmarkBaselineFile(candidates: ["fake:good": foreign]).encoded(), as: UTF8.self),
         ])
 
-        let result = await other.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json"])
+        let result = await other.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
 
         #expect(result.exitCode == 64)
         #expect(result.stderr.contains("different judge settings"))
@@ -342,18 +345,27 @@ struct CleanupBenchmarkBaselineCommandTests {
 
     /// Stated sensitivity: a baseline written with other repetitions than the scheme's
     /// measures slack another way than the candidate is measured; both flags must refuse
-    /// a run with other `--repetitions` before any request, naming the number to use.
+    /// an explicit `--repetitions` that differs from `bar.repetitions` before any request,
+    /// naming the number to use. Without `--repetitions` the same flags run (the default is
+    /// the bar's), so a guard that also refuses the omitted flag fails the last line.
     @Test
-    func baselineFlagsNeedTheBarsRepetitions() async throws {
+    func baselineFlagsRefuseOtherExplicitRepetitions() async throws {
         let fixture = try DriverFixture()
+        let required = try judgeSettings().bar.repetitions
 
         for flag in ["--baseline", "--write-baseline"] {
-            let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "3", flag, "baseline.json"])
+            let result = await fixture.run([
+                "--providers", "openrouter:good", "--judge", "--repetitions", "\(required + 1)", flag, "baseline.json",
+            ])
             #expect(result.exitCode == 64)
-            #expect(result.stderr.contains("--repetitions 5"))
+            #expect(result.stderr.contains("--repetitions \(required)"))
         }
         #expect(fixture.transport.recorded().isEmpty)
         #expect(fixture.cleaned == 0)
+
+        let omitted = await fixture.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
+        #expect(omitted.exitCode == 0)
+        #expect(fixture.cleaned == 2 * required)
     }
 
     /// Stated sensitivity: an entry recorded with other repetitions or another `dropWorst`
@@ -363,22 +375,42 @@ struct CleanupBenchmarkBaselineCommandTests {
     @Test(arguments: [(repetitions: 3, dropWorst: 2), (repetitions: 5, dropWorst: 1)])
     func baselineEntryOfOtherSchemeIsRefused(repetitions: Int, dropWorst: Int) async throws {
         let fixture = try DriverFixture()
-        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json"])
+        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
         let written = try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
         let entry = try #require(written.candidates["fake:good"])
         let shorter = CleanupBenchmarkBaselineEntry(
             judgeSHA256: entry.judgeSHA256, snapshots: [], datasetSHA256: entry.datasetSHA256,
-            repetitions: repetitions, dropWorst: dropWorst, samples: entry.samples
+            repetitions: repetitions, dropWorst: dropWorst, style: entry.style, samples: entry.samples
         )
         let other = try DriverFixture(files: [
             "baseline.json": String(decoding: try CleanupBenchmarkBaselineFile(candidates: ["fake:good": shorter]).encoded(), as: UTF8.self),
         ])
 
-        let result = await other.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json"])
+        let result = await other.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
 
         #expect(result.exitCode == 64)
         #expect(result.stderr.contains("other repetitions or dropWorst than the bar in judge.json"))
         #expect(other.transport.recorded().isEmpty)
+    }
+
+    /// Stated sensitivity: an entry recorded under one writing style applied to a run under
+    /// another compares outputs of two prompts; a missing check lets the run through, and an
+    /// entry that always records the default style is refused for a run in the style it was
+    /// written under, or lets a run in another style through. The refusal comes before any
+    /// request and names the entry's style; the same style passes.
+    @Test
+    func baselineEntryOfAnotherStyleIsRefused() async throws {
+        let fixture = try DriverFixture()
+        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--style", "formal", "--write-baseline", "baseline.json"])
+        let requests = fixture.transport.recorded().count
+
+        let other = await fixture.run(["--providers", "openrouter:good", "--judge", "--style", "casual", "--baseline", "baseline.json"])
+        #expect(other.exitCode == 64)
+        #expect(other.stderr.contains("recorded with --style formal"))
+        #expect(fixture.transport.recorded().count == requests)
+
+        let same = await fixture.run(["--providers", "openrouter:good", "--judge", "--style", "formal", "--baseline", "baseline.json"])
+        #expect(same.exitCode == 0)
     }
 
     /// Stated sensitivity: a baseline in the old format (a stored centre, not one slack per
@@ -392,7 +424,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         """
         let fixture = try DriverFixture(files: ["baseline.json": old])
 
-        let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json"])
+        let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
 
         #expect(result.exitCode == 64)
         #expect(result.stderr.contains("not a baseline in the current format"))

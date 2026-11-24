@@ -5,7 +5,8 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
     public var providers: String
     public var envFile: String?
     public var samplesPath: String?
-    public var repetitions: Int
+    /// Nil when not given: 1, or `bar.repetitions` under `--baseline` or `--write-baseline`.
+    public var repetitions: Int?
     public var warmupRepetitions: Int
     public var style: WritingStyle
     public var failureBreakdown: Bool
@@ -21,7 +22,7 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
         providers: String = "openrouter:\(Config.defaultOpenRouterModel),passthrough",
         envFile: String? = nil,
         samplesPath: String? = nil,
-        repetitions: Int = 1,
+        repetitions: Int? = nil,
         warmupRepetitions: Int = 0,
         style: WritingStyle = .casual,
         failureBreakdown: Bool = false,
@@ -151,6 +152,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case noBaselineEntry(String, String)
     case baselineDatasetMismatch(String)
     case baselineJudgeMismatch(String)
+    case baselineStyleMismatch(entry: String, style: String)
     case baselineSchemeMismatch(String)
     case repetitionsMismatch(given: Int, required: Int)
     case outputsFileDatasetMismatch
@@ -180,8 +182,11 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
         case .baselineSchemeMismatch(let entry):
             return "baseline entry \(entry) was recorded with other repetitions or dropWorst than the bar in judge.json; "
                 + "rewrite it with --write-baseline"
+        case .baselineStyleMismatch(let entry, let style):
+            return "baseline entry \(entry) was recorded with --style \(style); use that style or rewrite it with --write-baseline"
         case .repetitionsMismatch(let given, let required):
-            return "--baseline and --write-baseline need --repetitions \(required) (bar.repetitions in judge.json), not \(given)"
+            return "--baseline and --write-baseline need --repetitions \(required) (bar.repetitions in judge.json), not \(given); "
+                + "leave --repetitions out to use it"
         case .outputsFileDatasetMismatch:
             return "the outputs file was written for other sample ids or raws, or in an older format; name a new --outputs-file"
         case .outputsFileStyleMismatch(let style):
@@ -190,7 +195,8 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
             return "\(path) is not a baseline in the current format; "
                 + "write it again with --write-baseline to a path that does not exist yet"
         case .invalidJudgeSettings:
-            return "judge.json needs at least one repeat and one question"
+            return "judge.json needs at least one Jev repeat, at least one Jev question, a bar.dropWorst of 0 or more, "
+                + "and a bar.repetitions above bar.dropWorst"
         }
     }
 }

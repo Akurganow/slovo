@@ -21,7 +21,7 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
 
 Total: **55 samples**, 21 of them clean cases: the raw text equals its first
-reference. A full run is samples × repetitions, so "550 runs" = 55 × 10.
+reference. A full run is samples × repetitions, so "275 runs" = 55 × 5.
 
 Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
 reference is the expected cleanup. The others are equally valid forms of it: the
@@ -83,14 +83,15 @@ Slack is 1 minus the coefficient. Every model scores against the same
 references: an entry is never a separate expected result for that model.
 
 - One scheme measures an entry and a candidate. `judge.json` sets `bar.repetitions`
-  (5) and `bar.dropWorst` (2). `--baseline` and `--write-baseline` refuse any other
-  `--repetitions` before a request: run with `--repetitions 5`.
+  and `bar.dropWorst`. `--baseline` and `--write-baseline` use `bar.repetitions` as
+  `--repetitions` when it is left out, and refuse any other explicit value before a
+  request.
 - Per sample and coefficient, the slack is the mean of the repetitions' slacks
-  after the `dropWorst` largest are dropped: the mean of the 3 smallest of 5. A
-  run without a score counts as slack 1.
+  after the `dropWorst` largest are dropped. With today's values, 5 and 2, that is
+  the mean of the 3 smallest of 5. A run without a score counts as slack 1.
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
-  sample and coefficient an entry holds that slack, plus the repetition count and `dropWorst`, the
-  response models that scored the runs, the SHA-256 of the dataset file and the
+  sample and coefficient an entry holds that slack, plus the repetition count,
+  `dropWorst` and the writing style, the response models that scored the runs, the SHA-256 of the dataset file and the
   SHA-256 of the judge's settings (the Jev and embedding sections of `judge.json`).
 - A candidate's sample is within slack when, for each coefficient, its slack is at
   most the entry's on that sample plus the coefficient's floor (the floors are in
@@ -98,16 +99,17 @@ references: an entry is never a separate expected result for that model.
 - A candidate passes when, overall and in every category, the samples not within
   slack number at most the allowance's share of the row's samples (`judge.json`),
   and never fewer than one. A row of a few samples therefore tolerates one miss.
-- The trade: a failure in at most 2 of the 5 repetitions does not fail the bar.
-  The report prints, per candidate and category, how many dropped repetitions were
-  outside the entry's slack, so such failures stay visible.
+- The trade: the `dropWorst` largest slacks are dropped per coefficient, so
+  different repetitions may fail different coefficients without failing the bar.
+  The report prints, per candidate and category, `dropped_outside`, how many
+  dropped repetitions were outside the entry's slack, so such failures stay visible.
 - A candidate is judged against its own entry. A candidate with no entry (a new
   model, a local one) is judged against the entry named by
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup
   model.
 - `--baseline` refuses an entry recorded on another dataset file, with other
-  judge settings or with other `bar.repetitions` or `bar.dropWorst`: rewrite it with
-  `--write-baseline`.
+  judge settings, with other `bar.repetitions` or `bar.dropWorst`, or under another
+  `--style`: rewrite it with `--write-baseline`.
 
 An output that changes nothing passes on a clean case and is judged like any
 other output on a messy one.
@@ -118,9 +120,9 @@ other output on a messy one.
 | --- | --- |
 | none of the below | Fuzzy only. No verdict. No request leaves the Mac except the candidates' own. |
 | `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate. It fails the bar against another model's entry, and `--write-baseline` gives it an entry of its own when it is in `--providers`. |
-| `--baseline PATH` | Applies the bar (needs `--judge` and `--repetitions 5`). Every candidate needs an entry, its own or the fallback's. |
+| `--baseline PATH` | Applies the bar (needs `--judge`; `--repetitions` defaults to `bar.repetitions` in `judge.json`). Every candidate needs an entry, its own or the fallback's. |
 | `--baseline-candidate ID` | The fallback entry for a candidate with none. |
-| `--write-baseline PATH` | With `--repetitions 5`, writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
+| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
 | `--outputs-file PATH` | Opt-in, local, and the resume record (below). |
 
 `--providers catalog --judge --baseline PATH` judges every catalog model in one
@@ -139,7 +141,8 @@ Naming an existing file resumes it, the last line of a run winning:
 - A run with an output but no full score is judged again without the cleaner.
 - A provider error or a missing run is run again.
 - A run whose output was empty is neither judged nor cleaned again: it is the
-  candidate's failure, and no baseline entry is written while one exists.
+  candidate's failure, and no baseline entry is written while the candidate has an
+  empty-output run.
 - A file written for other ids or raws, or by another `--style`, is refused.
 - A line scored under other judge settings or references keeps its output and is
   judged again. The fuzzy score is always computed again from the output.

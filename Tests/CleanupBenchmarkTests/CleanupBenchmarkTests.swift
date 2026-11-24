@@ -50,38 +50,6 @@ struct CleanupBenchmarkTests {
     /// The raw is sample `russian-filler-clean-desktop-02` of
     /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
     ///
-    /// Stated sensitivity: a warmup skipped for every candidate as soon as any run is resumed
-    /// leaves a candidate that has none starting cold, and its latency carries the cold
-    /// start; the resumed candidate takes no warmup (it is reused whole), the other takes one
-    /// and then its timed run.
-    @Test
-    func warmupSkipsOnlyCandidatesWithResumedRuns() async {
-        let sample = CleanupBenchmarkSample(
-            id: "one", raw: "Прибери мусор.", references: ["Прибери мусор."]
-        )
-        let resumed = CleanupBenchmarkRun(
-            sampleId: "one", sampleIndex: 1, candidateName: "fake:a", repetition: 1, durationNanoseconds: 1,
-            output: "Прибери мусор.", scores: CleanupBenchmarkScores(fuzzy: 1), errorKind: nil
-        )
-        let first = RecordingCleaner(output: "Прибери мусор.")
-        let second = RecordingCleaner(output: "Прибери мусор.")
-
-        _ = await CleanupBenchmarkRunner().run(
-            candidates: [
-                CleanupBenchmarkCandidate(provider: "fake", model: "a", cleaner: first),
-                CleanupBenchmarkCandidate(provider: "fake", model: "b", cleaner: second),
-            ],
-            samples: [sample],
-            config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: []),
-            warmupRepetitions: 1,
-            previous: [resumed.key: resumed]
-        )
-
-        #expect(await first.rawInputs().isEmpty)
-        #expect(await second.rawInputs().count == 2)
-    }
-
     /// Stated sensitivity: counting warmup calls in the report, or measuring
     /// cold local-model loading as a timed run, makes the benchmark look worse
     /// than hot in-app cleanup behavior.

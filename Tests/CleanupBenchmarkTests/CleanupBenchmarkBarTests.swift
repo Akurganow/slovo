@@ -35,7 +35,7 @@ struct CleanupBenchmarkBarTests {
 
     private static func entry(_ ids: [String]) -> CleanupBenchmarkBaselineEntry {
         CleanupBenchmarkBaselineEntry(
-            judgeSHA256: "j", snapshots: [], datasetSHA256: "x", repetitions: 5, dropWorst: 2,
+            judgeSHA256: "j", snapshots: [], datasetSHA256: "x", repetitions: 5, dropWorst: 2, style: .casual,
             samples: Dictionary(uniqueKeysWithValues: Set(ids).map { ($0, flat) })
         )
     }
@@ -46,10 +46,10 @@ struct CleanupBenchmarkBarTests {
         )
     }
 
-    /// Stated sensitivity: dropping the two best repetitions (mean 0.6 here), dropping
-    /// none (plain mean 0.42), dropping one, or taking the mean of the other coefficient's
-    /// repetitions leaves these pinned slacks. Three coefficients with different
-    /// repetitions, given out of order, and the input order never matters.
+    /// Stated sensitivity: dropping the two best repetitions (0.4, 0.533, 0.667 here),
+    /// dropping none (plain mean 0.3, 0.4, 0.5) or dropping one (0.25, 0.25, 0.4) leaves
+    /// these pinned slacks (0.2, 0.2, 0.3). The three coefficients have different
+    /// repetitions.
     @Test
     func slackIsTheMeanAfterDroppingTheTwoLargest() {
         let runs = [(0.5, 0.6, 0.8), (0.9, 0.9, 0.1), (0.7, 0.2, 0.7), (0.6, 0.6, 0.6), (0.8, 0.9, 0.3)].map { fuzzy, embedding, jev in
@@ -112,7 +112,7 @@ struct CleanupBenchmarkBarTests {
         #expect(!CleanupBenchmarkBar.isWithinSlack(Array(good.prefix(2)) + [unscored, unscored, unscored], baseline: Self.flat, bar: Self.bar))
     }
 
-    /// Stated sensitivity: counting runs in place of samples (4 misses against 2 allowed
+    /// Stated sensitivity: counting runs in place of samples (5 run misses against 2 allowed
     /// in 10 samples × 5 repetitions would fail one bad sample whole); counting the
     /// allowance over runs lets a second bad sample through.
     @Test
@@ -235,35 +235,40 @@ struct CleanupBenchmarkBarTests {
 
         #expect(throws: CleanupBenchmarkBarError.emptyOutputs(candidate: "c", count: 1)) {
             try CleanupBenchmarkBar.makeEntry(
-                candidateName: "c", runs: complete + [empty, failed], settings: settings, datasetSHA256: "x"
+                candidateName: "c", runs: complete + [empty, failed], settings: settings, datasetSHA256: "x", style: .casual
             )
         }
         #expect(throws: CleanupBenchmarkBarError.incompleteRuns(candidate: "c", count: 1)) {
             try CleanupBenchmarkBar.makeEntry(
-                candidateName: "c", runs: complete + [failed], settings: settings, datasetSHA256: "x"
+                candidateName: "c", runs: complete + [failed], settings: settings, datasetSHA256: "x", style: .casual
             )
         }
         let entry = try CleanupBenchmarkBar.makeEntry(
-            candidateName: "c", runs: complete, settings: settings, datasetSHA256: "x"
+            candidateName: "c", runs: complete, settings: settings, datasetSHA256: "x", style: .casual
         )
         #expect(Set(entry.samples.keys) == ["s1", "s2", "s3"])
         #expect(entry.judgeSHA256 == (try settings.judgeSHA256()))
     }
 
-    /// Stated sensitivity: an entry that keeps the plain mean, or the repetitions' count of
-    /// the wrong source, stores a slack the candidate is not measured by; the entry holds
-    /// the trimmed slack, `bar.repetitions` and `bar.dropWorst`.
+    /// Stated sensitivity: an entry that keeps the plain mean stores a slack the candidate is
+    /// not measured by; an entry that records other repetitions or `dropWorst` than the bar's
+    /// is refused at the next run for the wrong reason. The entry holds the trimmed slack,
+    /// `bar.repetitions` and `bar.dropWorst`, here set by the test.
     @Test
     func entryStoresTheTrimmedSlackAndTheRepetitions() throws {
-        let settings = try judgeSettings()
+        let committed = try judgeSettings()
+        let settings = CleanupBenchmarkJudgeSettings(
+            jev: committed.jev,
+            embedding: committed.embedding,
+            bar: CleanupBenchmarkJudgeSettings.Bar(floors: Self.floors, allowance: 0.05, repetitions: 5, dropWorst: 2)
+        )
         let runs = [0.9, 0.9, 0.9, 0.2, 0.2].map { Self.run("s", .shortSmoke, Self.scores(jev: $0)) }
 
-        let entry = try CleanupBenchmarkBar.makeEntry(candidateName: "c", runs: runs, settings: settings, datasetSHA256: "x")
+        let entry = try CleanupBenchmarkBar.makeEntry(candidateName: "c", runs: runs, settings: settings, datasetSHA256: "x", style: .casual)
 
-        #expect(entry.repetitions == settings.bar.repetitions)
-        #expect(entry.dropWorst == settings.bar.dropWorst)
+        #expect(entry.repetitions == 5)
+        #expect(entry.dropWorst == 2)
         #expect(abs((entry.samples["s"]?.jev ?? 0) - 0.1) < 1e-9)
-        #expect(settings.bar.dropWorst == 2)
     }
 
     /// Stated sensitivity: a digest over the bar section would force a new baseline

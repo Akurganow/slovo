@@ -11,7 +11,6 @@ supplied from process environment variables or a gitignored dotenv file.
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
   --providers catalog \
-  --repetitions 10 \
   --judge \
   --baseline Benchmarks/cleanup/baseline.json \
   --failure-breakdown \
@@ -23,7 +22,7 @@ coefficient only and no verdict:
 
 ```text
 candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev
-openrouter:<model>,550,0,<p50>,<p95>,<mean>,,
+openrouter:<model>,275,0,<p50>,<p95>,<mean>,,
 ```
 
 With `--judge` the embedding and Jev means fill in, and a line names the judge's

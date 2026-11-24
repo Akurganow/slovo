@@ -128,14 +128,11 @@ public struct CleanupBenchmarkRunner: Sendable {
         record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
-        // A candidate with resumed runs is not a cold start: warmup applies to the others only.
-        let resumed = Set(previous.keys.map(\.candidateName))
-        let warmed = candidates.filter { !resumed.contains($0.name) }
         var runs: [CleanupBenchmarkRun] = []
 
         for _ in 0..<max(warmupRepetitions, 0) {
             for sample in samples {
-                for candidate in warmed {
+                for candidate in candidates {
                     await warmCandidate(
                         candidate,
                         sample: sample,

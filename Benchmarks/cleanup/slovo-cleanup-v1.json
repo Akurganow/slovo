@@ -186,7 +186,10 @@
         "Сделай commit и пуш в мейн.",
         "Сделай коммит и push в мейн.",
         "Сделай коммит и пуш в main.",
-        "Сделай commit и push в main."
+        "Сделай commit и push в main.",
+        "Сделай commit и push в мейн.",
+        "Сделай commit и пуш в main.",
+        "Сделай коммит и push в main."
       ]
     },
     {
@@ -396,7 +399,8 @@
       "category": "code-switching",
       "raw": "надо завести feature flag и спрятать за ним новый api эндпоинт",
       "references": [
-        "Надо завести feature flag и спрятать за ним новый API эндпоинт."
+        "Надо завести feature flag и спрятать за ним новый API эндпоинт.",
+        "Надо завести feature flag и спрятать за ним новый API endpoint."
       ]
     },
     {

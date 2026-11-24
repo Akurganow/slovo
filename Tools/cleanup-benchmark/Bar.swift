@@ -1,4 +1,5 @@
 import Foundation
+import SlovoCore
 
 /// One sample's recorded slack (1 − coefficient) per coefficient: the mean of the
 /// repetitions' slacks after the `bar.dropWorst` largest are dropped.
@@ -27,6 +28,8 @@ public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
     /// dropped (`bar.repetitions`, `bar.dropWorst`).
     public let repetitions: Int
     public let dropWorst: Int
+    /// The writing style the runs used: the prompt differs by style.
+    public let style: WritingStyle
     /// By sample id.
     public let samples: [String: CleanupBenchmarkBaselineSample]
 
@@ -36,6 +39,7 @@ public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
         datasetSHA256: String,
         repetitions: Int,
         dropWorst: Int,
+        style: WritingStyle,
         samples: [String: CleanupBenchmarkBaselineSample]
     ) {
         self.judgeSHA256 = judgeSHA256
@@ -43,6 +47,7 @@ public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
         self.datasetSHA256 = datasetSHA256
         self.repetitions = repetitions
         self.dropWorst = dropWorst
+        self.style = style
         self.samples = samples
     }
 }
@@ -168,7 +173,8 @@ public enum CleanupBenchmarkBar {
         candidateName: String,
         runs: [CleanupBenchmarkRun],
         settings: CleanupBenchmarkJudgeSettings,
-        datasetSHA256: String
+        datasetSHA256: String,
+        style: WritingStyle
     ) throws -> CleanupBenchmarkBaselineEntry {
         let own = runs.filter { $0.candidateName == candidateName }
         let empty = own.filter(\.hasEmptyOutput).count
@@ -185,6 +191,7 @@ public enum CleanupBenchmarkBar {
             datasetSHA256: datasetSHA256,
             repetitions: settings.bar.repetitions,
             dropWorst: settings.bar.dropWorst,
+            style: style,
             samples: Dictionary(
                 uniqueKeysWithValues: Dictionary(grouping: own, by: \.sampleId)
                     .map { ($0, slack(of: $1, dropWorst: settings.bar.dropWorst)) }
