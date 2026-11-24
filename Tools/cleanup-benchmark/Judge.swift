@@ -63,11 +63,12 @@ public struct CleanupBenchmarkJudge: Sendable {
             let embedded = await embed(Set(items.flatMap { [$0.output] + $0.sample.references }).sorted())
             info.costUSD += embedded.cost
             info.embeddingErrors += embedded.errors
-            await decide(items) { item, decided in
-                info.costUSD += decided.cost
+            // A run that already has its Jev score only needs the embedding.
+            func finish(_ item: Item, _ decided: Decided?) {
+                info.costUSD += decided?.cost ?? 0
                 var run = runs[item.index]
                 run.failures.removeAll { Self.ownFailures.contains($0) }
-                run.failures += decided.failures
+                run.failures += decided?.failures ?? []
                 var scores = run.scores
                 let rights = item.sample.references.compactMap { embedded.vectors[$0] }
                 if let left = embedded.vectors[item.output], rights.count == item.sample.references.count {
@@ -76,13 +77,19 @@ public struct CleanupBenchmarkJudge: Sendable {
                     scores.embedding = nil
                     run.failures.append("embedding-failed")
                 }
-                scores.jevQuestions = decided.values
-                scores.jev = decided.failures.isEmpty ? Self.jevCoefficient(decided.values) : nil
-                scores.models = embedded.models.union(decided.models).sorted()
+                if let decided {
+                    scores.jevQuestions = decided.values
+                    scores.jev = decided.failures.isEmpty ? Self.jevCoefficient(decided.values) : nil
+                }
+                scores.models = embedded.models.union(decided?.models ?? Set(scores.models)).sorted()
                 run.scores = scores
                 scored[item.index] = run
                 record(run)
             }
+            for item in items where runs[item.index].scores.jev != nil {
+                finish(item, nil)
+            }
+            await decide(items.filter { runs[$0.index].scores.jev == nil }, finish: finish)
         }
         return (scored, info)
     }
@@ -129,7 +136,7 @@ public struct CleanupBenchmarkJudge: Sendable {
 
     /// Asks the Jev questions for every item, a few at a time, and hands each
     /// item's answers to `finish` as soon as they are in.
-    private func decide(_ items: [Item], finish: (Item, Decided) -> Void) async {
+    private func decide(_ items: [Item], finish: (Item, Decided?) -> Void) async {
         await withTaskGroup(of: (Item, Decided).self) { group in
             var pending = items[...]
             func launch() {

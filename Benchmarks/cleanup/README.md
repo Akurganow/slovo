@@ -25,8 +25,11 @@ reference. A full run is samples × repetitions, so "275 runs" = 55 × 5.
 
 Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
 reference is the expected cleanup. The others are equally valid forms of it: the
-other script of an English term (`main` for `мейн`), added only where the raw
-writes the term in Cyrillic. Other keys are ignored.
+other script of an English term (`main` for `мейн`, `пиар` for `PR`). Where the raw writes an English term in Cyrillic, another reference holds its
+Latin form. Where it writes one in Latin and the recognizer, run on the sample's
+spoken text, rendered it in Cyrillic, another reference holds that rendering. A
+misheard word is not a rendering. Either script is accepted. Other keys
+are ignored.
 
 ## The form of a raw transcript
 
@@ -53,9 +56,11 @@ form reaches cleanup as it is.
   written.
 - **English terms in Russian speech.** Latin, often title-cased (`Settings`,
   `API Key`, `GitHub Actions`), or a Cyrillic rendering (`коммит`, `бенчмарк`,
-  `хотфикс`), or a mix. A reference keeps the script the raw uses. Where the raw
-  writes an English term in Cyrillic, a second reference holds its Latin form, so
-  either script is accepted.
+  `хотфикс`), or a mix. A reference keeps the script the raw uses.
+  Where the raw writes an English term in Cyrillic, another reference holds its
+  Latin form. Where it writes one in Latin and the recognizer, run on the sample's
+  spoken text, rendered it in Cyrillic, another reference holds that rendering. A
+  misheard word is not a rendering. Either script is accepted.
 - **Apostrophes.** ASCII `'` (`we'll`, `c'est`).
 
 Measured: each sample's spoken text, synthesised with the macOS `say` voices
@@ -135,8 +140,10 @@ repetition (from 1), output (`null` after a provider error), duration, the three
 coefficients, each Jev question's repeats, the models that answered, the failure
 codes, the writing style, the SHA-256 of the ids and raws of the dataset, the
 SHA-256 of the cleanup prompt (the system message sent for the style, with no
-vocabulary and no hints) and the SHA-256 of what scored the line (the judge's settings and the sample's
-references; empty without `--judge`). It holds output text, so it stays local.
+vocabulary and no hints), the SHA-256 of what scored the line (the judge's settings
+and the sample's references) and the SHA-256 of what Jev scored it under (the
+judge's settings and the sample's first reference); the last two are empty without
+`--judge`. It holds output text, so it stays local.
 Naming an existing file resumes it, the last line of a run winning:
 
 - A run with all three coefficients and no failure is not repeated.
@@ -146,8 +153,11 @@ Naming an existing file resumes it, the last line of a run winning:
   candidate's failure, and no baseline entry is written while the candidate has an
   empty-output run.
 - A file written for other ids or raws, under another cleanup prompt or by another `--style`, is refused.
-- A line scored under other judge settings or references keeps its output and is
-  judged again. The fuzzy score is always computed again from the output.
+- A line scored under other judge settings keeps its output and is judged again.
+  A line whose references changed but not the first keeps its Jev score, because
+  Jev reads only the dictation, the first reference and the output: only the
+  embedding is asked again. A line without the Jev digest is judged again whole.
+  The fuzzy score is always computed again from the output.
 
 A line cut short by a killed process is dropped, and its run is done again.
 
@@ -167,11 +177,14 @@ shapes are those of OpenRouter's decisions tutorial
 revision; read 2026-11-24); the embeddings request and its `provider` field are
 those of OpenRouter's embeddings reference
 (<https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md>;
-no published revision; read 2026-11-24); the instruction prefix is the one the
-Qwen3-Embedding-8B model card documents for queries
-(<https://huggingface.co/Qwen/Qwen3-Embedding-8B>; no published revision; read
-2026-11-24). The card does not cover putting it on both texts of a similarity
-comparison, which is the choice made here.
+no published revision; read 2026-11-24); the instruction prefix follows the pattern
+of the Qwen3-Embedding-8B model card, `Instruct: {task_description}\nQuery:{query}`, whose task text the card says to
+customize
+(<https://huggingface.co/Qwen/Qwen3-Embedding-8B/blob/1d8ad4ca9b3dd8059ad90a75d4983776a23d44af/README.md>,
+the card at the commit of `main` read on 2026-11-24). The card puts the instruction
+on the query only ("No need to add instruction for retrieval documents"); putting
+it on both texts of a similarity comparison, with the task text in `judge.json`, is
+the choice made here.
 
 ### What `--judge` sends to OpenRouter
 

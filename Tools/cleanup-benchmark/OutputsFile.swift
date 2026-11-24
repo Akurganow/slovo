@@ -25,6 +25,7 @@ enum CleanupBenchmarkOutputsFile {
         let rawsSHA256: String?
         let promptSHA256: String?
         let scoringSHA256: String?
+        let jevSHA256: String?
         let style: String?
 
         init(_ run: CleanupBenchmarkRun, binding: CleanupBenchmarkOutputsBinding) {
@@ -43,6 +44,7 @@ enum CleanupBenchmarkOutputsFile {
             rawsSHA256 = binding.rawsSHA256
             promptSHA256 = binding.promptSHA256
             scoringSHA256 = binding.scoringSHA256(sampleId: run.sampleId)
+            jevSHA256 = binding.jevSHA256(sampleId: run.sampleId)
             style = binding.style.rawValue
         }
 
@@ -64,6 +66,7 @@ enum CleanupBenchmarkOutputsFile {
             try container.encode(rawsSHA256, forKey: .rawsSHA256)
             try container.encode(promptSHA256, forKey: .promptSHA256)
             try container.encode(scoringSHA256, forKey: .scoringSHA256)
+            try container.encode(jevSHA256, forKey: .jevSHA256)
             try container.encode(style, forKey: .style)
         }
     }
@@ -104,6 +107,9 @@ enum CleanupBenchmarkOutputsFile {
             let otherScoring = binding.judgeSHA256 != nil && line.scoringSHA256 != nil
                 && line.scoringSHA256 != binding.scoringSHA256(sampleId: line.sampleId)
             let fuzzy = line.output.map { FuzzyScore.best($0, sample.references) }
+            // Jev reads the dictation, the first reference and the output only, so a change of the
+            // other references keeps its scores and leaves just the embedding to do again.
+            let jevHeld = line.jevSHA256 != nil && line.jevSHA256 == binding.jevSHA256(sampleId: line.sampleId)
             let run = CleanupBenchmarkRun(
                 sampleId: line.sampleId,
                 sampleCategory: sample.category,
@@ -112,15 +118,13 @@ enum CleanupBenchmarkOutputsFile {
                 repetition: line.repetition,
                 durationNanoseconds: line.durationNanoseconds,
                 output: line.output,
-                scores: otherScoring
-                    ? CleanupBenchmarkScores(fuzzy: fuzzy)
-                    : CleanupBenchmarkScores(
-                        fuzzy: fuzzy,
-                        embedding: line.embedding,
-                        jev: line.jev,
-                        jevQuestions: line.jevQuestions,
-                        models: line.models
-                    ),
+                scores: CleanupBenchmarkScores(
+                    fuzzy: fuzzy,
+                    embedding: otherScoring ? nil : line.embedding,
+                    jev: otherScoring && !jevHeld ? nil : line.jev,
+                    jevQuestions: otherScoring && !jevHeld ? [:] : line.jevQuestions,
+                    models: otherScoring && !jevHeld ? [] : line.models
+                ),
                 failures: line.failures,
                 errorKind: line.output == nil ? .providerError : nil
             )
@@ -133,7 +137,8 @@ enum CleanupBenchmarkOutputsFile {
 /// What every line of the outputs file was written under. A resume refuses a file
 /// written for other ids or raws (the cleanup output depends on nothing else of the
 /// dataset), under another cleanup prompt or by another style. A line scored under other
-/// judge settings or other references (nil without `--judge`) is judged again.
+/// judge settings or other references (nil without `--judge`) is judged again, or only
+/// embedded again when just its alternative references changed.
 struct CleanupBenchmarkOutputsBinding: Sendable {
     let rawsSHA256: String
     /// The system message every candidate is sent for `style`: the instruction block, with no
@@ -153,6 +158,12 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// What Jev scored a line under: the judge settings and the sample's first reference.
+    func jevSHA256(sampleId: String) -> String? {
+        guard let judgeSHA256, let expected = references[sampleId]?.first else { return nil }
+        return CleanupBenchmarkDigest.sha256(of: [judgeSHA256, expected])
     }
 
     /// What scored a line: the judge settings and the sample's references.

@@ -352,7 +352,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
       output but no full score is judged again, a provider error is run again, an empty output is neither. A file written for other
       sample ids or raws, under another cleanup prompt or by another --style, is refused; a run scored under other judge settings
-      or references keeps its output and is judged again.
+      keeps its output and is judged again, and one whose references changed but not the first keeps its Jev score and is only
+      embedded again.
       Exit code: 0 when no run failed and every verdict passed (or none was asked for);
       2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
       64 when the arguments or files are unusable, before any request is sent.
