@@ -1,7 +1,7 @@
 {
   "candidates" : {
     "openrouter:openai/gpt-6-luna" : {
-      "datasetSHA256" : "e1eadb382b6406720d36f16e2610d91138b29e297f8e3e366ff64ffb7699e85d",
+      "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
       "dropWorst" : 2,
       "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
       "repetitions" : 5,
@@ -22,7 +22,7 @@
           "jev" : 0.020000000000000018
         },
         "code-switching-git-pr-01" : {
-          "embedding" : 0,
+          "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
           "jev" : 0.14000000000000004
         },
@@ -82,7 +82,7 @@
           "jev" : 0.08666666666666663
         },
         "instruction-shaped-mixed-long-04" : {
-          "embedding" : 0.003954771383968565,
+          "embedding" : 0.0039013819886175582,
           "fuzzy" : 0.015415101433197798,
           "jev" : 0.1877777777777777
         },
