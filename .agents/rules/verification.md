@@ -116,12 +116,9 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 - **Packaging.** The Release run's `package` job and
   `.github/workflows/dev-build.yml` build, sign and verify the app after the
   gate passes. They are not the gate.
-- **Cleanup benchmark**, `.github/workflows/cleanup-benchmark.yml`. It runs after
-  a Release run that published a release changing a file that can change the
-  cleanup output, and on a dispatch on `main`. It makes paid model calls and is
-  not the gate. It turns red only on a real error or a failed push. A
-  degradation or a stale baseline is a warning in the release notes, with the
-  run green.
+- **Cleanup benchmark**, `.github/workflows/cleanup-benchmark.yml`. It makes paid
+  model calls and is not the gate. `docs/release-ci.md`, "Cleanup benchmark",
+  says when it is red or green.
 
 ## What the gate rejects
 
@@ -184,8 +181,7 @@ cannot exist on a green `main`.
 - **Cleanup quality.** The gate measures none of it. Its benchmark stage runs
   only the pass-through provider, which proves the harness runs, not that
   cleanup is good. The cleanup benchmark workflow measures it after a release that
-  changes a listed file, and a green run of it can still carry a degradation
-  warning in the release notes.
+  changes a file its `changes` job lists.
 - **Signing and packaging.** The gate builds no app bundle. Signing,
   notarization and stapling are proven only by the packaging jobs.
 - **Another toolchain.** CI's runner image chooses its Xcode. A green there

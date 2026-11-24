@@ -45,8 +45,10 @@ update or a force-push, by any route, for any reason.
 - A role whose work needs a commit on `main` stops, writes nothing more, and
   says so in its report.
 
-The release pipeline is not a role. Its commits on `main` are two: the version
-bump and the baseline record (`docs/release-ci.md`).
+The release pipeline and the cleanup benchmark commit to `main`:
+`.github/workflows/release.yml` for the version bump, and
+`.github/workflows/cleanup-benchmark.yml` for the baseline record. Neither
+workflow is a role.
 
 This file describes `.gitignore`, the release pipeline of
 `.github/workflows/release.yml` and the cleanup benchmark of

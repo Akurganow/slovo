@@ -295,9 +295,11 @@ neither waits for it nor depends on it.
 **When it runs.**
 
 - After a Release run completes on `main` (a `workflow_run` trigger), only when that
-  run published a release and the release changed a file that can change the cleanup
-  output. The run published a release when a `v*` tag has the Release run's commit as
-  its parent, the test `publish` applies before it tags. The files are compared with
+  run concluded `success`, published a release, and the release changed a file that can
+  change the cleanup output. A Release run whose publish failed after its tag has the
+  tag too, so only the success of its re-run starts the benchmark. The run published
+  a release when a `v*` tag has the Release run's commit as its parent, the test
+  `publish` applies before it tags. The files are compared with
   the previous release tag. The workflow's `changes` job holds the list of files, and
   that is the one place it is written.
 - By `workflow_dispatch` on `main`, with no inputs and no file check. A dispatch on
@@ -318,8 +320,8 @@ runs in the `release-push` environment with the deploy key and a token with
 `contents: write` and `pull-requests: write`. The two keys never share a job.
 
 **The artifact.** `cleanup-baseline` holds `baseline.json`, the baseline with fresh
-entries, and `report.csv`, the aggregate report. It is kept for seven days and is
-uploaded even after a red step.
+entries, `report.csv`, the aggregate report, and `failed-rows.tsv`, the verdict rows
+that failed. It is kept for seven days and is uploaded even after a red step.
 
 **What a run does.** The tool's exit code decides.
 
@@ -330,19 +332,25 @@ uploaded even after a red step.
   runs trunk verification and releases nothing, and its own `workflow_run` finds no
   release and stops. A model with no entry of its own is judged against
   `gpt-6-luna`'s entry, and a failure there is a warning annotation, not a
-  degradation, so the model's first entry is recorded. If `baseline.json` changed on
-  `main` after the measured commit, the job warns and commits nothing, so a newer
-  record is never overwritten.
+  degradation, so the model's first entry is recorded. The job commits only while
+  `main` still points at the commit the run started from: the bump commit that the
+  release tag points at, or the dispatched commit. If `main` has moved, the job warns
+  and commits nothing, and the next release records the baseline. A push to `main`
+  while a newer Release run is still packaging makes that run's bump push
+  non-fast-forward, so its publish is refused. A moved `main` is when such a run can
+  exist.
 - **A degradation.** A model failed the bar against its own entry. Nothing is
   committed and the artifact stays. The release note gains a section, "Cleanup
   benchmark: degradation", listing each such model and category with its misses
   against the allowed misses. A dispatch has no release, so the same text goes to
-  the run summary.
+  the run summary. To accept the degradation, a person opens a pull request with the
+  `baseline.json` of the run's `cleanup-baseline` artifact. The command wrote that
+  file, so the change is not a hand edit.
 - **A stale baseline.** An entry was recorded on another dataset file, judge
   settings, bar scheme or style. The tool refuses before any request. The job runs
   it again without a baseline to record new entries, pushes them on a branch
-  `benchmark/baseline-<release or short commit id>-<run id>`, and opens a pull
-  request into `main` headed `chore(benchmark): re-record the cleanup baseline for
+  `benchmark/baseline-<release or short commit id>-<run id>-<run attempt>`, and opens
+  a pull request into `main` headed `chore(benchmark): re-record the cleanup baseline for
   <release or short commit id>`. The release note gains a section, "Cleanup
   benchmark: stale baseline", that links the pull request.
 
@@ -362,17 +370,19 @@ access, and no workflow does either:
    request confirms this behaviour, because it is gated by a feature flag in that
    revision.
 
-**Red and green.** The run turns red only on a real error: a provider error, an
-empty output, a file not written, a missing key or unusable arguments, a tool that
-did not finish, a failed push or a failed release-note edit. A degradation and a
-stale baseline end the run green, with the warning in the release notes. A red run
-leaves the release as it shipped, and the gate is still the `test` job of the
-Release run.
+**Red and green.** A real error turns the run red, and so does a failed push or a
+failed release-note edit. The exit codes in
+[`Benchmarks/cleanup/README.md`](../Benchmarks/cleanup/README.md) say which exits are
+errors. A degradation or a stale baseline ends the run green, with a warning in the
+release notes. A red run leaves the release as it shipped, and the gate is still the
+`test` job of the Release run.
 
 **Re-running.** "Re-run" on a run of this workflow is a paid run of the whole
 catalogue. The artifact upload sets `overwrite`, so the second run replaces the first
 run's artifact (see [When `publish` fails](#when-publish-fails) for why the default
-fails).
+fails). A re-run that finds its release note already written adds nothing, and its
+stale-baseline branch carries the run attempt, so it does not reuse the first
+attempt's branch.
 
 ## Changelog
 

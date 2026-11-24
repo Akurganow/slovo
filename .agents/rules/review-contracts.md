@@ -342,12 +342,12 @@ is a file's content, the entry names the file.
   `release-push` environment and holds `contents: write` and `pull-requests: write`.
 - A degradation or a stale baseline ends the `benchmark` job green with its
   `outcome` set. A real error or a refused push turns the run red. No step of the
-  workflow sets `continue-on-error`.
+  workflow sets `continue-on-error`. The record commit is made only while `main`'s
+  tip is the commit the run started from.
 - The headers `chore(benchmark): record the cleanup baseline for …` and
   `chore(benchmark): re-record the cleanup baseline for …` are non-releasable, so
   `decide` finds nothing to release, and they carry no skip token, so their push
-  runs trunk verification. The skip token's one exception is the version-bump
-  commit (`AGENTS.md`, "Before you open a pull request").
+  runs trunk verification.
 
 ## Notices
 

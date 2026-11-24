@@ -168,7 +168,10 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
         switch self {
         case .baselineDatasetMismatch, .baselineJudgeMismatch, .baselineSchemeMismatch, .baselineStyleMismatch:
             true
-        default:
+        case .helpRequested, .invalidValue, .missingValue, .unknownArgument, .requires, .noBaselineEntry,
+             .repetitionsMismatch, .outputsFileDatasetMismatch, .outputsFileStyleMismatch,
+             .outputsFileIsAnotherInput, .duplicateSampleId, .outputsFilePromptMismatch,
+             .baselineUnreadable, .invalidJudgeSettings:
             false
         }
     }

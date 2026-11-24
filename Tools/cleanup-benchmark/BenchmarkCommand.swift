@@ -86,8 +86,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         do {
             setup = try prepare(arguments: arguments, environment: environment)
         } catch {
+            let isStale = (error as? CleanupBenchmarkCommandError)?.isStaleBaseline == true
             return CleanupBenchmarkCommandResult(
-                exitCode: (error as? CleanupBenchmarkCommandError)?.isStaleBaseline == true ? 4 : 64,
+                exitCode: isStale ? 4 : 64,
                 stdout: "",
                 stderr: "error: \(error)\n\(Self.usage)"
             )
@@ -111,10 +112,21 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderCategoryBreakdown(report)
         }
         return CleanupBenchmarkCommandResult(
-            exitCode: report.hasRunFailure || !errors.isEmpty ? 2 : report.degraded ? 3 : 0,
+            exitCode: Self.exitCode(report: report, errors: errors),
             stdout: rendered,
             stderr: errors.map { "error: \($0)\n" }.joined()
         )
+    }
+
+    /// A real error wins over a degradation: 2, then 3, otherwise 0.
+    private static func exitCode(report: CleanupBenchmarkReport, errors: [String]) -> Int32 {
+        if report.hasRunFailure || !errors.isEmpty {
+            return 2
+        }
+        if report.degraded {
+            return 3
+        }
+        return 0
     }
 
     private struct Setup {
