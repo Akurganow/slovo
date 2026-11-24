@@ -1,4 +1,5 @@
 import CleanupBenchmarkFuzz
+import Foundation
 import NaturalLanguage
 
 /// The fuzzy coefficient: RapidFuzz `token_sort_ratio` between an output and its
@@ -35,10 +36,11 @@ enum FuzzyScore {
     /// Folded words of `text`: lowercase, `ё` as `е`, and every character that is
     /// not a letter, a number (Nd, Nl, No: `²`, `Ⅳ`, `½`) or a combining mark (Mn, Mc) turned into a space, then
     /// split by Apple's word tokenizer. Combining marks stay, so a Devanagari or
-    /// Arabic letter with its marks stays one `Character`.
+    /// Arabic letter with its marks stays one `Character`. The text is composed (NFC) first,
+    /// so `е` with a combining diaeresis folds as the precomposed `ё` does.
     static func words(_ text: String) -> [String] {
         let folded = String(String.UnicodeScalarView(
-            text.lowercased().unicodeScalars.map { scalar in
+            text.precomposedStringWithCanonicalMapping.lowercased().unicodeScalars.map { scalar in
                 if scalar == "\u{0451}" { return "\u{0435}" }
                 return isKept(scalar) ? scalar : " "
             }
@@ -59,9 +61,11 @@ enum FuzzyScore {
     }
 
     /// One id per distinct `Character`, assigned in order of the characters' scalar
-    /// sequences, so the same pair of texts always gets the same ids.
+    /// sequences, so the same pair of texts always gets the same ids. The characters are
+    /// taken per word, as `sequence` looks them up: joined words would merge two Hangul jamo
+    /// across a space into one `Character` that no word holds.
     private static func characterIDs(for words: [String]) -> [Character: UInt32] {
-        let distinct = Set(words.joined())
+        let distinct = Set(words.flatMap { Array($0) })
         let sorted = distinct.sorted { lhs, rhs in
             lhs.unicodeScalars.lexicographicallyPrecedes(rhs.unicodeScalars) { $0.value < $1.value }
         }

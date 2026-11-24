@@ -81,4 +81,20 @@ struct FuzzyScoreTests {
         #expect(FuzzyScore.tokenSort("5² и 5", "5 и 5") < 1)
         #expect(FuzzyScore.tokenSort("глава Ⅳ", "глава") < 1)
     }
+
+    /// Stated sensitivity: joining the words before taking their characters merges two Hangul
+    /// jamo across a space into one `Character` that no word holds, so both sides reduce to
+    /// nothing and the score against `!` is 1 → RED.
+    @Test
+    func jamoAcrossASpaceDoNotMatchAnEmptyReference() {
+        #expect(FuzzyScore.tokenSort("\u{1100} \u{1161}", "!") < 1)
+    }
+
+    /// Stated sensitivity: folding without composing first keeps the combining diaeresis of a
+    /// decomposed `ё` as a second `Character`, so it scores below the precomposed `ё` → RED.
+    @Test
+    func decomposedYoScoresLikePrecomposedYo() {
+        #expect(FuzzyScore.tokenSort("\u{0435}\u{0308}лка", "елка") == FuzzyScore.tokenSort("\u{0451}лка", "елка"))
+        #expect(FuzzyScore.tokenSort("\u{0435}\u{0308}лка", "елка") == 1)
+    }
 }

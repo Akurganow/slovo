@@ -281,6 +281,8 @@ struct CleanupBenchmarkOutputsFileTests {
     /// output text to disk (the whole file map is compared before and after the run); one that omits a line when a run's cleanup finishes (before the judge),
     /// the repetition or the null of a failed run loses what it exists to show. Sample
     /// index and repetition are 1-based; each run has a cleanup line and a judged line.
+    /// Stated sensitivity: an outputs file that holds no line at all → RED, reported as a
+    /// failure because the first line is required, not as a trap on an index.
     @Test
     func outputsFileIsWrittenOnlyWithTheFlagAndHasTheLinesOfEveryRun() async throws {
         let fixture = try DriverFixture()
@@ -298,7 +300,8 @@ struct CleanupBenchmarkOutputsFileTests {
         let lines = String(decoding: try #require(fixture.file("outputs.jsonl")), as: UTF8.self)
             .split(separator: "\n").map(String.init)
         #expect(lines.count == 16)
-        let first = try #require(JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? [String: Any])
+        let firstLine = try #require(lines.first)
+        let first = try #require(JSONSerialization.jsonObject(with: Data(firstLine.utf8)) as? [String: Any])
         #expect(first["sample"] as? Int == 1)
         #expect(first["sampleId"] as? String == "one")
         #expect(first["repetition"] as? Int == 1)
@@ -312,10 +315,11 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect((judged["failures"] as? [String])?.isEmpty == true)
     }
 
-    /// Stated sensitivity: an outputs file that names an input is appended to, so the
-    /// dataset or a baseline is corrupted, or the paid runs are lost when the baseline is
-    /// written over them; each pairing must be refused before any request, naming the flag.
-    @Test(arguments: ["--samples", "--baseline", "--write-baseline"])
+    /// Stated sensitivity: an outputs file that names an input (the samples, a baseline or the
+    /// env file) is appended to, so the dataset or a baseline is corrupted, or the paid runs are
+    /// lost when the baseline is written over them; each pairing must be refused before any
+    /// request, naming the flag → RED.
+    @Test(arguments: ["--samples", "--baseline", "--write-baseline", "--env-file"])
     func outputsFileNamingAnInputIsRefused(flag: String) async throws {
         let fixture = try DriverFixture()
 
@@ -326,6 +330,30 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(fixture.cleaned == 0)
         #expect(fixture.transport.recorded().isEmpty)
         #expect(fixture.file("same.json") == nil)
+    }
+
+    /// Stated sensitivity: an outputs file that is a symbolic link to `--samples` has another
+    /// path, so only its file identifier shows that it is the samples file; without that check
+    /// the samples are appended to → RED.
+    @Test
+    func outputsFileThatLinksToAnInputIsRefused() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let samples = directory.appending(path: "samples.json")
+        let link = directory.appending(path: "outputs.jsonl")
+        let original = Data(DriverFixture.samples.utf8)
+        try original.write(to: samples)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: samples)
+
+        let result = await CleanupBenchmarkCommandDriver().run(
+            arguments: ["--providers", "passthrough", "--samples", samples.path, "--outputs-file", link.path],
+            environment: [:]
+        )
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("--outputs-file names the same file as --samples"))
+        #expect(try Data(contentsOf: samples) == original)
     }
 
     /// Stated sensitivity: a fuzzy-only run that resumes a judged file with judge failures in

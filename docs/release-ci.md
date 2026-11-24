@@ -335,10 +335,10 @@ that failed. It is kept for seven days and is uploaded even after a red step.
   degradation, so the model's first entry is recorded. The job commits only while
   `main` still points at the commit the run started from: the bump commit that the
   release tag points at, or the dispatched commit. If `main` has moved, the job warns
-  and commits nothing, and the next release records the baseline. A push to `main`
-  while a newer Release run is still packaging makes that run's bump push
-  non-fast-forward, so its publish is refused. A moved `main` is when such a run can
-  exist.
+  and commits nothing, and a person dispatches the workflow on settled `main` to record
+  the baseline. A push to `main` while a newer Release run is still packaging makes
+  that run's bump push non-fast-forward, so its publish is refused. A moved `main` is
+  when such a run can exist.
 - **A degradation.** A model failed the bar against its own entry. Nothing is
   committed to `main`. The job pushes the run's fresh entries on a branch named as
   for a stale baseline below, and opens a pull request into `main` headed
@@ -388,9 +388,9 @@ catalogue. The artifact upload sets `overwrite`, so the second run replaces the 
 run's artifact (see [When `publish` fails](#when-publish-fails) for why the default
 fails). A re-run replaces any earlier `## Cleanup benchmark:` section of the release note
 with its own, so the release keeps one section with the latest outcome and link and
-the rest of the text as it was. Its
-baseline branch, for a stale baseline or a degradation, carries the run attempt, so it
-does not reuse the first attempt's branch.
+the rest of the text as it was. A passing re-run (`record`) writes no section, so it
+removes an earlier one. Its baseline branch, for a stale baseline or a degradation,
+carries the run attempt, so it does not reuse the first attempt's branch.
 
 ## Changelog
 

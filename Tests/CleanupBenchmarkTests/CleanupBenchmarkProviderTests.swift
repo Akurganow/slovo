@@ -37,6 +37,15 @@ struct CleanupBenchmarkProviderTests {
         }
     }
 
+    /// Stated sensitivity: a model name with a line break is written unescaped as the first cell
+    /// of its candidate's CSV row, so the break splits that row in the report → RED.
+    @Test
+    func modelNameWithALineBreakIsRefused() {
+        #expect(throws: CleanupBenchmarkProviderSpecError.lineBreakInModel(.openRouter)) {
+            try CleanupBenchmarkProviderSpec.parse("openrouter:openai/gpt-6\nluna")
+        }
+    }
+
     /// Stated sensitivity: drop the `catalog` expansion, or expand it to anything
     /// but the app's catalog in its order → RED.
     @Test

@@ -40,9 +40,10 @@ prompts, API keys, response bodies, or caller-provided sample ids. The opt-in
 `--outputs-file PATH` is the one place output text is written, as JSON lines: one
 after a run's cleanup and one after it is judged.
 
-The exit code carries the verdict; `Benchmarks/cleanup/README.md`, "Running the
-judge", says how. The command never prompts, and the key comes from the environment
-or `--env-file`.
+The exit code reflects each candidate's bar against its own entry only: a fail against
+the `--baseline-candidate` fallback entry alone still exits 0. `Benchmarks/cleanup/README.md`,
+"Running the judge", lists the codes. The command never prompts, and the key comes from
+the environment or `--env-file`.
 
 ## Sample File
 

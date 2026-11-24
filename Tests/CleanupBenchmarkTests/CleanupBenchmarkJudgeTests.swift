@@ -183,6 +183,34 @@ struct CleanupBenchmarkJudgeTests {
         #expect(swapped.vectors == [[0, 1], [1, 1]])
     }
 
+    /// Stated sensitivity: an embedding that comes back empty scores 0 through `cosine` with no
+    /// failure, so the run looks judged; the batch must be refused, so the run ends with
+    /// `embedding-failed` and the cause reaches the info → RED.
+    @Test
+    func emptyEmbeddingVectorFailsTheBatch() async throws {
+        struct EmptyVectorTransport: CleanupBenchmarkTransport {
+            let inner: FakeJudgeTransport
+            func post(path: String, body: Data) async throws -> Data {
+                guard path == "/api/v1/embeddings" else {
+                    return try await inner.post(path: path, body: body)
+                }
+                let input = (try JSONSerialization.jsonObject(with: body) as? [String: Any])?["input"] as? [String] ?? []
+                let items = input.indices.map { ["index": $0, "embedding": [Double]()] as [String: Any] }
+                return try JSONSerialization.data(withJSONObject: ["data": items, "model": "fake/embedding-snapshot"])
+            }
+        }
+        let judge = CleanupBenchmarkJudge(
+            transport: EmptyVectorTransport(inner: FakeJudgeTransport()), settings: try judgeSettings()
+        )
+
+        let result = await judge.score([Self.run(output: "Hello there.")], samples: [Self.sample])
+
+        let run = try #require(result.runs.first)
+        #expect(Set(run.failures) == ["embedding-failed"])
+        #expect(run.scores.embedding == nil)
+        #expect(result.info.embeddingErrors == ["malformed response"])
+    }
+
     /// Stated sensitivity: scoring a run that has no output (a provider error) would
     /// send nothing to judge and invent coefficients.
     @Test

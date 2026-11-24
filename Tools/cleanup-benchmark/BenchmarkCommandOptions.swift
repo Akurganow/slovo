@@ -136,7 +136,7 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
         after argument: String,
         from iterator: inout ArraySlice<String>.Iterator
     ) throws -> String {
-        guard let value = iterator.next(), !value.hasPrefix("--") else {
+        guard let value = iterator.next(), !value.hasPrefix("--"), value != "-h" else {
             throw CleanupBenchmarkCommandError.missingValue(argument)
         }
         return value
@@ -159,6 +159,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case outputsFileStyleMismatch(String)
     case outputsFileIsAnotherInput(String)
     case duplicateSampleId(String)
+    case noSamples
     case outputsFilePromptMismatch
     case baselineUnreadable(String)
     case invalidJudgeSettings
@@ -170,7 +171,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
             true
         case .helpRequested, .invalidValue, .missingValue, .unknownArgument, .requires, .noBaselineEntry,
              .repetitionsMismatch, .outputsFileDatasetMismatch, .outputsFileStyleMismatch,
-             .outputsFileIsAnotherInput, .duplicateSampleId, .outputsFilePromptMismatch,
+             .outputsFileIsAnotherInput, .duplicateSampleId, .noSamples, .outputsFilePromptMismatch,
              .baselineUnreadable, .invalidJudgeSettings:
             false
         }
@@ -209,6 +210,8 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
             return "--outputs-file names the same file as \(other); name a separate file for the outputs"
         case .duplicateSampleId(let id):
             return "the sample file holds the id \(id) more than once; every sample needs its own id"
+        case .noSamples:
+            return "the sample file holds no samples, so there is nothing to run; give it at least one sample"
         case .outputsFilePromptMismatch:
             return "the outputs file was written under another cleanup prompt; name a new --outputs-file"
         case .outputsFileStyleMismatch(let style):

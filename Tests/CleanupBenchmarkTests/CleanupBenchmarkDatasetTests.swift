@@ -102,6 +102,18 @@ struct CleanupBenchmarkDatasetTests {
         }
     }
 
+    /// Stated sensitivity: an empty sample list runs nothing and prints an empty report with
+    /// exit 0, so a loader that accepts it lets a run pass with no sample measured; both file
+    /// shapes must be refused → RED.
+    @Test
+    func emptySampleListIsRefused() {
+        for data in [Data("[]".utf8), Data(#"{"samples": []}"#.utf8)] {
+            #expect(throws: CleanupBenchmarkCommandError.noSamples) {
+                try CleanupBenchmarkSampleLoader.decode(data)
+            }
+        }
+    }
+
     /// Stated sensitivity: a committed baseline that does not decode fails every
     /// `--baseline` run; the committed file must parse as the file model.
     @Test

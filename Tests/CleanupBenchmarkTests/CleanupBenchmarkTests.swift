@@ -10,9 +10,10 @@ struct CleanupBenchmarkTests {
     /// The raws are samples `code-switching-git-pr-01` and `code-switching-swift-tools-03` of
     /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
     ///
-    /// Stated sensitivity: a runner that times only one provider, reuses one
-    /// provider output for all candidates, skips samples, or compares providers
-    /// in candidate-major batches will miss the recorded interleaved call matrix.
+    /// Stated sensitivity: a runner that times only one provider, skips samples, or compares
+    /// providers in candidate-major batches will miss the recorded interleaved call matrix.
+    /// A runner that reuses the first candidate's output for every candidate → RED on the
+    /// output assertion.
     @Test
     func runnerInvokesEveryCandidateForEverySampleAndRecordsTiming() async {
         let samples = [
@@ -41,6 +42,12 @@ struct CleanupBenchmarkTests {
         #expect(report.runs.map(\.durationNanoseconds) == [10, 20, 30, 40])
         #expect(report.runs.map(\.sampleId) == ["one", "one", "two", "two"])
         #expect(report.runs.map(\.candidateName) == ["fake-a:a", "fake-b:b", "fake-a:a", "fake-b:b"])
+        #expect(report.runs.map(\.output) == [
+            "Запушь PR в GitHub, пожалуйста.",
+            "Запусти swift test, потом swiftlint analyze.",
+            "Запушь PR в GitHub, пожалуйста.",
+            "Запусти swift test, потом swiftlint analyze.",
+        ])
         #expect(await first.rawInputs() == ["Ну вот запушь PR в GitHub, пожалуйста.", "запусти swift test потом swiftlint analyze"])
         #expect(await second.rawInputs() == ["Ну вот запушь PR в GitHub, пожалуйста.", "запусти swift test потом swiftlint analyze"])
         #expect(await first.modelInputs() == ["a", "a"])
@@ -52,12 +59,12 @@ struct CleanupBenchmarkTests {
     ///
     /// Stated sensitivity: an option whose value is the next flag takes the flag as its
     /// value, so `--outputs-file --failure-breakdown` names a file `--failure-breakdown`
-    /// and the flag is lost after paid runs; each value-taking option must refuse it as a
-    /// missing value.
-    @Test(arguments: ["--outputs-file", "--write-baseline", "--providers", "--samples"])
-    func optionValueThatIsAFlagIsMissing(option: String) {
+    /// and the flag is lost after paid runs; each value-taking option must refuse a flag,
+    /// `-h` included, as a missing value → RED.
+    @Test(arguments: ["--outputs-file", "--write-baseline", "--providers", "--samples"], ["--failure-breakdown", "-h"])
+    func optionValueThatIsAFlagIsMissing(option: String, flag: String) {
         #expect(throws: CleanupBenchmarkCommandError.missingValue(option)) {
-            try CleanupBenchmarkCommandOptions.parse([option, "--failure-breakdown"][...])
+            try CleanupBenchmarkCommandOptions.parse([option, flag][...])
         }
     }
 
@@ -96,12 +103,12 @@ struct CleanupBenchmarkTests {
         #expect(timerDurationsConsumed)
     }
 
-    /// Stated sensitivity: a driver that builds the judge or sends a request without
-    /// `--judge` makes the CI smoke stage call the network, and fails this test.
+    /// Stated sensitivity: a driver that calls `makeTransport` without `--judge` makes the CI
+    /// smoke stage reach the network; the factory throws here, so that run exits 64 → RED.
     @Test
     func commandDriverWithoutJudgeSendsNothingAndIssuesNoVerdict() async throws {
-        let transport = FakeJudgeTransport()
-        let driver = CleanupBenchmarkCommandDriver(makeTransport: { _ in transport })
+        struct TransportMadeWithoutJudge: Error {}
+        let driver = CleanupBenchmarkCommandDriver(makeTransport: { _ in throw TransportMadeWithoutJudge() })
 
         let result = await driver.run(arguments: ["--providers", "passthrough"], environment: [:])
 
@@ -110,7 +117,6 @@ struct CleanupBenchmarkTests {
         #expect(result.stdout.contains("passthrough:none,55,0,"))
         #expect(!result.stdout.contains("verdict"))
         #expect(result.stderr.isEmpty)
-        #expect(transport.recorded().isEmpty)
     }
 
     /// Stated sensitivity: an exit code that ignores failed runs lets a provider

@@ -312,7 +312,7 @@ jobs:
           git fetch --quiet origin main
           tip="$(git rev-parse origin/main)"
           if [ "$tip" != "$started" ]; then
-            echo "::warning::main is at ${tip}, not at ${started} where this run started. Nothing is committed. The next release records the baseline."
+            echo "::warning::main is at ${tip}, not at ${started} where this run started. Nothing is committed. Dispatch the workflow on settled \`main\` to record the baseline."
             exit 0
           fi
           recorded="${RUNNER_TEMP}/cleanup-baseline/baseline.json"
@@ -381,7 +381,7 @@ jobs:
           echo "url=${url}" >> "$GITHUB_OUTPUT"
       - name: Write the release note
         # Also after a failed pull-request step, so the release still carries the warning.
-        if: ${{ !cancelled() && needs.benchmark.outputs.outcome != 'record' }}
+        if: ${{ !cancelled() }}
         # An edit by `GITHUB_TOKEN` starts no workflow run (github/docs 801373e,
         # data/reusables/actions/actions-do-not-trigger-workflows.md). A dispatch has no
         # release, so its note goes to the run summary.
@@ -420,6 +420,9 @@ jobs:
               echo
               echo "Run: ${run_url}"
             } > "$note"
+          elif [ "$OUTCOME" = "record" ]; then
+            # No note: the release keeps its body, and an earlier benchmark section goes.
+            : > "$note"
           else
             echo "::error::No release note is written for the outcome '${OUTCOME}'."
             exit 1
@@ -441,12 +444,16 @@ jobs:
             {
               if [ -s "${RUNNER_TEMP}/release-kept.md" ]; then
                 cat "${RUNNER_TEMP}/release-kept.md"
-                echo
+                # A blank line separates the kept body from a note. A recorded run has no note.
+                if [ -s "$note" ]; then echo; fi
               fi
               cat "$note"
             } > "${RUNNER_TEMP}/release-notes.md"
             gh release edit "$VERSION" --notes-file "${RUNNER_TEMP}/release-notes.md"
           else
-            cat "$note" >> "$GITHUB_STEP_SUMMARY"
-            echo "::warning::${title}. The run summary has the note."
+            # A recorded dispatch has no note: nothing goes to the summary and no warning.
+            if [ -s "$note" ]; then
+              cat "$note" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::${title}. The run summary has the note."
+            fi
           fi

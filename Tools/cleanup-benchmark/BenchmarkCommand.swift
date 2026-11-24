@@ -174,16 +174,30 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     }
 
     /// The outputs file is appended to, so a path shared with an input would corrupt it, or lose
-    /// the paid runs when the baseline is written over it.
+    /// the paid runs when the baseline is written over it. A symbolic link has another path and
+    /// its own identifier, so the identifiers are read from the resolved paths; a hard link
+    /// shares the identifier of its file. An outputs file that does not exist has none.
     private static func refuseOutputsFileOverAnotherInput(_ options: CleanupBenchmarkCommandOptions) throws {
         guard let outputs = options.outputsFilePath else { return }
+        let outputsURL = URL(fileURLWithPath: outputs)
+        let outputsIdentifier = try? outputsURL.resolvingSymlinksInPath()
+            .resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier
         func same(_ path: String?) -> Bool {
-            path.map { URL(fileURLWithPath: $0).standardizedFileURL == URL(fileURLWithPath: outputs).standardizedFileURL } ?? false
+            guard let path else { return false }
+            let input = URL(fileURLWithPath: path)
+            if input.standardizedFileURL == outputsURL.standardizedFileURL { return true }
+            guard let outputsIdentifier,
+                  let identifier = try? input.resolvingSymlinksInPath()
+                      .resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier
+            else { return false }
+            return identifier.isEqual(outputsIdentifier)
         }
         for (name, path) in [
             ("--samples", options.samplesPath ?? CleanupBenchmarkDefaults.defaultSamplesPath),
             ("--baseline", options.baselinePath),
             ("--write-baseline", options.writeBaselinePath),
+            ("--env-file", options.envFile),
+            ("judge settings", CleanupBenchmarkJudgeSettings.defaultPath),
         ] where same(path) {
             throw CleanupBenchmarkCommandError.outputsFileIsAnotherInput(name)
         }

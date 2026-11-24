@@ -78,7 +78,11 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
             provider: embedding.provider
         ))
         let response = try Self.decode(Response.self, from: try await transport.post(path: embedding.path, body: body))
-        guard response.data.map(\.index).sorted() == Array(0..<texts.count) else {
+        // `cosine` returns 0 for an empty vector or one of another length, with no failure: refuse the batch here.
+        let lengths = Set(response.data.map(\.embedding.count))
+        guard response.data.map(\.index).sorted() == Array(0..<texts.count),
+              !lengths.contains(0), lengths.count <= 1
+        else {
             throw CleanupBenchmarkJudgeError.malformedResponse
         }
         return CleanupBenchmarkEmbeddings(
