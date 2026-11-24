@@ -46,18 +46,20 @@ struct CleanupBenchmarkDatasetTests {
     }
 
     /// Stated sensitivity: settings with no repeats or no questions leave every output
-    /// unscored with no error; they must be refused when read, before any paid call. The
-    /// committed file decodes and names five questions.
-    @Test
-    func judgeSettingsNeedAtLeastOneRepeatAndOneQuestion() throws {
-        #expect(try judgeSettings().jev.questions.count == 5)
-
-        let path = CleanupBenchmarkJudgeSettings.defaultPath
-        let text = try String(contentsOfFile: path, encoding: .utf8)
-        let noRepeats = text.replacingOccurrences(of: #""repeats": 3"#, with: #""repeats": 0"#)
-        #expect(noRepeats != text)
+    /// unscored with no error; dropping either guard lets one of these decode, so they
+    /// are no longer refused before any paid call.
+    @Test(arguments: [
+        (repeats: 0, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#),
+        (repeats: 3, questions: "{}"),
+    ])
+    func judgeSettingsNeedAtLeastOneRepeatAndOneQuestion(repeats: Int, questions: String) {
+        let json = """
+        {"jev": {"model": "m", "path": "/p", "repeats": \(repeats), "questions": \(questions)},
+         "embedding": {"model": "e", "path": "/e", "prefix": "", "provider": {"order": [], "allow_fallbacks": false}},
+         "bar": {"floors": {"jev": 0.1, "embedding": 0.1, "fuzzy": 0.1}, "allowance": 0.05}}
+        """
         #expect(throws: CleanupBenchmarkCommandError.invalidJudgeSettings) {
-            try CleanupBenchmarkJudgeSettings.decode(Data(noRepeats.utf8))
+            try CleanupBenchmarkJudgeSettings.decode(Data(json.utf8))
         }
     }
 

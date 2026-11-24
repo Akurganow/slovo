@@ -191,8 +191,20 @@ struct CleanupBenchmarkBarTests {
             bar: settings.bar
         )
 
+        let otherPrefix = CleanupBenchmarkJudgeSettings(
+            jev: settings.jev,
+            embedding: CleanupBenchmarkJudgeSettings.Embedding(
+                model: settings.embedding.model,
+                path: settings.embedding.path,
+                prefix: "",
+                provider: settings.embedding.provider
+            ),
+            bar: settings.bar
+        )
+
         #expect(try looser.judgeSHA256() == settings.judgeSHA256())
         #expect(try fewer.judgeSHA256() != settings.judgeSHA256())
+        #expect(try otherPrefix.judgeSHA256() != settings.judgeSHA256())
     }
 
     /// Stated sensitivity: retrying a 400 or a 401 spends the attempts on a request that

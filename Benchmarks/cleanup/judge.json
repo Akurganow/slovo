@@ -1,6 +1,6 @@
 {
   "jev": {
-    "model": "typesafe/jev-1.14",
+    "model": "typesafe/jev-1.14-20261014",
     "path": "/api/alpha/decisions",
     "repeats": 3,
     "questions": {
@@ -47,7 +47,9 @@
     "path": "/api/v1/embeddings",
     "prefix": "Instruct: Retrieve semantically similar text.\nQuery:",
     "provider": {
-      "order": [],
+      "order": [
+        "nebius"
+      ],
       "allow_fallbacks": false
     }
   },

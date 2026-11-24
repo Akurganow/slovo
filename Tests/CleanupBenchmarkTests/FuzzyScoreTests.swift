@@ -5,8 +5,8 @@ import Testing
 @Suite("Cleanup benchmark fuzzy score")
 struct FuzzyScoreTests {
     /// Stated sensitivity: dropping the word sort in the wrapper's `token_sort_ratio`
-    /// call, or handing RapidFuzz ids it reads as whitespace, scores swapped words
-    /// below 100.
+    /// call scores swapped words below 100. Ids RapidFuzz would read as whitespace
+    /// are caught by `missingCombiningMarkCostsOneCharacter`.
     @Test
     func swappedWordsScoreOne() {
         #expect(FuzzyScore.tokenSort("проверь latency на staging", "staging на проверь latency") == 1)
@@ -30,6 +30,9 @@ struct FuzzyScoreTests {
     @Test
     func foldingIgnoresCasingPunctuationAndYo() {
         #expect(FuzzyScore.tokenSort("Ёлка, ёлка!", "елка  елка") == 1)
+        // The word tokenizer keeps an inner apostrophe or decimal point inside a word;
+        // folding has to turn it into a space first.
+        #expect(FuzzyScore.tokenSort("don't 3.5", "don t 3 5") == 1)
         #expect(FuzzyScore.tokenSort("a", "b") == 0)
     }
 

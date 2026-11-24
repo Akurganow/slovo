@@ -96,8 +96,9 @@ calls it yet.
 
 `judge.json` holds the judge's settings: the Jev model, path, repeats and
 questions, the embedding model, prefix and provider-routing object, and the bar's
-floors and allowance. `embedding.provider.order` is empty until a calibration run
-records the provider that served the embeddings.
+floors and allowance. `embedding.provider.order` names the one provider every
+embeddings request goes to, with fallbacks off, so every run scores with the same
+weights.
 
 Sources for what the settings name, all documentation without a published
 revision: the Jev request and response shapes are those of OpenRouter's decisions
