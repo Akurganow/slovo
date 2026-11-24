@@ -1,12 +1,12 @@
 import Foundation
 
-/// A coefficient's slack (1 − coefficient) on one sample: its mean across a
+/// A coefficient's slack (1 − coefficient) on one sample: the largest across a
 /// candidate's repetitions.
 public struct CleanupBenchmarkSlack: Codable, Equatable, Sendable {
-    public let mean: Double
+    public let largest: Double
 
-    public init(mean: Double) {
-        self.mean = mean
+    public init(largest: Double) {
+        self.largest = largest
     }
 }
 
@@ -134,22 +134,22 @@ public struct CleanupBenchmarkVerdict: Equatable, Sendable {
 }
 
 /// The bar: a candidate's run on a sample is within slack when, for every
-/// coefficient, its slack is at most the baseline's mean slack plus the
+/// coefficient, its slack is at most the baseline's largest slack on that sample plus the
 /// coefficient's floor. A candidate passes when the runs not within slack number
 /// at most the allowance's share of the row's runs, and at least one, overall and
 /// in every category.
 public enum CleanupBenchmarkBar {
-    /// The mean slack of runs that are complete, one sample's repetitions.
+    /// The largest slack of runs that are complete, one sample's repetitions.
     public static func slack(of runs: [CleanupBenchmarkRun]) -> CleanupBenchmarkBaselineSample {
         CleanupBenchmarkBaselineSample(
-            fuzzy: meanSlack(runs.compactMap(\.scores.fuzzy)),
-            embedding: meanSlack(runs.compactMap(\.scores.embedding)),
-            jev: meanSlack(runs.compactMap(\.scores.jev))
+            fuzzy: largestSlack(runs.compactMap(\.scores.fuzzy)),
+            embedding: largestSlack(runs.compactMap(\.scores.embedding)),
+            jev: largestSlack(runs.compactMap(\.scores.jev))
         )
     }
 
     /// The entry for one candidate from its runs over the dataset. Every run must be
-    /// complete: an empty output or a judge failure would raise a mean and loosen
+    /// complete: an empty output or a judge failure would raise a largest slack and loosen
     /// the bar for good.
     public static func makeEntry(
         candidateName: String,
@@ -206,10 +206,10 @@ public enum CleanupBenchmarkBar {
     }
 
     private static func within(_ slack: Double, _ baseline: CleanupBenchmarkSlack, floor: Double) -> Bool {
-        slack <= baseline.mean + floor + slackTolerance
+        slack <= baseline.largest + floor + slackTolerance
     }
 
-    private static func meanSlack(_ coefficients: [Double]) -> CleanupBenchmarkSlack {
-        CleanupBenchmarkSlack(mean: coefficients.map { 1 - $0 }.reduce(0, +) / Double(coefficients.count))
+    private static func largestSlack(_ coefficients: [Double]) -> CleanupBenchmarkSlack {
+        CleanupBenchmarkSlack(largest: coefficients.map { 1 - $0 }.max() ?? 0)
     }
 }

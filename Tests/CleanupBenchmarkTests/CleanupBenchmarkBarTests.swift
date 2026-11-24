@@ -7,8 +7,8 @@ struct CleanupBenchmarkBarTests {
     private static let floors = CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0.15, embedding: 0.02, fuzzy: 0.05)
     private static let bar = CleanupBenchmarkJudgeSettings.Bar(floors: floors, allowance: 0.05)
 
-    /// Every coefficient has mean slack 0.10, so the floors decide.
-    private static let slack = CleanupBenchmarkSlack(mean: 0.10)
+    /// Every coefficient has largest slack 0.10, so the floors decide.
+    private static let slack = CleanupBenchmarkSlack(largest: 0.10)
     private static let flat = CleanupBenchmarkBaselineSample(fuzzy: slack, embedding: slack, jev: slack)
 
     private static func scores(fuzzy: Double = 0.90, embedding: Double = 0.90, jev: Double = 0.90) -> CleanupBenchmarkScores {
@@ -28,12 +28,12 @@ struct CleanupBenchmarkBarTests {
         )
     }
 
-    /// Stated sensitivity: a margin of twice the floor moves the edge past a slack of mean
-    /// plus floor; a margin of zero puts that slack out; a floor applied to the wrong
+    /// Stated sensitivity: a margin of twice the floor moves the edge past a slack of the
+    /// baseline's largest plus floor; a margin of zero puts that slack out; a floor applied to the wrong
     /// coefficient moves the line for it. Each coefficient sits at its edge, then one
     /// step past it.
     @Test
-    func slackIsWithinMeanPlusTheFloor() {
+    func slackIsWithinTheBaselinesLargestPlusTheFloor() {
         let atEdge = Self.scores(fuzzy: 0.85, embedding: 0.88, jev: 0.75)
         #expect(CleanupBenchmarkBar.isWithinSlack(atEdge, baseline: Self.flat, floors: Self.floors))
         for past in [
@@ -104,18 +104,24 @@ struct CleanupBenchmarkBarTests {
         #expect(!Self.verdict([]).passed)
     }
 
-    /// Stated sensitivity: a slack taken from the largest repetition, or from a
-    /// coefficient other than its own, leaves these pinned means.
+    /// Stated sensitivity: a centre that is the mean of the repetitions (1/6, 0.2 and 0.4
+    /// here), the smallest, or a coefficient other than its own leaves these pinned
+    /// largest slacks; with no floor, the mean would put the worst baseline run out of
+    /// its own slack.
     @Test
-    func slackIsTheMeanOverTheRepetitions() {
+    func centreIsTheLargestSlackOverTheRepetitions() {
         let runs = [(0.95, 0.90, 0.50), (0.70, 0.90, 0.50), (0.85, 0.60, 0.80)].map { fuzzy, embedding, jev in
             Self.run("s", .shortSmoke, Self.scores(fuzzy: fuzzy, embedding: embedding, jev: jev))
         }
         let sample = CleanupBenchmarkBar.slack(of: runs)
 
-        #expect(abs(sample.fuzzy.mean - 0.5 / 3) < 1e-9)
-        #expect(abs(sample.embedding.mean - 0.2) < 1e-9)
-        #expect(abs(sample.jev.mean - 0.4) < 1e-9)
+        #expect(abs(sample.fuzzy.largest - 0.30) < 1e-9)
+        #expect(abs(sample.embedding.largest - 0.40) < 1e-9)
+        #expect(abs(sample.jev.largest - 0.50) < 1e-9)
+        let noFloors = CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0, embedding: 0, fuzzy: 0)
+        for run in runs {
+            #expect(CleanupBenchmarkBar.isWithinSlack(run.scores, baseline: sample, floors: noFloors))
+        }
     }
 
     /// Stated sensitivity: a lookup that ignores the candidate's own entry judges

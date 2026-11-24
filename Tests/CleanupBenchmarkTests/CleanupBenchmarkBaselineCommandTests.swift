@@ -33,7 +33,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(good.snapshots == ["fake/embedding-snapshot", "fake/jev-snapshot"])
         #expect(good.datasetSHA256.count == 64)
         #expect(good.judgeSHA256.count == 64)
-        #expect(abs((good.samples["one"]?.jev.mean ?? 0) - 0.05) < 1e-9)
+        #expect(abs((good.samples["one"]?.jev.largest ?? 0) - 0.05) < 1e-9)
         #expect(file.candidates["other:untouched"]?.datasetSHA256 == "x")
     }
 

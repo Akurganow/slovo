@@ -81,12 +81,12 @@ Slack is 1 minus the coefficient. Every model scores against the same
 references: an entry is never a separate expected result for that model.
 
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
-  sample and coefficient an entry holds the mean slack across the repetitions,
+  sample and coefficient an entry holds the largest slack across the repetitions,
   plus the response models that scored the runs, the SHA-256 of the dataset file
   and the SHA-256 of the judge's settings (the Jev and embedding sections of
   `judge.json`).
 - A run on a sample is within a model's recorded slack when, for each
-  coefficient, its slack is at most the entry's mean plus the coefficient's floor
+  coefficient, its slack is at most the entry's largest slack on that sample plus the coefficient's floor
   (the floors are in `judge.json`).
 - A candidate passes when, overall and in every category, the runs not within
   slack number at most the allowance's share of the row's runs (`judge.json`),
