@@ -386,7 +386,9 @@ warning in the release notes. A red run leaves the release as it shipped, and th
 **Re-running.** "Re-run" on a run of this workflow is a paid run of the whole
 catalogue. The artifact upload sets `overwrite`, so the second run replaces the first
 run's artifact (see [When `publish` fails](#when-publish-fails) for why the default
-fails). A re-run that finds its release note already written adds nothing, and its
+fails). A re-run replaces any earlier `## Cleanup benchmark:` section of the release note
+with its own, so the release keeps one section with the latest outcome and link and
+the rest of the text as it was. Its
 baseline branch, for a stale baseline or a degradation, carries the run attempt, so it
 does not reuse the first attempt's branch.
 

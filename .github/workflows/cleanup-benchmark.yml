@@ -426,13 +426,26 @@ jobs:
           fi
           if [ -n "$VERSION" ]; then
             gh release view "$VERSION" --json body -q .body > "${RUNNER_TEMP}/release-body.md"
-            # A note already on the release is not added twice.
-            if grep -qxF "## ${title}" "${RUNNER_TEMP}/release-body.md"; then
-              echo "The release ${VERSION} already has the note '## ${title}'. No edit."
-            else
-              { cat "${RUNNER_TEMP}/release-body.md"; echo; cat "$note"; } > "${RUNNER_TEMP}/release-notes.md"
-              gh release edit "$VERSION" --notes-file "${RUNNER_TEMP}/release-notes.md"
-            fi
+            # The current note replaces any earlier one, so a re-run leaves one section with
+            # its own outcome and link. A section runs from its `## Cleanup benchmark:`
+            # heading to the next `## ` heading or the end; the blank lines before it go
+            # with it only at the end. Every other line stays as it was.
+            awk '
+              /^## Cleanup benchmark:/ { skip = 1; next }
+              skip && /^## / { skip = 0 }
+              skip { next }
+              /^$/ { blanks = blanks "\n"; next }
+              { printf "%s%s\n", blanks, $0; blanks = "" }
+              END { if (!skip) printf "%s", blanks }
+            ' "${RUNNER_TEMP}/release-body.md" > "${RUNNER_TEMP}/release-kept.md"
+            {
+              if [ -s "${RUNNER_TEMP}/release-kept.md" ]; then
+                cat "${RUNNER_TEMP}/release-kept.md"
+                echo
+              fi
+              cat "$note"
+            } > "${RUNNER_TEMP}/release-notes.md"
+            gh release edit "$VERSION" --notes-file "${RUNNER_TEMP}/release-notes.md"
           else
             cat "$note" >> "$GITHUB_STEP_SUMMARY"
             echo "::warning::${title}. The run summary has the note."
