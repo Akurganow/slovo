@@ -22,7 +22,11 @@ Components bundled in the shipped app:
 
 Not bundled: `swift-argument-parser` (Apache-2.0) is resolved by the package graph
 but not linked into the shipped executable, and `SwiftLintPlugins` is a build-time
-lint tool only — neither is redistributed, so neither is reproduced here.
+lint tool only — neither is redistributed, so neither is reproduced here. The same
+holds for rapidfuzz-cpp (MIT, copyright Max Bachmann and Adam Cohen), vendored
+under `Tools/cleanup-benchmark-fuzz` for the cleanup benchmark only: release
+`v3.3.4`, commit `82662f3623b3ca3645e543f677fc32fb8bd1fb95`, with its license file
+kept beside the header. Only the benchmark library links it, never the app.
 
 Sparkle's own license file (reproduced below) carries the four external notices for
 the code it vendors. The shipped `Sparkle.framework` binary artifact does not embed

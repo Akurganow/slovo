@@ -62,8 +62,9 @@ nohup bash -c '
     echo "[$(date "+%F %T")] heartbeat: running, elapsed $(( (SECONDS - START) / 60 )) min" >> "$RUN_DIR/run.log"
   done
   wait "$BENCH_PID"; CODE=$?
-  # The CLI exits 0 only when EVERY run passed quality; 2 means the run
-  # completed and some quality checks failed — normal for any real model.
+  # The CLI exits 0 when no run failed and no verdict failed; 2 means the run
+  # completed and a run failed (provider error, empty output) — normal for a
+  # flaky provider.
   if [ "$CODE" -eq 0 ] || [ "$CODE" -eq 2 ]; then
     echo "DONE" > "$RUN_DIR/status"
     echo "[$(date "+%F %T")] finished (exit $CODE) after $(( (SECONDS - START) / 60 )) min; report: $RUN_DIR/report.csv" >> "$RUN_DIR/run.log"

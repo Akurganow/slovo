@@ -357,6 +357,9 @@ is a file's content, the entry names the file.
   rule, enables every analyzer rule and turns off update checks.
 - `.swiftlint.yml` never disables the concurrency-annotation rule or the
   unused-import rule, in any YAML spelling.
+- Only the `CleanupBenchmark` library target links the vendored fuzzy target
+  `CleanupBenchmarkFuzz`, and the app target links no judge dependency.
+  `Package.swift` lists the fuzzy target as a dependency of no other target.
 
 ## At most once
 
