@@ -341,13 +341,15 @@ is a file's content, the entry names the file.
   key holds no deploy key and no write token. Only the `record` job names the
   `release-push` environment and holds `contents: write` and `pull-requests: write`.
 - A degradation or a stale baseline ends the `benchmark` job green with its
-  `outcome` set. A real error or a refused push turns the run red. No step of the
+  `outcome` set. A real error, a refused push or a refused pull-request
+  creation turns the run red. No step of the
   workflow sets `continue-on-error`. The record commit is made only while `main`'s
   tip is the commit the run started from.
-- The headers `chore(benchmark): record the cleanup baseline for …` and
-  `chore(benchmark): re-record the cleanup baseline for …` are non-releasable, so
-  `decide` finds nothing to release, and they carry no skip token, so their push
-  runs trunk verification.
+- The headers `chore(benchmark): record the cleanup baseline for …`,
+  `chore(benchmark): re-record the cleanup baseline for …` and
+  `chore(benchmark): accept the degraded cleanup baseline for …` are
+  non-releasable, so `decide` finds nothing to release, and they carry no skip
+  token, so their push runs trunk verification.
 
 ## Notices
 

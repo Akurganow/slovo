@@ -340,12 +340,17 @@ that failed. It is kept for seven days and is uploaded even after a red step.
   non-fast-forward, so its publish is refused. A moved `main` is when such a run can
   exist.
 - **A degradation.** A model failed the bar against its own entry. Nothing is
-  committed and the artifact stays. The release note gains a section, "Cleanup
-  benchmark: degradation", listing each such model and category with its misses
-  against the allowed misses. A dispatch has no release, so the same text goes to
-  the run summary. To accept the degradation, a person opens a pull request with the
-  `baseline.json` of the run's `cleanup-baseline` artifact. The command wrote that
-  file, so the change is not a hand edit.
+  committed to `main`. The job pushes the run's fresh entries on a branch named as
+  for a stale baseline below, and opens a pull request into `main` headed
+  `chore(benchmark): accept the degraded cleanup baseline for <release or short
+  commit id>`. Its body names each failed model and category with its misses against
+  the allowed misses. Merging it accepts the degradation, and closing it declines.
+  Merging replaces the entry of every model in that run, not only the listed ones.
+  With several baseline pull requests open, merge only the newest and close the
+  older ones.
+  The release note gains a section, "Cleanup benchmark: degradation", with the same
+  list, that links the pull request. A dispatch has no release, so the same text goes
+  to the run summary.
 - **A stale baseline.** An entry was recorded on another dataset file, judge
   settings, bar scheme or style. The tool refuses before any request. The job runs
   it again without a baseline to record new entries, pushes them on a branch
@@ -354,10 +359,10 @@ that failed. It is kept for seven days and is uploaded even after a red step.
   <release or short commit id>`. The release note gains a section, "Cleanup
   benchmark: stale baseline", that links the pull request.
 
-The stale-baseline pull request needs two acts by a person with admin or write
-access, and no workflow does either:
+The baseline pull requests, for a stale baseline and for a degradation, need two acts
+by a person with admin or write access, and no workflow does either:
 
-1. Before the first stale run, turn on the repository setting **Allow GitHub Actions
+1. Before the first such run, turn on the repository setting **Allow GitHub Actions
    to create and approve pull requests** (Settings → Actions → General → Workflow
    permissions). `GITHUB_TOKEN` creates a pull request only while it is on
    ([Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository),
@@ -370,19 +375,20 @@ access, and no workflow does either:
    request confirms this behaviour, because it is gated by a feature flag in that
    revision.
 
-**Red and green.** A real error turns the run red, and so does a failed push or a
-failed release-note edit. The exit codes in
+**Red and green.** A real error turns the run red, and so does a failed push, a
+refused pull-request creation or a failed release-note edit. The release note is
+still written after a refused pull-request creation, and says so. The exit codes in
 [`Benchmarks/cleanup/README.md`](../Benchmarks/cleanup/README.md) say which exits are
-errors. A degradation or a stale baseline ends the run green, with a warning in the
-release notes. A red run leaves the release as it shipped, and the gate is still the
+errors. A degradation or a stale baseline ends the `benchmark` job green, with a
+warning in the release notes. A red run leaves the release as it shipped, and the gate is still the
 `test` job of the Release run.
 
 **Re-running.** "Re-run" on a run of this workflow is a paid run of the whole
 catalogue. The artifact upload sets `overwrite`, so the second run replaces the first
 run's artifact (see [When `publish` fails](#when-publish-fails) for why the default
 fails). A re-run that finds its release note already written adds nothing, and its
-stale-baseline branch carries the run attempt, so it does not reuse the first
-attempt's branch.
+baseline branch, for a stale baseline or a degradation, carries the run attempt, so it
+does not reuse the first attempt's branch.
 
 ## Changelog
 

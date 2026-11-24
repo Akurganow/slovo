@@ -72,10 +72,11 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   it. It changes only `CHANGELOG.md` and the version fields of
   `Resources/Info.plist`. The Release run of its parent covers the rest of
   its tree.
-- **A baseline commit on `main`**, headed `chore(benchmark): record the
-  cleanup baseline for <release or commit>`, carries no skip token. Its own
-  Release run, a trunk verification, covers it. The cleanup benchmark that wrote
-  it is a run of its own, so the Release run's conclusion stays the gate's.
+- **A baseline commit on `main`**, any header `chore(benchmark): …`, carries no
+  skip token. That is the record commit and the squash of a merged baseline pull
+  request. Its own Release run, a trunk verification, covers each. The cleanup
+  benchmark that wrote the entries is a run of its own, so the Release run's
+  conclusion stays the gate's.
 - **A pull-request head:** the Swift run of `.github/workflows/swift.yml`
   for that head, which tests the pull request's merge result.
 - Cite the run by number and conclusion. A run cancelled because a newer

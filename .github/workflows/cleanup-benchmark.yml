@@ -1,9 +1,11 @@
 name: Cleanup Benchmark
 
 # Runs the cleanup benchmark over every catalogue model, judged, and keeps the
-# result as the baseline. It runs after a Release run that published a release
-# which changed a file that can change the cleanup output, and on a manual
-# dispatch on `main`. docs/release-ci.md, "Cleanup benchmark", has the rest.
+# result as the baseline: a pass is committed to `main`, a degradation or a stale
+# baseline opens a pull request with the fresh entries. It runs after a Release
+# run that published a release which changed a file that can change the cleanup
+# output, and on a manual dispatch on `main`. docs/release-ci.md, "Cleanup
+# benchmark", has the rest.
 #
 # A workflow of its own, not a job of release.yml: the Release run stays as it is,
 # so the benchmark can neither delay a release nor turn it red. A `workflow_run`
@@ -239,7 +241,7 @@ jobs:
             fi
           elif [ "$outcome" = degraded ]; then
             own="$(awk -F'\t' '$1 == $2 { print $1 }' "$failed" | names)"
-            echo "::warning::Failed the bar against its own entry: ${own}. No baseline is recorded."
+            echo "::warning::Failed the bar against its own entry: ${own}. No baseline is committed to main."
           fi
           echo "outcome=${outcome}" >> "$GITHUB_OUTPUT"
       - name: Upload the baseline and the report
@@ -278,8 +280,7 @@ jobs:
           name: cleanup-baseline
           path: ${{ runner.temp }}/cleanup-baseline
       - name: Check out main
-        # A degradation records nothing, so it needs no checkout and no key.
-        if: needs.benchmark.outputs.outcome != 'degraded'
+        # Every outcome may push to `main` or to a branch, so each needs the key.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
@@ -288,7 +289,6 @@ jobs:
           # commit and the branch push go over SSH as the deploy key.
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - name: Set the git identity
-        if: needs.benchmark.outputs.outcome != 'degraded'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -325,21 +325,41 @@ jobs:
           git commit -m "chore(benchmark): record the cleanup baseline for ${SUBJECT}"
           # A refused push fails the step. No retry, no rewrite.
           git push origin HEAD:main
-      - name: Open the stale-baseline pull request
+      - name: Format the degraded rows
+        # The pull request body and the release note list the same rows.
+        if: needs.benchmark.outputs.outcome == 'degraded'
+        run: |
+          set -euo pipefail
+          awk -F'\t' '$1 == $2 { printf "- `%s`, %s: %s misses, %s allowed\n", $1, $3, $4, $5 }' \
+            "${RUNNER_TEMP}/cleanup-baseline/failed-rows.tsv" > "${RUNNER_TEMP}/degraded-rows.md"
+      - name: Open the baseline pull request
         id: pr
-        if: needs.benchmark.outputs.outcome == 'stale'
+        if: needs.benchmark.outputs.outcome == 'stale' || needs.benchmark.outputs.outcome == 'degraded'
         # Needs the repository setting "Allow GitHub Actions to create and approve pull
         # requests" and a person's "Approve workflows to run" click (docs/release-ci.md,
         # "Cleanup benchmark", holds the citations).
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          OUTCOME: ${{ needs.benchmark.outputs.outcome }}
           SUBJECT: ${{ needs.changes.outputs.subject }}
         run: |
           set -euo pipefail
+          # The step runs for these two outcomes only.
+          if [ "$OUTCOME" = "stale" ]; then
+            title="chore(benchmark): re-record the cleanup baseline for ${SUBJECT}"
+            summary="The cleanup benchmark found its baseline stale for ${SUBJECT}: an entry was recorded on another dataset file, judge settings, bar scheme or style. ${SUBJECT} was not compared. This branch holds entries recorded by a run without a baseline."
+            detail=""
+          else
+            title="chore(benchmark): accept the degraded cleanup baseline for ${SUBJECT}"
+            summary="At ${SUBJECT}, a model failed the bar against its own recorded entry. Each model and category below had more misses than the entry allows. This branch holds the entries of that run."
+            detail="$(cat "${RUNNER_TEMP}/degraded-rows.md")
+
+          Merging this pull request accepts the degradation. Closing it declines. Merging replaces the entry of every model in this run, not only the listed ones.
+          "
+          fi
           # The attempt number keeps a re-run from pushing to the branch its first attempt made.
           branch="benchmark/baseline-${SUBJECT}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          title="chore(benchmark): re-record the cleanup baseline for ${SUBJECT}"
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           git switch --create "$branch"
           cp "${RUNNER_TEMP}/cleanup-baseline/baseline.json" Benchmarks/cleanup/baseline.json
@@ -347,17 +367,21 @@ jobs:
           git commit -m "$title"
           git push origin "$branch"
           body="${RUNNER_TEMP}/pr-body.md"
-          cat > "$body" <<EOF
-          The cleanup benchmark found its baseline stale for ${SUBJECT}: an entry was recorded on another dataset file, judge settings, bar scheme or style. ${SUBJECT} was not compared. This branch holds entries recorded by a run without a baseline.
-
-          Run: ${run_url}
-
-          The workflow opened this pull request, so its checks wait for "Approve workflows to run".
-          EOF
+          {
+            echo "$summary"
+            echo
+            if [ -n "$detail" ]; then
+              echo "$detail"
+            fi
+            echo "Run: ${run_url}"
+            echo
+            echo 'The workflow opened this pull request, so its checks wait for "Approve workflows to run". Merge only the newest baseline pull request and close older ones.'
+          } > "$body"
           url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
           echo "url=${url}" >> "$GITHUB_OUTPUT"
       - name: Write the release note
-        if: needs.benchmark.outputs.outcome != 'record'
+        # Also after a failed pull-request step, so the release still carries the warning.
+        if: ${{ !cancelled() && needs.benchmark.outputs.outcome != 'record' }}
         # An edit by `GITHUB_TOKEN` starts no workflow run (github/docs 801373e,
         # data/reusables/actions/actions-do-not-trigger-workflows.md). A dispatch has no
         # release, so its note goes to the run summary.
@@ -369,17 +393,19 @@ jobs:
           PR_URL: ${{ steps.pr.outputs.url }}
         run: |
           set -euo pipefail
-          failed="${RUNNER_TEMP}/cleanup-baseline/failed-rows.tsv"
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           note="${RUNNER_TEMP}/note.md"
+          pr_line="${PR_URL:-none: the pull request could not be opened, see the run}"
           if [ "$OUTCOME" = "degraded" ]; then
             title="Cleanup benchmark: degradation"
             {
               echo "## ${title}"
               echo
-              echo "A model failed the bar against its own recorded entry. The run recorded no baseline."
+              echo "A model failed the bar against its own recorded entry. The run committed no baseline to main."
               echo
-              awk -F'\t' '$1 == $2 { printf "- `%s`, %s: %s misses, %s allowed\n", $1, $3, $4, $5 }' "$failed"
+              cat "${RUNNER_TEMP}/degraded-rows.md"
+              echo
+              echo "Pull request: ${pr_line}"
               echo
               echo "Run: ${run_url}"
             } > "$note"
@@ -390,7 +416,7 @@ jobs:
               echo
               echo "The recorded baseline no longer matched the dataset, the judge settings, the bar scheme or the style, so this release was not compared."
               echo
-              echo "New entries: ${PR_URL}"
+              echo "New entries: ${pr_line}"
               echo
               echo "Run: ${run_url}"
             } > "$note"
