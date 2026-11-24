@@ -15,7 +15,7 @@ struct CleanupBenchmarkFailureBreakdownTests {
                 candidateName: "openai:gpt-test",
                 durationNanoseconds: 12_000_000,
                 output: "OUTPUT-SECRET",
-                failures: ["empty-output", "judge-error"],
+                failures: ["empty-output", "jev-refusal"],
                 errorKind: nil
             ),
             CleanupBenchmarkRun(
@@ -31,7 +31,7 @@ struct CleanupBenchmarkFailureBreakdownTests {
 
         #expect(rendered.contains("candidate,sample_index,failure,runs"))
         #expect(rendered.contains("openai:gpt-test,1,empty-output,2"))
-        #expect(rendered.contains("openai:gpt-test,1,judge-error,1"))
+        #expect(rendered.contains("openai:gpt-test,1,jev-refusal,1"))
         #expect(!rendered.contains("sample-secret"))
         #expect(!rendered.contains("OUTPUT-SECRET"))
         #expect(!rendered.contains("raw"))
@@ -43,13 +43,13 @@ struct CleanupBenchmarkFailureBreakdownTests {
     /// runs.
     @Test
     func commandDriverCanAppendFailureBreakdown() async {
-        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { plan in
             CleanupBenchmarkReport(runs: [
                 CleanupBenchmarkRun(
                     sampleId: "sample-secret",
-                    candidateName: candidates[0].name,
+                    candidateName: plan.candidates[0].name,
                     durationNanoseconds: 12_000_000,
-                    failures: ["judge-error"],
+                    failures: ["jev-refusal"],
                     errorKind: nil
                 ),
             ])
@@ -63,7 +63,7 @@ struct CleanupBenchmarkFailureBreakdownTests {
         #expect(result.exitCode == 2)
         #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
         #expect(result.stdout.contains("candidate,sample_index,failure,runs"))
-        #expect(result.stdout.contains("passthrough:none,1,judge-error,1"))
+        #expect(result.stdout.contains("passthrough:none,1,jev-refusal,1"))
         #expect(result.stdout.contains("candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
         #expect(result.stdout.contains("passthrough:none,uncategorized,1,1,12.0,12.0,,,"))
         #expect(!result.stdout.contains("sample-secret"))

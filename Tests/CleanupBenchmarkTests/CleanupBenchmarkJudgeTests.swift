@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 
 @testable import CleanupBenchmark
@@ -23,10 +24,7 @@ struct CleanupBenchmarkJudgeTests {
     }
 
     private static func judge(_ transport: FakeJudgeTransport, _ settings: CleanupBenchmarkJudgeSettings) -> CleanupBenchmarkJudge {
-        CleanupBenchmarkJudge(
-            client: CleanupBenchmarkJudgeClient(transport: transport, settings: settings),
-            settings: settings
-        )
+        CleanupBenchmarkJudge(transport: transport, settings: settings)
     }
 
     /// Stated sensitivity: dropping one of the three state fields, changing a question
@@ -44,7 +42,7 @@ struct CleanupBenchmarkJudgeTests {
         struct Body: Decodable {
             let model: String
             let state: [String: String]
-            let questions: [String: CleanupBenchmarkJSON]
+            let questions: [String: CleanupBenchmarkJudgeSettings.Question]
         }
         for decision in decisions {
             let body = try JSONDecoder().decode(Body.self, from: decision.body)
@@ -69,9 +67,7 @@ struct CleanupBenchmarkJudgeTests {
             "d": [0.9, 1.0, 0.8],
             "e": [0.1, 0.3, 0.2],
         ]
-        let keys: Dictionary<String, CleanupBenchmarkJSON>.Keys = ["a": .null, "b": .null, "c": .null, "d": .null, "e": .null].keys
-
-        let coefficient = CleanupBenchmarkJudge.jevCoefficient(values, questions: keys)
+        let coefficient = CleanupBenchmarkJudge.jevCoefficient(values)
 
         #expect(abs((coefficient ?? -1) - 0.2) < 1e-9)
     }
@@ -87,10 +83,9 @@ struct CleanupBenchmarkJudgeTests {
 
         let scores = try #require(result.runs.first).scores
         #expect(scores.jev == nil)
-        #expect(scores.judgeErrors == ["jev-refusal"])
         #expect(scores.fuzzy == 1)
         #expect(scores.embedding == 1)
-        #expect(result.runs.first?.failures == ["judge-error"])
+        #expect(result.runs.first?.failures == ["jev-refusal"])
     }
 
     /// Stated sensitivity: a prefix on one side only, or a cosine that is not the
@@ -107,7 +102,7 @@ struct CleanupBenchmarkJudgeTests {
         struct Body: Decodable {
             let model: String
             let input: [String]
-            let provider: CleanupBenchmarkJSON
+            let provider: CleanupBenchmarkJudgeSettings.Provider
         }
         let body = try JSONDecoder().decode(Body.self, from: try #require(embeddings.first).body)
         #expect(Set(body.input) == [settings.embedding.prefix + "WRONG text.", settings.embedding.prefix + "Hello there."])
@@ -129,5 +124,41 @@ struct CleanupBenchmarkJudgeTests {
 
         #expect(transport.recorded().isEmpty)
         #expect(result.runs.first?.scores == CleanupBenchmarkScores())
+    }
+
+    /// Stated sensitivity: a judge that scores in one batch and records at the end
+    /// loses every score when a process dies; `record` must see each run as it is
+    /// scored, with its failures and the models that answered. A rerun of a run that
+    /// failed earlier must drop the old judge failure code.
+    @Test
+    func recordSeesEachScoredRunAndRejudgingDropsOldJudgeFailures() async throws {
+        let settings = try judgeSettings()
+        let recorded = Mutex<[CleanupBenchmarkRun]>([])
+        var earlier = Self.run(output: "Hello there.")
+        earlier.failures = ["jev-request-failed", "embedding-failed"]
+
+        let result = await Self.judge(FakeJudgeTransport(), settings).score([earlier], samples: [Self.sample]) { run in
+            recorded.withLock { $0.append(run) }
+        }
+
+        let run = try #require(result.runs.first)
+        #expect(run.failures.isEmpty)
+        #expect(run.isComplete(judged: true))
+        #expect(run.scores.models == ["fake/embedding-snapshot", "fake/jev-snapshot"])
+        #expect(recorded.withLock { $0 } == [run])
+    }
+
+    /// Stated sensitivity: an embeddings batch that fails without a trace leaves every
+    /// run with `embedding-failed` and no cause; the cause must reach the info.
+    @Test
+    func failedEmbeddingsBatchIsNamedInTheInfo() async throws {
+        let settings = try judgeSettings()
+        let transport = FakeJudgeTransport()
+        transport.setDown(true)
+
+        let result = await Self.judge(transport, settings).score([Self.run(output: "Hello there.")], samples: [Self.sample])
+
+        #expect(result.info.embeddingErrors == ["HTTP status 500"])
+        #expect(Set(result.runs.first?.failures ?? []) == ["embedding-failed", "jev-request-failed"])
     }
 }

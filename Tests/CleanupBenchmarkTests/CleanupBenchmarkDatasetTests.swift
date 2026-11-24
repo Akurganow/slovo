@@ -45,24 +45,20 @@ struct CleanupBenchmarkDatasetTests {
         ])
     }
 
-    /// Stated sensitivity: judge settings that drift from the calibrated ones (a
-    /// question dropped or renamed, other repeats, another floor) change every
-    /// verdict, so the pinned keys and numbers go RED here.
+    /// Stated sensitivity: settings with no repeats or no questions leave every output
+    /// unscored with no error; they must be refused when read, before any paid call. The
+    /// committed file decodes and names five questions.
     @Test
-    func judgeSettingsFileCarriesTheCalibratedQuestionsAndBar() throws {
-        let settings = try judgeSettings()
+    func judgeSettingsNeedAtLeastOneRepeatAndOneQuestion() throws {
+        #expect(try judgeSettings().jev.questions.count == 5)
 
-        #expect(Set(settings.jev.questions.keys) == [
-            "keeps_meaning", "adds_nothing", "same_language", "plain_text", "matches_expected",
-        ])
-        #expect(settings.jev.repeats == 3)
-        #expect(settings.jev.model == "typesafe/jev-1.14")
-        #expect(settings.embedding.model == "qwen/qwen3-embedding-8b")
-        #expect(settings.embedding.prefix == "Instruct: Retrieve semantically similar text.\nQuery:")
-        #expect(settings.bar.floors.jev == 0.15)
-        #expect(settings.bar.floors.embedding == 0.02)
-        #expect(settings.bar.floors.fuzzy == 0.05)
-        #expect(settings.bar.allowance == 0.05)
+        let path = CleanupBenchmarkJudgeSettings.defaultPath
+        let text = try String(contentsOfFile: path, encoding: .utf8)
+        let noRepeats = text.replacingOccurrences(of: #""repeats": 3"#, with: #""repeats": 0"#)
+        #expect(noRepeats != text)
+        #expect(throws: CleanupBenchmarkCommandError.invalidJudgeSettings) {
+            try CleanupBenchmarkJudgeSettings.decode(Data(noRepeats.utf8))
+        }
     }
 
     /// Stated sensitivity: a committed baseline that does not decode fails every

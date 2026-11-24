@@ -6,12 +6,22 @@ public protocol CleanupBenchmarkTransport: Sendable {
     func post(path: String, body: Data) async throws -> Data
 }
 
-/// What the transport throws for a response the judge cannot use. It carries the
-/// status only: response bodies can echo the request text.
-public enum CleanupBenchmarkJudgeError: Error, Equatable, Sendable {
+/// What the judge's calls throw. It carries the status only: response bodies can
+/// echo the request text.
+public enum CleanupBenchmarkJudgeError: Error, Equatable, CustomStringConvertible, Sendable {
     case httpStatus(Int)
+    case network
     case malformedResponse
     case missingAnswer(String)
+
+    public var description: String {
+        switch self {
+        case .httpStatus(let status): "HTTP status \(status)"
+        case .network: "network error"
+        case .malformedResponse: "malformed response"
+        case .missingAnswer(let key): "no answer for question \(key)"
+        }
+    }
 }
 
 public struct CleanupBenchmarkEmbeddings: Equatable, Sendable {
@@ -47,7 +57,7 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
         struct Request: Encodable {
             let model: String
             let input: [String]
-            let provider: CleanupBenchmarkJSON
+            let provider: CleanupBenchmarkJudgeSettings.Provider
         }
         struct Response: Decodable {
             struct Item: Decodable {
@@ -83,7 +93,7 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
         struct Request: Encodable {
             let model: String
             let state: [String: String]
-            let questions: [String: CleanupBenchmarkJSON]
+            let questions: [String: CleanupBenchmarkJudgeSettings.Question]
         }
         struct Response: Decodable {
             struct Answer: Decodable {
@@ -135,11 +145,41 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
     }
 }
 
+/// When to try a failed request again. Network errors and the statuses OpenRouter
+/// documents as transient are retried; a 400 or a 401 never is.
+enum CleanupBenchmarkRetryPolicy {
+    enum Failure: Equatable {
+        case status(Int, retryAfter: Double?)
+        case network
+    }
+
+    static let attempts = 4
+    private static let longestWait = 30.0
+
+    /// Seconds to wait before the next attempt, or nil when the failure is final or
+    /// the attempts (counted from 0) are used up.
+    static func delay(after failure: Failure, attempt: Int) -> Double? {
+        guard attempt + 1 < attempts else { return nil }
+        switch failure {
+        case .network:
+            return backoff(attempt, retryAfter: nil)
+        case .status(let status, let retryAfter):
+            // OpenRouter's limits page names a transient 402 (`openrouter_in_flight_budget`)
+            // that is retried after `Retry-After`: https://openrouter.ai/docs/api/reference/limits.md
+            guard [402, 429].contains(status) || status >= 500 else { return nil }
+            return backoff(attempt, retryAfter: retryAfter)
+        }
+    }
+
+    private static func backoff(_ attempt: Int, retryAfter: Double?) -> Double {
+        min(retryAfter ?? Double(1 << attempt), longestWait)
+    }
+}
+
 /// The real transport: `https://openrouter.ai` with the key from the environment.
-/// It retries rate limits and server errors, honouring `Retry-After`.
+/// It is the network seam, so tests cover its retry policy and not the calls.
 public struct CleanupBenchmarkOpenRouterTransport: CleanupBenchmarkTransport {
     private static let baseURL = URL(string: "https://openrouter.ai")
-    private static let attempts = 4
     private let apiKey: String
 
     public init(apiKey: String) {
@@ -155,20 +195,32 @@ public struct CleanupBenchmarkOpenRouterTransport: CleanupBenchmarkTransport {
         request.httpBody = body
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var lastStatus = 0
-        for attempt in 0..<Self.attempts {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw CleanupBenchmarkJudgeError.malformedResponse
+        var attempt = 0
+        while true {
+            let failure: CleanupBenchmarkRetryPolicy.Failure
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    throw CleanupBenchmarkJudgeError.malformedResponse
+                }
+                if http.statusCode == 200 {
+                    return data
+                }
+                failure = .status(
+                    http.statusCode,
+                    retryAfter: http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init)
+                )
+            } catch is URLError {
+                failure = .network
             }
-            if http.statusCode == 200 {
-                return data
+            guard let delay = CleanupBenchmarkRetryPolicy.delay(after: failure, attempt: attempt) else {
+                if case .status(let status, _) = failure {
+                    throw CleanupBenchmarkJudgeError.httpStatus(status)
+                }
+                throw CleanupBenchmarkJudgeError.network
             }
-            lastStatus = http.statusCode
-            guard [402, 429].contains(http.statusCode) || http.statusCode >= 500 else { break }
-            let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init)
-            try await Task.sleep(for: .seconds(min(retryAfter ?? Double(1 << attempt), 30)))
+            try await Task.sleep(for: .seconds(delay))
+            attempt += 1
         }
-        throw CleanupBenchmarkJudgeError.httpStatus(lastStatus)
     }
 }

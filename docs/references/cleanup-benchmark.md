@@ -10,7 +10,7 @@ supplied from process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers catalog,passthrough \
+  --providers catalog \
   --repetitions 10 \
   --judge \
   --baseline Benchmarks/cleanup/baseline.json \
@@ -40,10 +40,9 @@ prompts, API keys, response bodies, or caller-provided sample ids. The opt-in
 `--outputs-file PATH` is the one place output text is written, one JSON line per
 run.
 
-The exit code is `0` when no run failed and every verdict passed, `2` when a run
-failed or a candidate failed the bar, and `64` when the arguments or files are
-unusable. The command never prompts, and the key comes from the environment or
-`--env-file`, so a CI step can call it.
+The exit code carries the verdict; `Benchmarks/cleanup/README.md`, "Running the
+judge", says how. The command never prompts, and the key comes from the environment
+or `--env-file`.
 
 ## Sample File
 
@@ -66,34 +65,23 @@ the `reference`, the expected cleanup. Other keys are ignored.
 
 ## Judge
 
-Each output is scored against the sample's reference by three coefficients, each
-from 0 to 1 (`Benchmarks/cleanup/README.md`, "What a pass means", holds the plain
-account):
+Each output is scored against the sample's reference by three coefficients
+(fuzzy, embedding, Jev). `Benchmarks/cleanup/README.md`, "What a pass means",
+holds the plain account, the bar and the flags; the settings live in
+`Benchmarks/cleanup/judge.json`. What the code adds to that:
 
-- **fuzzy:** RapidFuzz `token_sort_ratio` over the words, so word order never
-  matters. The texts are lowercased, `ё` is read as `е`, and every character that
-  is not a letter, a digit or a combining mark becomes a space. Apple's word
-  tokenizer splits the result, so Chinese, Japanese and Thai split into words.
-  Each distinct `Character` of the two texts becomes one integer id, so a letter
-  with its combining marks counts once. The library is vendored in
+- The fuzzy coefficient is RapidFuzz `token_sort_ratio` over the words, so word
+  order never matters. The texts are lowercased, `ё` is read as `е`, and every
+  character that is not a letter, a number or a combining mark becomes a space.
+  Apple's word tokenizer splits the result, so Chinese, Japanese and Thai split
+  into words. Each distinct `Character` of the two texts becomes one integer id,
+  so a letter with its combining marks counts once. The library is vendored in
   `Tools/cleanup-benchmark-fuzz` (rapidfuzz-cpp, MIT; release, commit and
   SHA-256 in `VENDORED.txt` beside it) because upstream ships no `Package.swift`.
-- **embedding:** cosine similarity of the reference and the output under
-  `qwen/qwen3-embedding-8b`, both texts prefixed with the model card's
-  instruction.
-- **Jev:** five yes/no questions (`typesafe/jev-1.14`, OpenRouter's decisions
-  endpoint) asked from the dictation, the reference and the output: meaning kept,
-  nothing added, same language, plain text, and matches the reference. Each is
-  asked three times. The coefficient is the lowest of the five means. A refused
-  question is a judge error for that output, never a score.
-
-The settings, the five questions and the bar's floors live in
-`Benchmarks/cleanup/judge.json`. The only lexical check left is `empty-output`.
-
-The bar compares a candidate with a model's recorded slack in
-`Benchmarks/cleanup/baseline.json`, one entry per candidate name. The rule, its
-floors and the fallback entry for a model with none are in
-`Benchmarks/cleanup/README.md`. Write entries with `--judge --write-baseline`.
+- A refused Jev question is a judge error for that output, never a score. The
+  failure codes in `--failure-breakdown` are `provider-error`, `empty-output`,
+  `embedding-failed`, `jev-refusal` and `jev-request-failed`.
+- The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
 55 synthetic/public-style samples, grouped as:
@@ -125,8 +113,8 @@ The benchmark accepts three provider forms:
   routed model id and requires `OPENROUTER_API_KEY`.
 - `catalog` expands to one `openrouter:` form per model in the app's cleanup
   catalog, `CleanupModelCatalog`, in menu order.
-- `passthrough` preserves the raw transcript locally and provides a latency and
-  quality floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
+- `passthrough` preserves the raw transcript locally and provides a latency
+  floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
   short-circuits the whole cleaner stage (the orchestrator skips hint-gathering
   and the cleaner), and `passthrough`, a no-op cleaner, is the closest
   harness-measurable proxy for that skipped stage's ~0 ms cost (see
@@ -146,6 +134,10 @@ short probe prompt). Every catalog model answered a probe with
 
 ## Latest Live Snapshot
 
+Every table of passed runs below, here and in the sections after it, was scored by
+the earlier lexical quality gate. Its pass counts are not comparable with the
+judge's within-slack share.
+
 Live benchmark of the curated shortlist, measured on 2026-10-08 with 10
 repetitions over the 53-sample suite: temperature 0, the transcript in
 `<transcript>` tags, reasoning disabled via `reasoning: {effort: "none"}`, and
@@ -155,8 +147,6 @@ measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
 gathered hint carries the active input locale. Compare runs by pass RATE
 (passed/runs), never by raw passed counts.
-
-Scored by the lexical quality gate this change removed, with its own pass criteria; not comparable with the judge's within-slack share.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -204,8 +194,6 @@ each).
 
 The old and earlier-wording prompts ran side by side, at the same time:
 
-Scored by the lexical quality gate this change removed, with its own pass criteria; not comparable with the judge's within-slack share.
-
 | Model | Old prompt | New prompt |
 | --- | ---: | ---: |
 | `openai/gpt-6-luna` | 476 | 484 |
@@ -230,8 +218,6 @@ models.
 
 Successor candidates against the models they would replace, measured on
 2026-09-27 under the prompt before the change above:
-
-Scored by the lexical quality gate this change removed, with its own pass criteria; not comparable with the judge's within-slack share.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -270,8 +256,6 @@ orchestrator skips hint-gathering and the cleaner, not just the network call;
 that skipped stage's ~0 ms cost. Measured on 2026-09-27 (10 repetitions over
 the 53-sample suite; the passthrough candidate itself needs no API key and no
 network):
-
-Scored by the lexical quality gate this change removed, with its own pass criteria; not comparable with the judge's within-slack share.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |

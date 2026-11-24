@@ -1,42 +1,9 @@
+import CryptoKit
 import Foundation
 
-/// Any JSON value. The judge's questions and the embeddings provider object travel
-/// from `Benchmarks/cleanup/judge.json` to the request body unchanged.
-public enum CleanupBenchmarkJSON: Codable, Equatable, Sendable {
-    case null
-    case bool(Bool)
-    case number(Double)
-    case string(String)
-    case array([CleanupBenchmarkJSON])
-    case object([String: CleanupBenchmarkJSON])
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .number(value)
-        } else if let value = try? container.decode(String.self) {
-            self = .string(value)
-        } else if let value = try? container.decode([CleanupBenchmarkJSON].self) {
-            self = .array(value)
-        } else {
-            self = .object(try container.decode([String: CleanupBenchmarkJSON].self))
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .null: try container.encodeNil()
-        case .bool(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
-        case .string(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
-        }
+enum CleanupBenchmarkDigest {
+    static func sha256(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -46,9 +13,26 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         public let model: String
         public let path: String
         public let repeats: Int
-        /// Question key to question, sent verbatim. The keys are the five answers
-        /// the Jev coefficient takes its lowest mean from.
-        public let questions: [String: CleanupBenchmarkJSON]
+        /// Question key to question. The Jev coefficient is the lowest mean over these keys.
+        public let questions: [String: Question]
+    }
+
+    /// A yes/no question in the shape of OpenRouter's decisions endpoint
+    /// (documentation: https://openrouter.ai/docs/guides/community/jev-tutorial.md).
+    public struct Question: Codable, Equatable, Sendable {
+        public struct Criteria: Codable, Equatable, Sendable {
+            public let whenTrue: String
+            public let whenFalse: String
+
+            enum CodingKeys: String, CodingKey {
+                case whenTrue = "true"
+                case whenFalse = "false"
+            }
+        }
+
+        public let type: String
+        public let instructions: String
+        public let criteria: Criteria?
     }
 
     public struct Embedding: Codable, Equatable, Sendable {
@@ -56,8 +40,20 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         public let path: String
         /// Put in front of both texts, with nothing between prefix and text.
         public let prefix: String
-        /// OpenRouter provider-routing object, sent verbatim.
-        public let provider: CleanupBenchmarkJSON
+        public let provider: Provider
+    }
+
+    /// The fields of OpenRouter's provider-routing object this benchmark uses
+    /// (`ProviderPreferences` in the embeddings reference:
+    /// https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md).
+    public struct Provider: Codable, Equatable, Sendable {
+        public let order: [String]
+        public let allowFallbacks: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case order
+            case allowFallbacks = "allow_fallbacks"
+        }
     }
 
     public struct Bar: Codable, Equatable, Sendable {
@@ -83,7 +79,24 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         .appending(path: "Benchmarks/cleanup/judge.json")
         .path
 
+    /// Rejects settings that would leave every output unscored: no repeats or no questions.
     public static func decode(_ data: Data) throws -> CleanupBenchmarkJudgeSettings {
-        try JSONDecoder().decode(CleanupBenchmarkJudgeSettings.self, from: data)
+        let settings = try JSONDecoder().decode(CleanupBenchmarkJudgeSettings.self, from: data)
+        guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty else {
+            throw CleanupBenchmarkCommandError.invalidJudgeSettings
+        }
+        return settings
+    }
+
+    /// Identifies the judge that measured a baseline entry: the Jev and embedding
+    /// sections, not the bar (a floor change needs no new baseline).
+    public func judgeSHA256() throws -> String {
+        struct Judge: Encodable {
+            let jev: Jev
+            let embedding: Embedding
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return CleanupBenchmarkDigest.sha256(try encoder.encode(Judge(jev: jev, embedding: embedding)))
     }
 }

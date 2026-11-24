@@ -17,14 +17,14 @@ struct CleanupBenchmarkBarTests {
 
     private static func run(_ id: String, _ category: CleanupBenchmarkCategory, _ scores: CleanupBenchmarkScores) -> CleanupBenchmarkRun {
         CleanupBenchmarkRun(
-            sampleId: id, sampleCategory: category, candidateName: "c", durationNanoseconds: 1, scores: scores, errorKind: nil
+            sampleId: id, sampleCategory: category, candidateName: "c", durationNanoseconds: 1,
+            output: "text", scores: scores, errorKind: nil
         )
     }
 
     private static func entry(_ ids: [String]) -> CleanupBenchmarkBaselineEntry {
         CleanupBenchmarkBaselineEntry(
-            jevModel: "j", jevSnapshots: [], embeddingModel: "e", embeddingResponseModels: [],
-            datasetSHA256: "x", samples: Dictionary(uniqueKeysWithValues: ids.map { ($0, flat) })
+            judgeSHA256: "j", snapshots: [], datasetSHA256: "x", samples: Dictionary(uniqueKeysWithValues: ids.map { ($0, flat) })
         )
     }
 
@@ -98,9 +98,9 @@ struct CleanupBenchmarkBarTests {
     /// (the spread is never below a run's distance from the mean); if `slack(of:)`
     /// took the spread from anything smaller, the baseline would fail its own bar.
     @Test
-    func baselineRunsAreWithinTheirOwnSlack() throws {
+    func baselineRunsAreWithinTheirOwnSlack() {
         let runs = [0.95, 0.70, 0.85].map { Self.run("s", .shortSmoke, Self.scores(fuzzy: $0, embedding: $0, jev: $0)) }
-        let sample = try #require(CleanupBenchmarkBar.slack(of: runs))
+        let sample = CleanupBenchmarkBar.slack(of: runs)
 
         #expect(abs(sample.jev.mean - 0.5 / 3) < 1e-9)
         #expect(abs(sample.jev.spread - 0.25) < 1e-9)
@@ -109,7 +109,6 @@ struct CleanupBenchmarkBarTests {
                 run.scores, baseline: sample, floors: CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0, embedding: 0, fuzzy: 0)
             ))
         }
-        #expect(CleanupBenchmarkBar.slack(of: runs + [Self.run("s", .shortSmoke, CleanupBenchmarkScores(fuzzy: 1))]) == nil)
     }
 
     /// Stated sensitivity: a lookup that ignores the candidate's own entry judges
@@ -145,5 +144,71 @@ struct CleanupBenchmarkBarTests {
         let encoded = try merged.encoded()
         #expect(encoded == (try merged.encoded()))
         #expect(try CleanupBenchmarkBaselineFile.decode(merged.encoded()) == merged)
+    }
+
+    /// Stated sensitivity: an entry built from a run with an empty output, or one a
+    /// judge failed on, widens a spread (slack near 1) and loosens the bar on that
+    /// sample for good; any such run must refuse the entry.
+    @Test
+    func entryIsRefusedWhenAnyRunIsIncomplete() throws {
+        let settings = try judgeSettings()
+        let complete = (1...3).map { Self.run("s\($0)", .shortSmoke, Self.scores()) }
+        var empty = Self.run("s4", .shortSmoke, Self.scores(fuzzy: 0, embedding: 0.2, jev: 0.1))
+        empty.failures = ["empty-output"]
+
+        #expect(throws: CleanupBenchmarkBarError.incompleteRuns(candidate: "c", count: 1)) {
+            try CleanupBenchmarkBar.makeEntry(
+                candidateName: "c", runs: complete + [empty], settings: settings, datasetSHA256: "x"
+            )
+        }
+        let entry = try CleanupBenchmarkBar.makeEntry(
+            candidateName: "c", runs: complete, settings: settings, datasetSHA256: "x"
+        )
+        #expect(Set(entry.samples.keys) == ["s1", "s2", "s3"])
+        #expect(entry.judgeSHA256 == (try settings.judgeSHA256()))
+    }
+
+    /// Stated sensitivity: a digest over the bar section would force a new baseline
+    /// for every floor change; one that ignores the questions or the embedding section
+    /// lets a retuned judge pass against slack another judge measured.
+    @Test
+    func judgeDigestFollowsTheQuestionsAndNotTheBar() throws {
+        let settings = try judgeSettings()
+        let looser = CleanupBenchmarkJudgeSettings(
+            jev: settings.jev,
+            embedding: settings.embedding,
+            bar: CleanupBenchmarkJudgeSettings.Bar(
+                floors: CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0.5, embedding: 0.5, fuzzy: 0.5), allowance: 0.5
+            )
+        )
+        var questions = settings.jev.questions
+        questions["plain_text"] = nil
+        let fewer = CleanupBenchmarkJudgeSettings(
+            jev: CleanupBenchmarkJudgeSettings.Jev(
+                model: settings.jev.model, path: settings.jev.path, repeats: settings.jev.repeats, questions: questions
+            ),
+            embedding: settings.embedding,
+            bar: settings.bar
+        )
+
+        #expect(try looser.judgeSHA256() == settings.judgeSHA256())
+        #expect(try fewer.judgeSHA256() != settings.judgeSHA256())
+    }
+
+    /// Stated sensitivity: retrying a 400 or a 401 spends the attempts on a request that
+    /// cannot succeed; never retrying a dropped connection or a 5xx lets one blip void
+    /// a paid run; sleeping after the last attempt wastes the wait; a `Retry-After`
+    /// above the cap, or none, changes the wait.
+    @Test
+    func retryPolicyRetriesTransientFailuresWithinTheAttempts() {
+        typealias Policy = CleanupBenchmarkRetryPolicy
+        #expect(Policy.delay(after: .network, attempt: 0) == 1)
+        #expect(Policy.delay(after: .status(500, retryAfter: nil), attempt: 2) == 4)
+        #expect(Policy.delay(after: .status(429, retryAfter: 3), attempt: 0) == 3)
+        #expect(Policy.delay(after: .status(402, retryAfter: 100), attempt: 0) == 30)
+        for final in [400, 401, 404] {
+            #expect(Policy.delay(after: .status(final, retryAfter: nil), attempt: 0) == nil)
+        }
+        #expect(Policy.delay(after: .network, attempt: Policy.attempts - 1) == nil)
     }
 }

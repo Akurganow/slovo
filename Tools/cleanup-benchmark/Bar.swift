@@ -27,27 +27,23 @@ public struct CleanupBenchmarkBaselineSample: Codable, Equatable, Sendable {
 /// One model's recorded slack against the shared references, with the judge that
 /// measured it.
 public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
-    public let jevModel: String
-    /// The `model` field of the Jev responses: the dated snapshots that answered.
-    public let jevSnapshots: [String]
-    public let embeddingModel: String
-    public let embeddingResponseModels: [String]
+    /// `CleanupBenchmarkJudgeSettings.judgeSHA256()` of the judge that measured it.
+    public let judgeSHA256: String
+    /// The response models that scored this candidate's runs: the dated Jev
+    /// snapshots and the embedding models.
+    public let snapshots: [String]
     public let datasetSHA256: String
     /// By sample id.
     public let samples: [String: CleanupBenchmarkBaselineSample]
 
     public init(
-        jevModel: String,
-        jevSnapshots: [String],
-        embeddingModel: String,
-        embeddingResponseModels: [String],
+        judgeSHA256: String,
+        snapshots: [String],
         datasetSHA256: String,
         samples: [String: CleanupBenchmarkBaselineSample]
     ) {
-        self.jevModel = jevModel
-        self.jevSnapshots = jevSnapshots
-        self.embeddingModel = embeddingModel
-        self.embeddingResponseModels = embeddingResponseModels
+        self.judgeSHA256 = judgeSHA256
+        self.snapshots = snapshots
         self.datasetSHA256 = datasetSHA256
         self.samples = samples
     }
@@ -89,19 +85,44 @@ public struct CleanupBenchmarkBaselineFile: Codable, Equatable, Sendable {
     }
 }
 
-public enum CleanupBenchmarkBarError: Error, Equatable, Sendable {
-    /// Every run behind a baseline must be fully scored: an unscored run has no slack.
-    case unscoredRuns(candidate: String, count: Int)
+public enum CleanupBenchmarkBarError: Error, Equatable, CustomStringConvertible, Sendable {
+    /// Every run behind an entry must be complete: an output, no failure, all three coefficients.
+    case incompleteRuns(candidate: String, count: Int)
+
+    public var description: String {
+        switch self {
+        case .incompleteRuns(let candidate, let count):
+            "no baseline entry for \(candidate): \(count) of its runs have no full score or carry a failure; "
+                + "run again with the same --outputs-file to finish them"
+        }
+    }
 }
+
+private let slackTolerance = 1e-9
 
 public struct CleanupBenchmarkVerdictRow: Equatable, Sendable {
     /// Nil for the candidate's runs overall.
     public let category: CleanupBenchmarkCategory?
     public let runs: Int
     public let withinSlack: Int
+    public let means: CleanupBenchmarkMeans
     public let passed: Bool
 
     public var share: Double {
+        Self.share(withinSlack, of: runs)
+    }
+
+    init(category: CleanupBenchmarkCategory?, group: [CleanupBenchmarkRun], withinSlack: Int, allowance: Double) {
+        self.category = category
+        runs = group.count
+        self.withinSlack = withinSlack
+        means = CleanupBenchmarkMeans(group)
+        // The baseline's own runs are always within its slack (a spread is never
+        // smaller than a run's distance from the mean), so its share is 1.
+        passed = Self.share(withinSlack, of: group.count) + slackTolerance >= 1 - allowance
+    }
+
+    private static func share(_ withinSlack: Int, of runs: Int) -> Double {
         runs == 0 ? 0 : Double(withinSlack) / Double(runs)
     }
 }
@@ -123,52 +144,34 @@ public struct CleanupBenchmarkVerdict: Equatable, Sendable {
 /// within-slack share is at least the baseline's own share less the allowance,
 /// overall and in every category.
 public enum CleanupBenchmarkBar {
-    /// The baseline's own runs are always within slack: a spread is never smaller
-    /// than a run's distance from the mean. So the baseline's share is 1.
-    static let baselineShare = 1.0
-    private static let tolerance = 1e-9
-
-    public static func slack(of runs: [CleanupBenchmarkRun]) -> CleanupBenchmarkBaselineSample? {
-        let fuzzy = runs.compactMap(\.scores.fuzzy)
-        let embedding = runs.compactMap(\.scores.embedding)
-        let jev = runs.compactMap(\.scores.jev)
-        guard !runs.isEmpty, fuzzy.count == runs.count, embedding.count == runs.count, jev.count == runs.count else {
-            return nil
-        }
-        return CleanupBenchmarkBaselineSample(
-            fuzzy: stats(fuzzy), embedding: stats(embedding), jev: stats(jev)
+    /// The slack of runs that are complete, one sample's repetitions.
+    public static func slack(of runs: [CleanupBenchmarkRun]) -> CleanupBenchmarkBaselineSample {
+        CleanupBenchmarkBaselineSample(
+            fuzzy: stats(runs.compactMap(\.scores.fuzzy)),
+            embedding: stats(runs.compactMap(\.scores.embedding)),
+            jev: stats(runs.compactMap(\.scores.jev))
         )
     }
 
-    /// The entry for one candidate from its runs over the dataset, every sample in
-    /// every repetition fully scored.
+    /// The entry for one candidate from its runs over the dataset. Every run must be
+    /// complete: an empty output or a judge failure would widen a spread and loosen
+    /// the bar for good.
     public static func makeEntry(
         candidateName: String,
         runs: [CleanupBenchmarkRun],
         settings: CleanupBenchmarkJudgeSettings,
-        info: CleanupBenchmarkJudgeInfo,
         datasetSHA256: String
     ) throws -> CleanupBenchmarkBaselineEntry {
         let own = runs.filter { $0.candidateName == candidateName }
-        var samples: [String: CleanupBenchmarkBaselineSample] = [:]
-        var unscored = 0
-        for (id, group) in Dictionary(grouping: own, by: \.sampleId) {
-            if let sample = slack(of: group) {
-                samples[id] = sample
-            } else {
-                unscored += group.count
-            }
-        }
-        guard unscored == 0 else {
-            throw CleanupBenchmarkBarError.unscoredRuns(candidate: candidateName, count: unscored)
+        let incomplete = own.filter { !$0.isComplete(judged: true) }.count
+        guard incomplete == 0 else {
+            throw CleanupBenchmarkBarError.incompleteRuns(candidate: candidateName, count: incomplete)
         }
         return CleanupBenchmarkBaselineEntry(
-            jevModel: settings.jev.model,
-            jevSnapshots: info.jevModelIDs,
-            embeddingModel: settings.embedding.model,
-            embeddingResponseModels: info.embeddingModelIDs,
+            judgeSHA256: try settings.judgeSHA256(),
+            snapshots: Set(own.flatMap(\.scores.models)).sorted(),
             datasetSHA256: datasetSHA256,
-            samples: samples
+            samples: Dictionary(uniqueKeysWithValues: Dictionary(grouping: own, by: \.sampleId).map { ($0, slack(of: $1)) })
         )
     }
 
@@ -197,13 +200,7 @@ public enum CleanupBenchmarkBar {
             let within = group.filter { run in
                 entry.samples[run.sampleId].map { isWithinSlack(run.scores, baseline: $0, floors: settings.floors) } ?? false
             }.count
-            let share = group.isEmpty ? 0 : Double(within) / Double(group.count)
-            return CleanupBenchmarkVerdictRow(
-                category: category,
-                runs: group.count,
-                withinSlack: within,
-                passed: share + tolerance >= baselineShare - settings.allowance
-            )
+            return CleanupBenchmarkVerdictRow(category: category, group: group, withinSlack: within, allowance: settings.allowance)
         }
         let categories = Set(own.map(\.sampleCategory)).sorted { $0.rawValue < $1.rawValue }
         return CleanupBenchmarkVerdict(
@@ -214,7 +211,7 @@ public enum CleanupBenchmarkBar {
     }
 
     private static func within(_ slack: Double, _ baseline: CleanupBenchmarkSlack, floor: Double) -> Bool {
-        slack <= baseline.mean + max(baseline.spread, floor) + tolerance
+        slack <= baseline.mean + max(baseline.spread, floor) + slackTolerance
     }
 
     private static func stats(_ coefficients: [Double]) -> CleanupBenchmarkSlack {

@@ -6,8 +6,7 @@ import CleanupBenchmark
 @Suite("Cleanup benchmark baseline command")
 struct CleanupBenchmarkBaselineCommandTests {
     private static let other = """
-    {"candidates": {"other:untouched": {"jevModel": "j", "jevSnapshots": [], "embeddingModel": "e",
-      "embeddingResponseModels": [], "datasetSHA256": "x", "samples": {}}}}
+    {"candidates": {"other:untouched": {"judgeSHA256": "j", "snapshots": [], "datasetSHA256": "x", "samples": {}}}}
     """
 
     private func baseline(_ fixture: DriverFixture) throws -> CleanupBenchmarkBaselineFile {
@@ -31,9 +30,9 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(Set(file.candidates.keys) == ["other:untouched", "fake:good", "fake:bad"])
         let good = try #require(file.candidates["fake:good"])
         #expect(Set(good.samples.keys) == ["one", "two"])
-        #expect(good.jevSnapshots == ["fake/jev-snapshot"])
-        #expect(good.embeddingResponseModels == ["fake/embedding-snapshot"])
+        #expect(good.snapshots == ["fake/embedding-snapshot", "fake/jev-snapshot"])
         #expect(good.datasetSHA256.count == 64)
+        #expect(good.judgeSHA256.count == 64)
         #expect(abs((good.samples["one"]?.jev.mean ?? 0) - 0.05) < 1e-9)
         #expect(file.candidates["other:untouched"]?.datasetSHA256 == "x")
     }
@@ -100,9 +99,9 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(fixture.transport.recorded().isEmpty)
     }
 
-    /// Stated sensitivity: a judge that errors on every output must make a baseline
-    /// write fail and leave the file as it was, not record slack for outputs that
-    /// were never scored.
+    /// Stated sensitivity: a judge that refuses on every output must make a baseline
+    /// write produce no entry and leave the file as it was, not record slack for outputs
+    /// that were never scored; stderr names the candidate and how many runs are missing.
     @Test
     func judgeErrorsMakeTheRunFailAndBlockTheBaselineWrite() async throws {
         let fixture = try DriverFixture(
@@ -113,16 +112,123 @@ struct CleanupBenchmarkBaselineCommandTests {
         let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
 
         #expect(result.exitCode == 2)
-        #expect(result.stderr.contains("unscoredRuns"))
+        #expect(result.stderr.contains("no baseline entry for fake:good: 2 of its runs"))
         #expect(try baseline(fixture).candidates.keys.sorted() == ["other:untouched"])
         #expect(result.stdout.contains("fake:good,2,2,"))
     }
 
-    /// Stated sensitivity: an outputs file written without the flag leaks output text
-    /// to disk; one that omits the repetition or the null of a failed run loses what
-    /// it exists to show. Sample index and repetition are 1-based.
+    /// Stated sensitivity: a write that stops at the first incomplete candidate, or that
+    /// writes nothing when one candidate failed, loses the entry of a candidate that is
+    /// complete; one that writes the incomplete candidate records unscored slack.
     @Test
-    func outputsFileIsWrittenOnlyWithTheFlagAndHasEveryRun() async throws {
+    func baselineIsWrittenOnlyForCandidatesWhoseRunsAreAllComplete() async throws {
+        let fixture = try DriverFixture(
+            files: ["baseline.json": Self.other],
+            transport: FakeJudgeTransport(failingDecisionsFor: "WRONG")
+        )
+
+        let result = await fixture.run([
+            "--providers", "openrouter:good,openrouter:bad", "--judge", "--write-baseline", "baseline.json",
+        ])
+
+        #expect(result.exitCode == 2)
+        #expect(result.stderr.contains("no baseline entry for fake:bad: 2 of its runs"))
+        #expect(!result.stderr.contains("fake:good"))
+        #expect(try baseline(fixture).candidates.keys.sorted() == ["fake:good", "other:untouched"])
+    }
+
+    /// Stated sensitivity: a baseline recorded with other questions must be refused,
+    /// not applied: one that skips the judge digest check lets a retuned judge pass
+    /// against slack another judge measured.
+    @Test
+    func baselineFromAnotherJudgeIsRefusedBeforeAnyRequest() async throws {
+        let fixture = try DriverFixture()
+        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
+        let written = try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
+        let entry = try #require(written.candidates["fake:good"])
+        let foreign = CleanupBenchmarkBaselineEntry(
+            judgeSHA256: "other-judge", snapshots: [], datasetSHA256: entry.datasetSHA256, samples: entry.samples
+        )
+        let other = try DriverFixture(files: [
+            "baseline.json": String(decoding: try CleanupBenchmarkBaselineFile(candidates: ["fake:good": foreign]).encoded(), as: UTF8.self),
+        ])
+
+        let result = await other.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("different judge settings"))
+        #expect(other.transport.recorded().isEmpty)
+    }
+
+    /// Stated sensitivity: a resume that repeats a complete run pays twice; one that
+    /// skips the run with no line leaves it unscored. Two samples, one cleaned and
+    /// judged in the file, the other missing: only the missing one costs a cleaner
+    /// call (1), a Jev decision per repeat (3) and one embeddings batch.
+    @Test
+    func resumedRunPaysOnlyForTheMissingRun() async throws {
+        let fixture = try DriverFixture()
+        _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+        #expect(fixture.cleaned == 2)
+        let kept = String(decoding: try #require(fixture.file("out.jsonl")), as: UTF8.self)
+            .split(separator: "\n").filter { !$0.contains(#""sampleId":"two""#) }
+        fixture.files.withLock { $0["out.jsonl"] = Data((kept.joined(separator: "\n") + "\n").utf8) }
+        let decisionsBefore = fixture.transport.requestCount(path: "/api/alpha/decisions")
+        let embeddingsBefore = fixture.transport.requestCount(path: "/api/v1/embeddings")
+
+        let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+
+        #expect(result.exitCode == 0)
+        #expect(fixture.cleaned == 3)
+        #expect(fixture.transport.requestCount(path: "/api/alpha/decisions") - decisionsBefore == 3)
+        #expect(fixture.transport.requestCount(path: "/api/v1/embeddings") - embeddingsBefore == 1)
+        #expect(result.stdout.contains("fake:good,2,0,"))
+    }
+
+    /// Stated sensitivity: a resume that runs the cleaner again for a run that already
+    /// has an output pays for a paid cleaner call twice; one that treats a failed judge
+    /// as final never scores the run. The judge is down in the first run: both runs
+    /// keep their outputs and fail; the second run judges them and cleans nothing.
+    @Test
+    func runWithOutputButNoFullScoreIsJudgedAgainWithoutTheCleaner() async throws {
+        let fixture = try DriverFixture()
+        fixture.transport.setDown(true)
+        let first = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+        #expect(first.exitCode == 2)
+        #expect(fixture.cleaned == 2)
+        fixture.transport.setDown(false)
+
+        let second = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+
+        #expect(second.exitCode == 0)
+        #expect(fixture.cleaned == 2)
+        #expect(second.stdout.contains("fake:good,2,0,"))
+        #expect(second.stdout.contains("0.950"))
+    }
+
+    /// Stated sensitivity: a file from another dataset applied to this one would hand
+    /// a run the output of a different sample; it must be refused before any request.
+    @Test
+    func outputsFileOfAnotherDatasetIsRefused() async throws {
+        let fixture = try DriverFixture(files: [
+            "out.jsonl": #"{"sample":1,"sampleId":"elsewhere","candidate":"fake:good","repetition":1,"output":"x","#
+                + #""durationNanoseconds":1,"fuzzy":1,"embedding":null,"jev":null,"jevQuestions":{},"models":[],"failures":[]}"#
+                + "\n",
+        ])
+
+        let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("not in this dataset"))
+        #expect(fixture.cleaned == 0)
+        #expect(fixture.transport.recorded().isEmpty)
+    }
+
+    /// Stated sensitivity: an outputs file written without the flag leaks output text
+    /// to disk; one that omits a line when a run's cleanup finishes (before the judge),
+    /// the repetition or the null of a failed run loses what it exists to show. Sample
+    /// index and repetition are 1-based; each run has a cleanup line and a judged line.
+    @Test
+    func outputsFileIsWrittenOnlyWithTheFlagAndHasTheLinesOfEveryRun() async throws {
         let fixture = try DriverFixture()
 
         let without = await fixture.run(["--providers", "openrouter:good", "--judge"])
@@ -136,16 +242,18 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(!with.stdout.contains("Hello there."))
         let lines = String(decoding: try #require(fixture.file("outputs.jsonl")), as: UTF8.self)
             .split(separator: "\n").map(String.init)
-        #expect(lines.count == 8)
+        #expect(lines.count == 16)
         let first = try #require(JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? [String: Any])
         #expect(first["sample"] as? Int == 1)
+        #expect(first["sampleId"] as? String == "one")
         #expect(first["repetition"] as? Int == 1)
         #expect(first["candidate"] as? String == "fake:good")
         #expect(first["output"] as? String == "Hello there.")
-        #expect(first["jev"] is Double)
-        let last = try #require(JSONSerialization.jsonObject(with: Data(lines[7].utf8)) as? [String: Any])
-        #expect(last["repetition"] as? Int == 2)
-        #expect(last["sample"] as? Int == 2)
-        #expect((last["jevQuestions"] as? [String: [Double]])?.count == 5)
+        #expect(first["durationNanoseconds"] is Int)
+        #expect(first["jev"] is NSNull)
+        let objects = try lines.map { try #require(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
+        let judged = try #require(objects.first { $0["jev"] is Double && $0["repetition"] as? Int == 2 && $0["sample"] as? Int == 2 })
+        #expect((judged["jevQuestions"] as? [String: [Double]])?.count == 5)
+        #expect((judged["failures"] as? [String])?.isEmpty == true)
     }
 }

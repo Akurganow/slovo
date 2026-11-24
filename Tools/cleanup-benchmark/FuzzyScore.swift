@@ -28,7 +28,7 @@ enum FuzzyScore {
     }
 
     /// Folded words of `text`: lowercase, `ё` as `е`, and every character that is
-    /// not a letter, a digit or a combining mark (Mn, Mc) turned into a space, then
+    /// not a letter, a number (Nd, Nl, No: `²`, `Ⅳ`, `½`) or a combining mark (Mn, Mc) turned into a space, then
     /// split by Apple's word tokenizer. Combining marks stay, so a Devanagari or
     /// Arabic letter with its marks stays one `Character`.
     static func words(_ text: String) -> [String] {
@@ -46,7 +46,7 @@ enum FuzzyScore {
     private static func isKept(_ scalar: Unicode.Scalar) -> Bool {
         switch scalar.properties.generalCategory {
         case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
-             .decimalNumber, .nonspacingMark, .spacingMark:
+             .decimalNumber, .letterNumber, .otherNumber, .nonspacingMark, .spacingMark:
             true
         default:
             false

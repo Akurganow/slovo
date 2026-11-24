@@ -46,20 +46,22 @@ references: an entry is never a separate expected result for that model.
 
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
   sample and coefficient an entry holds the mean slack and the spread (largest
-  minus smallest) across the repetitions, plus the judge's model ids, the Jev
-  snapshots that answered, and the SHA-256 of the dataset file.
+  minus smallest) across the repetitions, plus the response models that scored
+  the runs, the SHA-256 of the dataset file and the SHA-256 of the judge's
+  settings (the Jev and embedding sections of `judge.json`).
 - A run on a sample is within a model's recorded slack when, for each
   coefficient, its slack is at most the entry's mean plus the larger of the
-  entry's spread and the coefficient's floor (Jev 0.15, embedding 0.02, fuzzy
-  0.05, in `judge.json`).
+  entry's spread and the coefficient's floor (the floors are in `judge.json`).
 - A candidate passes when its share of runs within slack is at least the
-  baseline's own share less 5 points, overall and in every category. The
-  baseline's own runs are always within its slack, so its share is 100%.
+  baseline's own share less the allowance in `judge.json`, overall and in every
+  category. The baseline's own runs are always within its slack, so its share is
+  100%.
 - A candidate is judged against its own entry. A candidate with no entry (a new
   model, a local one) is judged against the entry named by
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup
   model.
-- A release fails when any catalog model gets worse than its own recorded slack.
+- `--baseline` refuses an entry recorded on another dataset file or with other
+  judge settings: rewrite it with `--write-baseline`.
 
 An output that changes nothing passes on a clean case and is judged like any
 other output on a messy one.
@@ -69,26 +71,44 @@ other output on a messy one.
 | Flag | Effect |
 | --- | --- |
 | none of the below | Fuzzy only. No verdict. No request leaves the Mac except the candidates' own. |
-| `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. |
-| `--baseline PATH` | Applies the bar (needs `--judge`). Every candidate needs an entry, its own or the fallback's, recorded on this dataset file. |
+| `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate and fails the bar. |
+| `--baseline PATH` | Applies the bar (needs `--judge`). Every candidate needs an entry, its own or the fallback's. |
 | `--baseline-candidate ID` | The fallback entry for a candidate with none. |
-| `--write-baseline PATH` | Writes the entries of the candidates that ran and leaves every other entry as it is (needs `--judge`). Refused when any run is unscored. |
-| `--outputs-file PATH` | Opt-in, local. One JSON line per run: sample index and repetition (both from 1), candidate, output (`null` after a provider error), the three coefficients, each Jev question's repeats, judge errors. |
+| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
+| `--outputs-file PATH` | Opt-in, local, and the resume record (below). |
 
 `--providers catalog --judge --baseline PATH` judges every catalog model in one
 run, each against its own entry.
 
-Exit code: `0` when no run failed and every judged candidate passes the bar, or
-when no `--baseline` was given and no run failed; `2` when a run failed
-(provider error, empty output, judge error), a candidate failed the bar, or a
-file could not be written; `64` when the arguments or files are unusable, before
-any request is sent. The command asks for nothing interactively, so a CI step
-can call it.
+The outputs file is append-only JSON Lines. A line is added when a run's cleanup
+finishes and again when it is judged: sample index and id (from 1), candidate,
+repetition (from 1), output (`null` after a provider error), duration, the three
+coefficients, each Jev question's repeats, the models that answered, and the
+failure codes. It holds output text, so it stays local. Naming an existing file
+resumes it, the last line of a run winning: a run with all three coefficients and
+no failure is not repeated, a run with an output but no full score is judged
+again without the cleaner, and a provider error or a missing run is run again.
+A file written for another dataset is refused.
 
-`judge.json` holds the judge's settings: the Jev model and its five questions,
-the repeats (3), the embedding model with its prefix and provider-routing
-object, and the bar's floors and allowance. `embedding.provider.order` is empty
-until a calibration run records the provider that served the embeddings.
+The exit code carries the verdict, as the usage text of the command says. The
+command asks for nothing interactively, so a CI step can call it. No CI job
+calls it yet.
+
+`judge.json` holds the judge's settings: the Jev model, path, repeats and
+questions, the embedding model, prefix and provider-routing object, and the bar's
+floors and allowance. `embedding.provider.order` is empty until a calibration run
+records the provider that served the embeddings.
+
+Sources for what the settings name, all documentation without a published
+revision: the Jev request and response shapes are those of OpenRouter's decisions
+tutorial (<https://openrouter.ai/docs/guides/community/jev-tutorial.md>); the
+embeddings request and its `provider` field are those of OpenRouter's embeddings
+reference
+(<https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md>);
+the instruction prefix is the one the Qwen3-Embedding-8B model card documents for
+queries (<https://huggingface.co/Qwen/Qwen3-Embedding-8B>). The card does not
+cover putting it on both texts of a similarity comparison, which is the choice
+made here.
 
 ### What `--judge` sends to OpenRouter
 

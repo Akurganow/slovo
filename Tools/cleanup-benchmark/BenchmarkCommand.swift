@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import SlovoCore
 
@@ -14,22 +13,28 @@ public struct CleanupBenchmarkCommandResult: Equatable, Sendable {
     }
 }
 
+/// Everything the benchmark runner needs for one run, including what an earlier
+/// process already finished.
+public struct CleanupBenchmarkRunPlan: Sendable {
+    public let candidates: [CleanupBenchmarkCandidate]
+    public let samples: [CleanupBenchmarkSample]
+    public let config: CleanupConfig
+    public let context: PersonalizationContext
+    public let repetitions: Int
+    public let warmupRepetitions: Int
+    public let previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun]
+    public let record: @Sendable (CleanupBenchmarkRun) -> Void
+}
+
 public struct CleanupBenchmarkCommandDriver: Sendable {
     private let makeCandidates:
         @Sendable ([CleanupBenchmarkProviderSpec], [String: String]) throws -> [CleanupBenchmarkCandidate]
-    private let runBenchmark:
-        @Sendable (
-            [CleanupBenchmarkCandidate],
-            [CleanupBenchmarkSample],
-            CleanupConfig,
-            PersonalizationContext,
-            Int,
-            Int
-        ) async -> CleanupBenchmarkReport
+    private let runBenchmark: @Sendable (CleanupBenchmarkRunPlan) async -> CleanupBenchmarkReport
     private let makeTransport: @Sendable ([String: String]) throws -> any CleanupBenchmarkTransport
     private let readTextFile: @Sendable (String) throws -> String
     private let readDataFile: @Sendable (String) throws -> Data
     private let writeDataFile: @Sendable (String, Data) throws -> Void
+    private let appendDataFile: @Sendable (String, Data) throws -> Void
 
     @preconcurrency
     public init(
@@ -38,21 +43,16 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 try CleanupBenchmarkCandidateFactory.makeCandidate(for: spec, environment: environment)
             }
         },
-        runBenchmark: @escaping @Sendable (
-            [CleanupBenchmarkCandidate],
-            [CleanupBenchmarkSample],
-            CleanupConfig,
-            PersonalizationContext,
-            Int,
-            Int
-        ) async -> CleanupBenchmarkReport = { candidates, samples, config, context, repetitions, warmupRepetitions in
+        runBenchmark: @escaping @Sendable (CleanupBenchmarkRunPlan) async -> CleanupBenchmarkReport = { plan in
             await CleanupBenchmarkRunner().run(
-                candidates: candidates,
-                samples: samples,
-                config: config,
-                context: context,
-                repetitions: repetitions,
-                warmupRepetitions: warmupRepetitions
+                candidates: plan.candidates,
+                samples: plan.samples,
+                config: plan.config,
+                context: plan.context,
+                repetitions: plan.repetitions,
+                warmupRepetitions: plan.warmupRepetitions,
+                previous: plan.previous,
+                record: plan.record
             )
         },
         makeTransport: @escaping @Sendable ([String: String]) throws -> any CleanupBenchmarkTransport = { environment in
@@ -68,6 +68,15 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         },
         writeDataFile: @escaping @Sendable (String, Data) throws -> Void = {
             try $1.write(to: URL(fileURLWithPath: $0), options: .atomic)
+        },
+        appendDataFile: @escaping @Sendable (String, Data) throws -> Void = { path, data in
+            if !FileManager.default.fileExists(atPath: path) {
+                FileManager.default.createFile(atPath: path, contents: nil)
+            }
+            let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
         }
     ) {
         self.makeCandidates = makeCandidates
@@ -76,11 +85,10 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         self.readTextFile = readTextFile
         self.readDataFile = readDataFile
         self.writeDataFile = writeDataFile
+        self.appendDataFile = appendDataFile
     }
 
-    /// Exit codes: 0 when nothing failed; 2 when a run failed (provider error, empty
-    /// output, judge error) or a verdict is `fail`; 64 when the arguments or files
-    /// are unusable, before any request is sent.
+    /// Exit codes: see `usage`.
     public func run(arguments: [String], environment: [String: String]) async -> CleanupBenchmarkCommandResult {
         let setup: Setup
         do {
@@ -92,16 +100,17 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 stderr: "error: \(error)\n\(Self.usage)"
             )
         }
-        let benchmark = await runBenchmark(
-            setup.candidates,
-            setup.samples,
-            CleanupConfig(model: "selected-per-candidate", writingStyle: setup.options.style),
-            PersonalizationContext(vocabulary: []),
-            setup.options.repetitions,
-            setup.options.warmupRepetitions
-        )
+        let benchmark = await runBenchmark(CleanupBenchmarkRunPlan(
+            candidates: setup.candidates,
+            samples: setup.samples,
+            config: CleanupConfig(model: "selected-per-candidate", writingStyle: setup.options.style),
+            context: PersonalizationContext(vocabulary: []),
+            repetitions: setup.options.repetitions,
+            warmupRepetitions: setup.options.warmupRepetitions,
+            previous: setup.previous,
+            record: { setup.recorder?.record($0) }
+        ))
         let (report, errors) = await finish(benchmark, setup: setup)
-        let stderr = errors.map { "error: \($0)\n" }.joined()
         var rendered = CleanupBenchmarkReportFormatter.render(report)
         if setup.options.failureBreakdown {
             rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderFailureBreakdown(report)
@@ -110,9 +119,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderCategoryBreakdown(report)
         }
         return CleanupBenchmarkCommandResult(
-            exitCode: report.failed || !stderr.isEmpty ? 2 : 0,
+            exitCode: report.failed || !errors.isEmpty ? 2 : 0,
             stdout: rendered,
-            stderr: stderr
+            stderr: errors.map { "error: \($0)\n" }.joined()
         )
     }
 
@@ -121,10 +130,13 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         let samples: [CleanupBenchmarkSample]
         let datasetSHA256: String
         let candidates: [CleanupBenchmarkCandidate]
-        let judge: (judge: CleanupBenchmarkJudge, settings: CleanupBenchmarkJudgeSettings)?
-        let baseline: CleanupBenchmarkBaselineFile?
-        let baselineCandidate: String
+        let judge: CleanupBenchmarkJudge?
+        /// Each candidate's baseline entry, own or fallback; empty without `--baseline`.
+        let entries: [String: (name: String, entry: CleanupBenchmarkBaselineEntry)]
         let existingBaseline: CleanupBenchmarkBaselineFile?
+        /// What the outputs file says earlier processes finished.
+        let previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun]
+        let recorder: CleanupBenchmarkOutputsRecorder?
     }
 
     /// Everything that can be wrong before a paid request goes out.
@@ -136,18 +148,17 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         let specs = try CleanupBenchmarkProviderSpec.parseList(options.providers)
         let candidates = try makeCandidates(specs, mergedEnvironment)
 
-        var judge: (judge: CleanupBenchmarkJudge, settings: CleanupBenchmarkJudgeSettings)?
+        var judge: CleanupBenchmarkJudge?
         if options.judge {
             let settings = try CleanupBenchmarkJudgeSettings.decode(
                 try readDataFile(CleanupBenchmarkJudgeSettings.defaultPath)
             )
-            let client = CleanupBenchmarkJudgeClient(transport: try makeTransport(mergedEnvironment), settings: settings)
-            judge = (CleanupBenchmarkJudge(client: client, settings: settings), settings)
+            judge = CleanupBenchmarkJudge(transport: try makeTransport(mergedEnvironment), settings: settings)
         }
 
-        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-        var baseline: CleanupBenchmarkBaselineFile?
-        if let path = options.baselinePath {
+        let digest = CleanupBenchmarkDigest.sha256(data)
+        var entries: [String: (name: String, entry: CleanupBenchmarkBaselineEntry)] = [:]
+        if let path = options.baselinePath, let judge {
             let file = try CleanupBenchmarkBaselineFile.decode(try readDataFile(path))
             for candidate in candidates {
                 guard let found = file.entry(for: candidate.name, fallback: options.baselineCandidate) else {
@@ -156,8 +167,11 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 guard found.entry.datasetSHA256 == digest else {
                     throw CleanupBenchmarkCommandError.baselineDatasetMismatch(found.name)
                 }
+                guard found.entry.judgeSHA256 == (try judge.settings.judgeSHA256()) else {
+                    throw CleanupBenchmarkCommandError.baselineJudgeMismatch(found.name)
+                }
+                entries[candidate.name] = found
             }
-            baseline = file
         }
 
         var existing: CleanupBenchmarkBaselineFile?
@@ -168,75 +182,93 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 existing = CleanupBenchmarkBaselineFile()
             }
         }
+
+        var previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
+        var recorder: CleanupBenchmarkOutputsRecorder?
+        if let path = options.outputsFilePath {
+            do {
+                previous = try CleanupBenchmarkOutputsFile.resume(from: try readDataFile(path), samples: samples)
+            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                previous = [:]
+            }
+            recorder = CleanupBenchmarkOutputsRecorder { try appendDataFile(path, $0) }
+        }
         return Setup(
             options: options,
             samples: samples,
             datasetSHA256: digest,
             candidates: candidates,
             judge: judge,
-            baseline: baseline,
-            baselineCandidate: options.baselineCandidate,
-            existingBaseline: existing
+            entries: entries,
+            existingBaseline: existing,
+            previous: previous,
+            recorder: recorder
         )
     }
 
-    /// Judges the runs, then settles the verdicts and writes the opt-in files. A failed
-    /// write is reported next to the report it belongs to, so a paid run is never lost.
+    /// Judges the runs that are not yet judged, settles the verdicts and writes the
+    /// baseline. A failure is reported next to the report it belongs to, so a paid
+    /// run is never lost.
     private func finish(
         _ report: CleanupBenchmarkReport,
         setup: Setup
     ) async -> (report: CleanupBenchmarkReport, errors: [String]) {
         var report = report
         var errors: [String] = []
-        var settings: CleanupBenchmarkJudgeSettings?
         if let judge = setup.judge {
-            let scored = await judge.judge.score(report.runs, samples: setup.samples)
-            report = CleanupBenchmarkReport(runs: scored.runs, judge: scored.info)
-            settings = judge.settings
-        }
-        if let path = setup.options.outputsFilePath {
-            do {
-                try writeDataFile(path, try CleanupBenchmarkOutputsFile.encode(report.runs))
-            } catch {
-                errors.append("outputs file not written: \(error)")
+            let pending = report.runs.indices.filter { !report.runs[$0].isComplete(judged: true) }
+            let scored = await judge.score(pending.map { report.runs[$0] }, samples: setup.samples) { setup.recorder?.record($0) }
+            var runs = report.runs
+            for (index, run) in zip(pending, scored.runs) {
+                runs[index] = run
             }
-        }
-        guard let settings else { return (report, errors) }
-        if let baseline = setup.baseline {
+            errors += scored.info.embeddingErrors.map { "embeddings request failed: \($0)" }
             report = CleanupBenchmarkReport(
-                runs: report.runs,
-                judge: report.judge,
+                runs: runs,
+                judge: scored.info,
                 verdicts: setup.candidates.compactMap { candidate in
-                    baseline.entry(for: candidate.name, fallback: setup.baselineCandidate).map { found in
+                    setup.entries[candidate.name].map { found in
                         CleanupBenchmarkBar.verdict(
                             candidateName: candidate.name,
                             baselineName: found.name,
-                            runs: report.runs,
+                            runs: runs,
                             entry: found.entry,
-                            settings: settings.bar
+                            settings: judge.settings.bar
                         )
                     }
                 }
             )
+            errors += writeBaseline(report, judge: judge, setup: setup)
         }
-        if let path = setup.options.writeBaselinePath, let existing = setup.existingBaseline {
+        errors += setup.recorder?.error.map { [$0] } ?? []
+        return (report, errors)
+    }
+
+    /// Writes an entry for each candidate whose runs are all complete; the others
+    /// are named in the errors and leave their old entries as they were.
+    private func writeBaseline(_ report: CleanupBenchmarkReport, judge: CleanupBenchmarkJudge, setup: Setup) -> [String] {
+        guard let path = setup.options.writeBaselinePath, let existing = setup.existingBaseline else { return [] }
+        var errors: [String] = []
+        var entries: [String: CleanupBenchmarkBaselineEntry] = [:]
+        for candidate in setup.candidates {
             do {
-                var entries: [String: CleanupBenchmarkBaselineEntry] = [:]
-                for candidate in setup.candidates {
-                    entries[candidate.name] = try CleanupBenchmarkBar.makeEntry(
-                        candidateName: candidate.name,
-                        runs: report.runs,
-                        settings: settings,
-                        info: report.judge ?? CleanupBenchmarkJudgeInfo(),
-                        datasetSHA256: setup.datasetSHA256
-                    )
-                }
-                try writeDataFile(path, try existing.merging(entries).encoded())
+                entries[candidate.name] = try CleanupBenchmarkBar.makeEntry(
+                    candidateName: candidate.name,
+                    runs: report.runs,
+                    settings: judge.settings,
+                    datasetSHA256: setup.datasetSHA256
+                )
             } catch {
-                errors.append("baseline not written: \(error)")
+                errors.append("\(error)")
             }
         }
-        return (report, errors)
+        guard !entries.isEmpty else { return errors }
+        do {
+            try writeDataFile(path, try existing.merging(entries).encoded())
+        } catch {
+            errors.append("baseline not written: \(error)")
+        }
+        return errors
     }
 
     public static let usage = """
@@ -264,11 +296,16 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       --judge sends each sample's raw text, reference and the candidate's output to OpenRouter (Jev decisions and embeddings) and needs OPENROUTER_API_KEY.
       --baseline applies the bar: each candidate is judged against its own entry, or against the entry named by
       --baseline-candidate (default: openrouter:\(Config.defaultOpenRouterModel)) when it has none.
-      --write-baseline writes the entries of the candidates that ran and leaves all other entries as they are.
-      --outputs-file writes one JSON line per run, with the candidates' output text. It is opt-in and local.
+      A judged run uses --providers catalog or a named model: passthrough is judged like any candidate and fails the bar.
+      --write-baseline writes an entry for each candidate whose runs are all complete (an output, no failure, three
+      coefficients) and leaves every other entry as it is. A candidate with incomplete runs gets no entry; stderr says how many.
+      --outputs-file is append-only JSON Lines, local, with the candidates' output text. A line is added when a run's cleanup
+      finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
+      output but no full score is judged again, a provider error is run again. A file from another dataset is refused.
       Exit code: 0 when no run failed and every verdict passed (or none was asked for);
-      2 when a run failed (provider error, empty output, judge error) or a candidate failed the bar;
-      64 when the arguments or files are unusable. The key comes from the environment or --env-file; nothing is asked interactively.
+      2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
+      64 when the arguments or files are unusable, before any request is sent.
+      The key comes from the environment or --env-file; nothing is asked interactively.
 
     """
 }

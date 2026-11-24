@@ -116,10 +116,9 @@ public enum CleanupBenchmarkReportFormatter {
         var lines = [header] + rows.map { $0.joined(separator: ",") }
         if let judge = report.judge {
             lines.append("")
-            lines.append("judge_jev_models,judge_embedding_models,judge_cost_usd")
+            lines.append("judge_models,judge_cost_usd")
             lines.append([
-                judge.jevModelIDs.joined(separator: "|"),
-                judge.embeddingModelIDs.joined(separator: "|"),
+                Set(report.runs.flatMap(\.scores.models)).sorted().joined(separator: "|"),
                 String(format: "%.6f", judge.costUSD),
             ].joined(separator: ","))
         }
@@ -135,19 +134,15 @@ public enum CleanupBenchmarkReportFormatter {
         let header = "candidate,baseline,category,runs,within_slack,fuzzy,embedding,jev,verdict"
         let rows = report.verdicts.flatMap { verdict in
             verdict.rows.map { row -> String in
-                let rowRuns = report.runs.filter {
-                    $0.candidateName == verdict.candidateName && (row.category == nil || $0.sampleCategory == row.category)
-                }
-                let means = CleanupBenchmarkMeans(rowRuns)
-                return [
+                [
                     verdict.candidateName,
                     verdict.baselineName,
                     row.category?.rawValue ?? "all",
                     "\(row.runs)",
                     format(Optional(row.share)),
-                    format(means.fuzzy),
-                    format(means.embedding),
-                    format(means.jev),
+                    format(row.means.fuzzy),
+                    format(row.means.embedding),
+                    format(row.means.jev),
                     row.passed ? "pass" : "fail",
                 ].joined(separator: ",")
             }

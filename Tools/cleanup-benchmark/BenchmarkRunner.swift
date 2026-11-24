@@ -10,21 +10,22 @@ public struct CleanupBenchmarkScores: Equatable, Sendable {
     public var jev: Double?
     /// Every repeat's answer, by question key.
     public var jevQuestions: [String: [Double]]
-    /// Coarse codes of what stopped the judge from scoring this output.
-    public var judgeErrors: [String]
+    /// The response models that scored this output: the dated Jev snapshots and the
+    /// embedding models, sorted.
+    public var models: [String]
 
     public init(
         fuzzy: Double? = nil,
         embedding: Double? = nil,
         jev: Double? = nil,
         jevQuestions: [String: [Double]] = [:],
-        judgeErrors: [String] = []
+        models: [String] = []
     ) {
         self.fuzzy = fuzzy
         self.embedding = embedding
         self.jev = jev
         self.jevQuestions = jevQuestions
-        self.judgeErrors = judgeErrors
+        self.models = models
     }
 }
 
@@ -40,7 +41,8 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
     /// Nil when the provider failed.
     public let output: String?
     public var scores: CleanupBenchmarkScores
-    /// Coarse failure codes: `provider-error`, `empty-output`, `judge-error`.
+    /// Coarse failure codes: `provider-error`, `empty-output`, and the judge's
+    /// `embedding-failed`, `jev-refusal`, `jev-request-failed`.
     public var failures: [String]
     public let errorKind: CleanupBenchmarkErrorKind?
 
@@ -69,6 +71,26 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
     }
 }
 
+/// Identifies one run across processes: the outputs file is keyed by it.
+public struct CleanupBenchmarkRunKey: Hashable, Sendable {
+    public let candidateName: String
+    public let sampleId: String
+    public let repetition: Int
+}
+
+public extension CleanupBenchmarkRun {
+    var key: CleanupBenchmarkRunKey {
+        CleanupBenchmarkRunKey(candidateName: candidateName, sampleId: sampleId, repetition: repetition)
+    }
+
+    /// A run that needs no more work: it has an output, no failure and every
+    /// coefficient the benchmark was asked for.
+    func isComplete(judged: Bool) -> Bool {
+        output != nil && failures.isEmpty && scores.fuzzy != nil
+            && (!judged || (scores.embedding != nil && scores.jev != nil))
+    }
+}
+
 public enum CleanupBenchmarkErrorKind: String, Equatable, Sendable {
     case providerError = "provider-error"
 }
@@ -86,16 +108,20 @@ public struct CleanupBenchmarkRunner: Sendable {
         self.timer = timer
     }
 
+    @preconcurrency
     public func run(
         candidates: [CleanupBenchmarkCandidate],
         samples: [CleanupBenchmarkSample],
         config: CleanupConfig,
         context: PersonalizationContext,
         repetitions: Int = 1,
-        warmupRepetitions: Int = 0
+        warmupRepetitions: Int = 0,
+        previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:],
+        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
-        let safeWarmupRepetitions = max(warmupRepetitions, 0)
+        // A resumed run is not a cold start: warmup applies to a fresh run only.
+        let safeWarmupRepetitions = previous.isEmpty ? max(warmupRepetitions, 0) : 0
         var runs: [CleanupBenchmarkRun] = []
 
         for _ in 0..<safeWarmupRepetitions {
@@ -114,13 +140,20 @@ public struct CleanupBenchmarkRunner: Sendable {
         for repetition in 1...safeRepetitions {
             for (index, sample) in samples.enumerated() {
                 for candidate in candidates {
-                    runs.append(await runCandidate(
+                    let key = CleanupBenchmarkRunKey(candidateName: candidate.name, sampleId: sample.id, repetition: repetition)
+                    if let earlier = previous[key], earlier.output != nil {
+                        runs.append(earlier)
+                        continue
+                    }
+                    let run = await runCandidate(
                         candidate,
                         sample: sample,
                         position: RunPosition(sampleIndex: index + 1, repetition: repetition),
                         config: candidateConfig(for: candidate, base: config),
                         context: context
-                    ))
+                    )
+                    record(run)
+                    runs.append(run)
                 }
             }
         }

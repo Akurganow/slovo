@@ -49,10 +49,19 @@ struct SensitiveError: Error, CustomStringConvertible {
 final class FakeJudgeTransport: CleanupBenchmarkTransport {
     private let requests = Mutex<[(path: String, body: Data)]>([])
     private let refusing: String?
+    private let failingDecisionsFor: String?
+    private let isDown = Mutex(false)
 
-    /// `refusing` names a question the fake declines to answer.
-    init(refusing: String? = nil) {
+    /// `refusing` names a question the fake declines to answer. A decision whose
+    /// output contains `failingDecisionsFor` fails with a server error.
+    init(refusing: String? = nil, failingDecisionsFor: String? = nil) {
         self.refusing = refusing
+        self.failingDecisionsFor = failingDecisionsFor
+    }
+
+    /// While down, every request fails with a server error.
+    func setDown(_ down: Bool) {
+        isDown.withLock { $0 = down }
     }
 
     func recorded() -> [(path: String, body: Data)] {
@@ -61,6 +70,9 @@ final class FakeJudgeTransport: CleanupBenchmarkTransport {
 
     func post(path: String, body: Data) async throws -> Data {
         requests.withLock { $0.append((path, body)) }
+        if isDown.withLock({ $0 }) {
+            throw CleanupBenchmarkJudgeError.httpStatus(500)
+        }
         guard let object = try JSONSerialization.jsonObject(with: body) as? [String: Any] else {
             throw CleanupBenchmarkJudgeError.malformedResponse
         }
@@ -73,7 +85,11 @@ final class FakeJudgeTransport: CleanupBenchmarkTransport {
             ])
         }
         let state = object["state"] as? [String: String] ?? [:]
-        let value = (state["cleaned_text"] ?? "").contains("WRONG") ? 0.05 : 0.95
+        let output = state["cleaned_text"] ?? ""
+        if let marker = failingDecisionsFor, output.contains(marker) {
+            throw CleanupBenchmarkJudgeError.httpStatus(500)
+        }
+        let value = output.contains("WRONG") ? 0.05 : 0.95
         var answers: [String: Any] = [:]
         for key in (object["questions"] as? [String: Any] ?? [:]).keys {
             answers[key] = key == refusing ? ["type": "refusal"] : ["type": "noul", "noul": value]
@@ -82,12 +98,27 @@ final class FakeJudgeTransport: CleanupBenchmarkTransport {
             "answers": answers, "model": "fake/jev-snapshot", "usage": ["cost": 0.00001],
         ])
     }
+
+    func requestCount(path: String) -> Int {
+        recorded().filter { $0.path == path }.count
+    }
 }
 
 func judgeSettings() throws -> CleanupBenchmarkJudgeSettings {
     try CleanupBenchmarkJudgeSettings.decode(
         Data(contentsOf: URL(fileURLWithPath: CleanupBenchmarkJudgeSettings.defaultPath))
     )
+}
+
+/// Cleans to a fixed text and tells the fixture it was called.
+struct CountingCleaner: Cleaner {
+    let output: String
+    let called: @Sendable () -> Void
+
+    func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String {
+        called()
+        return output
+    }
 }
 
 /// A command driver that reads and writes an in-memory file system and talks to
@@ -103,6 +134,7 @@ final class DriverFixture: Sendable {
 
     let files: Mutex<[String: Data]>
     let transport: FakeJudgeTransport
+    private let cleanerCalls = Mutex(0)
 
     init(files: [String: String] = [:], transport: FakeJudgeTransport = FakeJudgeTransport()) throws {
         var contents = files.mapValues { Data($0.utf8) }
@@ -118,6 +150,11 @@ final class DriverFixture: Sendable {
         files.withLock { $0[path] }
     }
 
+    /// How many times any fake cleaner was asked to clean, over every `run`.
+    var cleaned: Int {
+        cleanerCalls.withLock { $0 }
+    }
+
     func run(_ arguments: [String]) async -> CleanupBenchmarkCommandResult {
         let driver = CleanupBenchmarkCommandDriver(
             makeCandidates: { specs, _ in
@@ -125,7 +162,10 @@ final class DriverFixture: Sendable {
                     CleanupBenchmarkCandidate(
                         provider: "fake",
                         model: spec.model,
-                        cleaner: RecordingCleaner(output: spec.model == "bad" ? "WRONG text." : "Hello there.")
+                        cleaner: CountingCleaner(
+                            output: spec.model == "bad" ? "WRONG text." : "Hello there.",
+                            called: { self.cleanerCalls.withLock { $0 += 1 } }
+                        )
                     )
                 }
             },
@@ -136,6 +176,9 @@ final class DriverFixture: Sendable {
             },
             writeDataFile: { path, data in
                 self.files.withLock { $0[path] = data }
+            },
+            appendDataFile: { path, data in
+                self.files.withLock { $0[path, default: Data()].append(data) }
             }
         )
         return await driver.run(

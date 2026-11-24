@@ -150,6 +150,9 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case requires(String, String)
     case noBaselineEntry(String, String)
     case baselineDatasetMismatch(String)
+    case baselineJudgeMismatch(String)
+    case outputsFileDatasetMismatch
+    case invalidJudgeSettings
 
     public var description: String {
         switch self {
@@ -167,6 +170,12 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
             return "baseline has no entry for \(candidate) or for the fallback \(fallback)"
         case .baselineDatasetMismatch(let entry):
             return "baseline entry \(entry) was recorded on a different dataset file"
+        case .baselineJudgeMismatch(let entry):
+            return "baseline entry \(entry) was recorded with different judge settings (jev or embedding in judge.json)"
+        case .outputsFileDatasetMismatch:
+            return "the outputs file names samples that are not in this dataset"
+        case .invalidJudgeSettings:
+            return "judge.json needs at least one repeat and one question"
         }
     }
 }

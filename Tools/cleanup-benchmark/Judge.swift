@@ -1,14 +1,10 @@
-/// What the judge reports about itself: which models answered and what it cost.
+/// What a judging pass reports about itself.
 public struct CleanupBenchmarkJudgeInfo: Equatable, Sendable {
-    public var jevModelIDs: [String]
-    public var embeddingModelIDs: [String]
-    public var costUSD: Double
+    public var costUSD = 0.0
+    /// One cause for each embeddings batch that failed.
+    public var embeddingErrors: [String] = []
 
-    public init(jevModelIDs: [String] = [], embeddingModelIDs: [String] = [], costUSD: Double = 0) {
-        self.jevModelIDs = jevModelIDs
-        self.embeddingModelIDs = embeddingModelIDs
-        self.costUSD = costUSD
-    }
+    public init() {}
 }
 
 /// Scores each output's meaning against its sample's reference: cosine similarity
@@ -16,54 +12,76 @@ public struct CleanupBenchmarkJudgeInfo: Equatable, Sendable {
 public struct CleanupBenchmarkJudge: Sendable {
     private static let embeddingBatchSize = 64
     private static let concurrency = 4
+    private static let ownFailures: Set = ["embedding-failed", "jev-refusal", "jev-request-failed"]
 
+    public let settings: CleanupBenchmarkJudgeSettings
     private let client: CleanupBenchmarkJudgeClient
-    private let settings: CleanupBenchmarkJudgeSettings
 
-    public init(client: CleanupBenchmarkJudgeClient, settings: CleanupBenchmarkJudgeSettings) {
-        self.client = client
+    public init(transport: any CleanupBenchmarkTransport, settings: CleanupBenchmarkJudgeSettings) {
         self.settings = settings
+        client = CleanupBenchmarkJudgeClient(transport: transport, settings: settings)
     }
 
+    private struct Item: Sendable {
+        let index: Int
+        let output: String
+        let sample: CleanupBenchmarkSample
+    }
+
+    private struct Embedded {
+        var vectors: [String: [Double]] = [:]
+        var models: Set<String> = []
+        var cost = 0.0
+        var errors: [String] = []
+    }
+
+    private struct Decided: Sendable {
+        var values: [String: [Double]] = [:]
+        var failures: [String] = []
+        var models: Set<String> = []
+        var cost = 0.0
+    }
+
+    /// Scores `runs` and returns them in the same order. `record` is called with
+    /// each run as soon as it is scored.
+    @preconcurrency
     public func score(
         _ runs: [CleanupBenchmarkRun],
-        samples: [CleanupBenchmarkSample]
+        samples: [CleanupBenchmarkSample],
+        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
     ) async -> (runs: [CleanupBenchmarkRun], info: CleanupBenchmarkJudgeInfo) {
         var info = CleanupBenchmarkJudgeInfo()
-        let bySample = Dictionary(samples.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let scorable = runs.indices.filter { runs[$0].output != nil && bySample[runs[$0].sampleId] != nil }
-
-        var texts = Set<String>()
-        for index in scorable {
-            texts.insert(runs[index].output ?? "")
-            texts.insert(bySample[runs[index].sampleId]?.reference ?? "")
-        }
-        let vectors = await embed(texts.sorted(), info: &info)
-
-        let decisions = await decide(runs, scorable: scorable, bySample: bySample)
-
         var scored = runs
-        var jevModels = Set<String>()
-        for index in scorable {
-            guard let output = runs[index].output, let reference = bySample[runs[index].sampleId]?.reference else { continue }
-            var scores = runs[index].scores
-            if let left = vectors[output], let right = vectors[reference] {
-                scores.embedding = Self.cosine(left, right)
-            } else {
-                scores.judgeErrors.append("embedding-failed")
+        let bySample = Dictionary(samples.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        // Per candidate, so each run's models name what served its own texts.
+        for indices in Dictionary(grouping: runs.indices, by: { runs[$0].candidateName }).values {
+            let items = indices.compactMap { index -> Item? in
+                guard let output = runs[index].output, let sample = bySample[runs[index].sampleId] else { return nil }
+                return Item(index: index, output: output, sample: sample)
             }
-            let outcome = decisions[index] ?? DecisionOutcome()
-            jevModels.formUnion(outcome.models)
-            info.costUSD += outcome.cost
-            scores.jevQuestions = outcome.values
-            scores.judgeErrors += outcome.errors
-            scores.jev = outcome.errors.isEmpty ? Self.jevCoefficient(outcome.values, questions: settings.jev.questions.keys) : nil
-            scored[index].scores = scores
-            if !scores.judgeErrors.isEmpty {
-                scored[index].failures.append("judge-error")
+            let embedded = await embed(Set(items.flatMap { [$0.output, $0.sample.reference] }).sorted())
+            info.costUSD += embedded.cost
+            info.embeddingErrors += embedded.errors
+            await decide(items) { item, decided in
+                info.costUSD += decided.cost
+                var run = runs[item.index]
+                run.failures.removeAll { Self.ownFailures.contains($0) }
+                run.failures += decided.failures
+                var scores = run.scores
+                if let left = embedded.vectors[item.output], let right = embedded.vectors[item.sample.reference] {
+                    scores.embedding = Self.cosine(left, right)
+                } else {
+                    scores.embedding = nil
+                    run.failures.append("embedding-failed")
+                }
+                scores.jevQuestions = decided.values
+                scores.jev = decided.failures.isEmpty ? Self.jevCoefficient(decided.values) : nil
+                scores.models = embedded.models.union(decided.models).sorted()
+                run.scores = scores
+                scored[item.index] = run
+                record(run)
             }
         }
-        info.jevModelIDs = jevModels.sorted()
         return (scored, info)
     }
 
@@ -82,92 +100,72 @@ public struct CleanupBenchmarkJudge: Sendable {
         return min(1, max(0, dot / (leftNorm.squareRoot() * rightNorm.squareRoot())))
     }
 
-    /// The lowest of the questions' means over their repeats. Nil when a question has
-    /// no answers.
-    static func jevCoefficient(_ values: [String: [Double]], questions: Dictionary<String, CleanupBenchmarkJSON>.Keys) -> Double? {
-        let means = questions.map { key -> Double? in
-            guard let repeats = values[key], !repeats.isEmpty else { return nil }
-            return repeats.reduce(0, +) / Double(repeats.count)
-        }
-        let present = means.compactMap(\.self)
-        guard !means.isEmpty, present.count == means.count else { return nil }
-        return present.min()
+    /// The lowest of the questions' means over their repeats.
+    static func jevCoefficient(_ values: [String: [Double]]) -> Double? {
+        values.values.map { $0.reduce(0, +) / Double($0.count) }.min()
     }
 
-    private func embed(_ texts: [String], info: inout CleanupBenchmarkJudgeInfo) async -> [String: [Double]] {
-        var vectors: [String: [Double]] = [:]
-        var models = Set<String>()
-        var start = 0
-        while start < texts.count {
+    private func embed(_ texts: [String]) async -> Embedded {
+        var embedded = Embedded()
+        for start in stride(from: 0, to: texts.count, by: Self.embeddingBatchSize) {
             let chunk = Array(texts[start..<min(start + Self.embeddingBatchSize, texts.count)])
-            start += Self.embeddingBatchSize
-            guard let batch = try? await client.embeddings(for: chunk) else { continue }
-            for (text, vector) in zip(chunk, batch.vectors) {
-                vectors[text] = vector
+            do {
+                let batch = try await client.embeddings(for: chunk)
+                for (text, vector) in zip(chunk, batch.vectors) {
+                    embedded.vectors[text] = vector
+                }
+                if let model = batch.model {
+                    embedded.models.insert(model)
+                }
+                embedded.cost += batch.cost ?? 0
+            } catch {
+                embedded.errors.append("\(error)")
             }
-            if let model = batch.model {
-                models.insert(model)
-            }
-            info.costUSD += batch.cost ?? 0
         }
-        info.embeddingModelIDs = models.sorted()
-        return vectors
+        return embedded
     }
 
-    private struct DecisionOutcome: Sendable {
-        var values: [String: [Double]] = [:]
-        var errors: [String] = []
-        var models: Set<String> = []
-        var cost = 0.0
-    }
-
-    private func decide(
-        _ runs: [CleanupBenchmarkRun],
-        scorable: [Int],
-        bySample: [String: CleanupBenchmarkSample]
-    ) async -> [Int: DecisionOutcome] {
-        var outcomes: [Int: DecisionOutcome] = [:]
-        await withTaskGroup(of: (Int, DecisionOutcome).self) { group in
-            var next = 0
+    /// Asks the Jev questions for every item, a few at a time, and hands each
+    /// item's answers to `finish` as soon as they are in.
+    private func decide(_ items: [Item], finish: (Item, Decided) -> Void) async {
+        await withTaskGroup(of: (Item, Decided).self) { group in
+            var pending = items[...]
             func launch() {
-                guard next < scorable.count else { return }
-                let index = scorable[next]
-                next += 1
-                let run = runs[index]
-                guard let output = run.output, let sample = bySample[run.sampleId] else { return }
-                group.addTask { (index, await decideRepeats(sample: sample, output: output)) }
+                guard let item = pending.popFirst() else { return }
+                group.addTask { (item, await decideRepeats(item)) }
             }
             for _ in 0..<Self.concurrency {
                 launch()
             }
-            while let (index, outcome) = await group.next() {
-                outcomes[index] = outcome
+            while let (item, decided) = await group.next() {
+                finish(item, decided)
                 launch()
             }
         }
-        return outcomes
     }
 
-    private func decideRepeats(sample: CleanupBenchmarkSample, output: String) async -> DecisionOutcome {
-        var outcome = DecisionOutcome()
+    private func decideRepeats(_ item: Item) async -> Decided {
+        var decided = Decided()
         for _ in 0..<settings.jev.repeats {
             do {
-                let decision = try await client.decide(dictation: sample.raw, reference: sample.reference, output: output)
-                outcome.cost += decision.cost ?? 0
+                let decision = try await client.decide(
+                    dictation: item.sample.raw, reference: item.sample.reference, output: item.output
+                )
+                decided.cost += decision.cost ?? 0
                 if let model = decision.model {
-                    outcome.models.insert(model)
+                    decided.models.insert(model)
                 }
                 for (key, answer) in decision.answers {
                     switch answer {
-                    case .probability(let value): outcome.values[key, default: []].append(value)
-                    case .refusal: outcome.errors.append("jev-refusal")
+                    case .probability(let value): decided.values[key, default: []].append(value)
+                    case .refusal: decided.failures.append("jev-refusal")
                     }
                 }
             } catch {
-                outcome.errors.append("jev-request-failed")
+                decided.failures.append("jev-request-failed")
             }
         }
-        outcome.errors = Array(Set(outcome.errors)).sorted()
-        return outcome
+        decided.failures = Set(decided.failures).sorted()
+        return decided
     }
 }

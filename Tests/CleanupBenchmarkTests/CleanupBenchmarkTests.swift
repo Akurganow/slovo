@@ -98,11 +98,11 @@ struct CleanupBenchmarkTests {
     /// error or an empty output pass a CI step.
     @Test
     func commandDriverExitsNonZeroWhenARunFailed() async {
-        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { plan in
             CleanupBenchmarkReport(runs: [
                 CleanupBenchmarkRun(
                     sampleId: "hidden",
-                    candidateName: candidates[0].name,
+                    candidateName: plan.candidates[0].name,
                     durationNanoseconds: 0,
                     failures: ["provider-error"],
                     errorKind: .providerError
@@ -120,11 +120,11 @@ struct CleanupBenchmarkTests {
     /// when every run passes is not caught by lower-level runner tests.
     @Test
     func commandDriverReturnsSuccessWhenEveryRunPasses() async {
-        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { plan in
             CleanupBenchmarkReport(runs: [
                 CleanupBenchmarkRun(
                     sampleId: "hidden",
-                    candidateName: candidates[0].name,
+                    candidateName: plan.candidates[0].name,
                     durationNanoseconds: 1_000_000,
                     errorKind: nil
                 ),

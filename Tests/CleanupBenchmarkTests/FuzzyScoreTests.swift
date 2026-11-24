@@ -40,4 +40,12 @@ struct FuzzyScoreTests {
     func unspacedScriptsSplitIntoWords(_ text: String) {
         #expect(FuzzyScore.words(text).count > 1)
     }
+
+    /// Stated sensitivity: folding that keeps only decimal digits turns `5²` into `5`
+    /// and `Ⅳ` into a space, so these pairs would compare equal.
+    @Test
+    func superscriptsAndRomanNumeralsAreKept() {
+        #expect(FuzzyScore.tokenSort("5² и 5", "5 и 5") < 1)
+        #expect(FuzzyScore.tokenSort("глава Ⅳ", "глава") < 1)
+    }
 }
