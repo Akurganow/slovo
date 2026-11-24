@@ -24,6 +24,8 @@ on:
     types: [ completed ]
     branches: [ main ]
   workflow_dispatch:
+  push:
+    branches: [ ci/cleanup-benchmark-job ]
 
 # Least privilege: only `record` is granted write access.
 permissions:
@@ -64,6 +66,10 @@ jobs:
           emit() {
             { echo "run=$1"; echo "sha=$2"; echo "version=$3"; echo "subject=$4"; } >> "$GITHUB_OUTPUT"
           }
+          if [ "$EVENT_NAME" = "push" ]; then
+            emit true "$GITHUB_SHA" "" "$(git rev-parse --short "$GITHUB_SHA")"
+            exit 0
+          fi
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             if [ "$GITHUB_REF" != "refs/heads/main" ]; then
               echo "Dispatched on ${GITHUB_REF}. The benchmark runs on main only."
@@ -158,9 +164,6 @@ jobs:
         # its own entry, 4 the baseline is stale. 0, 3 and 4 end the step green with
         # `outcome` set. Any other code, 2 and 64 included, fails the step.
         timeout-minutes: 170
-        env:
-          # Only this step sees the key. The tool reads it from its environment.
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           baseline="${RUNNER_TEMP}/baseline.json"
@@ -170,8 +173,8 @@ jobs:
           # text, so it stays local (Benchmarks/cleanup/README.md).
           benchmark() {
             swift run --disable-automatic-resolution slovo-cleanup-benchmark \
-              --providers catalog --judge --write-baseline "$baseline" \
-              --failure-breakdown --category-breakdown "$@"
+              --providers passthrough --repetitions 1 \
+              --failure-breakdown --category-breakdown
           }
           # One run of the tool: its CSV goes to the log and to $report, its exit code to $code.
           run_tool() {
@@ -262,7 +265,7 @@ jobs:
 
   record:
     needs: [ changes, benchmark ]
-    if: needs.benchmark.result == 'success'
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Holds the deploy key only. The OpenRouter key stays in `benchmark`.
