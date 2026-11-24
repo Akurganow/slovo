@@ -6,7 +6,7 @@ import CleanupBenchmark
 @Suite("Cleanup benchmark baseline command")
 struct CleanupBenchmarkBaselineCommandTests {
     private static let other = """
-    {"candidates": {"other:untouched": {"judgeSHA256": "j", "snapshots": [], "datasetSHA256": "x", "repetitions": 5, "samples": {}}}}
+    {"candidates": {"other:untouched": {"judgeSHA256": "j", "snapshots": [], "datasetSHA256": "x", "repetitions": 5, "dropWorst": 2, "samples": {}}}}
     """
 
     private func baseline(_ fixture: DriverFixture) throws -> CleanupBenchmarkBaselineFile {
@@ -161,7 +161,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         let written = try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
         let entry = try #require(written.candidates["fake:good"])
         let foreign = CleanupBenchmarkBaselineEntry(
-            judgeSHA256: "other-judge", snapshots: [], datasetSHA256: entry.datasetSHA256, repetitions: 5, samples: entry.samples
+            judgeSHA256: "other-judge", snapshots: [], datasetSHA256: entry.datasetSHA256, repetitions: 5, dropWorst: 2, samples: entry.samples
         )
         let other = try DriverFixture(files: [
             "baseline.json": String(decoding: try CleanupBenchmarkBaselineFile(candidates: ["fake:good": foreign]).encoded(), as: UTF8.self),
@@ -356,17 +356,19 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(fixture.cleaned == 0)
     }
 
-    /// Stated sensitivity: an entry recorded with other repetitions than `bar.repetitions`
-    /// applied to a run of that scheme compares slacks measured two ways; it must be
-    /// refused before any request, naming the remedy.
-    @Test
-    func baselineEntryOfOtherRepetitionsIsRefused() async throws {
+    /// Stated sensitivity: an entry recorded with other repetitions or another `dropWorst`
+    /// than the bar's, applied to a run of that scheme, compares slacks measured two ways;
+    /// checking the repetitions alone lets a changed `dropWorst` through. It must be refused
+    /// before any request, naming the remedy.
+    @Test(arguments: [(repetitions: 3, dropWorst: 2), (repetitions: 5, dropWorst: 1)])
+    func baselineEntryOfOtherSchemeIsRefused(repetitions: Int, dropWorst: Int) async throws {
         let fixture = try DriverFixture()
         _ = await fixture.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--write-baseline", "baseline.json"])
         let written = try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
         let entry = try #require(written.candidates["fake:good"])
         let shorter = CleanupBenchmarkBaselineEntry(
-            judgeSHA256: entry.judgeSHA256, snapshots: [], datasetSHA256: entry.datasetSHA256, repetitions: 3, samples: entry.samples
+            judgeSHA256: entry.judgeSHA256, snapshots: [], datasetSHA256: entry.datasetSHA256,
+            repetitions: repetitions, dropWorst: dropWorst, samples: entry.samples
         )
         let other = try DriverFixture(files: [
             "baseline.json": String(decoding: try CleanupBenchmarkBaselineFile(candidates: ["fake:good": shorter]).encoded(), as: UTF8.self),
@@ -375,7 +377,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         let result = await other.run(["--providers", "openrouter:good", "--judge", "--repetitions", "5", "--baseline", "baseline.json"])
 
         #expect(result.exitCode == 64)
-        #expect(result.stderr.contains("other repetitions than bar.repetitions"))
+        #expect(result.stderr.contains("other repetitions or dropWorst than the bar in judge.json"))
         #expect(other.transport.recorded().isEmpty)
     }
 

@@ -35,7 +35,7 @@ struct CleanupBenchmarkBarTests {
 
     private static func entry(_ ids: [String]) -> CleanupBenchmarkBaselineEntry {
         CleanupBenchmarkBaselineEntry(
-            judgeSHA256: "j", snapshots: [], datasetSHA256: "x", repetitions: 5,
+            judgeSHA256: "j", snapshots: [], datasetSHA256: "x", repetitions: 5, dropWorst: 2,
             samples: Dictionary(uniqueKeysWithValues: Set(ids).map { ($0, flat) })
         )
     }
@@ -252,7 +252,7 @@ struct CleanupBenchmarkBarTests {
 
     /// Stated sensitivity: an entry that keeps the plain mean, or the repetitions' count of
     /// the wrong source, stores a slack the candidate is not measured by; the entry holds
-    /// the trimmed slack and `bar.repetitions`.
+    /// the trimmed slack, `bar.repetitions` and `bar.dropWorst`.
     @Test
     func entryStoresTheTrimmedSlackAndTheRepetitions() throws {
         let settings = try judgeSettings()
@@ -261,6 +261,7 @@ struct CleanupBenchmarkBarTests {
         let entry = try CleanupBenchmarkBar.makeEntry(candidateName: "c", runs: runs, settings: settings, datasetSHA256: "x")
 
         #expect(entry.repetitions == settings.bar.repetitions)
+        #expect(entry.dropWorst == settings.bar.dropWorst)
         #expect(abs((entry.samples["s"]?.jev ?? 0) - 0.1) < 1e-9)
         #expect(settings.bar.dropWorst == 2)
     }

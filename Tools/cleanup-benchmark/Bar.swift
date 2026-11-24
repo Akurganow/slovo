@@ -23,8 +23,10 @@ public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
     /// snapshots and the embedding models.
     public let snapshots: [String]
     public let datasetSHA256: String
-    /// The repetitions per sample that the slacks come from (`bar.repetitions`).
+    /// The repetitions per sample that the slacks come from, and how many of the largest were
+    /// dropped (`bar.repetitions`, `bar.dropWorst`).
     public let repetitions: Int
+    public let dropWorst: Int
     /// By sample id.
     public let samples: [String: CleanupBenchmarkBaselineSample]
 
@@ -33,12 +35,14 @@ public struct CleanupBenchmarkBaselineEntry: Codable, Equatable, Sendable {
         snapshots: [String],
         datasetSHA256: String,
         repetitions: Int,
+        dropWorst: Int,
         samples: [String: CleanupBenchmarkBaselineSample]
     ) {
         self.judgeSHA256 = judgeSHA256
         self.snapshots = snapshots
         self.datasetSHA256 = datasetSHA256
         self.repetitions = repetitions
+        self.dropWorst = dropWorst
         self.samples = samples
     }
 }
@@ -180,6 +184,7 @@ public enum CleanupBenchmarkBar {
             snapshots: Set(own.flatMap(\.scores.models)).sorted(),
             datasetSHA256: datasetSHA256,
             repetitions: settings.bar.repetitions,
+            dropWorst: settings.bar.dropWorst,
             samples: Dictionary(
                 uniqueKeysWithValues: Dictionary(grouping: own, by: \.sampleId)
                     .map { ($0, slack(of: $1, dropWorst: settings.bar.dropWorst)) }

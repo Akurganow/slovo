@@ -89,7 +89,7 @@ references: an entry is never a separate expected result for that model.
   after the `dropWorst` largest are dropped: the mean of the 3 smallest of 5. A
   run without a score counts as slack 1.
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
-  sample and coefficient an entry holds that slack, plus the repetition count, the
+  sample and coefficient an entry holds that slack, plus the repetition count and `dropWorst`, the
   response models that scored the runs, the SHA-256 of the dataset file and the
   SHA-256 of the judge's settings (the Jev and embedding sections of `judge.json`).
 - A candidate's sample is within slack when, for each coefficient, its slack is at
@@ -106,7 +106,7 @@ references: an entry is never a separate expected result for that model.
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup
   model.
 - `--baseline` refuses an entry recorded on another dataset file, with other
-  judge settings or with other repetitions than `bar.repetitions`: rewrite it with
+  judge settings or with other `bar.repetitions` or `bar.dropWorst`: rewrite it with
   `--write-baseline`.
 
 An output that changes nothing passes on a clean case and is judged like any

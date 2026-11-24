@@ -193,8 +193,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 guard found.entry.judgeSHA256 == (try judge.settings.judgeSHA256()) else {
                     throw CleanupBenchmarkCommandError.baselineJudgeMismatch(found.name)
                 }
-                guard found.entry.repetitions == judge.settings.bar.repetitions else {
-                    throw CleanupBenchmarkCommandError.baselineRepetitionsMismatch(found.name)
+                let bar = judge.settings.bar
+                guard found.entry.repetitions == bar.repetitions, found.entry.dropWorst == bar.dropWorst else {
+                    throw CleanupBenchmarkCommandError.baselineSchemeMismatch(found.name)
                 }
                 entries[candidate.name] = found
             }

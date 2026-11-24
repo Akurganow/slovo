@@ -151,7 +151,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case noBaselineEntry(String, String)
     case baselineDatasetMismatch(String)
     case baselineJudgeMismatch(String)
-    case baselineRepetitionsMismatch(String)
+    case baselineSchemeMismatch(String)
     case repetitionsMismatch(given: Int, required: Int)
     case outputsFileDatasetMismatch
     case outputsFileStyleMismatch(String)
@@ -177,8 +177,8 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
         case .baselineJudgeMismatch(let entry):
             return "baseline entry \(entry) was recorded with different judge settings (jev or embedding in judge.json); "
                 + "rewrite it with --write-baseline"
-        case .baselineRepetitionsMismatch(let entry):
-            return "baseline entry \(entry) was recorded with other repetitions than bar.repetitions in judge.json; "
+        case .baselineSchemeMismatch(let entry):
+            return "baseline entry \(entry) was recorded with other repetitions or dropWorst than the bar in judge.json; "
                 + "rewrite it with --write-baseline"
         case .repetitionsMismatch(let given, let required):
             return "--baseline and --write-baseline need --repetitions \(required) (bar.repetitions in judge.json), not \(given)"
