@@ -26,6 +26,10 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
         guard !specs.isEmpty else {
             throw CleanupBenchmarkProviderSpecError.empty
         }
+        var seen = Set<String>()
+        if let duplicate = specs.first(where: { !seen.insert("\($0.provider.rawValue):\($0.model)").inserted }) {
+            throw CleanupBenchmarkProviderSpecError.duplicate("\(duplicate.provider.rawValue):\(duplicate.model)")
+        }
         return specs
     }
 
@@ -40,6 +44,9 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
 
         let explicitModel = parts.dropFirst().first?.trimmingCharacters(in: .whitespacesAndNewlines)
         let model = try explicitModel.flatMap { $0.isEmpty ? nil : $0 } ?? defaultModel(for: provider)
+        guard !model.contains(where: \.isNewline) else {
+            throw CleanupBenchmarkProviderSpecError.lineBreakInModel(provider)
+        }
         return CleanupBenchmarkProviderSpec(provider: provider, model: model)
     }
 
@@ -53,8 +60,20 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
     }
 }
 
-public enum CleanupBenchmarkProviderSpecError: Error, Equatable, Sendable {
+public enum CleanupBenchmarkProviderSpecError: Error, Equatable, CustomStringConvertible, Sendable {
     case empty
+    case duplicate(String)
     case missingModel(CleanupBenchmarkProvider)
+    case lineBreakInModel(CleanupBenchmarkProvider)
     case unknownProvider(String)
+
+    public var description: String {
+        switch self {
+        case .empty: "--providers names no candidate"
+        case .missingModel(let provider): "--providers needs a model after \(provider.rawValue):"
+        case .lineBreakInModel(let provider): "--providers takes a model name on one line after \(provider.rawValue):"
+        case .unknownProvider(let value): "--providers names an unknown provider: \(value)"
+        case .duplicate(let name): "--providers names \(name) more than once; every candidate needs its own name"
+        }
+    }
 }

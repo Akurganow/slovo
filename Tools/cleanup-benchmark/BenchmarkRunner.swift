@@ -1,32 +1,120 @@
+import Foundation
 import SlovoCore
+
+/// The three coefficients of one output against its sample's references (the best of them), each in
+/// 0...1 where 1 is identical. `embedding` and `jev` stay nil until the judge ran.
+public struct CleanupBenchmarkScores: Equatable, Sendable {
+    public var fuzzy: Double?
+    public var embedding: Double?
+    /// The lowest of the questions' means over the repeats.
+    public var jev: Double?
+    /// Every repeat's answer, by question key.
+    public var jevQuestions: [String: [Double]]
+    /// The response models that scored this output: the dated Jev snapshots and the
+    /// embedding models, sorted.
+    public var models: [String]
+
+    public init(
+        fuzzy: Double? = nil,
+        embedding: Double? = nil,
+        jev: Double? = nil,
+        jevQuestions: [String: [Double]] = [:],
+        models: [String] = []
+    ) {
+        self.fuzzy = fuzzy
+        self.embedding = embedding
+        self.jev = jev
+        self.jevQuestions = jevQuestions
+        self.models = models
+    }
+}
 
 public struct CleanupBenchmarkRun: Equatable, Sendable {
     public let sampleId: String
     public let sampleCategory: CleanupBenchmarkCategory
+    /// 1-based position of the sample in the dataset.
+    public let sampleIndex: Int
     public let candidateName: String
+    /// 1-based.
+    public let repetition: Int
     public let durationNanoseconds: UInt64
-    public let quality: CleanupQualityResult
+    /// Nil when the provider failed.
+    public let output: String?
+    public var scores: CleanupBenchmarkScores
+    /// Coarse failure codes: `provider-error`, `empty-output`, and the judge's
+    /// `embedding-failed`, `jev-refusal`, `jev-request-failed`.
+    public var failures: [String]
     public let errorKind: CleanupBenchmarkErrorKind?
 
     public init(
         sampleId: String,
         sampleCategory: CleanupBenchmarkCategory = .uncategorized,
+        sampleIndex: Int = 1,
         candidateName: String,
+        repetition: Int = 1,
         durationNanoseconds: UInt64,
-        quality: CleanupQualityResult,
+        output: String? = nil,
+        scores: CleanupBenchmarkScores = CleanupBenchmarkScores(),
+        failures: [String] = [],
         errorKind: CleanupBenchmarkErrorKind?
     ) {
         self.sampleId = sampleId
         self.sampleCategory = sampleCategory
+        self.sampleIndex = sampleIndex
         self.candidateName = candidateName
+        self.repetition = repetition
         self.durationNanoseconds = durationNanoseconds
-        self.quality = quality
+        self.output = output
+        self.scores = scores
+        self.failures = failures
         self.errorKind = errorKind
+    }
+}
+
+/// Identifies one run across processes: the outputs file is keyed by it.
+public struct CleanupBenchmarkRunKey: Hashable, Sendable {
+    public let candidateName: String
+    public let sampleId: String
+    public let repetition: Int
+}
+
+public extension CleanupBenchmarkRun {
+    var key: CleanupBenchmarkRunKey {
+        CleanupBenchmarkRunKey(candidateName: candidateName, sampleId: sampleId, repetition: repetition)
+    }
+
+    static let emptyOutputCode = "empty-output"
+
+    /// The candidate answered with nothing. That is its own failure: neither a repeat of
+    /// the judge nor a resume changes it.
+    var hasEmptyOutput: Bool {
+        failures.contains(Self.emptyOutputCode)
+    }
+
+    /// The run as a fuzzy-only report sees it: no embedding, Jev score or judge failure code.
+    func withoutJudgeResults() -> CleanupBenchmarkRun {
+        var run = self
+        run.scores = CleanupBenchmarkScores(fuzzy: scores.fuzzy)
+        run.failures.removeAll { CleanupBenchmarkJudge.ownFailures.contains($0) }
+        return run
+    }
+
+    /// A run that needs no more work: it has an output, no failure and every
+    /// coefficient the benchmark was asked for.
+    func isComplete(judged: Bool) -> Bool {
+        output != nil && failures.isEmpty && scores.fuzzy != nil
+            && (!judged || (scores.embedding != nil && scores.jev != nil))
     }
 }
 
 public enum CleanupBenchmarkErrorKind: String, Equatable, Sendable {
     case providerError = "provider-error"
+}
+
+/// Where a run sits in the matrix: both counted from 1.
+private struct RunPosition {
+    let sampleIndex: Int
+    let repetition: Int
 }
 
 public struct CleanupBenchmarkRunner: Sendable {
@@ -36,19 +124,21 @@ public struct CleanupBenchmarkRunner: Sendable {
         self.timer = timer
     }
 
+    @preconcurrency
     public func run(
         candidates: [CleanupBenchmarkCandidate],
         samples: [CleanupBenchmarkSample],
         config: CleanupConfig,
         context: PersonalizationContext,
         repetitions: Int = 1,
-        warmupRepetitions: Int = 0
+        warmupRepetitions: Int = 0,
+        previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:],
+        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
-        let safeWarmupRepetitions = max(warmupRepetitions, 0)
         var runs: [CleanupBenchmarkRun] = []
 
-        for _ in 0..<safeWarmupRepetitions {
+        for _ in 0..<max(warmupRepetitions, 0) {
             for sample in samples {
                 for candidate in candidates {
                     await warmCandidate(
@@ -61,15 +151,23 @@ public struct CleanupBenchmarkRunner: Sendable {
             }
         }
 
-        for _ in 0..<safeRepetitions {
-            for sample in samples {
+        for repetition in 1...safeRepetitions {
+            for (index, sample) in samples.enumerated() {
                 for candidate in candidates {
-                    runs.append(await runCandidate(
+                    let key = CleanupBenchmarkRunKey(candidateName: candidate.name, sampleId: sample.id, repetition: repetition)
+                    if let earlier = previous[key], earlier.output != nil {
+                        runs.append(earlier)
+                        continue
+                    }
+                    let run = await runCandidate(
                         candidate,
                         sample: sample,
+                        position: RunPosition(sampleIndex: index + 1, repetition: repetition),
                         config: candidateConfig(for: candidate, base: config),
                         context: context
-                    ))
+                    )
+                    record(run)
+                    runs.append(run)
                 }
             }
         }
@@ -96,6 +194,7 @@ public struct CleanupBenchmarkRunner: Sendable {
     private func runCandidate(
         _ candidate: CleanupBenchmarkCandidate,
         sample: CleanupBenchmarkSample,
+        position: RunPosition,
         config: CleanupConfig,
         context: PersonalizationContext
     ) async -> CleanupBenchmarkRun {
@@ -103,21 +202,28 @@ public struct CleanupBenchmarkRunner: Sendable {
             let timed = try await timer.measure {
                 try await candidate.cleaner.clean(sample.raw, config: config, context: context)
             }
+            let isEmpty = timed.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
                 sampleCategory: sample.category,
+                sampleIndex: position.sampleIndex,
                 candidateName: candidate.name,
+                repetition: position.repetition,
                 durationNanoseconds: timed.durationNanoseconds,
-                quality: CleanupQualityGate.evaluate(output: timed.output, sample: sample),
+                output: timed.output,
+                scores: CleanupBenchmarkScores(fuzzy: FuzzyScore.best(timed.output, sample.references)),
+                failures: isEmpty ? [CleanupBenchmarkRun.emptyOutputCode] : [],
                 errorKind: nil
             )
         } catch {
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
                 sampleCategory: sample.category,
+                sampleIndex: position.sampleIndex,
                 candidateName: candidate.name,
+                repetition: position.repetition,
                 durationNanoseconds: 0,
-                quality: CleanupQualityResult(passed: false, failures: ["provider-error"]),
+                failures: ["provider-error"],
                 errorKind: .providerError
             )
         }

@@ -10,40 +10,47 @@ supplied from process environment variables or a gitignored dotenv file.
 ```sh
 swift run --disable-automatic-resolution slovo-cleanup-benchmark \
   --env-file .env \
-  --providers catalog,passthrough \
-  --repetitions 10 \
+  --providers catalog \
+  --judge \
+  --baseline Benchmarks/cleanup/baseline.json \
   --failure-breakdown \
   --category-breakdown
 ```
 
-The report is CSV-like aggregate output:
+The report is CSV-like aggregate output. Without `--judge` it holds the fuzzy
+coefficient only and no verdict:
 
 ```text
-candidate,runs,passed,errors,p50_ms,p95_ms
-openrouter:openai/gpt-6-luna,530,473,0,908.3,1568.1
+candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev
+openrouter:<model>,275,0,<p50>,<p95>,<mean>,,
 ```
 
-With `--failure-breakdown`, the command appends aggregate failure-code counts:
+With `--judge` the embedding and Jev means fill in, and a line names the judge's
+response models and its cost. With `--baseline` the report adds one row per
+candidate and per category: samples, misses, allowed misses, dropped repetitions
+above the entry's slack plus the floor on any coefficient, the three means, and
+`pass` or `fail`.
 
-```text
-candidate,sample_index,failure,runs
-openrouter:openai/gpt-6-luna,18,sentence-structure,10
-```
+With `--failure-breakdown`, the command appends aggregate failure-code counts
+(`provider-error`, `empty-output`, `embedding-failed`, `jev-refusal`, `jev-request-failed`) by sample index. With
+`--category-breakdown`, it also appends category-level rows.
 
-With `--category-breakdown`, it also appends category-level aggregate rows:
+Reports intentionally do not print raw transcripts, cleaned text, references,
+prompts, API keys, response bodies, or caller-provided sample ids. The opt-in
+`--outputs-file PATH` is the one place output text is written, as JSON lines: one
+after a run's cleanup and one after it is judged.
 
-```text
-candidate,category,runs,passed,errors,p50_ms,p95_ms
-openrouter:openai/gpt-6-luna,punctuation-structure,120,100,0,961.2,1848.4
-```
-
-Reports intentionally do not print raw transcripts, cleaned text, prompts, API
-keys, response bodies, or caller-provided sample ids.
+The exit code reflects each candidate's bar against its own entry only: a fail against
+the `--baseline-candidate` fallback entry alone still exits 0. `Benchmarks/cleanup/README.md`,
+"Running the judge", lists the codes. The command never prompts, and the key comes from
+the environment or `--env-file`.
 
 ## Sample File
 
 `--samples` accepts either a top-level JSON array or an object with a `samples`
-array:
+array. Each sample has an `id`, an optional `category`, the `raw` dictation and
+`references`, a non-empty list: the first is the expected cleanup, the others are
+equally valid forms of it. Other keys are ignored.
 
 ```json
 {
@@ -52,43 +59,40 @@ array:
       "id": "mixed-command",
       "category": "code-switching",
       "raw": "ну вот запушь pr в github пожалуйста",
-      "reference": "Запушь PR в GitHub, пожалуйста.",
-      "expectation": {
-        "requiredSubstrings": ["PR", "GitHub"],
-        "forbiddenTerms": ["ну", "вот"],
-        "preserveTokens": ["PR", "GitHub"],
-        "requireTerminalPunctuation": true,
-        "forbidChatResponse": true,
-        "maxLengthRatio": 1.8,
-        "minimumSentenceTerminators": 1,
-        "maxRunOnWords": 12
-      }
+      "references": ["Запушь PR в GitHub, пожалуйста."]
     }
   ]
 }
 ```
 
-Quality checks are deliberately not byte-identical golden outputs. They catch
-the failures that matter for dictation cleanup:
+## Judge
 
-- required mixed-language anchors are preserved;
-- filler words and false starts selected by the sample are removed;
-- forbidden filler terms are matched on token boundaries, so `ну` does not fail
-  inside legitimate words such as `нужно`;
-- chat-style answers are rejected;
-- terminal punctuation is present when expected;
-- longer samples have enough sentence boundaries when requested;
-- long run-on segments can be capped with `maxRunOnWords`;
-- the output is not wildly longer than the input.
+Each output is scored against the sample's references by three coefficients
+(fuzzy, embedding, Jev). `Benchmarks/cleanup/README.md`, "What a pass means",
+holds the plain account, the bar and the flags; the settings live in
+`Benchmarks/cleanup/judge.json`. What the code adds to that:
+
+- The fuzzy coefficient is RapidFuzz `token_sort_ratio` over the words, so word
+  order never matters. The texts are lowercased, `ё` is read as `е`, and every
+  character that is not a letter, a number or a combining mark becomes a space.
+  Apple's word tokenizer splits the result, so Chinese, Japanese and Thai split
+  into words. Each distinct `Character` of the two texts becomes one integer id,
+  so a letter with its combining marks counts once. The library is vendored in
+  `Tools/cleanup-benchmark-fuzz` (rapidfuzz-cpp, MIT; release, commit and
+  SHA-256 in `VENDORED.txt` beside it) because upstream ships no `Package.swift`.
+- A refused Jev question is a judge error for that output, never a score. The
+  failure codes in `--failure-breakdown` are `provider-error`, `empty-output`,
+  `embedding-failed`, `jev-refusal` and `jev-request-failed`.
+- The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-53 synthetic/public-style samples, grouped as:
+55 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
-| `short-smoke` | 4 |
+| `short-smoke` | 5 |
 | `russian-filler` | 6 |
-| `code-switching` | 9 |
+| `code-switching` | 10 |
 | `punctuation-structure` | 12 |
 | `commands-editor` | 4 |
 | `inverse-text-normalization` | 7 |
@@ -97,9 +101,9 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 
 The `instruction-shaped-transcript` category is the permanent tripwire for the
 executed-dictation failure class: long task-shaped dictations (the flagship is a
-1,557-char RU+EN brief addressed to an assistant) whose expectations reject an
-executed answer — headings the speaker never said, chat-style replies, few-shot
-tag echoes — while accepting the speaker's own words cleaned per the rules.
+1,557-char RU+EN brief addressed to an assistant) that an assistant would answer
+instead of clean. The judge's `adds_nothing` question catches an executed answer,
+a chat reply or a few-shot tag echo.
 
 The default benchmark does not download datasets or models at runtime.
 
@@ -111,8 +115,8 @@ The benchmark accepts three provider forms:
   routed model id and requires `OPENROUTER_API_KEY`.
 - `catalog` expands to one `openrouter:` form per model in the app's cleanup
   catalog, `CleanupModelCatalog`, in menu order.
-- `passthrough` preserves the raw transcript locally and provides a latency and
-  quality floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
+- `passthrough` preserves the raw transcript locally and provides a latency
+  floor. It is also the raw-mode (cleanup disabled) baseline: raw mode
   short-circuits the whole cleaner stage (the orchestrator skips hint-gathering
   and the cleaner), and `passthrough`, a no-op cleaner, is the closest
   harness-measurable proxy for that skipped stage's ~0 ms cost (see
@@ -132,6 +136,10 @@ short probe prompt). Every catalog model answered a probe with
 
 ## Latest Live Snapshot
 
+Every table of passed runs below, here and in the sections after it, was scored by
+the earlier lexical quality gate. Its pass counts are not comparable with the
+judge's within-slack share.
+
 Live benchmark of the curated shortlist, measured on 2026-10-08 with 10
 repetitions over the 53-sample suite: temperature 0, the transcript in
 `<transcript>` tags, reasoning disabled via `reasoning: {effort: "none"}`, and
@@ -140,7 +148,7 @@ Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
 gathered hint carries the active input locale. Compare runs by pass RATE
-(passed/runs), never by raw passed counts.
+(passed/runs), never by raw passed counts, and only with runs of the same gate.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -261,9 +269,9 @@ network):
 > end-to-end key-up→inserted latency of raw mode is an owner-runbook
 > measurement, not a harness number. This row is a documented baseline for
 > reading the cleanup-model latencies above; it does not gate CI. `Passed 0`
-> is expected: the quality expectations describe cleaned text, and raw
-> transcripts fail them by design (the quality floor). For cross-version
-> comparisons, compare by pass rate, never by raw passed counts.
+> came from the removed lexical gate, whose expectations described cleaned text.
+> For cross-version comparisons, compare by pass rate, never by raw passed counts, and
+> only with runs of the same gate.
 
 The end-to-end number is captured OUTSIDE the harness, from the app's own
 timing marks: `dictation.stopRequested` at key-up (Orchestrator) and

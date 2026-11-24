@@ -1,0 +1,15 @@
+rapidfuzz_amalgamated.hpp is a verbatim copy of extras/rapidfuzz_amalgamated.hpp
+from rapidfuzz-cpp, MIT licence (LICENSE-rapidfuzz-cpp).
+
+Upstream:  https://github.com/rapidfuzz/rapidfuzz-cpp
+Release:   v3.3.4
+Commit:    82662f3623b3ca3645e543f677fc32fb8bd1fb95
+SHA-256:   9ead854b937a5d694f09db6212b5afa0849066aac42244d342113386eb752a04
+           (of rapidfuzz_amalgamated.hpp)
+
+Why vendored: upstream ships no Package.swift, so SwiftPM cannot depend on it.
+Only the cleanup benchmark links this target. CleanupBenchmarkFuzz.cpp is the
+one wrapper: token_sort_ratio over arrays of integer ids.
+
+To update: copy the header from the new release unchanged, then update the
+release, commit and SHA-256 above and the notice in THIRD-PARTY-NOTICES.md.

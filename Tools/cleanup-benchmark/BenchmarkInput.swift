@@ -5,11 +5,19 @@ public enum CleanupBenchmarkSampleLoader {
         let samples: [CleanupBenchmarkSample]
     }
 
+    /// Refuses duplicate ids: every consumer keys runs and references by id. Refuses an empty
+    /// list too: a run over no samples would print an empty report and exit 0.
     public static func decode(_ data: Data) throws -> [CleanupBenchmarkSample] {
-        if let samples = try? JSONDecoder().decode([CleanupBenchmarkSample].self, from: data) {
-            return samples
+        let samples = try (try? JSONDecoder().decode([CleanupBenchmarkSample].self, from: data))
+            ?? JSONDecoder().decode(FileShape.self, from: data).samples
+        var seen = Set<String>()
+        if let duplicate = samples.first(where: { !seen.insert($0.id).inserted }) {
+            throw CleanupBenchmarkCommandError.duplicateSampleId(duplicate.id)
         }
-        return try JSONDecoder().decode(FileShape.self, from: data).samples
+        guard !samples.isEmpty else {
+            throw CleanupBenchmarkCommandError.noSamples
+        }
+        return samples
     }
 }
 

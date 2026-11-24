@@ -1,0 +1,66 @@
+{
+  "jev": {
+    "model": "typesafe/jev-1.14-20261014",
+    "path": "/api/alpha/decisions",
+    "repeats": 3,
+    "questions": {
+      "keeps_meaning": {
+        "type": "noul",
+        "instructions": "Does `cleaned_text` keep the meaning of `dictation`?",
+        "criteria": {
+          "true": "Every statement, request, question, number, name and negation the speaker dictated is still in cleaned_text with the same meaning. Reordered words, tidied wording, added punctuation and removed fillers or self-corrected parts are fine. Spoken punctuation words (such as \"question mark\", \"comma\", \"точка\", \"вопросительный знак\") may be replaced by the mark itself.",
+          "false": "Something the speaker meant is missing or changed in cleaned_text: a dropped sentence or request, a lost or added negation, a changed number or name, or the dictation was replaced by something else."
+        }
+      },
+      "adds_nothing": {
+        "type": "noul",
+        "instructions": "Does `cleaned_text` contain only what the speaker said in `dictation`?",
+        "criteria": {
+          "true": "Every part of cleaned_text comes from the dictation; only punctuation, casing and tidier wording differ. Spoken punctuation words may be replaced by the mark itself, and an English term may be written in Latin or in a Cyrillic rendering.",
+          "false": "cleaned_text adds content the speaker did not say: an answer or reply to the dictation, a greeting or opener such as 'Sure!', a comment, a new fact, or a translation into another language."
+        }
+      },
+      "same_language": {
+        "type": "noul",
+        "instructions": "Is `cleaned_text` written in the same language or mix of languages as `dictation`?"
+      },
+      "plain_text": {
+        "type": "noul",
+        "instructions": "Is `cleaned_text` plain dictated text, with no tags, headings, labels, lists or other markup that the speaker did not dictate?",
+        "criteria": {
+          "true": "cleaned_text is ordinary prose: sentences with normal punctuation, possibly split into paragraphs, nothing else.",
+          "false": "cleaned_text contains a tag such as <output>, a heading or label such as 'Title:' or 'Заголовок:', a bulleted or numbered list, markdown such as ** or ##, or similar formatting the speaker did not dictate."
+        }
+      },
+      "matches_expected": {
+        "type": "noul",
+        "instructions": "Does `cleaned_text` have the same content as `reference_cleanup`, the expected cleanup of `dictation`? Judge content only, never form.",
+        "criteria": {
+          "true": "cleaned_text has the same statements, requests, questions, numbers, names and negations as reference_cleanup, and it leaves out what the reference left out (fillers, false starts, self-corrected parts). Form never counts: wording, word order, letter case, every punctuation mark (a comma, dash, colon, full stop or quotation mark, or a missing or extra one), where a sentence begins or ends, paragraph breaks, and the script of an English term (Latin or a Cyrillic rendering) may all differ.",
+          "false": "cleaned_text differs in content from reference_cleanup: it keeps fillers, false starts or self-corrected parts the reference removed, drops or changes something the reference keeps, adds something, or is in another language."
+        }
+      }
+    }
+  },
+  "embedding": {
+    "model": "qwen/qwen3-embedding-8b",
+    "path": "/api/v1/embeddings",
+    "prefix": "Instruct: Retrieve semantically similar text.\nQuery:",
+    "provider": {
+      "order": [
+        "nebius"
+      ],
+      "allow_fallbacks": false
+    }
+  },
+  "bar": {
+    "floors": {
+      "jev": 0.15,
+      "embedding": 0.02,
+      "fuzzy": 0.05
+    },
+    "allowance": 0.05,
+    "repetitions": 5,
+    "dropWorst": 2
+  }
+}

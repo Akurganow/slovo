@@ -26,6 +26,26 @@ struct CleanupBenchmarkProviderTests {
         ])
     }
 
+    /// Stated sensitivity: two candidates with one name share their runs, their resumed
+    /// outputs and their baseline slack (every consumer keys by the name), so the paid runs
+    /// are doubled and merged; a repeated model, or a catalog model named again, must be
+    /// refused.
+    @Test(arguments: ["passthrough,passthrough", "catalog,openrouter:\(CleanupModelCatalog.options[0].id)"])
+    func duplicateCandidateIsRefused(_ list: String) {
+        #expect(throws: CleanupBenchmarkProviderSpecError.self) {
+            try CleanupBenchmarkProviderSpec.parseList(list)
+        }
+    }
+
+    /// Stated sensitivity: a model name with a line break is written unescaped as the first cell
+    /// of its candidate's CSV row, so the break splits that row in the report → RED.
+    @Test
+    func modelNameWithALineBreakIsRefused() {
+        #expect(throws: CleanupBenchmarkProviderSpecError.lineBreakInModel(.openRouter)) {
+            try CleanupBenchmarkProviderSpec.parse("openrouter:openai/gpt-6\nluna")
+        }
+    }
+
     /// Stated sensitivity: drop the `catalog` expansion, or expand it to anything
     /// but the app's catalog in its order → RED.
     @Test

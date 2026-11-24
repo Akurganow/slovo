@@ -337,6 +337,19 @@ is a file's content, the entry names the file.
   plist copy only. That is the key's one write site.
 - `Scripts/sign-and-notarize.sh`, `Scripts/app-bundle.sh` and
   `.github/workflows/release.yml` never mention the `SlovoDevBuild` marker.
+- In `.github/workflows/cleanup-benchmark.yml`, the job that reads the OpenRouter
+  key holds no deploy key and no write token. Only the `record` job names the
+  `release-push` environment and holds `contents: write` and `pull-requests: write`.
+- A degradation or a stale baseline ends the `benchmark` job green with its
+  `outcome` set. A real error, a refused push or a refused pull-request
+  creation turns the run red. No step of the
+  workflow sets `continue-on-error`. The record commit is made only while `main`'s
+  tip is the commit the run started from.
+- The headers `chore(benchmark): record the cleanup baseline for …`,
+  `chore(benchmark): re-record the cleanup baseline for …` and
+  `chore(benchmark): accept the degraded cleanup baseline for …` are
+  non-releasable, so `decide` finds nothing to release, and they carry no skip
+  token, so their push runs trunk verification.
 
 ## Notices
 
@@ -357,6 +370,9 @@ is a file's content, the entry names the file.
   rule, enables every analyzer rule and turns off update checks.
 - `.swiftlint.yml` never disables the concurrency-annotation rule or the
   unused-import rule, in any YAML spelling.
+- Only the `CleanupBenchmark` library target links the vendored fuzzy target
+  `CleanupBenchmarkFuzz`, and the app target links no judge dependency.
+  `Package.swift` lists the fuzzy target as a dependency of no other target.
 
 ## At most once
 
