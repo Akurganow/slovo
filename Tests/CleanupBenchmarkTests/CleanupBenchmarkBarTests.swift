@@ -7,8 +7,8 @@ struct CleanupBenchmarkBarTests {
     private static let floors = CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0.15, embedding: 0.02, fuzzy: 0.05)
     private static let bar = CleanupBenchmarkJudgeSettings.Bar(floors: floors, allowance: 0.05)
 
-    /// Every coefficient has mean slack 0.10, and no spread, so the floors decide.
-    private static let slack = CleanupBenchmarkSlack(mean: 0.10, spread: 0)
+    /// Every coefficient has mean slack 0.10, so the floors decide.
+    private static let slack = CleanupBenchmarkSlack(mean: 0.10)
     private static let flat = CleanupBenchmarkBaselineSample(fuzzy: slack, embedding: slack, jev: slack)
 
     private static func scores(fuzzy: Double = 0.90, embedding: Double = 0.90, jev: Double = 0.90) -> CleanupBenchmarkScores {
@@ -28,12 +28,12 @@ struct CleanupBenchmarkBarTests {
         )
     }
 
-    /// Stated sensitivity: ignoring the margin floor (using the spread alone, 0 here)
-    /// puts a slack exactly at mean plus floor out of bounds; applying a floor to the
-    /// wrong coefficient moves the line for it. Each coefficient sits at its edge,
-    /// then one step past it.
+    /// Stated sensitivity: a margin of twice the floor moves the edge past a slack of mean
+    /// plus floor; a margin of zero puts that slack out; a floor applied to the wrong
+    /// coefficient moves the line for it. Each coefficient sits at its edge, then one
+    /// step past it.
     @Test
-    func slackIsWithinMeanPlusTheLargerOfSpreadAndFloor() {
+    func slackIsWithinMeanPlusTheFloor() {
         let atEdge = Self.scores(fuzzy: 0.85, embedding: 0.88, jev: 0.75)
         #expect(CleanupBenchmarkBar.isWithinSlack(atEdge, baseline: Self.flat, floors: Self.floors))
         for past in [
@@ -43,12 +43,6 @@ struct CleanupBenchmarkBarTests {
         ] {
             #expect(!CleanupBenchmarkBar.isWithinSlack(past, baseline: Self.flat, floors: Self.floors))
         }
-
-        // A spread above the floor widens the margin: 0.30 > 0.15.
-        let wide = CleanupBenchmarkBaselineSample(
-            fuzzy: Self.slack, embedding: Self.slack, jev: CleanupBenchmarkSlack(mean: 0.10, spread: 0.30)
-        )
-        #expect(CleanupBenchmarkBar.isWithinSlack(Self.scores(jev: 0.60), baseline: wide, floors: Self.floors))
     }
 
     /// Stated sensitivity: a run with an unscored coefficient (a judge error) counted
@@ -59,56 +53,69 @@ struct CleanupBenchmarkBarTests {
         #expect(!CleanupBenchmarkBar.isWithinSlack(unscored, baseline: Self.flat, floors: Self.floors))
     }
 
-    /// Stated sensitivity: skipping the category check lets one collapsed category
-    /// hide under the overall share (19 of 20 runs); a missing allowance fails 19 of 20.
-    @Test
-    func candidatePassesOnShareOverallAndInEveryCategory() {
-        let ids = (0..<20).map { "s\($0)" }
-        let entry = Self.entry(ids)
-        let good = Self.scores()
-        let bad = Self.scores(jev: 0.1)
-
-        var oneCategoryCollapsed = ids.dropFirst().map { Self.run($0, .russianFiller, good) }
-        oneCategoryCollapsed.append(Self.run(ids[0], .shortSmoke, bad))
-        let collapsed = CleanupBenchmarkBar.verdict(
-            candidateName: "c", baselineName: "b", runs: oneCategoryCollapsed, entry: entry, settings: Self.bar
-        )
-        #expect(collapsed.rows.first?.passed == true)
-        #expect(collapsed.rows.first?.withinSlack == 19)
-        #expect(collapsed.rows.first { $0.category == .shortSmoke }?.passed == false)
-        #expect(!collapsed.passed)
-
-        // Both categories hold 95%: 19 of 20 in one, 20 of 20 in the other: passes.
-        var spread = ids.map { Self.run($0, .russianFiller, good) }
-        spread[0] = Self.run(ids[0], .russianFiller, bad)
-        let passing = CleanupBenchmarkBar.verdict(
-            candidateName: "c", baselineName: "b", runs: spread, entry: entry, settings: Self.bar
-        )
-        #expect(passing.passed)
-
-        // 18 of 20 is below 95%.
-        var tooMany = spread
-        tooMany[1] = Self.run(ids[1], .russianFiller, bad)
-        #expect(!CleanupBenchmarkBar.verdict(
-            candidateName: "c", baselineName: "b", runs: tooMany, entry: entry, settings: Self.bar
-        ).passed)
+    /// `count` runs of one category, the first `misses` of them past the slack.
+    private static func runs(_ category: CleanupBenchmarkCategory, count: Int, misses: Int, offset: Int = 0) -> [CleanupBenchmarkRun] {
+        (0..<count).map { index in
+            run("s\(offset + index)", category, index < misses ? scores(jev: 0.1) : scores())
+        }
     }
 
-    /// Stated sensitivity: the baseline's own runs are within slack by construction
-    /// (the spread is never below a run's distance from the mean); if `slack(of:)`
-    /// took the spread from anything smaller, the baseline would fail its own bar.
+    private static func verdict(_ runs: [CleanupBenchmarkRun]) -> CleanupBenchmarkVerdict {
+        CleanupBenchmarkBar.verdict(
+            candidateName: "c", baselineName: "b", runs: runs, entry: entry(runs.map(\.sampleId)), settings: bar
+        )
+    }
+
+    /// Stated sensitivity: a share rule in place of the miss count (the baseline's own
+    /// 100% less the allowance) fails four runs with one miss; allowing zero misses in
+    /// a small row fails them too; allowing one extra miss passes two of four.
     @Test
-    func baselineRunsAreWithinTheirOwnSlack() {
-        let runs = [0.95, 0.70, 0.85].map { Self.run("s", .shortSmoke, Self.scores(fuzzy: $0, embedding: $0, jev: $0)) }
+    func smallRowToleratesOneMissAndNoMore() {
+        #expect(Self.verdict(Self.runs(.shortSmoke, count: 4, misses: 1)).passed)
+        #expect(!Self.verdict(Self.runs(.shortSmoke, count: 4, misses: 2)).passed)
+    }
+
+    /// Stated sensitivity: a miss count rounded up moves the edge of a large row: 3
+    /// misses in 60 runs (the allowance's share) pass and a fourth fails.
+    @Test
+    func largeRowToleratesTheAllowancesShareOfMisses() {
+        #expect(Self.verdict(Self.runs(.russianFiller, count: 60, misses: 3)).passed)
+        #expect(!Self.verdict(Self.runs(.russianFiller, count: 60, misses: 4)).passed)
+    }
+
+    /// Stated sensitivity: skipping the category rows lets one collapsed category hide
+    /// under the overall row (3 misses in 60 runs pass overall; the 3 sit in a
+    /// category of 4).
+    @Test
+    func oneCollapsedCategoryFailsTheVerdict() {
+        let runs = Self.runs(.russianFiller, count: 56, misses: 0)
+            + Self.runs(.shortSmoke, count: 4, misses: 3, offset: 56)
+        let result = Self.verdict(runs)
+
+        #expect(result.rows.first?.passed == true)
+        #expect(result.rows.first { $0.category == .shortSmoke }?.passed == false)
+        #expect(!result.passed)
+    }
+
+    /// Stated sensitivity: a row of no runs that passes would let a candidate whose runs
+    /// all vanished pass the bar.
+    @Test
+    func rowWithoutRunsFails() {
+        #expect(!Self.verdict([]).passed)
+    }
+
+    /// Stated sensitivity: a slack taken from the largest repetition, or from a
+    /// coefficient other than its own, leaves these pinned means.
+    @Test
+    func slackIsTheMeanOverTheRepetitions() {
+        let runs = [(0.95, 0.90, 0.50), (0.70, 0.90, 0.50), (0.85, 0.60, 0.80)].map { fuzzy, embedding, jev in
+            Self.run("s", .shortSmoke, Self.scores(fuzzy: fuzzy, embedding: embedding, jev: jev))
+        }
         let sample = CleanupBenchmarkBar.slack(of: runs)
 
-        #expect(abs(sample.jev.mean - 0.5 / 3) < 1e-9)
-        #expect(abs(sample.jev.spread - 0.25) < 1e-9)
-        for run in runs {
-            #expect(CleanupBenchmarkBar.isWithinSlack(
-                run.scores, baseline: sample, floors: CleanupBenchmarkJudgeSettings.Bar.Floors(jev: 0, embedding: 0, fuzzy: 0)
-            ))
-        }
+        #expect(abs(sample.fuzzy.mean - 0.5 / 3) < 1e-9)
+        #expect(abs(sample.embedding.mean - 0.2) < 1e-9)
+        #expect(abs(sample.jev.mean - 0.4) < 1e-9)
     }
 
     /// Stated sensitivity: a lookup that ignores the candidate's own entry judges
@@ -147,7 +154,7 @@ struct CleanupBenchmarkBarTests {
     }
 
     /// Stated sensitivity: an entry built from a run with an empty output, or one a
-    /// judge failed on, widens a spread (slack near 1) and loosens the bar on that
+    /// judge failed on, raises a mean (slack near 1) and loosens the bar on that
     /// sample for good; any such run must refuse the entry.
     @Test
     func entryIsRefusedWhenAnyRunIsIncomplete() throws {

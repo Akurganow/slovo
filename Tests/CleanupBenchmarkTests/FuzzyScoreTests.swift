@@ -9,7 +9,9 @@ struct FuzzyScoreTests {
     /// are caught by `missingCombiningMarkCostsOneCharacter`.
     @Test
     func swappedWordsScoreOne() {
-        #expect(FuzzyScore.tokenSort("проверь latency на staging", "staging на проверь latency") == 1)
+        // The first text is the raw of sample `code-switching-clean-10` of
+        // `Benchmarks/cleanup/slovo-cleanup-v1.json`; the second reorders its words.
+        #expect(FuzzyScore.tokenSort("Проверь latency на staging.", "staging на проверь latency") == 1)
         #expect(FuzzyScore.tokenSort("a b", "b a") == 1)
     }
 
@@ -30,9 +32,13 @@ struct FuzzyScoreTests {
     @Test
     func foldingIgnoresCasingPunctuationAndYo() {
         #expect(FuzzyScore.tokenSort("Ёлка, ёлка!", "елка  елка") == 1)
-        // The word tokenizer keeps an inner apostrophe or decimal point inside a word;
-        // folding has to turn it into a space first.
-        #expect(FuzzyScore.tokenSort("don't 3.5", "don t 3 5") == 1)
+        // The first text is the recognizer's transcript of clip mx-021 of the synthetic
+        // corpus (WhisperKit argmax-oss-swift 1.1.1 at 1bbc57cb, the app's turbo model),
+        // the second the phrase spoken. The word tokenizer keeps an inner decimal point
+        // inside a word; folding has to turn it into a space first.
+        #expect(FuzzyScore.tokenSort(
+            "Созвон по Sprint Planning во вторник в 14.30.", "Созвон по sprint planning во вторник в 14:30."
+        ) == 1)
         #expect(FuzzyScore.tokenSort("a", "b") == 0)
     }
 

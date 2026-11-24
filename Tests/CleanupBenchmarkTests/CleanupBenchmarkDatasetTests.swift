@@ -29,19 +29,25 @@ struct CleanupBenchmarkDatasetTests {
         #expect(samples.allSatisfy { !$0.reference.isEmpty })
     }
 
+    /// The sample is `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`.
+    ///
     /// Stated sensitivity: a sample file whose entry has no reference must not load:
     /// every output is scored against the reference, and a default would score
     /// against nothing. Keys the old format carried are ignored.
     @Test
     func sampleWithoutReferenceFailsToLoadAndOldKeysAreIgnored() throws {
-        let withoutReference = Data(#"[{"id": "a", "raw": "привет"}]"#.utf8)
+        let raw = "Ну я сейчас проверяю, как работает диктовка."
+        let reference = "Я сейчас проверяю, как работает диктовка."
+        let withoutReference = Data(#"[{"id": "a", "raw": "\#(raw)"}]"#.utf8)
         #expect(throws: DecodingError.self) {
             try CleanupBenchmarkSampleLoader.decode(withoutReference)
         }
 
-        let oldFormat = Data(#"[{"id": "a", "raw": "привет", "reference": "Привет.", "expectation": {"maxLengthRatio": 1.8}}]"#.utf8)
+        let oldFormat = Data(
+            #"[{"id": "a", "raw": "\#(raw)", "reference": "\#(reference)", "expectation": {"maxLengthRatio": 1.8}}]"#.utf8
+        )
         #expect(try CleanupBenchmarkSampleLoader.decode(oldFormat) == [
-            CleanupBenchmarkSample(id: "a", raw: "привет", reference: "Привет."),
+            CleanupBenchmarkSample(id: "a", raw: raw, reference: reference),
         ])
     }
 

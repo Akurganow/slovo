@@ -64,7 +64,7 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         }
 
         public let floors: Floors
-        /// A candidate may fall this share below the baseline's own within-slack share.
+        /// The share of a row's runs that may fall outside the slack (at least one run is always allowed).
         public let allowance: Double
     }
 

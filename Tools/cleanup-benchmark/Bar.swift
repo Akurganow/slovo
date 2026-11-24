@@ -1,14 +1,12 @@
 import Foundation
 
-/// A coefficient's slack (1 − coefficient) on one sample across a candidate's
-/// repetitions: its mean, and its spread (largest minus smallest).
+/// A coefficient's slack (1 − coefficient) on one sample: its mean across a
+/// candidate's repetitions.
 public struct CleanupBenchmarkSlack: Codable, Equatable, Sendable {
     public let mean: Double
-    public let spread: Double
 
-    public init(mean: Double, spread: Double) {
+    public init(mean: Double) {
         self.mean = mean
-        self.spread = spread
     }
 }
 
@@ -109,7 +107,7 @@ public struct CleanupBenchmarkVerdictRow: Equatable, Sendable {
     public let passed: Bool
 
     public var share: Double {
-        Self.share(withinSlack, of: runs)
+        runs == 0 ? 0 : Double(withinSlack) / Double(runs)
     }
 
     init(category: CleanupBenchmarkCategory?, group: [CleanupBenchmarkRun], withinSlack: Int, allowance: Double) {
@@ -117,13 +115,10 @@ public struct CleanupBenchmarkVerdictRow: Equatable, Sendable {
         runs = group.count
         self.withinSlack = withinSlack
         means = CleanupBenchmarkMeans(group)
-        // The baseline's own runs are always within its slack (a spread is never
-        // smaller than a run's distance from the mean), so its share is 1.
-        passed = Self.share(withinSlack, of: group.count) + slackTolerance >= 1 - allowance
-    }
-
-    private static func share(_ withinSlack: Int, of runs: Int) -> Double {
-        runs == 0 ? 0 : Double(withinSlack) / Double(runs)
+        // At least one miss is always allowed, so a small row is not failed by a
+        // single run. A row with no runs has no verdict to pass.
+        let allowedMisses = max(1, Int((allowance * Double(group.count) + slackTolerance).rounded(.down)))
+        passed = !group.isEmpty && group.count - withinSlack <= allowedMisses
     }
 }
 
@@ -138,23 +133,23 @@ public struct CleanupBenchmarkVerdict: Equatable, Sendable {
     }
 }
 
-/// The bar: a candidate's run on a sample is within today's slack when, for every
-/// coefficient, its slack is at most the baseline's mean slack plus the larger of
-/// the baseline's spread and the coefficient's floor. A candidate passes when its
-/// within-slack share is at least the baseline's own share less the allowance,
-/// overall and in every category.
+/// The bar: a candidate's run on a sample is within slack when, for every
+/// coefficient, its slack is at most the baseline's mean slack plus the
+/// coefficient's floor. A candidate passes when the runs not within slack number
+/// at most the allowance's share of the row's runs, and at least one, overall and
+/// in every category.
 public enum CleanupBenchmarkBar {
-    /// The slack of runs that are complete, one sample's repetitions.
+    /// The mean slack of runs that are complete, one sample's repetitions.
     public static func slack(of runs: [CleanupBenchmarkRun]) -> CleanupBenchmarkBaselineSample {
         CleanupBenchmarkBaselineSample(
-            fuzzy: stats(runs.compactMap(\.scores.fuzzy)),
-            embedding: stats(runs.compactMap(\.scores.embedding)),
-            jev: stats(runs.compactMap(\.scores.jev))
+            fuzzy: meanSlack(runs.compactMap(\.scores.fuzzy)),
+            embedding: meanSlack(runs.compactMap(\.scores.embedding)),
+            jev: meanSlack(runs.compactMap(\.scores.jev))
         )
     }
 
     /// The entry for one candidate from its runs over the dataset. Every run must be
-    /// complete: an empty output or a judge failure would widen a spread and loosen
+    /// complete: an empty output or a judge failure would raise a mean and loosen
     /// the bar for good.
     public static func makeEntry(
         candidateName: String,
@@ -211,12 +206,10 @@ public enum CleanupBenchmarkBar {
     }
 
     private static func within(_ slack: Double, _ baseline: CleanupBenchmarkSlack, floor: Double) -> Bool {
-        slack <= baseline.mean + max(baseline.spread, floor) + slackTolerance
+        slack <= baseline.mean + floor + slackTolerance
     }
 
-    private static func stats(_ coefficients: [Double]) -> CleanupBenchmarkSlack {
-        let slacks = coefficients.map { 1 - $0 }
-        let mean = slacks.reduce(0, +) / Double(slacks.count)
-        return CleanupBenchmarkSlack(mean: mean, spread: (slacks.max() ?? 0) - (slacks.min() ?? 0))
+    private static func meanSlack(_ coefficients: [Double]) -> CleanupBenchmarkSlack {
+        CleanupBenchmarkSlack(mean: coefficients.map { 1 - $0 }.reduce(0, +) / Double(coefficients.count))
     }
 }

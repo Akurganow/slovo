@@ -7,8 +7,10 @@ import SlovoCore
 
 @Suite("Cleanup benchmark judge")
 struct CleanupBenchmarkJudgeTests {
+    /// Sample `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`; the
+    /// outputs the tests score against it are stand-ins.
     private static let sample = CleanupBenchmarkSample(
-        id: "s", category: .shortSmoke, raw: "ну привет там", reference: "Hello there."
+        id: "s", category: .russianFiller, raw: "Ну я сейчас проверяю, как работает диктовка.", reference: "Я сейчас проверяю, как работает диктовка."
     )
 
     private static func run(output: String?, fuzzy: Double? = 1) -> CleanupBenchmarkRun {
@@ -48,8 +50,8 @@ struct CleanupBenchmarkJudgeTests {
             let body = try JSONDecoder().decode(Body.self, from: decision.body)
             #expect(body.model == settings.jev.model)
             #expect(body.state == [
-                "dictation": "ну привет там",
-                "reference_cleanup": "Hello there.",
+                "dictation": "Ну я сейчас проверяю, как работает диктовка.",
+                "reference_cleanup": "Я сейчас проверяю, как работает диктовка.",
                 "cleaned_text": "Hello there.",
             ])
             #expect(body.questions == settings.jev.questions)
@@ -105,7 +107,7 @@ struct CleanupBenchmarkJudgeTests {
             let provider: CleanupBenchmarkJudgeSettings.Provider
         }
         let body = try JSONDecoder().decode(Body.self, from: try #require(embeddings.first).body)
-        #expect(Set(body.input) == [settings.embedding.prefix + "WRONG text.", settings.embedding.prefix + "Hello there."])
+        #expect(Set(body.input) == [settings.embedding.prefix + "WRONG text.", settings.embedding.prefix + Self.sample.reference])
         #expect(body.model == settings.embedding.model)
         #expect(body.provider == settings.embedding.provider)
         // The fake embeds a WRONG text at [0, 1] and the reference at [1, 0].

@@ -20,12 +20,48 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
 
-Total: **55 samples**, 11 of them clean cases: the reference equals the raw text
-up to the first capital and the final mark. A full run is samples × repetitions,
-so "550 runs" = 55 × 10.
+Total: **55 samples**, 21 of them clean cases: the raw text equals its
+reference. A full run is samples × repetitions, so "550 runs" = 55 × 10.
 
 Each sample is `id`, `category`, `raw` and a required `reference`: the expected
 cleanup. Other keys are ignored.
+
+## The form of a raw transcript
+
+Every `raw` is text the speech recognizer can emit: the app's WhisperKit model
+(`Config.defaultAsrModel`, a Whisper large-v3 turbo build) with the decoding
+options the app sets. Slovo's own steps between the decoder and the cleanup
+request change only whitespace and strip `<|…|>` tokens, so the recognizer's
+form reaches cleanup as it is.
+
+- **Casing and punctuation.** Mostly sentence case with commas, full stops and
+  question marks: Whisper is trained on transcripts "without any significant
+  standardization" (Radford et al., "Robust Speech Recognition via Large-Scale
+  Weak Supervision", arXiv 2212.04356v1, section 2.1; paper). Long run-ons come
+  back joined with commas or cut by a stray full stop, with stray capitals.
+  Some raws stay lower case and unpunctuated: users report large-v3 doing so
+  (`openai/whisper` discussion 1762; reports). Quotation marks may be guessed.
+- **Numbers.** Digits: `15%`, `12% to 9%`, `10 по 24 августа`, times as
+  `9.30` and `10.45`, a spoken "ноль ноль один" as `001`.
+- **Fillers.** Russian `ну`, `вот`, `короче` and `ой нет` survive; English
+  `uh` and `um` mostly do not (CrisperWhisper, arXiv 2408.16589v1: "Whisper
+  eliminates many filler words"; paper). A raw keeps only fillers that
+  survive.
+- **Spoken punctuation.** No raw depends on how a spoken "question mark" is
+  written.
+- **English terms in Russian speech.** Latin, often title-cased (`Settings`,
+  `API Key`, `GitHub Actions`), or a Cyrillic rendering (`коммит`, `бенчмарк`,
+  `хотфикс`), or a mix. A reference keeps the script the raw uses: cleanup does
+  not transliterate.
+- **Apostrophes.** ASCII `'` (`we'll`, `c'est`).
+
+Measured: each sample's spoken text, synthesised with the macOS `say` voices
+Milena (Russian) and Reed (English US) and transcribed once through the app's
+live session path (WhisperKit `argmax-oss-swift` 1.1.1, revision
+`1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4`; a run). A synthetic voice reads
+English terms with a Russian accent, so the recognizer's misreadings of
+English terms were not kept: those raws write the term as Whisper writes it
+from a clear speaker.
 
 ## What a pass means
 
@@ -45,17 +81,16 @@ Slack is 1 minus the coefficient. Every model scores against the same
 references: an entry is never a separate expected result for that model.
 
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
-  sample and coefficient an entry holds the mean slack and the spread (largest
-  minus smallest) across the repetitions, plus the response models that scored
-  the runs, the SHA-256 of the dataset file and the SHA-256 of the judge's
-  settings (the Jev and embedding sections of `judge.json`).
+  sample and coefficient an entry holds the mean slack across the repetitions,
+  plus the response models that scored the runs, the SHA-256 of the dataset file
+  and the SHA-256 of the judge's settings (the Jev and embedding sections of
+  `judge.json`).
 - A run on a sample is within a model's recorded slack when, for each
-  coefficient, its slack is at most the entry's mean plus the larger of the
-  entry's spread and the coefficient's floor (the floors are in `judge.json`).
-- A candidate passes when its share of runs within slack is at least the
-  baseline's own share less the allowance in `judge.json`, overall and in every
-  category. The baseline's own runs are always within its slack, so its share is
-  100%.
+  coefficient, its slack is at most the entry's mean plus the coefficient's floor
+  (the floors are in `judge.json`).
+- A candidate passes when, overall and in every category, the runs not within
+  slack number at most the allowance's share of the row's runs (`judge.json`),
+  and never fewer than one. A row of a few runs therefore tolerates one miss.
 - A candidate is judged against its own entry. A candidate with no entry (a new
   model, a local one) is judged against the entry named by
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup

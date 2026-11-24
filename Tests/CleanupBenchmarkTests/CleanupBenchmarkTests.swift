@@ -7,17 +7,20 @@ import SlovoCore
 
 @Suite("Cleanup benchmark harness")
 struct CleanupBenchmarkTests {
+    /// The raws are samples `code-switching-git-pr-01` and `code-switching-swift-tools-03` of
+    /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
+    ///
     /// Stated sensitivity: a runner that times only one provider, reuses one
     /// provider output for all candidates, skips samples, or compares providers
     /// in candidate-major batches will miss the recorded interleaved call matrix.
     @Test
     func runnerInvokesEveryCandidateForEverySampleAndRecordsTiming() async {
         let samples = [
-            CleanupBenchmarkSample(id: "one", raw: "ну проверь pr", reference: "Проверь PR."),
-            CleanupBenchmarkSample(id: "two", raw: "вот github работает", reference: "GitHub работает."),
+            CleanupBenchmarkSample(id: "one", raw: "Ну вот запушь PR в GitHub, пожалуйста.", reference: "Запушь PR в GitHub, пожалуйста."),
+            CleanupBenchmarkSample(id: "two", raw: "запусти swift test потом swiftlint analyze", reference: "Запусти swift test, потом swiftlint analyze."),
         ]
-        let first = RecordingCleaner(output: "Проверь PR.")
-        let second = RecordingCleaner(output: "GitHub работает.")
+        let first = RecordingCleaner(output: "Запушь PR в GitHub, пожалуйста.")
+        let second = RecordingCleaner(output: "Запусти swift test, потом swiftlint analyze.")
         let durations = Mutex<[UInt64]>([10, 20, 30, 40])
         let timer = CleanupBenchmarkTimer { operation in
             let output = try await operation()
@@ -38,19 +41,24 @@ struct CleanupBenchmarkTests {
         #expect(report.runs.map(\.durationNanoseconds) == [10, 20, 30, 40])
         #expect(report.runs.map(\.sampleId) == ["one", "one", "two", "two"])
         #expect(report.runs.map(\.candidateName) == ["fake-a:a", "fake-b:b", "fake-a:a", "fake-b:b"])
-        #expect(await first.rawInputs() == ["ну проверь pr", "вот github работает"])
-        #expect(await second.rawInputs() == ["ну проверь pr", "вот github работает"])
+        #expect(await first.rawInputs() == ["Ну вот запушь PR в GitHub, пожалуйста.", "запусти swift test потом swiftlint analyze"])
+        #expect(await second.rawInputs() == ["Ну вот запушь PR в GitHub, пожалуйста.", "запусти swift test потом swiftlint analyze"])
         #expect(await first.modelInputs() == ["a", "a"])
         #expect(await second.modelInputs() == ["b", "b"])
     }
 
+    /// The raw is sample `russian-filler-clean-desktop-02` of
+    /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
+    ///
     /// Stated sensitivity: counting warmup calls in the report, or measuring
     /// cold local-model loading as a timed run, makes the benchmark look worse
     /// than hot in-app cleanup behavior.
     @Test
     func runnerWarmsCandidatesBeforeRecordedRuns() async {
-        let sample = CleanupBenchmarkSample(id: "warm", raw: "ну проверь latency", reference: "Проверь latency.")
-        let cleaner = RecordingCleaner(output: "Проверь latency.")
+        let sample = CleanupBenchmarkSample(
+            id: "warm", raw: "Короче, надо прибрать мусор на рабочем столе.", reference: "Надо прибрать мусор на рабочем столе."
+        )
+        let cleaner = RecordingCleaner(output: "Надо прибрать мусор на рабочем столе.")
         let durations = Mutex<[UInt64]>([42])
         let timer = CleanupBenchmarkTimer { operation in
             let output = try await operation()
@@ -71,7 +79,7 @@ struct CleanupBenchmarkTests {
 
         #expect(report.runs.map(\.durationNanoseconds) == [42])
         #expect(report.runs.map(\.sampleId) == ["warm"])
-        #expect(await cleaner.rawInputs() == ["ну проверь latency", "ну проверь latency", "ну проверь latency"])
+        #expect(await cleaner.rawInputs() == Array(repeating: "Короче, надо прибрать мусор на рабочем столе.", count: 3))
         #expect(await cleaner.modelInputs() == ["hot", "hot", "hot"])
         let timerDurationsConsumed = durations.withLock { $0.isEmpty }
         #expect(timerDurationsConsumed)
@@ -138,12 +146,16 @@ struct CleanupBenchmarkTests {
         #expect(result.stderr.isEmpty)
     }
 
+    /// The sample is `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`.
+    ///
     /// Stated sensitivity: trimming nothing before the emptiness check lets a
     /// whitespace-only answer through as an output; the fuzzy score of the empty
     /// text still comes out as 0.
     @Test
     func emptyOutputIsAFailureAndScoresZero() async {
-        let sample = CleanupBenchmarkSample(id: "empty", raw: "ну привет", reference: "Привет.")
+        let sample = CleanupBenchmarkSample(
+            id: "empty", raw: "Ну я сейчас проверяю, как работает диктовка.", reference: "Я сейчас проверяю, как работает диктовка."
+        )
         let report = await CleanupBenchmarkRunner().run(
             candidates: [CleanupBenchmarkCandidate(provider: "fake", model: "m", cleaner: RecordingCleaner(output: " \n "))],
             samples: [sample],

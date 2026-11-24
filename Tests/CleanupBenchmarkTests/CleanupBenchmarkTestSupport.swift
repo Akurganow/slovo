@@ -125,10 +125,12 @@ struct CountingCleaner: Cleaner {
 /// `transport`. Candidates `openrouter:good` and `openrouter:bad` become fakes named
 /// `fake:good` and `fake:bad`; `bad` answers with text the judge scores low.
 final class DriverFixture: Sendable {
+    /// Samples `russian-filler-check-01` and `code-switching-clean-10` of
+    /// `Benchmarks/cleanup/slovo-cleanup-v1.json`, with a stand-in reference.
     static let samples = """
     {"samples": [
-      {"id": "one", "category": "short-smoke", "raw": "ну привет там", "reference": "Hello there."},
-      {"id": "two", "category": "code-switching", "raw": "проверь latency", "reference": "Hello there."}
+      {"id": "one", "category": "short-smoke", "raw": "Ну я сейчас проверяю, как работает диктовка.", "reference": "Hello there."},
+      {"id": "two", "category": "code-switching", "raw": "Проверь latency на staging.", "reference": "Hello there."}
     ]}
     """
 
