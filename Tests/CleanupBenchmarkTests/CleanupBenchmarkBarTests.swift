@@ -201,8 +201,7 @@ struct CleanupBenchmarkBarTests {
     }
 
     /// Stated sensitivity: a merge that replaces the file, or drops the untouched
-    /// entries, erases other models' recorded slack; an encoding with unsorted keys
-    /// makes every rewrite a noisy diff.
+    /// entries, erases other models' recorded slack.
     @Test
     func mergeReplacesNamedEntriesAndLeavesTheRestUntouched() throws {
         let kept = Self.entry(["kept"])
@@ -215,9 +214,22 @@ struct CleanupBenchmarkBarTests {
         #expect(merged.candidates["a:kept"] == kept)
         #expect(merged.candidates["a:ran"] == new)
         #expect(merged.candidates["a:added"] == new)
-        let encoded = try merged.encoded()
-        #expect(encoded == (try merged.encoded()))
         #expect(try CleanupBenchmarkBaselineFile.decode(merged.encoded()) == merged)
+    }
+
+    /// Stated sensitivity: an encoding without sorted keys writes the entries in the
+    /// dictionary's order, which changes from process to process, so every rewrite of the
+    /// baseline is a noisy diff; with eight names, an unsorted order is sorted by luck
+    /// once in 40320 runs.
+    @Test
+    func baselineIsEncodedWithSortedKeys() throws {
+        let names = ["a:h", "a:c", "a:f", "a:a", "a:g", "a:d", "a:b", "a:e"]
+        let file = CleanupBenchmarkBaselineFile(candidates: Dictionary(uniqueKeysWithValues: names.map { ($0, Self.entry(["s"])) }))
+
+        let text = String(decoding: try file.encoded(), as: UTF8.self)
+
+        let positions = try names.sorted().map { try #require(text.range(of: "\"\($0)\"")).lowerBound }
+        #expect(positions == positions.sorted())
     }
 
     /// Stated sensitivity: an entry built from a run a judge failed on raises a slack

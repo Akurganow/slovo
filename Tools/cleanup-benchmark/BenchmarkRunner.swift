@@ -91,6 +91,14 @@ public extension CleanupBenchmarkRun {
         failures.contains(Self.emptyOutputCode)
     }
 
+    /// The run as a fuzzy-only report sees it: no embedding, Jev score or judge failure code.
+    func withoutJudgeResults() -> CleanupBenchmarkRun {
+        var run = self
+        run.scores = CleanupBenchmarkScores(fuzzy: scores.fuzzy)
+        run.failures.removeAll { CleanupBenchmarkJudge.ownFailures.contains($0) }
+        return run
+    }
+
     /// A run that needs no more work: it has an output, no failure and every
     /// coefficient the benchmark was asked for.
     func isComplete(judged: Bool) -> Bool {

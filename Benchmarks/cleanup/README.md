@@ -108,7 +108,8 @@ references: an entry is never a separate expected result for that model.
 - The trade: the `dropWorst` largest slacks are dropped per coefficient, so
   different repetitions may fail different coefficients without failing the bar.
   The report prints, per candidate and category, `dropped_outside`, how many
-  dropped repetitions were outside the entry's slack, so such failures stay visible.
+  dropped repetitions were above the entry's slack plus the floor on any
+  coefficient, so such failures stay visible.
 - A candidate is judged against its own entry. A candidate with no entry (a new
   model, a local one) is judged against the entry named by
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup
@@ -161,9 +162,10 @@ Naming an existing file resumes it, the last line of a run winning:
 
 A line cut short by a killed process is dropped, and its run is done again.
 
-The exit code carries the verdict, as the usage text of the command says. The
-command asks for nothing interactively, so a CI step can call it. No CI job
-calls it yet.
+The exit code is 0 only when no run failed (no failure code) and every verdict
+passed. A bar can pass while a dropped repetition failed, and the exit is then 2,
+as the usage text of the command says. The command asks for nothing
+interactively, so a CI step can call it. No CI job calls it yet.
 
 `judge.json` holds the judge's settings: the Jev model, path, repeats and
 questions, the embedding model, prefix and provider-routing object, and the bar's
@@ -188,7 +190,8 @@ the choice made here.
 
 ### What `--judge` sends to OpenRouter
 
-Synthetic sample text and the candidate's output, nothing else:
+The sample text (the dataset's synthetic samples, or the file `--samples` names) and
+the candidate's output, nothing else:
 
 - `POST https://openrouter.ai/api/alpha/decisions` (Jev): the sample's raw
   text, its first reference and the output, once per repeat.

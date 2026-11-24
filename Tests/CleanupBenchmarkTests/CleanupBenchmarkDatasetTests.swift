@@ -8,7 +8,7 @@ import SlovoCore
 struct CleanupBenchmarkDatasetTests {
     /// Stated sensitivity: if the default benchmark silently falls back to an older
     /// sample set, or a sample loses its reference, this count and taxonomy check
-    /// goes RED. A duplicated id would merge two samples' baseline slack.
+    /// goes RED. A duplicated id makes the loader throw, so it fails this test too.
     @Test
     func defaultDatasetLoadsPinnedSampleSuite() throws {
         let samples = try CleanupBenchmarkDefaults.samples()
@@ -24,7 +24,6 @@ struct CleanupBenchmarkDatasetTests {
             .safetyNegative: 8,
             .instructionShaped: 3,
         ])
-        #expect(Set(samples.map(\.id)).count == samples.count)
         #expect(samples.allSatisfy { !$0.raw.isEmpty })
         #expect(samples.allSatisfy { !$0.references.isEmpty })
     }
@@ -51,25 +50,55 @@ struct CleanupBenchmarkDatasetTests {
         ])
     }
 
-    /// Stated sensitivity: settings with no repeats, no questions, or no repetition left after
-    /// dropping the worst leave every output unscored or every sample without a slack, with
-    /// no error; dropping any guard lets one of these decode, so they are no longer
-    /// refused before any paid call.
+    /// Stated sensitivity: settings with no repeats, no questions, no repetition left after
+    /// dropping the worst, or an allowance or a floor outside 0...1 leave every output
+    /// unscored, every sample without a slack, a bar that never fails, or a trap in the miss
+    /// count (an allowance of 1e20), with no error; dropping any guard lets one of these
+    /// decode, so they are no longer refused before any paid call.
     @Test(arguments: [
-        (repeats: 0, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 5, dropWorst: 2),
-        (repeats: 3, questions: "{}", repetitions: 5, dropWorst: 2),
-        (repeats: 3, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 2, dropWorst: 2),
-        (repeats: 3, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 5, dropWorst: -1),
+        BadJudgeSettings(repeats: 0),
+        BadJudgeSettings(questions: "{}"),
+        BadJudgeSettings(repetitions: 2),
+        BadJudgeSettings(dropWorst: -1),
+        BadJudgeSettings(allowance: 5),
+        BadJudgeSettings(allowance: 1e20),
+        BadJudgeSettings(floor: 1.5),
+        BadJudgeSettings(floor: -0.1),
     ])
-    func judgeSettingsNeedAScoreAndASlack(repeats: Int, questions: String, repetitions: Int, dropWorst: Int) {
+    func judgeSettingsNeedAScoreAndASlack(settings: BadJudgeSettings) {
         let json = """
-        {"jev": {"model": "m", "path": "/p", "repeats": \(repeats), "questions": \(questions)},
+        {"jev": {"model": "m", "path": "/p", "repeats": \(settings.repeats), "questions": \(settings.questions)},
          "embedding": {"model": "e", "path": "/e", "prefix": "", "provider": {"order": [], "allow_fallbacks": false}},
-         "bar": {"floors": {"jev": 0.1, "embedding": 0.1, "fuzzy": 0.1}, "allowance": 0.05,
-                 "repetitions": \(repetitions), "dropWorst": \(dropWorst)}}
+         "bar": {"floors": {"jev": \(settings.floor), "embedding": 0.1, "fuzzy": 0.1}, "allowance": \(settings.allowance),
+                 "repetitions": \(settings.repetitions), "dropWorst": \(settings.dropWorst)}}
         """
         #expect(throws: CleanupBenchmarkCommandError.invalidJudgeSettings) {
             try CleanupBenchmarkJudgeSettings.decode(Data(json.utf8))
+        }
+    }
+
+    /// Valid judge settings with one value changed to a bad one.
+    struct BadJudgeSettings: Sendable {
+        var repeats = 3
+        var questions = #"{"q": {"type": "noul", "instructions": "?"}}"#
+        var repetitions = 5
+        var dropWorst = 2
+        var allowance = 0.05
+        var floor = 0.1
+    }
+
+    /// Stated sensitivity: a sample file with two samples of one id merges their runs, their
+    /// references and their baseline slack (every consumer keys by id), so the paid runs
+    /// are wrong without a trace; both file shapes must be refused, naming the id.
+    @Test
+    func duplicateSampleIdIsRefused() {
+        let array = Data(#"[{"id": "a", "raw": "x", "references": ["x"]}, {"id": "a", "raw": "y", "references": ["y"]}]"#.utf8)
+        let object = Data(#"{"samples": [{"id": "a", "raw": "x", "references": ["x"]}, {"id": "a", "raw": "y", "references": ["y"]}]}"#.utf8)
+
+        for data in [array, object] {
+            #expect(throws: CleanupBenchmarkCommandError.duplicateSampleId("a")) {
+                try CleanupBenchmarkSampleLoader.decode(data)
+            }
         }
     }
 

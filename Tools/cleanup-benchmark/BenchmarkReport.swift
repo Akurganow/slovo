@@ -130,7 +130,7 @@ public enum CleanupBenchmarkReportFormatter {
     }
 
     /// Per candidate and per category: samples, misses, allowed misses, dropped repetitions
-    /// outside the baseline's slack, means, verdict.
+    /// above the entry's slack plus the floor on any coefficient, means, verdict.
     private static func renderVerdicts(_ report: CleanupBenchmarkReport) -> String {
         let header = "candidate,baseline,category,samples,misses,allowed_misses,dropped_outside,fuzzy,embedding,jev,verdict"
         let rows = report.verdicts.flatMap { verdict in

@@ -28,7 +28,8 @@ openrouter:<model>,275,0,<p50>,<p95>,<mean>,,
 With `--judge` the embedding and Jev means fill in, and a line names the judge's
 response models and its cost. With `--baseline` the report adds one row per
 candidate and per category: samples, misses, allowed misses, dropped repetitions
-outside the baseline's slack, the three means, and `pass` or `fail`.
+above the entry's slack plus the floor on any coefficient, the three means, and
+`pass` or `fail`.
 
 With `--failure-breakdown`, the command appends aggregate failure-code counts
 (`provider-error`, `empty-output`, `embedding-failed`, `jev-refusal`, `jev-request-failed`) by sample index. With
@@ -146,7 +147,7 @@ Prompt coverage, stated plainly: the harness passes no on-device hints, so the
 measured prompt is the current base instruction set WITHOUT the
 keyboard-language prior — that advisory line fires only in the app, when a
 gathered hint carries the active input locale. Compare runs by pass RATE
-(passed/runs), never by raw passed counts.
+(passed/runs), never by raw passed counts, and only with runs of the same gate.
 
 | Candidate | Runs | Passed | Errors | p50 | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -268,7 +269,8 @@ network):
 > measurement, not a harness number. This row is a documented baseline for
 > reading the cleanup-model latencies above; it does not gate CI. `Passed 0`
 > came from the removed lexical gate, whose expectations described cleaned text.
-> For cross-version comparisons, compare by pass rate, never by raw passed counts.
+> For cross-version comparisons, compare by pass rate, never by raw passed counts, and
+> only with runs of the same gate.
 
 The end-to-end number is captured OUTSIDE the harness, from the app's own
 timing marks: `dictation.stopRequested` at key-up (Orchestrator) and

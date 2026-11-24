@@ -50,13 +50,16 @@ final class FakeJudgeTransport: CleanupBenchmarkTransport {
     private let requests = Mutex<[(path: String, body: Data)]>([])
     private let refusing: String?
     private let failingDecisionsFor: String?
+    private let failingEmbeddings: Bool
     private let isDown = Mutex(false)
 
     /// `refusing` names a question the fake declines to answer. A decision whose
-    /// output contains `failingDecisionsFor` fails with a server error.
-    init(refusing: String? = nil, failingDecisionsFor: String? = nil) {
+    /// output contains `failingDecisionsFor` fails with a server error, and every
+    /// embeddings request does when `failingEmbeddings` is set.
+    init(refusing: String? = nil, failingDecisionsFor: String? = nil, failingEmbeddings: Bool = false) {
         self.refusing = refusing
         self.failingDecisionsFor = failingDecisionsFor
+        self.failingEmbeddings = failingEmbeddings
     }
 
     /// While down, every request fails with a server error.
@@ -77,6 +80,9 @@ final class FakeJudgeTransport: CleanupBenchmarkTransport {
             throw CleanupBenchmarkJudgeError.malformedResponse
         }
         if let input = object["input"] as? [String] {
+            if failingEmbeddings {
+                throw CleanupBenchmarkJudgeError.httpStatus(500)
+            }
             let data = input.enumerated().map { index, text -> [String: Any] in
                 ["index": index, "embedding": text.contains("WRONG") ? [0.0, 1.0] : [1.0, 0.0]]
             }
@@ -114,9 +120,14 @@ func judgeSettings() throws -> CleanupBenchmarkJudgeSettings {
 struct CountingCleaner: Cleaner {
     let output: String
     let called: @Sendable () -> Void
+    /// Fails with a provider error instead of answering while it returns true.
+    var fails: @Sendable () -> Bool = { false }
 
     func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String {
         called()
+        if fails() {
+            throw SensitiveError(payload: "provider down")
+        }
         return output
     }
 }
@@ -138,6 +149,7 @@ final class DriverFixture: Sendable {
     let files: Mutex<[String: Data]>
     let transport: FakeJudgeTransport
     private let cleanerCalls = Mutex(0)
+    private let cleanersFail = Mutex(false)
 
     init(files: [String: String] = [:], transport: FakeJudgeTransport = FakeJudgeTransport()) throws {
         var contents = files.mapValues { Data($0.utf8) }
@@ -147,6 +159,11 @@ final class DriverFixture: Sendable {
         )
         self.files = Mutex(contents)
         self.transport = transport
+    }
+
+    /// While set, every fake cleaner fails with a provider error.
+    func setCleanersFail(_ fail: Bool) {
+        cleanersFail.withLock { $0 = fail }
     }
 
     func file(_ path: String) -> Data? {
@@ -167,7 +184,8 @@ final class DriverFixture: Sendable {
                         model: spec.model,
                         cleaner: CountingCleaner(
                             output: spec.model == "bad" ? "WRONG text." : "Hello there.",
-                            called: { self.cleanerCalls.withLock { $0 += 1 } }
+                            called: { self.cleanerCalls.withLock { $0 += 1 } },
+                            fails: { self.cleanersFail.withLock { $0 } }
                         )
                     )
                 }

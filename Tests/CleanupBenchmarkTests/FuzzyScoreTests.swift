@@ -6,13 +6,22 @@ import Testing
 struct FuzzyScoreTests {
     /// Stated sensitivity: dropping the word sort in the wrapper's `token_sort_ratio`
     /// call scores swapped words below 100. Ids RapidFuzz would read as whitespace
-    /// are caught by `missingCombiningMarkCostsOneCharacter`.
+    /// are caught by `lastLetterOfTenCharactersCostsOneCharacter`.
     @Test
     func swappedWordsScoreOne() {
         // The first text is the raw of sample `code-switching-clean-10` of
         // `Benchmarks/cleanup/slovo-cleanup-v1.json`; the second reorders its words.
         #expect(FuzzyScore.tokenSort("Проверь latency на staging.", "staging на проверь latency") == 1)
         #expect(FuzzyScore.tokenSort("a b", "b a") == 1)
+    }
+
+    /// Stated sensitivity: ids that start at 0 give the tenth and eleventh distinct characters
+    /// (`a` and `b` here) the code points of tab and line feed, which RapidFuzz reads as
+    /// whitespace and drops, so the one letter that differs at the end of these texts goes
+    /// unseen and the score is 1; ids above every code point keep it below 1.
+    @Test
+    func lastLetterOfTenCharactersCostsOneCharacter() {
+        #expect(FuzzyScore.tokenSort("0 1 2 3 4 5 6 7 8 a", "0 1 2 3 4 5 6 7 8 b") < 1)
     }
 
     /// Stated sensitivity: stripping combining marks while folding, or comparing

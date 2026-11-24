@@ -136,7 +136,7 @@ public struct CleanupBenchmarkCommandOptions: Equatable, Sendable {
         after argument: String,
         from iterator: inout ArraySlice<String>.Iterator
     ) throws -> String {
-        guard let value = iterator.next() else {
+        guard let value = iterator.next(), !value.hasPrefix("--") else {
             throw CleanupBenchmarkCommandError.missingValue(argument)
         }
         return value
@@ -157,6 +157,8 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case repetitionsMismatch(given: Int, required: Int)
     case outputsFileDatasetMismatch
     case outputsFileStyleMismatch(String)
+    case outputsFileIsAnotherInput(String)
+    case duplicateSampleId(String)
     case outputsFilePromptMismatch
     case baselineUnreadable(String)
     case invalidJudgeSettings
@@ -190,6 +192,10 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
                 + "leave --repetitions out to use it"
         case .outputsFileDatasetMismatch:
             return "the outputs file was written for other sample ids or raws, or in an older format; name a new --outputs-file"
+        case .outputsFileIsAnotherInput(let other):
+            return "--outputs-file names the same file as \(other); name a separate file for the outputs"
+        case .duplicateSampleId(let id):
+            return "the sample file holds the id \(id) more than once; every sample needs its own id"
         case .outputsFilePromptMismatch:
             return "the outputs file was written under another cleanup prompt; name a new --outputs-file"
         case .outputsFileStyleMismatch(let style):
@@ -199,7 +205,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
                 + "write it again with --write-baseline to a path that does not exist yet"
         case .invalidJudgeSettings:
             return "judge.json needs at least one Jev repeat, at least one Jev question, a bar.dropWorst of 0 or more, "
-                + "and a bar.repetitions above bar.dropWorst"
+                + "a bar.repetitions above bar.dropWorst, and a bar.allowance and bar.floors from 0 to 1"
         }
     }
 }

@@ -78,7 +78,7 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
             provider: embedding.provider
         ))
         let response = try Self.decode(Response.self, from: try await transport.post(path: embedding.path, body: body))
-        guard response.data.count == texts.count else {
+        guard response.data.map(\.index).sorted() == Array(0..<texts.count) else {
             throw CleanupBenchmarkJudgeError.malformedResponse
         }
         return CleanupBenchmarkEmbeddings(

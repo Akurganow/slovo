@@ -137,6 +137,52 @@ struct CleanupBenchmarkJudgeTests {
         #expect(state["reference_cleanup"] == "WRONG text.")
     }
 
+    /// Stated sensitivity: a run that holds its embedding and lacks only its Jev score,
+    /// embedded again, loses the embedding when the embeddings request fails (the line is
+    /// then written without it); the embedding must be kept, not requested, and the run
+    /// complete, and its models must keep the embedding model.
+    @Test
+    func runKeepsItsEmbeddingWhenOnlyJevIsMissing() async throws {
+        let settings = try judgeSettings()
+        let transport = FakeJudgeTransport(failingEmbeddings: true)
+        var held = Self.run(output: "Hello there.")
+        held.scores.embedding = 0.9
+        held.scores.models = ["fake/embedding-snapshot"]
+
+        let result = await Self.judge(transport, settings).score([held], samples: [Self.sample])
+
+        let run = try #require(result.runs.first)
+        #expect(run.scores.embedding == 0.9)
+        #expect(run.failures.isEmpty)
+        #expect(run.isComplete(judged: true))
+        #expect(run.scores.models == ["fake/embedding-snapshot", "fake/jev-snapshot"])
+        #expect(transport.requestCount(path: "/api/v1/embeddings") == 0)
+        #expect(result.info.embeddingErrors.isEmpty)
+    }
+
+    /// Stated sensitivity: a response whose indices are not the permutation of the texts
+    /// (here two items indexed 0) read by the count alone gives the second text the vector
+    /// of another; it must be refused as malformed, while a permutation is mapped by index.
+    @Test
+    func embeddingResponseWithRepeatedIndicesIsMalformed() async throws {
+        struct FixedTransport: CleanupBenchmarkTransport {
+            let indices: [Int]
+            func post(path: String, body: Data) async throws -> Data {
+                let items = indices.map { ["index": $0, "embedding": [Double($0), 1]] }
+                return try JSONSerialization.data(withJSONObject: ["data": items, "model": "m"])
+            }
+        }
+        let settings = try judgeSettings()
+
+        await #expect(throws: CleanupBenchmarkJudgeError.malformedResponse) {
+            _ = try await CleanupBenchmarkJudgeClient(transport: FixedTransport(indices: [0, 0]), settings: settings)
+                .embeddings(for: ["a", "b"])
+        }
+        let swapped = try await CleanupBenchmarkJudgeClient(transport: FixedTransport(indices: [1, 0]), settings: settings)
+            .embeddings(for: ["a", "b"])
+        #expect(swapped.vectors == [[0, 1], [1, 1]])
+    }
+
     /// Stated sensitivity: scoring a run that has no output (a provider error) would
     /// send nothing to judge and invent coefficients.
     @Test
@@ -150,10 +196,10 @@ struct CleanupBenchmarkJudgeTests {
         #expect(result.runs.first?.scores == CleanupBenchmarkScores())
     }
 
-    /// Stated sensitivity: a judge that scores in one batch and records at the end
-    /// loses every score when a process dies; `record` must see each run as it is
-    /// scored, with its failures and the models that answered. A rerun of a run that
-    /// failed earlier must drop the old judge failure code.
+    /// Stated sensitivity: `record` must receive the scored run, with its failures and the
+    /// models that answered, and a rerun of a run that failed earlier must drop the old
+    /// judge failure codes. It does not show that `record` fires as each run is scored
+    /// rather than once at the end: one run cannot tell.
     @Test
     func recordSeesEachScoredRunAndRejudgingDropsOldJudgeFailures() async throws {
         let settings = try judgeSettings()

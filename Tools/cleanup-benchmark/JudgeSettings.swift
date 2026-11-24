@@ -92,11 +92,14 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         .path
 
     /// Rejects settings that would leave every output unscored (no repeats or no questions)
-    /// or a sample without a slack (no repetition left after dropping the worst).
+    /// or a sample without a slack (no repetition left after dropping the worst), and an allowance
+    /// or a floor outside 0...1, which would turn the bar off or trap in the miss count.
     public static func decode(_ data: Data) throws -> CleanupBenchmarkJudgeSettings {
         let settings = try JSONDecoder().decode(CleanupBenchmarkJudgeSettings.self, from: data)
         guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty,
-              settings.bar.dropWorst >= 0, settings.bar.repetitions > settings.bar.dropWorst
+              settings.bar.dropWorst >= 0, settings.bar.repetitions > settings.bar.dropWorst,
+              (0...1).contains(settings.bar.allowance),
+              [settings.bar.floors.jev, settings.bar.floors.embedding, settings.bar.floors.fuzzy].allSatisfy({ (0...1).contains($0) })
         else {
             throw CleanupBenchmarkCommandError.invalidJudgeSettings
         }

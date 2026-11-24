@@ -277,17 +277,18 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(fixture.transport.requestCount(path: "/api/alpha/decisions") - decisionsBefore == 4)
     }
 
-    /// Stated sensitivity: an outputs file written without the flag leaks output text
-    /// to disk; one that omits a line when a run's cleanup finishes (before the judge),
+    /// Stated sensitivity: an outputs file written without the flag, under any path, leaks
+    /// output text to disk (the whole file map is compared before and after the run); one that omits a line when a run's cleanup finishes (before the judge),
     /// the repetition or the null of a failed run loses what it exists to show. Sample
     /// index and repetition are 1-based; each run has a cleanup line and a judged line.
     @Test
     func outputsFileIsWrittenOnlyWithTheFlagAndHasTheLinesOfEveryRun() async throws {
         let fixture = try DriverFixture()
 
+        let before = fixture.files.withLock { $0 }
         let without = await fixture.run(["--providers", "openrouter:good", "--judge"])
         #expect(without.exitCode == 0)
-        #expect(fixture.file("outputs.jsonl") == nil)
+        #expect(fixture.files.withLock { $0 } == before)
 
         let with = await fixture.run([
             "--providers", "openrouter:good,openrouter:bad", "--judge", "--repetitions", "2", "--outputs-file", "outputs.jsonl",
@@ -309,5 +310,58 @@ struct CleanupBenchmarkOutputsFileTests {
         let judged = try #require(objects.first { $0["jev"] is Double && $0["repetition"] as? Int == 2 && $0["sample"] as? Int == 2 })
         #expect((judged["jevQuestions"] as? [String: [Double]])?.count == 5)
         #expect((judged["failures"] as? [String])?.isEmpty == true)
+    }
+
+    /// Stated sensitivity: an outputs file that names an input is appended to, so the
+    /// dataset or a baseline is corrupted, or the paid runs are lost when the baseline is
+    /// written over them; each pairing must be refused before any request, naming the flag.
+    @Test(arguments: ["--samples", "--baseline", "--write-baseline"])
+    func outputsFileNamingAnInputIsRefused(flag: String) async throws {
+        let fixture = try DriverFixture()
+
+        let result = await fixture.run(["--providers", "openrouter:good", "--judge", flag, "./same.json", "--outputs-file", "same.json"])
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("--outputs-file names the same file as \(flag)"))
+        #expect(fixture.cleaned == 0)
+        #expect(fixture.transport.recorded().isEmpty)
+        #expect(fixture.file("same.json") == nil)
+    }
+
+    /// Stated sensitivity: a fuzzy-only run that resumes a judged file with judge failures in
+    /// it reports the stored embedding and Jev means and exits 2 for failures it did not
+    /// make; its report must hold the fuzzy coefficient only, and the run exits 0.
+    @Test
+    func fuzzyOnlyResumeDropsTheJudgeResultsOfTheFile() async throws {
+        let fixture = try DriverFixture(transport: FakeJudgeTransport(refusing: "keeps_meaning"))
+        let judged = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+        #expect(judged.exitCode == 2)
+
+        let result = await fixture.run(["--providers", "openrouter:good", "--outputs-file", "out.jsonl"])
+
+        #expect(result.exitCode == 0)
+        #expect(result.stderr.isEmpty)
+        let row = try #require(result.stdout.split(separator: "\n").first { $0.hasPrefix("fake:good,") })
+        #expect(row.hasSuffix(",1.000,,"))
+        #expect(fixture.cleaned == 2)
+    }
+
+    /// Stated sensitivity: a provider error written as an empty output (`output ?? ""`)
+    /// reads back as a finished run, so the resume never runs it again and the report keeps
+    /// an empty answer; the run must be cleaned again, once the provider is back.
+    @Test
+    func providerErrorRunIsRunAgainOnResume() async throws {
+        let fixture = try DriverFixture()
+        let arguments = ["--providers", "openrouter:good", "--outputs-file", "out.jsonl"]
+        fixture.setCleanersFail(true)
+        let failed = await fixture.run(arguments)
+        #expect(failed.exitCode == 2)
+        #expect(fixture.cleaned == 2)
+        fixture.setCleanersFail(false)
+
+        let resumed = await fixture.run(arguments)
+
+        #expect(resumed.exitCode == 0)
+        #expect(fixture.cleaned == 4)
     }
 }

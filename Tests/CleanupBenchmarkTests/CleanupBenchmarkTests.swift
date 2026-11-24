@@ -50,6 +50,17 @@ struct CleanupBenchmarkTests {
     /// The raw is sample `russian-filler-clean-desktop-02` of
     /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
     ///
+    /// Stated sensitivity: an option whose value is the next flag takes the flag as its
+    /// value, so `--outputs-file --failure-breakdown` names a file `--failure-breakdown`
+    /// and the flag is lost after paid runs; each value-taking option must refuse it as a
+    /// missing value.
+    @Test(arguments: ["--outputs-file", "--write-baseline", "--providers", "--samples"])
+    func optionValueThatIsAFlagIsMissing(option: String) {
+        #expect(throws: CleanupBenchmarkCommandError.missingValue(option)) {
+            try CleanupBenchmarkCommandOptions.parse([option, "--failure-breakdown"][...])
+        }
+    }
+
     /// Stated sensitivity: counting warmup calls in the report, or measuring
     /// cold local-model loading as a timed run, makes the benchmark look worse
     /// than hot in-app cleanup behavior.

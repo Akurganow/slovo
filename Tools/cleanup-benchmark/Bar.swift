@@ -116,8 +116,9 @@ public struct CleanupBenchmarkVerdictRow: Equatable, Sendable {
     /// Samples not within slack.
     public let misses: Int
     public let allowedMisses: Int
-    /// Dropped repetitions whose slack was outside the baseline's on some coefficient: the
-    /// failures the bar tolerates, shown so they are not lost.
+    /// Dropped repetitions whose slack on some coefficient is above the entry's slack plus
+    /// that coefficient's floor, each counted once: the failures the bar tolerates, shown so
+    /// they are not lost.
     public let droppedOutside: Int
     public let means: CleanupBenchmarkMeans
     public let passed: Bool

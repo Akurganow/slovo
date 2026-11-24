@@ -13,7 +13,7 @@ public struct CleanupBenchmarkJudgeInfo: Equatable, Sendable {
 public struct CleanupBenchmarkJudge: Sendable {
     private static let embeddingBatchSize = 64
     private static let concurrency = 4
-    private static let ownFailures: Set = ["embedding-failed", "jev-refusal", "jev-request-failed"]
+    static let ownFailures: Set = ["embedding-failed", "jev-refusal", "jev-request-failed"]
 
     public let settings: CleanupBenchmarkJudgeSettings
     private let client: CleanupBenchmarkJudgeClient
@@ -60,7 +60,10 @@ public struct CleanupBenchmarkJudge: Sendable {
                 guard let output = runs[index].output, let sample = bySample[runs[index].sampleId] else { return nil }
                 return Item(index: index, output: output, sample: sample)
             }
-            let embedded = await embed(Set(items.flatMap { [$0.output] + $0.sample.references }).sorted())
+            // A run that already has its embedding keeps it: only the others are embedded.
+            let embedded = await embed(
+                Set(items.filter { runs[$0.index].scores.embedding == nil }.flatMap { [$0.output] + $0.sample.references }).sorted()
+            )
             info.costUSD += embedded.cost
             info.embeddingErrors += embedded.errors
             // A run that already has its Jev score only needs the embedding.
@@ -70,18 +73,21 @@ public struct CleanupBenchmarkJudge: Sendable {
                 run.failures.removeAll { Self.ownFailures.contains($0) }
                 run.failures += decided?.failures ?? []
                 var scores = run.scores
-                let rights = item.sample.references.compactMap { embedded.vectors[$0] }
-                if let left = embedded.vectors[item.output], rights.count == item.sample.references.count {
-                    scores.embedding = rights.map { Self.cosine(left, $0) }.max()
-                } else {
-                    scores.embedding = nil
-                    run.failures.append("embedding-failed")
+                let embeddingKept = scores.embedding != nil
+                if !embeddingKept {
+                    let rights = item.sample.references.compactMap { embedded.vectors[$0] }
+                    if let left = embedded.vectors[item.output], rights.count == item.sample.references.count {
+                        scores.embedding = rights.map { Self.cosine(left, $0) }.max()
+                    } else {
+                        run.failures.append("embedding-failed")
+                    }
                 }
                 if let decided {
                     scores.jevQuestions = decided.values
                     scores.jev = decided.failures.isEmpty ? Self.jevCoefficient(decided.values) : nil
                 }
-                scores.models = embedded.models.union(decided?.models ?? Set(scores.models)).sorted()
+                let embeddingModels = embeddingKept ? Set(scores.models) : embedded.models
+                scores.models = embeddingModels.union(decided?.models ?? Set(scores.models)).sorted()
                 run.scores = scores
                 scored[item.index] = run
                 record(run)

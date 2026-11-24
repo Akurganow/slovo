@@ -161,9 +161,50 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         }
     }
 
+    /// The outputs file is appended to, so a path shared with an input would corrupt it, or lose
+    /// the paid runs when the baseline is written over it.
+    private static func refuseOutputsFileOverAnotherInput(_ options: CleanupBenchmarkCommandOptions) throws {
+        guard let outputs = options.outputsFilePath else { return }
+        func same(_ path: String?) -> Bool {
+            path.map { URL(fileURLWithPath: $0).standardizedFileURL == URL(fileURLWithPath: outputs).standardizedFileURL } ?? false
+        }
+        for (name, path) in [
+            ("--samples", options.samplesPath ?? CleanupBenchmarkDefaults.defaultSamplesPath),
+            ("--baseline", options.baselinePath),
+            ("--write-baseline", options.writeBaselinePath),
+        ] where same(path) {
+            throw CleanupBenchmarkCommandError.outputsFileIsAnotherInput(name)
+        }
+    }
+
+    /// What the outputs file says earlier processes finished, and the recorder that appends to it.
+    private func openOutputsFile(
+        options: CleanupBenchmarkCommandOptions,
+        samples: [CleanupBenchmarkSample],
+        judge: CleanupBenchmarkJudge?
+    ) throws -> ([CleanupBenchmarkRunKey: CleanupBenchmarkRun], CleanupBenchmarkOutputsRecorder?) {
+        guard let path = options.outputsFilePath else { return ([:], nil) }
+        let binding = CleanupBenchmarkOutputsBinding(
+            samples: samples, judgeSHA256: try judge?.settings.judgeSHA256(), style: options.style
+        )
+        var previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
+        do {
+            previous = try CleanupBenchmarkOutputsFile.resume(from: try readDataFile(path), samples: samples, binding: binding)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            previous = [:]
+        }
+        // Without `--judge` the report holds the fuzzy coefficient only, so a resumed run
+        // brings none of its judge scores or judge failure codes.
+        if judge == nil {
+            previous = previous.mapValues { $0.withoutJudgeResults() }
+        }
+        return (previous, CleanupBenchmarkOutputsRecorder(binding: binding) { try appendDataFile(path, $0) })
+    }
+
     /// Everything that can be wrong before a paid request goes out.
     private func prepare(arguments: [String], environment: [String: String]) throws -> Setup {
         let options = try CleanupBenchmarkCommandOptions.parse(arguments[...])
+        try Self.refuseOutputsFileOverAnotherInput(options)
         let mergedEnvironment = try options.environment(processEnvironment: environment, readTextFile: readTextFile)
         let data = try options.samplesData(readDataFile: readDataFile)
         let samples = try CleanupBenchmarkSampleLoader.decode(data)
@@ -219,19 +260,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             }
         }
 
-        var previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
-        var recorder: CleanupBenchmarkOutputsRecorder?
-        if let path = options.outputsFilePath {
-            let binding = CleanupBenchmarkOutputsBinding(
-                samples: samples, judgeSHA256: try judge?.settings.judgeSHA256(), style: options.style
-            )
-            do {
-                previous = try CleanupBenchmarkOutputsFile.resume(from: try readDataFile(path), samples: samples, binding: binding)
-            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
-                previous = [:]
-            }
-            recorder = CleanupBenchmarkOutputsRecorder(binding: binding) { try appendDataFile(path, $0) }
-        }
+        let (previous, recorder) = try openOutputsFile(options: options, samples: samples, judge: judge)
         return Setup(
             options: options,
             repetitions: repetitions,

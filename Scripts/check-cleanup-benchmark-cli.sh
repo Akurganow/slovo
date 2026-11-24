@@ -31,4 +31,4 @@ if ! swift run --disable-automatic-resolution slovo-cleanup-benchmark \
 fi
 
 grep -q "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev" "$output_file"
-grep -q "passthrough:none,1,0,.*,1.000,," "$output_file"
+grep -Eq '^passthrough:none,1,0,[0-9]+\.[0-9],[0-9]+\.[0-9],1\.000,,$' "$output_file"
