@@ -1,13 +1,13 @@
 name: Swift
 
 # Reusable gate: the same `Scripts/diagnose.sh` a contributor runs before
-# opening a pull request, so CI and the local gate cannot drift apart. Pull
-# requests into main run it directly; the release pipeline (release.yml) and the
-# dev build (dev-build.yml) call it via workflow_call before they build and sign
-# the app, so every packaged trunk build and every tagged release is gated by it.
+# opening a pull request, so CI and the local gate cannot drift apart. Every
+# pull request runs it directly, whatever its base. The release pipeline
+# (release.yml) and the dev build (dev-build.yml) call it via workflow_call
+# before they build and sign the app, so every packaged trunk build and every
+# tagged release is gated by it.
 on:
   pull_request:
-    branches: [ "main" ]
   workflow_call:
 
 # Least privilege: the test job only reads the checkout.
