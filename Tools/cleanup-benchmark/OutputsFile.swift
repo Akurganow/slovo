@@ -1,11 +1,11 @@
 import Foundation
+import SlovoCore
 import Synchronization
 
 /// The opt-in `--outputs-file`: append-only JSON Lines, one line each time a run
 /// finishes its cleanup and each time it is judged. It holds output text, so it
 /// stays local, and it is the resume record: for each run the last line wins. Each
-/// line carries the SHA-256 of the dataset file it was run on and, when it holds
-/// judge scores, the SHA-256 of the judge settings that gave them.
+/// line carries what it was written under (`CleanupBenchmarkOutputsBinding`).
 enum CleanupBenchmarkOutputsFile {
     private struct Line: Codable {
         let sample: Int
@@ -20,11 +20,13 @@ enum CleanupBenchmarkOutputsFile {
         let jevQuestions: [String: [Double]]
         let models: [String]
         let failures: [String]
-        /// Optional so that a line without one decodes and is refused as another dataset's.
-        let datasetSHA256: String?
-        let judgeSHA256: String?
+        /// Optional so that a line without one, such as one written before it existed,
+        /// decodes and is refused.
+        let rawsSHA256: String?
+        let scoringSHA256: String?
+        let style: String?
 
-        init(_ run: CleanupBenchmarkRun, datasetSHA256: String, judgeSHA256: String?) {
+        init(_ run: CleanupBenchmarkRun, binding: CleanupBenchmarkOutputsBinding) {
             sample = run.sampleIndex
             sampleId = run.sampleId
             candidate = run.candidateName
@@ -37,9 +39,9 @@ enum CleanupBenchmarkOutputsFile {
             jevQuestions = run.scores.jevQuestions
             models = run.scores.models
             failures = run.failures
-            self.datasetSHA256 = datasetSHA256
-            let isJudged = run.scores.embedding != nil || run.scores.jev != nil || !run.scores.jevQuestions.isEmpty
-            self.judgeSHA256 = isJudged ? judgeSHA256 : nil
+            rawsSHA256 = binding.rawsSHA256
+            scoringSHA256 = binding.scoringSHA256(sampleId: run.sampleId)
+            style = binding.style.rawValue
         }
 
         /// A missing value is written as null, never left out.
@@ -57,50 +59,57 @@ enum CleanupBenchmarkOutputsFile {
             try container.encode(jevQuestions, forKey: .jevQuestions)
             try container.encode(models, forKey: .models)
             try container.encode(failures, forKey: .failures)
-            try container.encode(datasetSHA256, forKey: .datasetSHA256)
-            try container.encode(judgeSHA256, forKey: .judgeSHA256)
+            try container.encode(rawsSHA256, forKey: .rawsSHA256)
+            try container.encode(scoringSHA256, forKey: .scoringSHA256)
+            try container.encode(style, forKey: .style)
         }
     }
 
-    static func line(_ run: CleanupBenchmarkRun, datasetSHA256: String, judgeSHA256: String?) throws -> Data {
+    static func line(_ run: CleanupBenchmarkRun, binding: CleanupBenchmarkOutputsBinding) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return try encoder.encode(Line(run, datasetSHA256: datasetSHA256, judgeSHA256: judgeSHA256)) + Data("\n".utf8)
+        return try encoder.encode(Line(run, binding: binding)) + Data("\n".utf8)
     }
 
     /// The last line of each run, as a run. A line that does not decode is the one a
-    /// killed process left half written: its run is simply done again. A line naming
-    /// a sample the dataset does not have, at another position, or written for another
-    /// dataset file, refuses the file. A line scored by other judge settings than
-    /// `judgeSHA256` (nil without `--judge`) keeps its output and loses its judge scores.
+    /// killed process left half written: its run is simply done again. A line written
+    /// for other ids or raws, or by another style, refuses the file. A line scored under
+    /// other judge settings or references keeps its output and loses its judge scores. The
+    /// fuzzy score is computed again from the output, against the current references.
     static func resume(
         from data: Data,
         samples: [CleanupBenchmarkSample],
-        datasetSHA256: String,
-        judgeSHA256: String?
+        binding: CleanupBenchmarkOutputsBinding
     ) throws -> [CleanupBenchmarkRunKey: CleanupBenchmarkRun] {
         var runs: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
         for text in data.split(separator: UInt8(ascii: "\n")) {
             guard let line = try? JSONDecoder().decode(Line.self, from: text) else { continue }
+            guard line.rawsSHA256 == binding.rawsSHA256 else {
+                throw CleanupBenchmarkCommandError.outputsFileDatasetMismatch
+            }
+            guard line.style == binding.style.rawValue else {
+                throw CleanupBenchmarkCommandError.outputsFileStyleMismatch(line.style ?? "unrecorded")
+            }
+            // With the dataset file unchanged this only guards a line made by hand.
             guard line.sample >= 1, line.sample <= samples.count, samples[line.sample - 1].id == line.sampleId else {
                 throw CleanupBenchmarkCommandError.outputsFileDatasetMismatch
             }
-            guard line.datasetSHA256 == datasetSHA256 else {
-                throw CleanupBenchmarkCommandError.outputsFileDatasetMismatch
-            }
-            let otherJudge = judgeSHA256 != nil && line.judgeSHA256 != nil && line.judgeSHA256 != judgeSHA256
+            let sample = samples[line.sample - 1]
+            let otherScoring = binding.judgeSHA256 != nil && line.scoringSHA256 != nil
+                && line.scoringSHA256 != binding.scoringSHA256(sampleId: line.sampleId)
+            let fuzzy = line.output.map { FuzzyScore.best($0, sample.references) }
             let run = CleanupBenchmarkRun(
                 sampleId: line.sampleId,
-                sampleCategory: samples[line.sample - 1].category,
+                sampleCategory: sample.category,
                 sampleIndex: line.sample,
                 candidateName: line.candidate,
                 repetition: line.repetition,
                 durationNanoseconds: line.durationNanoseconds,
                 output: line.output,
-                scores: otherJudge
-                    ? CleanupBenchmarkScores(fuzzy: line.fuzzy)
+                scores: otherScoring
+                    ? CleanupBenchmarkScores(fuzzy: fuzzy)
                     : CleanupBenchmarkScores(
-                        fuzzy: line.fuzzy,
+                        fuzzy: fuzzy,
                         embedding: line.embedding,
                         jev: line.jev,
                         jevQuestions: line.jevQuestions,
@@ -115,23 +124,46 @@ enum CleanupBenchmarkOutputsFile {
     }
 }
 
+/// What every line of the outputs file was written under. A resume refuses a file
+/// written for other ids or raws (the cleanup output depends on nothing else of the
+/// dataset) or by another style. A line scored under other judge settings or other
+/// references (nil without `--judge`) is judged again.
+struct CleanupBenchmarkOutputsBinding: Sendable {
+    let rawsSHA256: String
+    let judgeSHA256: String?
+    let style: WritingStyle
+    /// By sample id.
+    let references: [String: [String]]
+
+    init(samples: [CleanupBenchmarkSample], judgeSHA256: String?, style: WritingStyle) {
+        rawsSHA256 = CleanupBenchmarkDigest.sha256(of: samples.flatMap { [$0.id, $0.raw] })
+        self.judgeSHA256 = judgeSHA256
+        self.style = style
+        references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// What scored a line: the judge settings and the sample's references.
+    func scoringSHA256(sampleId: String) -> String? {
+        guard let judgeSHA256, let references = references[sampleId] else { return nil }
+        return CleanupBenchmarkDigest.sha256(of: [judgeSHA256] + references)
+    }
+}
+
 /// Appends each finished run to the outputs file. A failed append is kept, once,
 /// to be reported with the run's report; the benchmark goes on.
 final class CleanupBenchmarkOutputsRecorder: Sendable {
-    private let datasetSHA256: String
-    private let judgeSHA256: String?
+    private let binding: CleanupBenchmarkOutputsBinding
     private let append: @Sendable (Data) throws -> Void
     private let firstError = Mutex<String?>(nil)
 
-    init(datasetSHA256: String, judgeSHA256: String?, append: @escaping @Sendable (Data) throws -> Void) {
-        self.datasetSHA256 = datasetSHA256
-        self.judgeSHA256 = judgeSHA256
+    init(binding: CleanupBenchmarkOutputsBinding, append: @escaping @Sendable (Data) throws -> Void) {
+        self.binding = binding
         self.append = append
     }
 
     func record(_ run: CleanupBenchmarkRun) {
         do {
-            try append(try CleanupBenchmarkOutputsFile.line(run, datasetSHA256: datasetSHA256, judgeSHA256: judgeSHA256))
+            try append(try CleanupBenchmarkOutputsFile.line(run, binding: binding))
         } catch {
             firstError.withLock { $0 = $0 ?? "outputs file not written: \(error)" }
         }

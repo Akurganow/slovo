@@ -1,7 +1,7 @@
 import Foundation
 import SlovoCore
 
-/// The three coefficients of one output against its sample's reference, each in
+/// The three coefficients of one output against its sample's references (the best of them), each in
 /// 0...1 where 1 is identical. `embedding` and `jev` stay nil until the judge ran.
 public struct CleanupBenchmarkScores: Equatable, Sendable {
     public var fuzzy: Double?
@@ -83,6 +83,14 @@ public extension CleanupBenchmarkRun {
         CleanupBenchmarkRunKey(candidateName: candidateName, sampleId: sampleId, repetition: repetition)
     }
 
+    static let emptyOutputCode = "empty-output"
+
+    /// The candidate answered with nothing. That is its own failure: neither a repeat of
+    /// the judge nor a resume changes it.
+    var hasEmptyOutput: Bool {
+        failures.contains(Self.emptyOutputCode)
+    }
+
     /// A run that needs no more work: it has an output, no failure and every
     /// coefficient the benchmark was asked for.
     func isComplete(judged: Bool) -> Bool {
@@ -120,13 +128,14 @@ public struct CleanupBenchmarkRunner: Sendable {
         record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
-        // A resumed run is not a cold start: warmup applies to a fresh run only.
-        let safeWarmupRepetitions = previous.isEmpty ? max(warmupRepetitions, 0) : 0
+        // A candidate with resumed runs is not a cold start: warmup applies to the others only.
+        let resumed = Set(previous.keys.map(\.candidateName))
+        let warmed = candidates.filter { !resumed.contains($0.name) }
         var runs: [CleanupBenchmarkRun] = []
 
-        for _ in 0..<safeWarmupRepetitions {
+        for _ in 0..<max(warmupRepetitions, 0) {
             for sample in samples {
-                for candidate in candidates {
+                for candidate in warmed {
                     await warmCandidate(
                         candidate,
                         sample: sample,
@@ -197,8 +206,8 @@ public struct CleanupBenchmarkRunner: Sendable {
                 repetition: position.repetition,
                 durationNanoseconds: timed.durationNanoseconds,
                 output: timed.output,
-                scores: CleanupBenchmarkScores(fuzzy: FuzzyScore.tokenSort(timed.output, sample.reference)),
-                failures: isEmpty ? ["empty-output"] : [],
+                scores: CleanupBenchmarkScores(fuzzy: FuzzyScore.best(timed.output, sample.references)),
+                failures: isEmpty ? [CleanupBenchmarkRun.emptyOutputCode] : [],
                 errorKind: nil
             )
         } catch {

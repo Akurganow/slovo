@@ -129,17 +129,20 @@ public enum CleanupBenchmarkReportFormatter {
         return lines.joined(separator: "\n")
     }
 
-    /// Per candidate and per category: runs, within-slack share, means, verdict.
+    /// Per candidate and per category: samples, misses, allowed misses, dropped repetitions
+    /// outside the baseline's slack, means, verdict.
     private static func renderVerdicts(_ report: CleanupBenchmarkReport) -> String {
-        let header = "candidate,baseline,category,runs,within_slack,fuzzy,embedding,jev,verdict"
+        let header = "candidate,baseline,category,samples,misses,allowed_misses,dropped_outside,fuzzy,embedding,jev,verdict"
         let rows = report.verdicts.flatMap { verdict in
             verdict.rows.map { row -> String in
                 [
                     verdict.candidateName,
                     verdict.baselineName,
                     row.category?.rawValue ?? "all",
-                    "\(row.runs)",
-                    format(Optional(row.share)),
+                    "\(row.samples)",
+                    "\(row.misses)",
+                    "\(row.allowedMisses)",
+                    "\(row.droppedOutside)",
                     format(row.means.fuzzy),
                     format(row.means.embedding),
                     format(row.means.jev),

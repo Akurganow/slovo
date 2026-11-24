@@ -10,6 +10,11 @@ enum FuzzyScore {
     private static let firstID: UInt32 = 0x11_0000
     private static let spaceID: UInt32 = 0x20
 
+    /// The best `tokenSort` over the references.
+    static func best(_ output: String, _ references: [String]) -> Double {
+        references.map { tokenSort(output, $0) }.max() ?? 0
+    }
+
     static func tokenSort(_ lhs: String, _ rhs: String) -> Double {
         let leftWords = words(lhs)
         let rightWords = words(rhs)

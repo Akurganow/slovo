@@ -10,7 +10,7 @@ struct CleanupBenchmarkJudgeTests {
     /// Sample `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`; the
     /// outputs the tests score against it are stand-ins.
     private static let sample = CleanupBenchmarkSample(
-        id: "s", category: .russianFiller, raw: "Ну я сейчас проверяю, как работает диктовка.", reference: "Я сейчас проверяю, как работает диктовка."
+        id: "s", category: .russianFiller, raw: "Ну я сейчас проверяю, как работает диктовка.", references: ["Я сейчас проверяю, как работает диктовка."]
     )
 
     private static func run(output: String?, fuzzy: Double? = 1) -> CleanupBenchmarkRun {
@@ -107,12 +107,34 @@ struct CleanupBenchmarkJudgeTests {
             let provider: CleanupBenchmarkJudgeSettings.Provider
         }
         let body = try JSONDecoder().decode(Body.self, from: try #require(embeddings.first).body)
-        #expect(Set(body.input) == [settings.embedding.prefix + "WRONG text.", settings.embedding.prefix + Self.sample.reference])
+        #expect(Set(body.input) == [settings.embedding.prefix + "WRONG text.", settings.embedding.prefix + Self.sample.expected])
         #expect(body.model == settings.embedding.model)
         #expect(body.provider == settings.embedding.provider)
         // The fake embeds a WRONG text at [0, 1] and the reference at [1, 0].
         #expect(result.runs.first?.scores.embedding == 0)
         #expect(abs(CleanupBenchmarkJudge.cosine([1, 0], [1, 1]) - 0.5.squareRoot()) < 1e-12)
+    }
+
+    /// Stated sensitivity: scoring only the first reference gives an output in the other
+    /// script of a term the embedding of a different text (0 here); averaging the
+    /// references' scores gives 0.5; asking Jev against another reference than the first
+    /// changes the dictated reference in the decision state. The fake embeds a WRONG text at
+    /// [0, 1], so the first reference is far from the output and the second is the output.
+    @Test
+    func embeddingTakesTheBestReferenceAndJevAsksTheFirst() async throws {
+        let settings = try judgeSettings()
+        let transport = FakeJudgeTransport()
+        let sample = CleanupBenchmarkSample(
+            id: "s", category: .commandsEditor, raw: "Сделай коммит и пуш в мейн.",
+            references: ["WRONG text.", "Hello there."]
+        )
+
+        let result = await Self.judge(transport, settings).score([Self.run(output: "Hello there.")], samples: [sample])
+
+        #expect(result.runs.first?.scores.embedding == 1)
+        let decision = try #require(transport.recorded().first { $0.path == "/api/alpha/decisions" })
+        let state = try #require((JSONSerialization.jsonObject(with: decision.body) as? [String: Any])?["state"] as? [String: String])
+        #expect(state["reference_cleanup"] == "WRONG text.")
     }
 
     /// Stated sensitivity: scoring a run that has no output (a provider error) would

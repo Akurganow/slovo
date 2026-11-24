@@ -166,6 +166,7 @@ enum CleanupBenchmarkRetryPolicy {
         case .status(let status, let retryAfter):
             // OpenRouter's limits page names a transient 402 (`openrouter_in_flight_budget`)
             // that is retried after `Retry-After`: https://openrouter.ai/docs/api/reference/limits.md
+            // (documentation, no published revision)
             guard [402, 429].contains(status) || status >= 500 else { return nil }
             return backoff(attempt, retryAfter: retryAfter)
         }

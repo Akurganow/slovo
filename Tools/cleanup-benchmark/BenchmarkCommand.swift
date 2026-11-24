@@ -69,15 +69,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         writeDataFile: @escaping @Sendable (String, Data) throws -> Void = {
             try $1.write(to: URL(fileURLWithPath: $0), options: .atomic)
         },
-        appendDataFile: @escaping @Sendable (String, Data) throws -> Void = { path, data in
-            if !FileManager.default.fileExists(atPath: path) {
-                FileManager.default.createFile(atPath: path, contents: nil)
-            }
-            let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
-            defer { try? handle.close() }
-            try handle.seekToEnd()
-            try handle.write(contentsOf: data)
-        }
+        appendDataFile: @escaping @Sendable (String, Data) throws -> Void = CleanupBenchmarkCommandDriver.appendDataFile
     ) {
         self.makeCandidates = makeCandidates
         self.runBenchmark = runBenchmark
@@ -139,6 +131,34 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         let recorder: CleanupBenchmarkOutputsRecorder?
     }
 
+    /// Appends to the file, first ending a line that a killed process left without its
+    /// newline, so the next line is not joined to it and lost.
+    public static func appendDataFile(_ path: String, _ data: Data) throws {
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil)
+        }
+        let handle = try FileHandle(forUpdating: URL(fileURLWithPath: path))
+        defer { try? handle.close() }
+        let end = try handle.seekToEnd()
+        var bytes = data
+        if end > 0 {
+            try handle.seek(toOffset: end - 1)
+            if try handle.read(upToCount: 1) != Data("\n".utf8) {
+                bytes = Data("\n".utf8) + data
+            }
+        }
+        try handle.write(contentsOf: bytes)
+    }
+
+    private func decodeBaseline(_ path: String) throws -> CleanupBenchmarkBaselineFile {
+        let data = try readDataFile(path)
+        do {
+            return try CleanupBenchmarkBaselineFile.decode(data)
+        } catch is DecodingError {
+            throw CleanupBenchmarkCommandError.baselineUnreadable(path)
+        }
+    }
+
     /// Everything that can be wrong before a paid request goes out.
     private func prepare(arguments: [String], environment: [String: String]) throws -> Setup {
         let options = try CleanupBenchmarkCommandOptions.parse(arguments[...])
@@ -153,13 +173,16 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             let settings = try CleanupBenchmarkJudgeSettings.decode(
                 try readDataFile(CleanupBenchmarkJudgeSettings.defaultPath)
             )
+            if options.baselinePath != nil || options.writeBaselinePath != nil, options.repetitions != settings.bar.repetitions {
+                throw CleanupBenchmarkCommandError.repetitionsMismatch(given: options.repetitions, required: settings.bar.repetitions)
+            }
             judge = CleanupBenchmarkJudge(transport: try makeTransport(mergedEnvironment), settings: settings)
         }
 
         let digest = CleanupBenchmarkDigest.sha256(data)
         var entries: [String: (name: String, entry: CleanupBenchmarkBaselineEntry)] = [:]
         if let path = options.baselinePath, let judge {
-            let file = try CleanupBenchmarkBaselineFile.decode(try readDataFile(path))
+            let file = try decodeBaseline(path)
             for candidate in candidates {
                 guard let found = file.entry(for: candidate.name, fallback: options.baselineCandidate) else {
                     throw CleanupBenchmarkCommandError.noBaselineEntry(candidate.name, options.baselineCandidate)
@@ -170,6 +193,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 guard found.entry.judgeSHA256 == (try judge.settings.judgeSHA256()) else {
                     throw CleanupBenchmarkCommandError.baselineJudgeMismatch(found.name)
                 }
+                guard found.entry.repetitions == judge.settings.bar.repetitions else {
+                    throw CleanupBenchmarkCommandError.baselineRepetitionsMismatch(found.name)
+                }
                 entries[candidate.name] = found
             }
         }
@@ -177,7 +203,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         var existing: CleanupBenchmarkBaselineFile?
         if let path = options.writeBaselinePath {
             do {
-                existing = try CleanupBenchmarkBaselineFile.decode(try readDataFile(path))
+                existing = try decodeBaseline(path)
             } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
                 existing = CleanupBenchmarkBaselineFile()
             }
@@ -186,15 +212,15 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         var previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
         var recorder: CleanupBenchmarkOutputsRecorder?
         if let path = options.outputsFilePath {
-            let judgeDigest = try judge?.settings.judgeSHA256()
+            let binding = CleanupBenchmarkOutputsBinding(
+                samples: samples, judgeSHA256: try judge?.settings.judgeSHA256(), style: options.style
+            )
             do {
-                previous = try CleanupBenchmarkOutputsFile.resume(
-                    from: try readDataFile(path), samples: samples, datasetSHA256: digest, judgeSHA256: judgeDigest
-                )
+                previous = try CleanupBenchmarkOutputsFile.resume(from: try readDataFile(path), samples: samples, binding: binding)
             } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
                 previous = [:]
             }
-            recorder = CleanupBenchmarkOutputsRecorder(datasetSHA256: digest, judgeSHA256: judgeDigest) { try appendDataFile(path, $0) }
+            recorder = CleanupBenchmarkOutputsRecorder(binding: binding) { try appendDataFile(path, $0) }
         }
         return Setup(
             options: options,
@@ -219,7 +245,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         var report = report
         var errors: [String] = []
         if let judge = setup.judge {
-            let pending = report.runs.indices.filter { !report.runs[$0].isComplete(judged: true) }
+            // An empty output stays a recorded failure of the candidate: the judge never sees it.
+            let pending = report.runs.indices.filter { !report.runs[$0].isComplete(judged: true) && !report.runs[$0].hasEmptyOutput }
             let scored = await judge.score(pending.map { report.runs[$0] }, samples: setup.samples) { setup.recorder?.record($0) }
             var runs = report.runs
             for (index, run) in zip(pending, scored.runs) {
@@ -262,7 +289,11 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                     datasetSHA256: setup.datasetSHA256
                 )
             } catch {
-                errors.append("\(error)")
+                var message = "\(error)"
+                if case .incompleteRuns = error as? CleanupBenchmarkBarError, setup.options.outputsFilePath != nil {
+                    message += "; run again with the same --outputs-file to finish them"
+                }
+                errors.append(message)
             }
         }
         guard !entries.isEmpty else { return errors }
@@ -296,16 +327,19 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       The report prints aggregate metrics only. It does not print raw transcripts, cleaned output, or API keys.
       The passthrough candidate is the raw-mode (cleanup disabled) baseline: a no-op cleaner timed in place of the whole cleaner stage raw mode skips.
       Without --judge only the fuzzy coefficient is computed, no request leaves the Mac except the candidates' own, and no verdict is issued.
-      --judge sends each sample's raw text, reference and the candidate's output to OpenRouter (Jev decisions and embeddings) and needs OPENROUTER_API_KEY.
+      --judge sends each sample's raw text, references and the candidate's output to OpenRouter (Jev decisions and embeddings) and needs OPENROUTER_API_KEY.
+      --baseline and --write-baseline need --repetitions 5 (bar.repetitions in judge.json): one scheme measures entry and candidate.
       --baseline applies the bar: each candidate is judged against its own entry, or against the entry named by
       --baseline-candidate (default: openrouter:\(Config.defaultOpenRouterModel)) when it has none.
-      A judged run uses --providers catalog or a named model: passthrough is judged like any candidate and fails the bar.
+      A judged run uses --providers catalog or a named model: passthrough is judged like any candidate; it fails against another model's
+      entry, and --write-baseline gives it an entry of its own when it is in --providers.
       --write-baseline writes an entry for each candidate whose runs are all complete (an output, no failure, three
       coefficients) and leaves every other entry as it is. A candidate with incomplete runs gets no entry; stderr says how many.
       --outputs-file is append-only JSON Lines, local, with the candidates' output text. A line is added when a run's cleanup
       finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
-      output but no full score is judged again, a provider error is run again. A file from another dataset file is refused;
-      a run scored by other judge settings keeps its output and is judged again.
+      output but no full score is judged again, a provider error is run again, an empty output is neither. A file written for other
+      sample ids or raws, or by another --style, is refused; a run scored under other judge settings or references keeps its output
+      and is judged again. One file belongs to one build of the cleanup prompt.
       Exit code: 0 when no run failed and every verdict passed (or none was asked for);
       2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
       64 when the arguments or files are unusable, before any request is sent.

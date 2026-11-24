@@ -28,17 +28,17 @@ openrouter:<model>,550,0,<p50>,<p95>,<mean>,,
 
 With `--judge` the embedding and Jev means fill in, and a line names the judge's
 response models and its cost. With `--baseline` the report adds one row per
-candidate and per category: runs, within-slack share, the three means, and
-`pass` or `fail`.
+candidate and per category: samples, misses, allowed misses, dropped repetitions
+outside the baseline's slack, the three means, and `pass` or `fail`.
 
 With `--failure-breakdown`, the command appends aggregate failure-code counts
-(`provider-error`, `empty-output`, `judge-error`) by sample index. With
+(`provider-error`, `empty-output`, `embedding-failed`, `jev-refusal`, `jev-request-failed`) by sample index. With
 `--category-breakdown`, it also appends category-level rows.
 
 Reports intentionally do not print raw transcripts, cleaned text, references,
 prompts, API keys, response bodies, or caller-provided sample ids. The opt-in
-`--outputs-file PATH` is the one place output text is written, one JSON line per
-run.
+`--outputs-file PATH` is the one place output text is written, as JSON lines: one
+after a run's cleanup and one after it is judged.
 
 The exit code carries the verdict; `Benchmarks/cleanup/README.md`, "Running the
 judge", says how. The command never prompts, and the key comes from the environment
@@ -48,7 +48,8 @@ or `--env-file`.
 
 `--samples` accepts either a top-level JSON array or an object with a `samples`
 array. Each sample has an `id`, an optional `category`, the `raw` dictation and
-the `reference`, the expected cleanup. Other keys are ignored.
+`references`, a non-empty list: the first is the expected cleanup, the others are
+equally valid forms of it. Other keys are ignored.
 
 ```json
 {
@@ -57,7 +58,7 @@ the `reference`, the expected cleanup. Other keys are ignored.
       "id": "mixed-command",
       "category": "code-switching",
       "raw": "ну вот запушь pr в github пожалуйста",
-      "reference": "Запушь PR в GitHub, пожалуйста."
+      "references": ["Запушь PR в GitHub, пожалуйста."]
     }
   ]
 }
@@ -65,7 +66,7 @@ the `reference`, the expected cleanup. Other keys are ignored.
 
 ## Judge
 
-Each output is scored against the sample's reference by three coefficients
+Each output is scored against the sample's references by three coefficients
 (fuzzy, embedding, Jev). `Benchmarks/cleanup/README.md`, "What a pass means",
 holds the plain account, the bar and the flags; the settings live in
 `Benchmarks/cleanup/judge.json`. What the code adds to that:

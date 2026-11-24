@@ -15,7 +15,7 @@ cat > "$sample_file" <<'JSON'
   {
     "id": "smoke",
     "raw": "Hello.",
-    "reference": "Hello."
+    "references": ["Hello."]
   }
 ]
 JSON

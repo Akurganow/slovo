@@ -151,7 +151,11 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case noBaselineEntry(String, String)
     case baselineDatasetMismatch(String)
     case baselineJudgeMismatch(String)
+    case baselineRepetitionsMismatch(String)
+    case repetitionsMismatch(given: Int, required: Int)
     case outputsFileDatasetMismatch
+    case outputsFileStyleMismatch(String)
+    case baselineUnreadable(String)
     case invalidJudgeSettings
 
     public var description: String {
@@ -169,11 +173,22 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
         case .noBaselineEntry(let candidate, let fallback):
             return "baseline has no entry for \(candidate) or for the fallback \(fallback)"
         case .baselineDatasetMismatch(let entry):
-            return "baseline entry \(entry) was recorded on a different dataset file"
+            return "baseline entry \(entry) was recorded on a different dataset file; rewrite it with --write-baseline"
         case .baselineJudgeMismatch(let entry):
-            return "baseline entry \(entry) was recorded with different judge settings (jev or embedding in judge.json)"
+            return "baseline entry \(entry) was recorded with different judge settings (jev or embedding in judge.json); "
+                + "rewrite it with --write-baseline"
+        case .baselineRepetitionsMismatch(let entry):
+            return "baseline entry \(entry) was recorded with other repetitions than bar.repetitions in judge.json; "
+                + "rewrite it with --write-baseline"
+        case .repetitionsMismatch(let given, let required):
+            return "--baseline and --write-baseline need --repetitions \(required) (bar.repetitions in judge.json), not \(given)"
         case .outputsFileDatasetMismatch:
-            return "the outputs file names samples that are not in this dataset, or was written for another dataset file"
+            return "the outputs file was written for other sample ids or raws, or in an older format; name a new --outputs-file"
+        case .outputsFileStyleMismatch(let style):
+            return "the outputs file was written with --style \(style); use that style or name a new --outputs-file"
+        case .baselineUnreadable(let path):
+            return "\(path) is not a baseline in the current format; "
+                + "write it again with --write-baseline to a path that does not exist yet"
         case .invalidJudgeSettings:
             return "judge.json needs at least one repeat and one question"
         }

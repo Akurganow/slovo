@@ -5,6 +5,12 @@ enum CleanupBenchmarkDigest {
     static func sha256(_ data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
+
+    /// Over the strings in order, each with its length, so no two lists share a digest by
+    /// the way they split.
+    static func sha256(of strings: [String]) -> String {
+        sha256(Data(strings.map { "\($0.utf8.count):\($0)" }.joined().utf8))
+    }
 }
 
 /// The judge's settings, read from `Benchmarks/cleanup/judge.json`.
@@ -18,7 +24,7 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
     }
 
     /// A yes/no question in the shape of OpenRouter's decisions endpoint
-    /// (documentation: https://openrouter.ai/docs/guides/community/jev-tutorial.md).
+    /// (documentation, no published revision: https://openrouter.ai/docs/guides/community/jev-tutorial.md).
     public struct Question: Codable, Equatable, Sendable {
         public struct Criteria: Codable, Equatable, Sendable {
             public let whenTrue: String
@@ -45,7 +51,8 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
 
     /// The fields of OpenRouter's provider-routing object this benchmark uses
     /// (`ProviderPreferences` in the embeddings reference:
-    /// https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md).
+    /// https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md; documentation,
+    /// no published revision).
     public struct Provider: Codable, Equatable, Sendable {
         public let order: [String]
         public let allowFallbacks: Bool
@@ -64,8 +71,13 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         }
 
         public let floors: Floors
-        /// The share of a row's runs that may fall outside the slack (at least one run is always allowed).
+        /// The share of a row's samples that may fall outside the slack (at least one is always allowed).
         public let allowance: Double
+        /// The repetitions of every run that writes or applies a baseline: one scheme for both.
+        public let repetitions: Int
+        /// Per sample and coefficient, this many of the largest slacks are dropped before the
+        /// mean is taken.
+        public let dropWorst: Int
     }
 
     public let jev: Jev
@@ -79,10 +91,13 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         .appending(path: "Benchmarks/cleanup/judge.json")
         .path
 
-    /// Rejects settings that would leave every output unscored: no repeats or no questions.
+    /// Rejects settings that would leave every output unscored (no repeats or no questions)
+    /// or a sample without a slack (no repetition left after dropping the worst).
     public static func decode(_ data: Data) throws -> CleanupBenchmarkJudgeSettings {
         let settings = try JSONDecoder().decode(CleanupBenchmarkJudgeSettings.self, from: data)
-        guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty else {
+        guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty,
+              settings.bar.dropWorst >= 0, settings.bar.repetitions > settings.bar.dropWorst
+        else {
             throw CleanupBenchmarkCommandError.invalidJudgeSettings
         }
         return settings

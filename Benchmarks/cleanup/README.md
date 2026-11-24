@@ -20,11 +20,13 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
 
-Total: **55 samples**, 21 of them clean cases: the raw text equals its
+Total: **55 samples**, 21 of them clean cases: the raw text equals its first
 reference. A full run is samples × repetitions, so "550 runs" = 55 × 10.
 
-Each sample is `id`, `category`, `raw` and a required `reference`: the expected
-cleanup. Other keys are ignored.
+Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
+reference is the expected cleanup. The others are equally valid forms of it: the
+other script of an English term (`main` for `мейн`), added only where the raw
+writes the term in Cyrillic. Other keys are ignored.
 
 ## The form of a raw transcript
 
@@ -65,13 +67,13 @@ from a clear speaker.
 
 ## What a pass means
 
-Each output is scored against its sample's reference, never against the dirty
+Each output is scored against its sample's references, never against the dirty
 dictation. Three coefficients, each from 0 to 1:
 
-- **fuzzy:** how close the words are, in any order;
-- **embedding:** how close the meaning is as a vector;
-- **Jev:** five yes/no judgments made from the dictation, the reference and the
-  output; the coefficient is the lowest of the five.
+- **fuzzy:** how close the words are, in any order; the best over the references;
+- **embedding:** how close the meaning is as a vector; the best over the references;
+- **Jev:** five yes/no judgments made from the dictation, the first reference and
+  the output; the coefficient is the lowest of the five.
 
 Word order, word form, casing, inner punctuation and the final mark are never
 checked. The only check on the text itself is that the output is not empty.
@@ -80,23 +82,32 @@ A baseline entry is a model's recorded slack against the shared references.
 Slack is 1 minus the coefficient. Every model scores against the same
 references: an entry is never a separate expected result for that model.
 
+- One scheme measures an entry and a candidate. `judge.json` sets `bar.repetitions`
+  (5) and `bar.dropWorst` (2). `--baseline` and `--write-baseline` refuse any other
+  `--repetitions` before a request: run with `--repetitions 5`.
+- Per sample and coefficient, the slack is the mean of the repetitions' slacks
+  after the `dropWorst` largest are dropped: the mean of the 3 smallest of 5. A
+  run without a score counts as slack 1.
 - `baseline.json` holds one entry per candidate name (`provider:model`). Per
-  sample and coefficient an entry holds the largest slack across the repetitions,
-  plus the response models that scored the runs, the SHA-256 of the dataset file
-  and the SHA-256 of the judge's settings (the Jev and embedding sections of
+  sample and coefficient an entry holds that slack, plus the repetition count, the
+  response models that scored the runs, the SHA-256 of the dataset file and the
+  SHA-256 of the judge's settings (the Jev and embedding sections of `judge.json`).
+- A candidate's sample is within slack when, for each coefficient, its slack is at
+  most the entry's on that sample plus the coefficient's floor (the floors are in
   `judge.json`).
-- A run on a sample is within a model's recorded slack when, for each
-  coefficient, its slack is at most the entry's largest slack on that sample plus the coefficient's floor
-  (the floors are in `judge.json`).
-- A candidate passes when, overall and in every category, the runs not within
-  slack number at most the allowance's share of the row's runs (`judge.json`),
-  and never fewer than one. A row of a few runs therefore tolerates one miss.
+- A candidate passes when, overall and in every category, the samples not within
+  slack number at most the allowance's share of the row's samples (`judge.json`),
+  and never fewer than one. A row of a few samples therefore tolerates one miss.
+- The trade: a failure in at most 2 of the 5 repetitions does not fail the bar.
+  The report prints, per candidate and category, how many dropped repetitions were
+  outside the entry's slack, so such failures stay visible.
 - A candidate is judged against its own entry. A candidate with no entry (a new
   model, a local one) is judged against the entry named by
   `--baseline-candidate`, by default `openrouter:` plus the app's default cleanup
   model.
-- `--baseline` refuses an entry recorded on another dataset file or with other
-  judge settings: rewrite it with `--write-baseline`.
+- `--baseline` refuses an entry recorded on another dataset file, with other
+  judge settings or with other repetitions than `bar.repetitions`: rewrite it with
+  `--write-baseline`.
 
 An output that changes nothing passes on a clean case and is judged like any
 other output on a messy one.
@@ -106,10 +117,10 @@ other output on a messy one.
 | Flag | Effect |
 | --- | --- |
 | none of the below | Fuzzy only. No verdict. No request leaves the Mac except the candidates' own. |
-| `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate and fails the bar. |
-| `--baseline PATH` | Applies the bar (needs `--judge`). Every candidate needs an entry, its own or the fallback's. |
+| `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate. It fails the bar against another model's entry, and `--write-baseline` gives it an entry of its own when it is in `--providers`. |
+| `--baseline PATH` | Applies the bar (needs `--judge` and `--repetitions 5`). Every candidate needs an entry, its own or the fallback's. |
 | `--baseline-candidate ID` | The fallback entry for a candidate with none. |
-| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
+| `--write-baseline PATH` | With `--repetitions 5`, writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
 | `--outputs-file PATH` | Opt-in, local, and the resume record (below). |
 
 `--providers catalog --judge --baseline PATH` judges every catalog model in one
@@ -118,14 +129,24 @@ run, each against its own entry.
 The outputs file is append-only JSON Lines. A line is added when a run's cleanup
 finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the three
-coefficients, each Jev question's repeats, the models that answered, and the
-failure codes, the SHA-256 of the dataset file and, on a line that holds judge
-scores, the SHA-256 of the judge's settings. It holds output text, so it stays
-local. Naming an existing file resumes it, the last line of a run winning: a run
-with all three coefficients and no failure is not repeated, a run with an output
-but no full score is judged again without the cleaner, and a provider error or a
-missing run is run again. A file written for another dataset file is refused. A
-line scored by other judge settings keeps its output and is judged again.
+coefficients, each Jev question's repeats, the models that answered, the failure
+codes, the writing style, the SHA-256 of the ids and raws of the dataset and the
+SHA-256 of what scored the line (the judge's settings and the sample's
+references; empty without `--judge`). It holds output text, so it stays local.
+Naming an existing file resumes it, the last line of a run winning:
+
+- A run with all three coefficients and no failure is not repeated.
+- A run with an output but no full score is judged again without the cleaner.
+- A provider error or a missing run is run again.
+- A run whose output was empty is neither judged nor cleaned again: it is the
+  candidate's failure, and no baseline entry is written while one exists.
+- A file written for other ids or raws, or by another `--style`, is refused.
+- A line scored under other judge settings or references keeps its output and is
+  judged again. The fuzzy score is always computed again from the output.
+
+One outputs file belongs to one build of the cleanup prompt: a resume cannot tell
+that the prompt changed. A line cut short by a killed process is dropped, and its
+run is done again.
 
 The exit code carries the verdict, as the usage text of the command says. The
 command asks for nothing interactively, so a CI step can call it. No CI job
@@ -133,7 +154,7 @@ calls it yet.
 
 `judge.json` holds the judge's settings: the Jev model, path, repeats and
 questions, the embedding model, prefix and provider-routing object, and the bar's
-floors and allowance. `embedding.provider.order` names the one provider every
+floors, allowance, repetitions and `dropWorst`. `embedding.provider.order` names the one provider every
 embeddings request goes to, with fallbacks off, so every run scores with the same
 weights.
 
@@ -153,8 +174,8 @@ made here.
 Synthetic sample text and the candidate's output, nothing else:
 
 - `POST https://openrouter.ai/api/alpha/decisions` (Jev): the sample's raw
-  text, its reference and the output, once per repeat.
-- `POST https://openrouter.ai/api/v1/embeddings`: the reference and the output.
+  text, its first reference and the output, once per repeat.
+- `POST https://openrouter.ai/api/v1/embeddings`: the references and the output.
 
 No audio and no personal vocabulary are involved. The candidate's own request is
 unchanged.
@@ -188,7 +209,8 @@ Reports stay aggregate-only:
 
 Per candidate the report prints runs, failed runs, latency percentiles and the
 mean of each coefficient. With `--baseline` it adds one row per candidate and
-per category: runs, within-slack share, the means, and `pass` or `fail`. A
+per category: samples, misses, allowed misses, dropped repetitions outside the
+baseline's slack, the means, and `pass` or `fail`. A
 candidate passes when every one of its rows does. Use `--failure-breakdown` and
 `--category-breakdown` to inspect failures by sample index, failure code, and
 category without exposing payload text. Only `--outputs-file` writes output text.

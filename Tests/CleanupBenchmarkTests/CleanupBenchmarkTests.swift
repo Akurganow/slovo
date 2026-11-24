@@ -16,8 +16,8 @@ struct CleanupBenchmarkTests {
     @Test
     func runnerInvokesEveryCandidateForEverySampleAndRecordsTiming() async {
         let samples = [
-            CleanupBenchmarkSample(id: "one", raw: "Ну вот запушь PR в GitHub, пожалуйста.", reference: "Запушь PR в GitHub, пожалуйста."),
-            CleanupBenchmarkSample(id: "two", raw: "запусти swift test потом swiftlint analyze", reference: "Запусти swift test, потом swiftlint analyze."),
+            CleanupBenchmarkSample(id: "one", raw: "Ну вот запушь PR в GitHub, пожалуйста.", references: ["Запушь PR в GitHub, пожалуйста."]),
+            CleanupBenchmarkSample(id: "two", raw: "запусти swift test потом swiftlint analyze", references: ["Запусти swift test, потом swiftlint analyze."]),
         ]
         let first = RecordingCleaner(output: "Запушь PR в GitHub, пожалуйста.")
         let second = RecordingCleaner(output: "Запусти swift test, потом swiftlint analyze.")
@@ -50,13 +50,45 @@ struct CleanupBenchmarkTests {
     /// The raw is sample `russian-filler-clean-desktop-02` of
     /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
     ///
+    /// Stated sensitivity: a warmup skipped for every candidate as soon as any run is resumed
+    /// leaves a candidate that has none starting cold, and its latency carries the cold
+    /// start; the resumed candidate takes no warmup (it is reused whole), the other takes one
+    /// and then its timed run.
+    @Test
+    func warmupSkipsOnlyCandidatesWithResumedRuns() async {
+        let sample = CleanupBenchmarkSample(
+            id: "one", raw: "Прибери мусор.", references: ["Прибери мусор."]
+        )
+        let resumed = CleanupBenchmarkRun(
+            sampleId: "one", sampleIndex: 1, candidateName: "fake:a", repetition: 1, durationNanoseconds: 1,
+            output: "Прибери мусор.", scores: CleanupBenchmarkScores(fuzzy: 1), errorKind: nil
+        )
+        let first = RecordingCleaner(output: "Прибери мусор.")
+        let second = RecordingCleaner(output: "Прибери мусор.")
+
+        _ = await CleanupBenchmarkRunner().run(
+            candidates: [
+                CleanupBenchmarkCandidate(provider: "fake", model: "a", cleaner: first),
+                CleanupBenchmarkCandidate(provider: "fake", model: "b", cleaner: second),
+            ],
+            samples: [sample],
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: []),
+            warmupRepetitions: 1,
+            previous: [resumed.key: resumed]
+        )
+
+        #expect(await first.rawInputs().isEmpty)
+        #expect(await second.rawInputs().count == 2)
+    }
+
     /// Stated sensitivity: counting warmup calls in the report, or measuring
     /// cold local-model loading as a timed run, makes the benchmark look worse
     /// than hot in-app cleanup behavior.
     @Test
     func runnerWarmsCandidatesBeforeRecordedRuns() async {
         let sample = CleanupBenchmarkSample(
-            id: "warm", raw: "Короче, надо прибрать мусор на рабочем столе.", reference: "Надо прибрать мусор на рабочем столе."
+            id: "warm", raw: "Короче, надо прибрать мусор на рабочем столе.", references: ["Надо прибрать мусор на рабочем столе."]
         )
         let cleaner = RecordingCleaner(output: "Надо прибрать мусор на рабочем столе.")
         let durations = Mutex<[UInt64]>([42])
@@ -154,7 +186,7 @@ struct CleanupBenchmarkTests {
     @Test
     func emptyOutputIsAFailureAndScoresZero() async {
         let sample = CleanupBenchmarkSample(
-            id: "empty", raw: "Ну я сейчас проверяю, как работает диктовка.", reference: "Я сейчас проверяю, как работает диктовка."
+            id: "empty", raw: "Ну я сейчас проверяю, как работает диктовка.", references: ["Я сейчас проверяю, как работает диктовка."]
         )
         let report = await CleanupBenchmarkRunner().run(
             candidates: [CleanupBenchmarkCandidate(provider: "fake", model: "m", cleaner: RecordingCleaner(output: " \n "))],
@@ -193,7 +225,7 @@ struct CleanupBenchmarkTests {
     /// provider error can persist payload text even when the formatter hides it.
     @Test
     func runnerStoresCoarseErrorKindOnly() async {
-        let sample = CleanupBenchmarkSample(id: "sensitive-sample", raw: "S3NT1NEL-RAW", reference: "Reference.")
+        let sample = CleanupBenchmarkSample(id: "sensitive-sample", raw: "S3NT1NEL-RAW", references: ["Reference."])
         let report = await CleanupBenchmarkRunner().run(
             candidates: [
                 CleanupBenchmarkCandidate(

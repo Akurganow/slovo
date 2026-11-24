@@ -26,7 +26,7 @@ struct CleanupBenchmarkDatasetTests {
         ])
         #expect(Set(samples.map(\.id)).count == samples.count)
         #expect(samples.allSatisfy { !$0.raw.isEmpty })
-        #expect(samples.allSatisfy { !$0.reference.isEmpty })
+        #expect(samples.allSatisfy { !$0.references.isEmpty })
     }
 
     /// The sample is `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`.
@@ -44,25 +44,29 @@ struct CleanupBenchmarkDatasetTests {
         }
 
         let oldFormat = Data(
-            #"[{"id": "a", "raw": "\#(raw)", "reference": "\#(reference)", "expectation": {"maxLengthRatio": 1.8}}]"#.utf8
+            #"[{"id": "a", "raw": "\#(raw)", "references": ["\#(reference)"], "expectation": {"maxLengthRatio": 1.8}}]"#.utf8
         )
         #expect(try CleanupBenchmarkSampleLoader.decode(oldFormat) == [
-            CleanupBenchmarkSample(id: "a", raw: raw, reference: reference),
+            CleanupBenchmarkSample(id: "a", raw: raw, references: [reference]),
         ])
     }
 
-    /// Stated sensitivity: settings with no repeats or no questions leave every output
-    /// unscored with no error; dropping either guard lets one of these decode, so they
-    /// are no longer refused before any paid call.
+    /// Stated sensitivity: settings with no repeats, no questions, or no repetition left after
+    /// dropping the worst leave every output unscored or every sample without a slack, with
+    /// no error; dropping any guard lets one of these decode, so they are no longer
+    /// refused before any paid call.
     @Test(arguments: [
-        (repeats: 0, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#),
-        (repeats: 3, questions: "{}"),
+        (repeats: 0, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 5, dropWorst: 2),
+        (repeats: 3, questions: "{}", repetitions: 5, dropWorst: 2),
+        (repeats: 3, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 2, dropWorst: 2),
+        (repeats: 3, questions: #"{"q": {"type": "noul", "instructions": "?"}}"#, repetitions: 5, dropWorst: -1),
     ])
-    func judgeSettingsNeedAtLeastOneRepeatAndOneQuestion(repeats: Int, questions: String) {
+    func judgeSettingsNeedAScoreAndASlack(repeats: Int, questions: String, repetitions: Int, dropWorst: Int) {
         let json = """
         {"jev": {"model": "m", "path": "/p", "repeats": \(repeats), "questions": \(questions)},
          "embedding": {"model": "e", "path": "/e", "prefix": "", "provider": {"order": [], "allow_fallbacks": false}},
-         "bar": {"floors": {"jev": 0.1, "embedding": 0.1, "fuzzy": 0.1}, "allowance": 0.05}}
+         "bar": {"floors": {"jev": 0.1, "embedding": 0.1, "fuzzy": 0.1}, "allowance": 0.05,
+                 "repetitions": \(repetitions), "dropWorst": \(dropWorst)}}
         """
         #expect(throws: CleanupBenchmarkCommandError.invalidJudgeSettings) {
             try CleanupBenchmarkJudgeSettings.decode(Data(json.utf8))

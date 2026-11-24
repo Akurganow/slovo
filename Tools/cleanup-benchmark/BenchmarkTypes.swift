@@ -48,37 +48,47 @@ public enum CleanupBenchmarkCategory: String, Codable, Equatable, Hashable, Send
     case instructionShaped = "instruction-shaped-transcript"
 }
 
-/// One dictation and the cleanup it should produce. The reference is the
-/// expected result every output is scored against, never the dirty `raw` text.
+/// One dictation and the cleanup it should produce. The references are what every output
+/// is scored against, never the dirty `raw` text. The first is the expected result; the
+/// others are equally valid forms of it (the other script of an English term).
 public struct CleanupBenchmarkSample: Codable, Equatable, Sendable {
     public let id: String
     public let category: CleanupBenchmarkCategory
     public let raw: String
-    public let reference: String
+    public let references: [String]
+
+    /// The first reference.
+    public var expected: String {
+        references[0]
+    }
 
     public init(
         id: String,
         category: CleanupBenchmarkCategory = .uncategorized,
         raw: String,
-        reference: String
+        references: [String]
     ) {
         self.id = id
         self.category = category
         self.raw = raw
-        self.reference = reference
+        self.references = references
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, category, raw, reference
+        case id, category, raw, references
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let references = try container.decode([String].self, forKey: .references)
+        guard !references.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .references, in: container, debugDescription: "a sample needs a reference")
+        }
         self.init(
             id: try container.decode(String.self, forKey: .id),
             category: try container.decodeIfPresent(CleanupBenchmarkCategory.self, forKey: .category) ?? .uncategorized,
             raw: try container.decode(String.self, forKey: .raw),
-            reference: try container.decode(String.self, forKey: .reference)
+            references: references
         )
     }
 }

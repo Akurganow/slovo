@@ -7,8 +7,9 @@ public struct CleanupBenchmarkJudgeInfo: Equatable, Sendable {
     public init() {}
 }
 
-/// Scores each output's meaning against its sample's reference: cosine similarity
-/// of the embeddings, and the lowest of the Jev questions' means over the repeats.
+/// Scores each output's meaning against its sample's references: the best cosine
+/// similarity of the embeddings over them, and the lowest of the Jev questions' means
+/// over the repeats, asked against the expected (first) reference.
 public struct CleanupBenchmarkJudge: Sendable {
     private static let embeddingBatchSize = 64
     private static let concurrency = 4
@@ -53,13 +54,13 @@ public struct CleanupBenchmarkJudge: Sendable {
         var info = CleanupBenchmarkJudgeInfo()
         var scored = runs
         let bySample = Dictionary(samples.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        // Per candidate, so each run's models name what served its own texts.
+        // Per candidate, so the embedding models a run names are those that served this candidate's batches.
         for indices in Dictionary(grouping: runs.indices, by: { runs[$0].candidateName }).values {
             let items = indices.compactMap { index -> Item? in
                 guard let output = runs[index].output, let sample = bySample[runs[index].sampleId] else { return nil }
                 return Item(index: index, output: output, sample: sample)
             }
-            let embedded = await embed(Set(items.flatMap { [$0.output, $0.sample.reference] }).sorted())
+            let embedded = await embed(Set(items.flatMap { [$0.output] + $0.sample.references }).sorted())
             info.costUSD += embedded.cost
             info.embeddingErrors += embedded.errors
             await decide(items) { item, decided in
@@ -68,8 +69,9 @@ public struct CleanupBenchmarkJudge: Sendable {
                 run.failures.removeAll { Self.ownFailures.contains($0) }
                 run.failures += decided.failures
                 var scores = run.scores
-                if let left = embedded.vectors[item.output], let right = embedded.vectors[item.sample.reference] {
-                    scores.embedding = Self.cosine(left, right)
+                let rights = item.sample.references.compactMap { embedded.vectors[$0] }
+                if let left = embedded.vectors[item.output], rights.count == item.sample.references.count {
+                    scores.embedding = rights.map { Self.cosine(left, $0) }.max()
                 } else {
                     scores.embedding = nil
                     run.failures.append("embedding-failed")
@@ -149,7 +151,7 @@ public struct CleanupBenchmarkJudge: Sendable {
         for _ in 0..<settings.jev.repeats {
             do {
                 let decision = try await client.decide(
-                    dictation: item.sample.raw, reference: item.sample.reference, output: item.output
+                    dictation: item.sample.raw, reference: item.sample.expected, output: item.output
                 )
                 decided.cost += decision.cost ?? 0
                 if let model = decision.model {

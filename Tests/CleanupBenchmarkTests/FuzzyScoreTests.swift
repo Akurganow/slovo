@@ -32,14 +32,29 @@ struct FuzzyScoreTests {
     @Test
     func foldingIgnoresCasingPunctuationAndYo() {
         #expect(FuzzyScore.tokenSort("Ёлка, ёлка!", "елка  елка") == 1)
-        // The first text is the recognizer's transcript of clip mx-021 of the synthetic
-        // corpus (WhisperKit argmax-oss-swift 1.1.1 at 1bbc57cb, the app's turbo model),
-        // the second the phrase spoken. The word tokenizer keeps an inner decimal point
-        // inside a word; folding has to turn it into a space first.
+        // The first text has the form the recognizer writes (`Benchmarks/cleanup/README.md`,
+        // "The form of a raw transcript": a spoken time as `14.30`, an English term title-cased),
+        // the second the phrase spoken. The word tokenizer keeps an inner decimal point inside a
+        // word; folding has to turn it into a space first.
         #expect(FuzzyScore.tokenSort(
             "Созвон по Sprint Planning во вторник в 14.30.", "Созвон по sprint planning во вторник в 14:30."
         ) == 1)
         #expect(FuzzyScore.tokenSort("a", "b") == 0)
+    }
+
+    /// Stated sensitivity: scoring only the first reference gives an output in the other
+    /// script of an English term below 1 (a Cyrillic and a Latin rendering are different
+    /// letters); a mean over the references gives less than 1 for either form; a worst
+    /// score does the same. The sample is `commands-editor-commit-push-03` of
+    /// `Benchmarks/cleanup/slovo-cleanup-v1.json`.
+    @Test
+    func outputInAnyReferencesFormScoresOne() {
+        let references = ["Сделай коммит и пуш в мейн.", "Сделай commit и push в main."]
+
+        #expect(FuzzyScore.best("Сделай коммит и пуш в мейн.", references) == 1)
+        #expect(FuzzyScore.best("Сделай commit и push в main.", references) == 1)
+        #expect(FuzzyScore.best("Сделай commit и push в main.", [references[0]]) < 1)
+        #expect(FuzzyScore.best("Сделай что-то другое.", references) < 1)
     }
 
     /// Stated sensitivity: splitting only on spaces leaves Chinese, Japanese and Thai
