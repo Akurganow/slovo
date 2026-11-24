@@ -1,0 +1,452 @@
+name: Cleanup Benchmark
+
+# Runs the cleanup benchmark over every catalogue model, judged, and keeps the
+# result as the baseline: a pass is committed to `main`, a degradation or a stale
+# baseline opens a pull request with the fresh entries. It runs after a Release
+# run that published a release which changed a file that can change the cleanup
+# output, and on a manual dispatch on `main`. docs/release-ci.md, "Cleanup
+# benchmark", has the rest.
+#
+# A workflow of its own, not a job of release.yml: the Release run stays as it is,
+# so the benchmark can neither delay a release nor turn it red. A `workflow_run`
+# run "is able to access secrets and write tokens" and takes the default branch as
+# its ref, so `record` can name the `release-push` environment, whose branch policy
+# admits `main` only (github/docs 801373e,
+# content/actions/reference/workflows-and-actions/events-that-trigger-workflows.md,
+# "workflow_run"). Both triggers need this file on the default branch (same page,
+# via data/reusables/actions/branch-requirement.md).
+#
+# Each job holds one power. `changes` holds nothing, `benchmark` holds the
+# OpenRouter key, and `record` holds the deploy key and the write token. The two
+# keys never share a job, and a job that holds a key checks out a commit of `main`
+# only.
+on:
+  workflow_run:
+    workflows: [ Release ]
+    types: [ completed ]
+    branches: [ main ]
+  workflow_dispatch:
+
+# Least privilege: only `record` is granted write access.
+permissions:
+  contents: read
+
+# No concurrency block: a cancelled run loses the paid calls it made, because the
+# tool writes its baseline only at the end.
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+      sha: ${{ steps.decide.outputs.sha }}
+      version: ${{ steps.decide.outputs.version }}
+      subject: ${{ steps.decide.outputs.subject }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A workflow_run run starts on the default branch tip. The commit to
+          # measure is the one the Release run built. Full history and tags: the
+          # release test and the path diff read them.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+      - name: Decide whether the benchmark runs
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          # The payload lists `workflow_run.head_sha` without describing it (github/docs
+          # 801373e, src/webhooks/data/fpt/workflow_run.child-params.json).
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        # The paths below are the one list of files that can change the cleanup
+        # output. Other files point here.
+        run: |
+          set -euo pipefail
+          emit() {
+            { echo "run=$1"; echo "sha=$2"; echo "version=$3"; echo "subject=$4"; } >> "$GITHUB_OUTPUT"
+          }
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "Dispatched on ${GITHUB_REF}. The benchmark runs on main only."
+              emit false "$GITHUB_SHA" "" ""
+              exit 0
+            fi
+            echo "Dispatched on main. The benchmark runs over the whole catalogue."
+            emit true "$GITHUB_SHA" "" "$(git rev-parse --short "$GITHUB_SHA")"
+            exit 0
+          fi
+          # A Release run whose publish failed after its tag has the tag too. Only the
+          # success of its re-run starts the benchmark.
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "The Release run ended with ${CONCLUSION}. The benchmark runs only after a successful one."
+            emit false "$HEAD_SHA" "" ""
+            exit 0
+          fi
+          sha="$HEAD_SHA"
+          # The run published a release when a v* tag has the measured commit as its
+          # parent, the test `publish` applies before it tags (release.yml). The new
+          # tag sits on the bump commit, so a run that tagged nothing stops here.
+          version=""
+          for tag in $(git tag --contains "$sha" --list 'v*'); do
+            if [ "$(git rev-parse "${tag}^")" = "$sha" ]; then
+              version="$tag"
+              break
+            fi
+          done
+          if [ -z "$version" ]; then
+            echo "No v* tag has ${sha} as its parent. That Release run published no release."
+            emit false "$sha" "" ""
+            exit 0
+          fi
+          # The nearest tag from the measured commit is the previous release.
+          previous="$(git describe --tags --match 'v*' --abbrev=0 "$sha")"
+          echo "Release ${version}. Previous release: ${previous}."
+          changed="$(git diff --name-only "$previous" "$sha" -- \
+            Sources/SlovoCore/Cleaner/PromptBuilder.swift \
+            Sources/SlovoCore/Resources/PromptExamples.xml \
+            Sources/SlovoCore/Cleaner/PromptExampleCatalog.swift \
+            Sources/SlovoCore/Cleaner/OpenRouterRequest.swift \
+            Sources/SlovoCore/Cleaner/OpenRouterCleaner.swift \
+            Sources/SlovoCore/VisibleText.swift \
+            Sources/SlovoCore/Cleaner/CleanupModelCatalog.swift \
+            Benchmarks/cleanup/slovo-cleanup-v1.json \
+            Benchmarks/cleanup/judge.json)"
+          if [ -n "$changed" ]; then
+            echo "Changed since ${previous}:"
+            echo "$changed"
+            emit true "$sha" "$version" "$version"
+          else
+            echo "No listed file changed since ${previous}. The benchmark does not run."
+            emit false "$sha" "$version" "$version"
+          fi
+
+  benchmark:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    # The tool needs macOS (Package.swift). The step timeout sits under the job
+    # timeout only so the log says which step ran out.
+    runs-on: macos-26
+    timeout-minutes: 180
+    outputs:
+      outcome: ${{ steps.benchmark.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          # This job holds the OpenRouter key: leave no token in the git config.
+          persist-credentials: false
+      - name: Toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+          # The cache key takes this value, so it must be one line without commas.
+          xcode_version="$(xcodebuild -version | paste -sd ' ' - | tr -d ',')"
+          echo "xcode_version=${xcode_version}" >> "$GITHUB_OUTPUT"
+      - name: Restore SwiftPM build cache
+        # Restore only. A save here would store a .build without the gate's test
+        # products under the gate's key.
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ steps.toolchain.outputs.xcode_version }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ steps.toolchain.outputs.xcode_version }}-
+      - name: Run the benchmark over the catalogue
+        id: benchmark
+        # The tool's exit code decides: 0 passed, 3 a model failed the bar against
+        # its own entry, 4 the baseline is stale. 0, 3 and 4 end the step green with
+        # `outcome` set. Any other code, 2 and 64 included, fails the step.
+        timeout-minutes: 170
+        env:
+          # Only this step sees the key. The tool reads it from its environment.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          baseline="${RUNNER_TEMP}/baseline.json"
+          report="${RUNNER_TEMP}/report.csv"
+          failed="${RUNNER_TEMP}/failed-rows.tsv"
+          # The tool prints aggregate CSV on stdout. No --outputs-file: it holds output
+          # text, so it stays local (Benchmarks/cleanup/README.md).
+          benchmark() {
+            swift run --disable-automatic-resolution slovo-cleanup-benchmark \
+              --providers catalog --judge --write-baseline "$baseline" \
+              --failure-breakdown --category-breakdown "$@"
+          }
+          # One run of the tool: its CSV goes to the log and to $report, its exit code to $code.
+          run_tool() {
+            set +e
+            benchmark "$@" | tee "$report"
+            code="${PIPESTATUS[0]}"
+            set -e
+          }
+          # Verdict rows that failed, as tab-separated candidate, baseline, category,
+          # misses, allowed misses. Columns are found by header name.
+          failed_rows() {
+            awk -F, '
+              $1 == "candidate" && $2 == "baseline" {
+                delete col
+                for (i = 1; i <= NF; i++) col[$i] = i
+                split("candidate baseline category misses allowed_misses verdict", need, " ")
+                for (n in need) if (!(need[n] in col)) { print "verdict column missing: " need[n] > "/dev/stderr"; exit 2 }
+                inside = 1
+                next
+              }
+              inside && NF == 0 { inside = 0 }
+              inside && $col["verdict"] == "fail" {
+                print $col["candidate"] "\t" $col["baseline"] "\t" $col["category"] "\t" $col["misses"] "\t" $col["allowed_misses"]
+              }
+            ' "$1"
+          }
+          names() { sort -u | paste -sd ',' - | sed 's/,/, /g'; }
+
+          cp Benchmarks/cleanup/baseline.json "$baseline"
+          run_tool --baseline Benchmarks/cleanup/baseline.json
+
+          case "$code" in
+            0)
+              outcome=record
+              ;;
+            3)
+              outcome=degraded
+              ;;
+            4)
+              # Before any request, so nothing was paid. Record entries without a
+              # baseline to compare against: the only run the tool accepts then.
+              run_tool
+              if [ "$code" -ne 0 ]; then
+                echo "::error::The run that re-records a stale baseline exited ${code}."
+                exit "$code"
+              fi
+              outcome=stale
+              echo "::warning::The baseline is stale, so this run compared nothing. It recorded new entries."
+              ;;
+            *)
+              echo "::error::The benchmark exited ${code}."
+              exit "$code"
+              ;;
+          esac
+          # Every failed verdict row, against the own entry and the fallback alike. `record`
+          # reads this file. A report without a verdict column fails the step here.
+          if ! failed_rows "$report" > "$failed"; then
+            echo "::error::The report has no verdict column, so its failed rows cannot be read."
+            exit 1
+          fi
+          if [ "$outcome" = record ]; then
+            fallback="$(awk -F'\t' '$1 != $2 { print $1 }' "$failed" | names)"
+            if [ -n "$fallback" ]; then
+              echo "::warning::Failed the bar against the fallback entry, which is not a degradation: ${fallback}"
+            fi
+          elif [ "$outcome" = degraded ]; then
+            own="$(awk -F'\t' '$1 == $2 { print $1 }' "$failed" | names)"
+            echo "::warning::Failed the bar against its own entry: ${own}. No baseline is committed to main."
+          fi
+          echo "outcome=${outcome}" >> "$GITHUB_OUTPUT"
+      - name: Upload the baseline and the report
+        # A step without `if` runs only after success (github/docs 801373e,
+        # content/actions/reference/workflows-and-actions/expressions.md, "Status check
+        # functions"). `!cancelled()` keeps whatever the tool wrote after a red step.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cleanup-baseline
+          path: |
+            ${{ runner.temp }}/baseline.json
+            ${{ runner.temp }}/report.csv
+            ${{ runner.temp }}/failed-rows.tsv
+          retention-days: 7
+          # A re-run uploads this name again, and v7.0.2 fails on an existing name
+          # unless `overwrite` is true (docs/release-ci.md, "When `publish` fails").
+          overwrite: true
+          if-no-files-found: warn
+
+  record:
+    needs: [ changes, benchmark ]
+    if: needs.benchmark.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Holds the deploy key only. The OpenRouter key stays in `benchmark`.
+    environment: release-push
+    permissions:
+      contents: write
+      pull-requests: write
+    # Only GitHub's own actions run here.
+    steps:
+      - name: Download the baseline and the report
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cleanup-baseline
+          path: ${{ runner.temp }}/cleanup-baseline
+      - name: Check out main
+        # Every outcome may push to `main` or to a branch, so each needs the key.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          # persist-credentials (default) keeps the key in the git config, so the
+          # commit and the branch push go over SSH as the deploy key.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - name: Set the git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Commit the baseline to main
+        if: needs.benchmark.outputs.outcome == 'record'
+        env:
+          SHA: ${{ needs.changes.outputs.sha }}
+          VERSION: ${{ needs.changes.outputs.version }}
+          SUBJECT: ${{ needs.changes.outputs.subject }}
+        run: |
+          set -euo pipefail
+          # Commit only while main is still the commit this run started from. A push to
+          # main while a newer Release run is still packaging makes that run's bump push
+          # non-fast-forward, so its publish is refused (release.yml, "Bump, tag, and
+          # push"). main moving past a release is when such a run can exist.
+          if [ -n "$VERSION" ]; then
+            started="$(git rev-parse "${VERSION}^{commit}")"
+          else
+            started="$SHA"
+          fi
+          git fetch --quiet origin main
+          tip="$(git rev-parse origin/main)"
+          if [ "$tip" != "$started" ]; then
+            echo "::warning::main is at ${tip}, not at ${started} where this run started. Nothing is committed. The next release records the baseline."
+            exit 0
+          fi
+          recorded="${RUNNER_TEMP}/cleanup-baseline/baseline.json"
+          if cmp -s "$recorded" Benchmarks/cleanup/baseline.json; then
+            echo "The recorded baseline equals the file on main. Nothing to commit."
+            exit 0
+          fi
+          cp "$recorded" Benchmarks/cleanup/baseline.json
+          git add Benchmarks/cleanup/baseline.json
+          git commit -m "chore(benchmark): record the cleanup baseline for ${SUBJECT}"
+          # A refused push fails the step. No retry, no rewrite.
+          git push origin HEAD:main
+      - name: Format the degraded rows
+        # The pull request body and the release note list the same rows.
+        if: needs.benchmark.outputs.outcome == 'degraded'
+        run: |
+          set -euo pipefail
+          awk -F'\t' '$1 == $2 { printf "- `%s`, %s: %s misses, %s allowed\n", $1, $3, $4, $5 }' \
+            "${RUNNER_TEMP}/cleanup-baseline/failed-rows.tsv" > "${RUNNER_TEMP}/degraded-rows.md"
+      - name: Open the baseline pull request
+        id: pr
+        if: needs.benchmark.outputs.outcome == 'stale' || needs.benchmark.outputs.outcome == 'degraded'
+        # Needs the repository setting "Allow GitHub Actions to create and approve pull
+        # requests" and a person's "Approve workflows to run" click (docs/release-ci.md,
+        # "Cleanup benchmark", holds the citations).
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OUTCOME: ${{ needs.benchmark.outputs.outcome }}
+          SUBJECT: ${{ needs.changes.outputs.subject }}
+        run: |
+          set -euo pipefail
+          # The step runs for these two outcomes only.
+          if [ "$OUTCOME" = "stale" ]; then
+            title="chore(benchmark): re-record the cleanup baseline for ${SUBJECT}"
+            summary="The cleanup benchmark found its baseline stale for ${SUBJECT}: an entry was recorded on another dataset file, judge settings, bar scheme or style. ${SUBJECT} was not compared. This branch holds entries recorded by a run without a baseline."
+            detail=""
+          else
+            title="chore(benchmark): accept the degraded cleanup baseline for ${SUBJECT}"
+            summary="At ${SUBJECT}, a model failed the bar against its own recorded entry. Each model and category below had more misses than the entry allows. This branch holds the entries of that run."
+            detail="$(cat "${RUNNER_TEMP}/degraded-rows.md")
+
+          Merging this pull request accepts the degradation. Closing it declines. Merging replaces the entry of every model in this run, not only the listed ones.
+          "
+          fi
+          # The attempt number keeps a re-run from pushing to the branch its first attempt made.
+          branch="benchmark/baseline-${SUBJECT}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          git switch --create "$branch"
+          cp "${RUNNER_TEMP}/cleanup-baseline/baseline.json" Benchmarks/cleanup/baseline.json
+          git add Benchmarks/cleanup/baseline.json
+          git commit -m "$title"
+          git push origin "$branch"
+          body="${RUNNER_TEMP}/pr-body.md"
+          {
+            echo "$summary"
+            echo
+            if [ -n "$detail" ]; then
+              echo "$detail"
+            fi
+            echo "Run: ${run_url}"
+            echo
+            echo 'The workflow opened this pull request, so its checks wait for "Approve workflows to run". Merge only the newest baseline pull request and close older ones.'
+          } > "$body"
+          url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+      - name: Write the release note
+        # Also after a failed pull-request step, so the release still carries the warning.
+        if: ${{ !cancelled() && needs.benchmark.outputs.outcome != 'record' }}
+        # An edit by `GITHUB_TOKEN` starts no workflow run (github/docs 801373e,
+        # data/reusables/actions/actions-do-not-trigger-workflows.md). A dispatch has no
+        # release, so its note goes to the run summary.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OUTCOME: ${{ needs.benchmark.outputs.outcome }}
+          VERSION: ${{ needs.changes.outputs.version }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          note="${RUNNER_TEMP}/note.md"
+          pr_line="${PR_URL:-none: the pull request could not be opened, see the run}"
+          if [ "$OUTCOME" = "degraded" ]; then
+            title="Cleanup benchmark: degradation"
+            {
+              echo "## ${title}"
+              echo
+              echo "A model failed the bar against its own recorded entry. The run committed no baseline to main."
+              echo
+              cat "${RUNNER_TEMP}/degraded-rows.md"
+              echo
+              echo "Pull request: ${pr_line}"
+              echo
+              echo "Run: ${run_url}"
+            } > "$note"
+          elif [ "$OUTCOME" = "stale" ]; then
+            title="Cleanup benchmark: stale baseline"
+            {
+              echo "## ${title}"
+              echo
+              echo "The recorded baseline no longer matched the dataset, the judge settings, the bar scheme or the style, so this release was not compared."
+              echo
+              echo "New entries: ${pr_line}"
+              echo
+              echo "Run: ${run_url}"
+            } > "$note"
+          else
+            echo "::error::No release note is written for the outcome '${OUTCOME}'."
+            exit 1
+          fi
+          if [ -n "$VERSION" ]; then
+            gh release view "$VERSION" --json body -q .body > "${RUNNER_TEMP}/release-body.md"
+            # The current note replaces any earlier one, so a re-run leaves one section with
+            # its own outcome and link. A section runs from its `## Cleanup benchmark:`
+            # heading to the next `## ` heading or the end; the blank lines before it go
+            # with it only at the end. Every other line stays as it was.
+            awk '
+              /^## Cleanup benchmark:/ { skip = 1; next }
+              skip && /^## / { skip = 0 }
+              skip { next }
+              /^$/ { blanks = blanks "\n"; next }
+              { printf "%s%s\n", blanks, $0; blanks = "" }
+              END { if (!skip) printf "%s", blanks }
+            ' "${RUNNER_TEMP}/release-body.md" > "${RUNNER_TEMP}/release-kept.md"
+            {
+              if [ -s "${RUNNER_TEMP}/release-kept.md" ]; then
+                cat "${RUNNER_TEMP}/release-kept.md"
+                echo
+              fi
+              cat "$note"
+            } > "${RUNNER_TEMP}/release-notes.md"
+            gh release edit "$VERSION" --notes-file "${RUNNER_TEMP}/release-notes.md"
+          else
+            cat "$note" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::${title}. The run summary has the note."
+          fi

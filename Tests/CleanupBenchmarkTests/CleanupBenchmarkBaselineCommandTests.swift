@@ -14,6 +14,20 @@ struct CleanupBenchmarkBaselineCommandTests {
         try CleanupBenchmarkBaselineFile.decode(try #require(fixture.file("baseline.json")))
     }
 
+    /// A fixture whose baseline file holds the entries `good` and `bad` record when both run well:
+    /// `bad`'s entry is the same copy of `good`'s, so `bad`'s low-scoring output fails the bar against
+    /// its own entry.
+    private func fixtureWhereBadFailsItsOwnEntry(transport: FakeJudgeTransport = FakeJudgeTransport()) async throws -> DriverFixture {
+        let writer = try DriverFixture()
+        _ = await writer.run(["--providers", "openrouter:good", "--judge", "--write-baseline", "baseline.json"])
+        let good = try #require(try baseline(writer).candidates["fake:good"])
+        let both = CleanupBenchmarkBaselineFile(candidates: ["fake:good": good, "fake:bad": good])
+        return try DriverFixture(
+            files: ["baseline.json": String(decoding: try both.encoded(), as: UTF8.self)],
+            transport: transport
+        )
+    }
+
     /// Stated sensitivity: a write that replaces the file loses `other:untouched`;
     /// one that skips a candidate that ran leaves it without an entry; digest, judge
     /// ids and one stat set per sample are what a later `--baseline` run reads.
@@ -43,7 +57,9 @@ struct CleanupBenchmarkBaselineCommandTests {
     /// Stated sensitivity: an exit code that does not follow the verdict makes the
     /// command useless as a CI step. Each candidate is judged against its own entry
     /// (both pass, exit 0); a candidate with no entry is judged against the named
-    /// entry and fails it (exit 2) with the baseline it used printed.
+    /// entry and fails it with the baseline it used printed, and that is still exit 0:
+    /// a fail against the fallback entry is no degradation, so counting it as one
+    /// turns the exit to 3.
     @Test
     func verdictDecidesTheExitCodeAndFallsBackToTheNamedEntry() async throws {
         let fixture = try DriverFixture()
@@ -71,16 +87,36 @@ struct CleanupBenchmarkBaselineCommandTests {
             "--providers", "openrouter:good,openrouter:bad", "--judge",
             "--baseline", "baseline.json", "--baseline-candidate", "fake:good",
         ])
-        #expect(fallback.exitCode == 2)
+        #expect(fallback.exitCode == 0)
         #expect(fallback.stdout.contains("fake:good,fake:good,all,2,0,1,0,"))
         #expect(fallback.stdout.contains("fake:bad,fake:good,all,2,2,1,4,"))
         #expect(fallback.stdout.split(separator: "\n").contains { $0.hasSuffix(",fail") })
     }
 
+    /// Stated sensitivity: a candidate that fails the bar against its own entry and has no
+    /// failed run exits 3; an exit that ignores the verdict returns 0 and one that reads it as
+    /// a failed run returns 2. The same run with a failed run exits 2: a swapped precedence
+    /// returns 3 there.
+    @Test
+    func failingOwnEntryExits3AndAFailedRunMakesItExit2() async throws {
+        let degraded = try await fixtureWhereBadFailsItsOwnEntry()
+
+        let degradedOnly = await degraded.run(["--providers", "openrouter:good,openrouter:bad", "--judge", "--baseline", "baseline.json"])
+        #expect(degradedOnly.exitCode == 3)
+        #expect(degradedOnly.stdout.contains("fake:bad,fake:bad,all,2,2,1,"))
+        #expect(degradedOnly.stderr.isEmpty)
+
+        let failing = try await fixtureWhereBadFailsItsOwnEntry(transport: FakeJudgeTransport(failingDecisionsFor: "WRONG"))
+        let both = await failing.run(["--providers", "openrouter:good,openrouter:bad", "--judge", "--baseline", "baseline.json"])
+        #expect(both.stdout.contains("fake:bad,10,10,"))
+        #expect(both.stdout.split(separator: "\n").contains { $0.hasSuffix(",fail") })
+        #expect(both.exitCode == 2)
+    }
+
     /// Stated sensitivity: a run against a baseline recorded on another dataset file,
     /// or with no entry for the candidate or the fallback, is refused before any
-    /// request leaves (exit 64, nothing sent); a flag that needs `--judge` without it
-    /// is refused too.
+    /// request leaves (exit 64 for no entry, exit 4 for the other dataset; nothing sent); a
+    /// flag that needs `--judge` without it is refused too.
     @Test
     func unusableBaselineOrFlagsStopBeforeAnyRequest() async throws {
         let fixture = try DriverFixture(files: ["baseline.json": Self.other])
@@ -93,7 +129,7 @@ struct CleanupBenchmarkBaselineCommandTests {
             "--providers", "openrouter:good", "--judge", "--baseline", "baseline.json",
             "--baseline-candidate", "other:untouched",
         ])
-        #expect(wrongDataset.exitCode == 64)
+        #expect(wrongDataset.exitCode == 4)
         #expect(wrongDataset.stderr.contains("different dataset file; rewrite it with --write-baseline"))
 
         let noJudge = await fixture.run(["--providers", "openrouter:good", "--baseline", "baseline.json"])
@@ -172,7 +208,7 @@ struct CleanupBenchmarkBaselineCommandTests {
 
         let result = await other.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
 
-        #expect(result.exitCode == 64)
+        #expect(result.exitCode == 4)
         #expect(result.stderr.contains("different judge settings"))
         #expect(other.transport.recorded().isEmpty)
     }
@@ -222,7 +258,7 @@ struct CleanupBenchmarkBaselineCommandTests {
 
         let result = await other.run(["--providers", "openrouter:good", "--judge", "--baseline", "baseline.json"])
 
-        #expect(result.exitCode == 64)
+        #expect(result.exitCode == 4)
         #expect(result.stderr.contains("other repetitions or dropWorst than the bar in judge.json"))
         #expect(other.transport.recorded().isEmpty)
     }
@@ -239,7 +275,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         let requests = fixture.transport.recorded().count
 
         let other = await fixture.run(["--providers", "openrouter:good", "--judge", "--style", "casual", "--baseline", "baseline.json"])
-        #expect(other.exitCode == 64)
+        #expect(other.exitCode == 4)
         #expect(other.stderr.contains("recorded with --style formal"))
         #expect(fixture.transport.recorded().count == requests)
 

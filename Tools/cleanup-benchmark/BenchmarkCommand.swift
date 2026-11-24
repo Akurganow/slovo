@@ -86,8 +86,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         do {
             setup = try prepare(arguments: arguments, environment: environment)
         } catch {
+            let isStale = (error as? CleanupBenchmarkCommandError)?.isStaleBaseline == true
             return CleanupBenchmarkCommandResult(
-                exitCode: 64,
+                exitCode: isStale ? 4 : 64,
                 stdout: "",
                 stderr: "error: \(error)\n\(Self.usage)"
             )
@@ -111,10 +112,21 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             rendered += "\n\n" + CleanupBenchmarkReportFormatter.renderCategoryBreakdown(report)
         }
         return CleanupBenchmarkCommandResult(
-            exitCode: report.failed || !errors.isEmpty ? 2 : 0,
+            exitCode: Self.exitCode(report: report, errors: errors),
             stdout: rendered,
             stderr: errors.map { "error: \($0)\n" }.joined()
         )
+    }
+
+    /// A real error wins over a degradation: 2, then 3, otherwise 0.
+    private static func exitCode(report: CleanupBenchmarkReport, errors: [String]) -> Int32 {
+        if report.hasRunFailure || !errors.isEmpty {
+            return 2
+        }
+        if report.degraded {
+            return 3
+        }
+        return 0
     }
 
     private struct Setup {
@@ -383,9 +395,12 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       sample ids or raws, under another cleanup prompt or by another --style, is refused; a run scored under other judge settings
       keeps its output and is judged again, and one whose references changed but not the first keeps its Jev score and is only
       embedded again.
-      Exit code: 0 when no run failed and every verdict passed (or none was asked for);
-      2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
-      64 when the arguments or files are unusable, before any request is sent.
+      Exit code: 0 when no run failed, no file error occurred, and no candidate failed the bar against its own baseline entry
+      (a fail against the --baseline-candidate fallback entry does not count, and without --baseline there is no bar);
+      2 when a run failed (a failure code in --failure-breakdown) or a file could not be written (2 wins over 3);
+      3 when a candidate failed the bar against its own baseline entry and nothing else failed;
+      4 when a baseline entry was recorded on another dataset, judge, scheme or style, before any request is sent;
+      64 when the arguments or files are otherwise unusable, before any request is sent.
       The key comes from the environment or --env-file; nothing is asked interactively.
 
     """

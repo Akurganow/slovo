@@ -79,9 +79,15 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
         }
     }
 
-    /// True when the exit code must be non-zero: a run failed, or a verdict did.
-    public var failed: Bool {
-        runs.contains { !$0.failures.isEmpty } || verdicts.contains { !$0.passed }
+    /// True when a run carries a failure code.
+    public var hasRunFailure: Bool {
+        runs.contains { !$0.failures.isEmpty }
+    }
+
+    /// True when a candidate failed the bar against its own baseline entry. A fail against
+    /// the fallback entry is not a degradation: the candidate has no history there.
+    public var degraded: Bool {
+        verdicts.contains { !$0.passed && $0.baselineName == $0.candidateName }
     }
 
     private static func summary(of candidateRuns: [CleanupBenchmarkRun], candidateName: String) -> CleanupBenchmarkSummary {

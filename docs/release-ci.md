@@ -48,6 +48,10 @@ this way — a one-commit branch whose commit carried `docs:`.
 | pushing a `v*` tag | — the workflow has no tag trigger; tags are created only by the pipeline | | | |
 | `workflow_dispatch` of [dev-build.yml](../.github/workflows/dev-build.yml) on any branch, or labeling a PR `dev-build` | yes | signed app & DMG — no notarization, no staple | yes (`slovo-dev`, 7-day retention) | no |
 
+A release that changes a file that can change the cleanup output, and a manual
+dispatch on `main`, also start the [cleanup benchmark](#cleanup-benchmark), a workflow
+of its own.
+
 The test gate is the reusable [swift.yml](../.github/workflows/swift.yml) workflow,
 the same one that guards pull requests. What the gate runs, and how CI uses it, is
 in [docs/development.md](development.md), "Full Gate". The pipeline never runs on
@@ -63,10 +67,11 @@ in [docs/development.md](development.md), "Full Gate". The pipeline never runs o
 | `publish` | macOS | `contents: write`, `environment: release-push` | the push deploy key only (no signing secrets) | stamp + changelog, commit bump, tag, GitHub Release |
 
 Signing secrets live only in the protected `release` environment and are reachable
-only from `package`. Write access to the repository is isolated to `publish`,
-which holds no signing secrets. Its one secret, the deploy key that pushes the
-version bump, lives alone in the `release-push` environment and is reachable only
-from `publish`. This split is deliberate; keep it.
+only from `package`. Write access to the repository is isolated to `publish` and to
+the `record` job of the [cleanup benchmark](#cleanup-benchmark), and neither holds
+signing secrets. The deploy key that pushes the version bump lives alone in the
+`release-push` environment and is reachable only from those two jobs. This split is
+deliberate; keep it.
 
 CI bakes in the strict release checks: `codesign --verify --strict --deep`, bundle
 identifier `com.slovo.app`, team identifier `ZN8H5SF4R7`, `stapler validate` on
@@ -279,6 +284,114 @@ revision `336b7f546d9443dab4e1fa4f0f470e45448c7abc`). If a pending release run w
 cancelled, dispatch the pipeline on `main`. It decides again over every commit since the
 last tag.
 
+## Cleanup benchmark
+
+[cleanup-benchmark.yml](../.github/workflows/cleanup-benchmark.yml) runs the cleanup
+benchmark over every catalogue model, with the judge, against the entries in
+[`Benchmarks/cleanup/baseline.json`](../Benchmarks/cleanup/baseline.json). Every run
+makes paid requests for every model. It is a workflow of its own: the Release run
+neither waits for it nor depends on it.
+
+**When it runs.**
+
+- After a Release run completes on `main` (a `workflow_run` trigger), only when that
+  run concluded `success`, published a release, and the release changed a file that can
+  change the cleanup output. A Release run whose publish failed after its tag has the
+  tag too, so only the success of its re-run starts the benchmark. The run published
+  a release when a `v*` tag has the Release run's commit as its parent, the test
+  `publish` applies before it tags. The files are compared with
+  the previous release tag. The workflow's `changes` job holds the list of files, and
+  that is the one place it is written.
+- By `workflow_dispatch` on `main`, with no inputs and no file check. A dispatch on
+  another ref does nothing.
+
+GitHub's documentation says a `workflow_run` run "is able to access secrets and write
+tokens", and that the trigger needs the workflow file on the default branch
+([Events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows),
+`github/docs` revision `801373e82d10ab6b9a62b01aea68edc2ecdf633a`,
+`content/actions/reference/workflows-and-actions/events-that-trigger-workflows.md`,
+"workflow_run"). Only the `requested` activity type "does not occur when a workflow is
+re-run" (same page), so a re-run of a Release run that already published fires
+`completed` again and pays again.
+
+**The jobs.** `changes` holds nothing and decides whether to run. `benchmark` runs on
+macOS, holds the OpenRouter key and nothing else, and uploads the artifact. `record`
+runs in the `release-push` environment with the deploy key and a token with
+`contents: write` and `pull-requests: write`. The two keys never share a job.
+
+**The artifact.** `cleanup-baseline` holds `baseline.json`, the baseline with fresh
+entries, `report.csv`, the aggregate report, and `failed-rows.tsv`, the verdict rows
+that failed. It is kept for seven days and is uploaded even after a red step.
+
+**What a run does.** The tool's exit code decides.
+
+- **No degradation.** `record` commits the artifact's `baseline.json` to `main` as
+  `github-actions[bot]`, headed `chore(benchmark): record the cleanup baseline for
+  v<version>` (a dispatch names the short commit id). The push uses the deploy
+  key that `publish` uses. The header is not releasable and carries no skip token, so the push
+  runs trunk verification and releases nothing, and its own `workflow_run` finds no
+  release and stops. A model with no entry of its own is judged against
+  `gpt-6-luna`'s entry, and a failure there is a warning annotation, not a
+  degradation, so the model's first entry is recorded. The job commits only while
+  `main` still points at the commit the run started from: the bump commit that the
+  release tag points at, or the dispatched commit. If `main` has moved, the job warns
+  and commits nothing, and the next release records the baseline. A push to `main`
+  while a newer Release run is still packaging makes that run's bump push
+  non-fast-forward, so its publish is refused. A moved `main` is when such a run can
+  exist.
+- **A degradation.** A model failed the bar against its own entry. Nothing is
+  committed to `main`. The job pushes the run's fresh entries on a branch named as
+  for a stale baseline below, and opens a pull request into `main` headed
+  `chore(benchmark): accept the degraded cleanup baseline for <release or short
+  commit id>`. Its body names each failed model and category with its misses against
+  the allowed misses. Merging it accepts the degradation, and closing it declines.
+  Merging replaces the entry of every model in that run, not only the listed ones.
+  With several baseline pull requests open, merge only the newest and close the
+  older ones.
+  The release note gains a section, "Cleanup benchmark: degradation", with the same
+  list, that links the pull request. A dispatch has no release, so the same text goes
+  to the run summary.
+- **A stale baseline.** An entry was recorded on another dataset file, judge
+  settings, bar scheme or style. The tool refuses before any request. The job runs
+  it again without a baseline to record new entries, pushes them on a branch
+  `benchmark/baseline-<release or short commit id>-<run id>-<run attempt>`, and opens
+  a pull request into `main` headed `chore(benchmark): re-record the cleanup baseline for
+  <release or short commit id>`. The release note gains a section, "Cleanup
+  benchmark: stale baseline", that links the pull request.
+
+The baseline pull requests, for a stale baseline and for a degradation, need two acts
+by a person with admin or write access, and no workflow does either:
+
+1. Before the first such run, turn on the repository setting **Allow GitHub Actions
+   to create and approve pull requests** (Settings → Actions → General → Workflow
+   permissions). `GITHUB_TOKEN` creates a pull request only while it is on
+   ([Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository),
+   `github/docs` revision `801373e82d10ab6b9a62b01aea68edc2ecdf633a`, "Workflow
+   permissions").
+2. On each such pull request, select **Approve workflows to run**. A pull request
+   that `GITHUB_TOKEN` creates starts its workflow runs in an approval-required state
+   (`github/docs` revision `801373e82d10ab6b9a62b01aea68edc2ecdf633a`,
+   `data/reusables/actions/actions-do-not-trigger-workflows.md`). The first such pull
+   request confirms this behaviour, because it is gated by a feature flag in that
+   revision.
+
+**Red and green.** A real error turns the run red, and so does a failed push, a
+refused pull-request creation or a failed release-note edit. The release note is
+still written after a refused pull-request creation, and says so. The exit codes in
+[`Benchmarks/cleanup/README.md`](../Benchmarks/cleanup/README.md) say which exits are
+errors. A degradation or a stale baseline ends the `benchmark` job green, with a
+warning in the release notes. A red run leaves the release as it shipped, and the gate is still the
+`test` job of the Release run.
+
+**Re-running.** "Re-run" on a run of this workflow is a paid run of the whole
+catalogue. The artifact upload sets `overwrite`, so the second run replaces the first
+run's artifact (see [When `publish` fails](#when-publish-fails) for why the default
+fails). A re-run replaces any earlier `## Cleanup benchmark:` section of the release note
+with its own, so the release keeps one section with the latest outcome and link and
+the rest of the text as it was. Its
+baseline branch, for a stale baseline or a degradation, carries the run attempt, so it
+does not reuse the first attempt's branch.
+
 ## Changelog
 
 `CHANGELOG.md` stays in its [Keep a Changelog](https://keepachangelog.com/) style
@@ -435,8 +548,9 @@ the repository, and the write key away from the job that signs.
 
 A ruleset on `main` requires a pull request and blocks force pushes and deletion.
 Deploy keys are on its bypass list, which is what lets `publish` push the version
-bump. The bypass covers every rule in the ruleset, so whoever holds the private
-key can also rewrite `main`. Only `publish`, running on `main`, can read it.
+bump and the baseline commit. The bypass covers every rule in the ruleset, so
+whoever holds the private key can also rewrite `main`. Only `publish` and `record`,
+running on `main`, can read it.
 
 Without the key, or with deploy keys off the bypass list, a release packages its
 artifacts and then fails at the release push, before any tag or GitHub Release
