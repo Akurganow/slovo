@@ -62,9 +62,19 @@ let package = Package(
             dependencies: ["SlovoCore"],
             swiftSettings: strictSwiftSettings
         ),
+        // rapidfuzz-cpp (MIT), vendored behind a one-function C API because the
+        // upstream repository ships no Package.swift (provenance beside the header,
+        // in VENDORED.txt). Only CleanupBenchmark links it, so neither `slovo` nor
+        // SlovoCore can reach it. Like SlovoObjC it holds no Swift, so the Swift
+        // settings and lint gates do not apply to it.
+        .target(
+            name: "CleanupBenchmarkFuzz",
+            path: "Tools/cleanup-benchmark-fuzz",
+            exclude: ["LICENSE-rapidfuzz-cpp", "VENDORED.txt"]
+        ),
         .target(
             name: "CleanupBenchmark",
-            dependencies: ["SlovoCore"],
+            dependencies: ["SlovoCore", "CleanupBenchmarkFuzz"],
             path: "Tools/cleanup-benchmark",
             swiftSettings: strictSwiftSettings
         ),
