@@ -449,4 +449,5 @@ app (Settings ▸ About ▸ Acknowledgements).
 
 `swift-argument-parser` (Apache-2.0) is resolved by the package graph but
 not linked into the shipped executable, and SwiftLint is a build-time lint
-tool only — neither is redistributed.
+tool only — neither is redistributed. The vendored RapidFuzz (MIT,
+`Tools/cleanup-benchmark-fuzz`) is benchmark-only tooling: the app does not link it.

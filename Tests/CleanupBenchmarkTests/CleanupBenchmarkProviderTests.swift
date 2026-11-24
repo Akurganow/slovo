@@ -26,6 +26,17 @@ struct CleanupBenchmarkProviderTests {
         ])
     }
 
+    /// Stated sensitivity: two candidates with one name share their runs, their resumed
+    /// outputs and their baseline slack (every consumer keys by the name), so the paid runs
+    /// are doubled and merged; a repeated model, or a catalog model named again, must be
+    /// refused.
+    @Test(arguments: ["passthrough,passthrough", "catalog,openrouter:\(CleanupModelCatalog.options[0].id)"])
+    func duplicateCandidateIsRefused(_ list: String) {
+        #expect(throws: CleanupBenchmarkProviderSpecError.self) {
+            try CleanupBenchmarkProviderSpec.parseList(list)
+        }
+    }
+
     /// Stated sensitivity: drop the `catalog` expansion, or expand it to anything
     /// but the app's catalog in its order → RED.
     @Test

@@ -28,7 +28,7 @@ public enum CleanupBenchmarkCandidateFactory {
         }
     }
 
-    private static func key(_ name: String, in environment: [String: String]) throws -> String {
+    public static func key(_ name: String, in environment: [String: String]) throws -> String {
         guard let key = environment[name]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !key.isEmpty
         else {
