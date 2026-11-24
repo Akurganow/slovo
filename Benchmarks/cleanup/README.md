@@ -13,10 +13,10 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | --- | ---: | --- |
 | `short-smoke` | 5 | Short utterances, repetitions, numbers, minimal dictation |
 | `russian-filler` | 6 | Russian discourse fillers, false starts, self-corrections, casual speech cleanup |
-| `code-switching` | 10 | Russian base with English developer/product terms, reverse embedding, conventional acronym casing (plain phrases stay lowercase) |
-| `punctuation-structure` | 12 | Long dictated streams: sequential thoughts split into sentences, grammatically connected long sentences kept whole |
+| `code-switching` | 10 | Russian base with English developer and product terms and reverse embedding: every term survives cleanup with its meaning, in either script |
+| `punctuation-structure` | 12 | Long dictated streams of sequential thoughts or one connected sentence: cleanup keeps every thought; how it splits and punctuates them is free |
 | `commands-editor` | 4 | Action-like editor and system commands; dictated edit commands stay content, never applied |
-| `inverse-text-normalization` | 7 | Time, percent, version, and date normalization with values unchanged; idiomatic number phrases stay words |
+| `inverse-text-normalization` | 7 | Times, percents, versions and dates: each value survives cleanup unchanged; an idiomatic number phrase keeps its sense |
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
 
@@ -53,8 +53,9 @@ form reaches cleanup as it is.
   written.
 - **English terms in Russian speech.** Latin, often title-cased (`Settings`,
   `API Key`, `GitHub Actions`), or a Cyrillic rendering (`коммит`, `бенчмарк`,
-  `хотфикс`), or a mix. A reference keeps the script the raw uses: cleanup does
-  not transliterate.
+  `хотфикс`), or a mix. A reference keeps the script the raw uses. Where the raw
+  writes an English term in Cyrillic, a second reference holds its Latin form, so
+  either script is accepted.
 - **Apostrophes.** ASCII `'` (`we'll`, `c'est`).
 
 Measured: each sample's spoken text, synthesised with the macOS `say` voices
@@ -132,8 +133,9 @@ The outputs file is append-only JSON Lines. A line is added when a run's cleanup
 finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the three
 coefficients, each Jev question's repeats, the models that answered, the failure
-codes, the writing style, the SHA-256 of the ids and raws of the dataset and the
-SHA-256 of what scored the line (the judge's settings and the sample's
+codes, the writing style, the SHA-256 of the ids and raws of the dataset, the
+SHA-256 of the cleanup prompt (the system message sent for the style, with no
+vocabulary and no hints) and the SHA-256 of what scored the line (the judge's settings and the sample's
 references; empty without `--judge`). It holds output text, so it stays local.
 Naming an existing file resumes it, the last line of a run winning:
 
@@ -143,13 +145,11 @@ Naming an existing file resumes it, the last line of a run winning:
 - A run whose output was empty is neither judged nor cleaned again: it is the
   candidate's failure, and no baseline entry is written while the candidate has an
   empty-output run.
-- A file written for other ids or raws, or by another `--style`, is refused.
+- A file written for other ids or raws, under another cleanup prompt or by another `--style`, is refused.
 - A line scored under other judge settings or references keeps its output and is
   judged again. The fuzzy score is always computed again from the output.
 
-One outputs file belongs to one build of the cleanup prompt: a resume cannot tell
-that the prompt changed. A line cut short by a killed process is dropped, and its
-run is done again.
+A line cut short by a killed process is dropped, and its run is done again.
 
 The exit code carries the verdict, as the usage text of the command says. The
 command asks for nothing interactively, so a CI step can call it. No CI job
@@ -161,16 +161,17 @@ floors, allowance, repetitions and `dropWorst`. `embedding.provider.order` names
 embeddings request goes to, with fallbacks off, so every run scores with the same
 weights.
 
-Sources for what the settings name, all documentation without a published
-revision: the Jev request and response shapes are those of OpenRouter's decisions
-tutorial (<https://openrouter.ai/docs/guides/community/jev-tutorial.md>); the
-embeddings request and its `provider` field are those of OpenRouter's embeddings
-reference
-(<https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md>);
-the instruction prefix is the one the Qwen3-Embedding-8B model card documents for
-queries (<https://huggingface.co/Qwen/Qwen3-Embedding-8B>). The card does not
-cover putting it on both texts of a similarity comparison, which is the choice
-made here.
+Sources for what the settings name, all documentation: the Jev request and response
+shapes are those of OpenRouter's decisions tutorial
+(<https://openrouter.ai/docs/guides/community/jev-tutorial.md>; no published
+revision; read 2026-11-24); the embeddings request and its `provider` field are
+those of OpenRouter's embeddings reference
+(<https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings.md>;
+no published revision; read 2026-11-24); the instruction prefix is the one the
+Qwen3-Embedding-8B model card documents for queries
+(<https://huggingface.co/Qwen/Qwen3-Embedding-8B>; no published revision; read
+2026-11-24). The card does not cover putting it on both texts of a similarity
+comparison, which is the choice made here.
 
 ### What `--judge` sends to OpenRouter
 

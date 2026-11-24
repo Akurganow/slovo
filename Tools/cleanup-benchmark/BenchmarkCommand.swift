@@ -351,8 +351,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       --outputs-file is append-only JSON Lines, local, with the candidates' output text. A line is added when a run's cleanup
       finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
       output but no full score is judged again, a provider error is run again, an empty output is neither. A file written for other
-      sample ids or raws, or by another --style, is refused; a run scored under other judge settings or references keeps its output
-      and is judged again. One file belongs to one build of the cleanup prompt.
+      sample ids or raws, under another cleanup prompt or by another --style, is refused; a run scored under other judge settings
+      or references keeps its output and is judged again.
       Exit code: 0 when no run failed and every verdict passed (or none was asked for);
       2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
       64 when the arguments or files are unusable, before any request is sent.

@@ -34,9 +34,9 @@
       },
       "matches_expected": {
         "type": "noul",
-        "instructions": "Does `cleaned_text` match `reference_cleanup`, the expected cleanup of `dictation`: the same content, cleaned as fully as the reference?",
+        "instructions": "Does `cleaned_text` have the same content as `reference_cleanup`, the expected cleanup of `dictation`? Judge content only, never form.",
         "criteria": {
-          "true": "cleaned_text says the same as reference_cleanup: the same statements, requests, numbers, names and negations, and it removes what the reference removed (fillers, false starts, self-corrected parts). Wording, word order, punctuation (quotation marks included), casing, paragraph breaks, and the script of an English term (Latin or a Cyrillic rendering) may differ.",
+          "true": "cleaned_text has the same statements, requests, questions, numbers, names and negations as reference_cleanup, and it leaves out what the reference left out (fillers, false starts, self-corrected parts). Form never counts: wording, word order, letter case, every punctuation mark (a comma, dash, colon, full stop or quotation mark, or a missing or extra one), where a sentence begins or ends, paragraph breaks, and the script of an English term (Latin or a Cyrillic rendering) may all differ.",
           "false": "cleaned_text differs in content from reference_cleanup: it keeps fillers, false starts or self-corrected parts the reference removed, drops or changes something the reference keeps, adds something, or is in another language."
         }
       }

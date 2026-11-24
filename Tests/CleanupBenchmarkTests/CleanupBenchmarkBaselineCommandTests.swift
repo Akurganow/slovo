@@ -327,6 +327,32 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(fixture.transport.requestCount(path: "/api/alpha/decisions") == decisionsBefore)
     }
 
+    /// Stated sensitivity: a resume that does not compare the cleanup prompt reuses outputs
+    /// that another prompt produced and mixes two prompts' outputs in one report and one
+    /// baseline entry; a file whose lines carry another `promptSHA256` must be refused
+    /// before any request, naming the remedy.
+    @Test
+    func outputsFileOfAnotherCleanupPromptIsRefused() async throws {
+        let fixture = try DriverFixture()
+        let arguments = ["--providers", "openrouter:good", "--outputs-file", "out.jsonl"]
+        _ = await fixture.run(arguments)
+        let lines = String(decoding: try #require(fixture.file("out.jsonl")), as: UTF8.self).split(separator: "\n")
+        let rewritten = try lines.map { line -> String in
+            var object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] ?? [:]
+            object["promptSHA256"] = "another-prompt"
+            return String(decoding: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]), as: UTF8.self)
+        }
+        fixture.files.withLock { $0["out.jsonl"] = Data((rewritten.joined(separator: "\n") + "\n").utf8) }
+        let cleaned = fixture.cleaned
+
+        let result = await fixture.run(arguments)
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("another cleanup prompt; name a new --outputs-file"))
+        #expect(fixture.cleaned == cleaned)
+        #expect(fixture.transport.recorded().isEmpty)
+    }
+
     /// Stated sensitivity: resuming under another style would mix two styles' outputs in
     /// one report and one baseline entry; the file must be refused before any request,
     /// naming the style it was written with.

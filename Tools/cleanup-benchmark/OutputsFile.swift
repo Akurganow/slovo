@@ -23,6 +23,7 @@ enum CleanupBenchmarkOutputsFile {
         /// Optional so that a line without one, such as one written before it existed,
         /// decodes and is refused.
         let rawsSHA256: String?
+        let promptSHA256: String?
         let scoringSHA256: String?
         let style: String?
 
@@ -40,6 +41,7 @@ enum CleanupBenchmarkOutputsFile {
             models = run.scores.models
             failures = run.failures
             rawsSHA256 = binding.rawsSHA256
+            promptSHA256 = binding.promptSHA256
             scoringSHA256 = binding.scoringSHA256(sampleId: run.sampleId)
             style = binding.style.rawValue
         }
@@ -60,6 +62,7 @@ enum CleanupBenchmarkOutputsFile {
             try container.encode(models, forKey: .models)
             try container.encode(failures, forKey: .failures)
             try container.encode(rawsSHA256, forKey: .rawsSHA256)
+            try container.encode(promptSHA256, forKey: .promptSHA256)
             try container.encode(scoringSHA256, forKey: .scoringSHA256)
             try container.encode(style, forKey: .style)
         }
@@ -89,6 +92,9 @@ enum CleanupBenchmarkOutputsFile {
             }
             guard line.style == binding.style.rawValue else {
                 throw CleanupBenchmarkCommandError.outputsFileStyleMismatch(line.style ?? "unrecorded")
+            }
+            guard line.promptSHA256 == binding.promptSHA256 else {
+                throw CleanupBenchmarkCommandError.outputsFilePromptMismatch
             }
             // With the dataset file unchanged this only guards a line made by hand.
             guard line.sample >= 1, line.sample <= samples.count, samples[line.sample - 1].id == line.sampleId else {
@@ -126,10 +132,13 @@ enum CleanupBenchmarkOutputsFile {
 
 /// What every line of the outputs file was written under. A resume refuses a file
 /// written for other ids or raws (the cleanup output depends on nothing else of the
-/// dataset) or by another style. A line scored under other judge settings or other
-/// references (nil without `--judge`) is judged again.
+/// dataset), under another cleanup prompt or by another style. A line scored under other
+/// judge settings or other references (nil without `--judge`) is judged again.
 struct CleanupBenchmarkOutputsBinding: Sendable {
     let rawsSHA256: String
+    /// The system message every candidate is sent for `style`: the instruction block, with no
+    /// vocabulary and no hints, which the benchmark never passes.
+    let promptSHA256: String
     let judgeSHA256: String?
     let style: WritingStyle
     /// By sample id.
@@ -137,6 +146,10 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
 
     init(samples: [CleanupBenchmarkSample], judgeSHA256: String?, style: WritingStyle) {
         rawsSHA256 = CleanupBenchmarkDigest.sha256(of: samples.flatMap { [$0.id, $0.raw] })
+        let prompt = PromptBuilder().buildPrompt(
+            raw: "", config: CleanupConfig(writingStyle: style), context: PersonalizationContext(vocabulary: [])
+        )
+        promptSHA256 = CleanupBenchmarkDigest.sha256(Data(prompt.systemBlocks.joined(separator: "\n\n").utf8))
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })

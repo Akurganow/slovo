@@ -157,6 +157,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case repetitionsMismatch(given: Int, required: Int)
     case outputsFileDatasetMismatch
     case outputsFileStyleMismatch(String)
+    case outputsFilePromptMismatch
     case baselineUnreadable(String)
     case invalidJudgeSettings
 
@@ -189,6 +190,8 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
                 + "leave --repetitions out to use it"
         case .outputsFileDatasetMismatch:
             return "the outputs file was written for other sample ids or raws, or in an older format; name a new --outputs-file"
+        case .outputsFilePromptMismatch:
+            return "the outputs file was written under another cleanup prompt; name a new --outputs-file"
         case .outputsFileStyleMismatch(let style):
             return "the outputs file was written with --style \(style); use that style or name a new --outputs-file"
         case .baselineUnreadable(let path):
