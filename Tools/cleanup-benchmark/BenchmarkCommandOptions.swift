@@ -163,6 +163,16 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
     case baselineUnreadable(String)
     case invalidJudgeSettings
 
+    /// A baseline entry recorded on another dataset, judge, scheme or style.
+    public var isStaleBaseline: Bool {
+        switch self {
+        case .baselineDatasetMismatch, .baselineJudgeMismatch, .baselineSchemeMismatch, .baselineStyleMismatch:
+            true
+        default:
+            false
+        }
+    }
+
     public var description: String {
         switch self {
         case .helpRequested:

@@ -162,10 +162,25 @@ Naming an existing file resumes it, the last line of a run winning:
 
 A line cut short by a killed process is dropped, and its run is done again.
 
-The exit code is 0 only when no run failed (no failure code) and every verdict
-passed. A bar can pass while a dropped repetition failed, and the exit is then 2,
-as the usage text of the command says. The command asks for nothing
-interactively, so a CI step can call it. No CI job calls it yet.
+The exit code says what a CI step should do:
+
+- 0: no run failed (no failure code), every file was written, and every
+  candidate passed the bar against its own baseline entry. A candidate that
+  failed only against the `--baseline-candidate` fallback entry does not change
+  the code.
+- 2: a run failed, or a file could not be written. A bar can pass while a dropped
+  repetition failed, and the exit is then 2. This wins over 3.
+- 3: a candidate failed the bar against its own baseline entry and nothing else
+  failed.
+- 4: a baseline entry was recorded on another dataset, judge, scheme or style.
+  The command stops before any request.
+- 64: the arguments or files are unusable in any other way (no key, no baseline
+  entry, an unreadable file). The command stops before any request.
+
+The command asks for nothing interactively, so a CI step can call it. After a
+release that changes a file able to change cleanup output,
+`.github/workflows/cleanup-benchmark.yml` runs it over the catalogue;
+`docs/release-ci.md` says what the run commits, uploads and reports.
 
 `judge.json` holds the judge's settings: the Jev model, path, repeats and
 questions, the embedding model, prefix and provider-routing object, and the bar's

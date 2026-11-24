@@ -72,6 +72,10 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
   it. It changes only `CHANGELOG.md` and the version fields of
   `Resources/Info.plist`. The Release run of its parent covers the rest of
   its tree.
+- **A baseline commit on `main`**, headed `chore(benchmark): record the
+  cleanup baseline for <release or commit>`, carries no skip token. Its own
+  Release run, a trunk verification, covers it. The cleanup benchmark that wrote
+  it is a run of its own, so the Release run's conclusion stays the gate's.
 - **A pull-request head:** the Swift run of `.github/workflows/swift.yml`
   for that head, which tests the pull request's merge result.
 - Cite the run by number and conclusion. A run cancelled because a newer
@@ -112,6 +116,12 @@ Each passes when `Scripts/lint.sh` prints `--- PASS: <stage>` for it.
 - **Packaging.** The Release run's `package` job and
   `.github/workflows/dev-build.yml` build, sign and verify the app after the
   gate passes. They are not the gate.
+- **Cleanup benchmark**, `.github/workflows/cleanup-benchmark.yml`. It runs after
+  a Release run that published a release changing a file that can change the
+  cleanup output, and on a dispatch on `main`. It makes paid model calls and is
+  not the gate. It turns red only on a real error or a failed push. A
+  degradation or a stale baseline is a warning in the release notes, with the
+  run green.
 
 ## What the gate rejects
 
@@ -171,13 +181,17 @@ cannot exist on a green `main`.
 - **Recognition quality.** No stage measures recognition of mixed Russian
   and English speech against its baseline (`AGENTS.md`, "Non-negotiable
   principles", 6).
-- **Cleanup quality.** The benchmark stage runs only the pass-through
-  provider. It proves the harness runs, not that cleanup is good.
+- **Cleanup quality.** The gate measures none of it. Its benchmark stage runs
+  only the pass-through provider, which proves the harness runs, not that
+  cleanup is good. The cleanup benchmark workflow measures it after a release that
+  changes a listed file, and a green run of it can still carry a degradation
+  warning in the release notes.
 - **Signing and packaging.** The gate builds no app bundle. Signing,
   notarization and stapling are proven only by the packaging jobs.
 - **Another toolchain.** CI's runner image chooses its Xcode. A green there
   proves that toolchain only ("What a result may claim").
 
 This file describes `.github/workflows/swift.yml`, `Scripts/diagnose.sh`,
-`Scripts/lint.sh`, `sgconfig.yml`, `Lint/rules/` and the workflows they serve.
+`Scripts/lint.sh`, `sgconfig.yml`, `Lint/rules/`,
+`.github/workflows/cleanup-benchmark.yml` and the workflows they serve.
 Where CI and this file disagree, CI is right and this file is stale.

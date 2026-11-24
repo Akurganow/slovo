@@ -14,6 +14,7 @@ one key inside an ordinary file, lives only in this table.
 | `CHANGELOG.md` | The release pipeline writes each section from the merged commit headers | `docs/release-ci.md`, "Changelog" |
 | The keys `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist` | The release pipeline stamps the version. Nobody moves a version by hand | `docs/release-ci.md`, "Versioning"; `CONTRIBUTING.md`, "Packaging" |
 | Tags `v*` | Only the release pipeline creates them | `docs/release-ci.md`, "Why one run does everything (no PAT, no double-fire)" |
+| `Benchmarks/cleanup/baseline.json` | The benchmark command writes it, and the cleanup benchmark workflow records it on `main`. Never edited by hand | `docs/release-ci.md`, "Cleanup benchmark" |
 | `data/seed*.sql`, `data/*.db*` | Personal vocabulary and the local database. Never committed | `.gitignore`; `AGENTS.md`, "Before you open a pull request" |
 | `secrets/`, `.env*`, `*.key`, `*.pem`, `*.p12`, `*.p8`, `*.token`, `credentials*.json`, `id_rsa*` | Key material and credentials. Never committed | `.gitignore`; `AGENTS.md`, "Before you open a pull request" |
 
@@ -44,6 +45,10 @@ update or a force-push, by any route, for any reason.
 - A role whose work needs a commit on `main` stops, writes nothing more, and
   says so in its report.
 
-This file describes `.gitignore` and the release pipeline of
-`.github/workflows/release.yml`. Where they disagree with it, they win and
-this file is stale.
+The release pipeline is not a role. Its commits on `main` are two: the version
+bump and the baseline record (`docs/release-ci.md`).
+
+This file describes `.gitignore`, the release pipeline of
+`.github/workflows/release.yml` and the cleanup benchmark of
+`.github/workflows/cleanup-benchmark.yml`. Where they disagree with it, they win
+and this file is stale.
