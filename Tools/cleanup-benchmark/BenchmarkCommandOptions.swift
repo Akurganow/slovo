@@ -173,7 +173,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
         case .baselineJudgeMismatch(let entry):
             return "baseline entry \(entry) was recorded with different judge settings (jev or embedding in judge.json)"
         case .outputsFileDatasetMismatch:
-            return "the outputs file names samples that are not in this dataset"
+            return "the outputs file names samples that are not in this dataset, or was written for another dataset file"
         case .invalidJudgeSettings:
             return "judge.json needs at least one repeat and one question"
         }

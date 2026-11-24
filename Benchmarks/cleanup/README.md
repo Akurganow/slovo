@@ -119,11 +119,13 @@ The outputs file is append-only JSON Lines. A line is added when a run's cleanup
 finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the three
 coefficients, each Jev question's repeats, the models that answered, and the
-failure codes. It holds output text, so it stays local. Naming an existing file
-resumes it, the last line of a run winning: a run with all three coefficients and
-no failure is not repeated, a run with an output but no full score is judged
-again without the cleaner, and a provider error or a missing run is run again.
-A file written for another dataset is refused.
+failure codes, the SHA-256 of the dataset file and, on a line that holds judge
+scores, the SHA-256 of the judge's settings. It holds output text, so it stays
+local. Naming an existing file resumes it, the last line of a run winning: a run
+with all three coefficients and no failure is not repeated, a run with an output
+but no full score is judged again without the cleaner, and a provider error or a
+missing run is run again. A file written for another dataset file is refused. A
+line scored by other judge settings keeps its output and is judged again.
 
 The exit code carries the verdict, as the usage text of the command says. The
 command asks for nothing interactively, so a CI step can call it. No CI job

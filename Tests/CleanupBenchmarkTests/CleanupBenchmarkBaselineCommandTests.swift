@@ -223,6 +223,57 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(fixture.transport.recorded().isEmpty)
     }
 
+    /// Stated sensitivity: a resume that matches lines by sample id alone reuses the
+    /// outputs of a raw that has since changed, scored against a reference that has
+    /// since changed; it exits 0 and cleans nothing. A line must be refused before any
+    /// request when the dataset file's digest differs from the current one.
+    @Test
+    func outputsFileOfAnEditedDatasetFileIsRefused() async throws {
+        let fixture = try DriverFixture()
+        let arguments = ["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"]
+        _ = await fixture.run(arguments)
+        #expect(fixture.cleaned == 2)
+        let requests = fixture.transport.recorded().count
+        fixture.files.withLock { files in
+            let edited = String(decoding: files["samples.json"] ?? Data(), as: UTF8.self)
+                .replacingOccurrences(of: "Проверь latency на staging.", with: "Проверь latency на production.")
+            files["samples.json"] = Data(edited.utf8)
+        }
+
+        let result = await fixture.run(arguments)
+
+        #expect(result.exitCode == 64)
+        #expect(result.stderr.contains("another dataset file"))
+        #expect(fixture.cleaned == 2)
+        #expect(fixture.transport.recorded().count == requests)
+    }
+
+    /// Stated sensitivity: a resume that trusts the scores of a line whatever judge gave
+    /// them never judges again after `judge.json` changes, so a run is compared with a
+    /// baseline another judge measured; one that drops the output with the scores pays
+    /// for the cleaner twice. Two samples with the three coefficients are judged again
+    /// (2 repeats each), and nothing is cleaned.
+    @Test
+    func runScoredByOtherJudgeSettingsKeepsItsOutputAndIsJudgedAgain() async throws {
+        let fixture = try DriverFixture()
+        let arguments = ["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"]
+        _ = await fixture.run(arguments)
+        #expect(fixture.cleaned == 2)
+        let decisionsBefore = fixture.transport.requestCount(path: "/api/alpha/decisions")
+        fixture.files.withLock { files in
+            let path = CleanupBenchmarkJudgeSettings.defaultPath
+            let settings = String(decoding: files[path] ?? Data(), as: UTF8.self)
+                .replacingOccurrences(of: #""repeats": 3"#, with: #""repeats": 2"#)
+            files[path] = Data(settings.utf8)
+        }
+
+        let result = await fixture.run(arguments)
+
+        #expect(result.exitCode == 0)
+        #expect(fixture.cleaned == 2)
+        #expect(fixture.transport.requestCount(path: "/api/alpha/decisions") - decisionsBefore == 4)
+    }
+
     /// Stated sensitivity: an outputs file written without the flag leaks output text
     /// to disk; one that omits a line when a run's cleanup finishes (before the judge),
     /// the repetition or the null of a failed run loses what it exists to show. Sample

@@ -186,12 +186,15 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         var previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:]
         var recorder: CleanupBenchmarkOutputsRecorder?
         if let path = options.outputsFilePath {
+            let judgeDigest = try judge?.settings.judgeSHA256()
             do {
-                previous = try CleanupBenchmarkOutputsFile.resume(from: try readDataFile(path), samples: samples)
+                previous = try CleanupBenchmarkOutputsFile.resume(
+                    from: try readDataFile(path), samples: samples, datasetSHA256: digest, judgeSHA256: judgeDigest
+                )
             } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
                 previous = [:]
             }
-            recorder = CleanupBenchmarkOutputsRecorder { try appendDataFile(path, $0) }
+            recorder = CleanupBenchmarkOutputsRecorder(datasetSHA256: digest, judgeSHA256: judgeDigest) { try appendDataFile(path, $0) }
         }
         return Setup(
             options: options,
@@ -301,7 +304,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       coefficients) and leaves every other entry as it is. A candidate with incomplete runs gets no entry; stderr says how many.
       --outputs-file is append-only JSON Lines, local, with the candidates' output text. A line is added when a run's cleanup
       finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
-      output but no full score is judged again, a provider error is run again. A file from another dataset is refused.
+      output but no full score is judged again, a provider error is run again. A file from another dataset file is refused;
+      a run scored by other judge settings keeps its output and is judged again.
       Exit code: 0 when no run failed and every verdict passed (or none was asked for);
       2 when a run failed (a failure code in --failure-breakdown), a candidate failed the bar, or a file could not be written;
       64 when the arguments or files are unusable, before any request is sent.
