@@ -14,20 +14,15 @@ struct CleanupBenchmarkFailureBreakdownTests {
                 sampleId: "sample-secret",
                 candidateName: "openai:gpt-test",
                 durationNanoseconds: 12_000_000,
-                quality: CleanupQualityResult(
-                    passed: false,
-                    failures: ["forbidden-substring:ну", "sentence-structure"]
-                ),
+                output: "OUTPUT-SECRET",
+                failures: ["empty-output", "judge-error"],
                 errorKind: nil
             ),
             CleanupBenchmarkRun(
                 sampleId: "sample-secret",
                 candidateName: "openai:gpt-test",
                 durationNanoseconds: 13_000_000,
-                quality: CleanupQualityResult(
-                    passed: false,
-                    failures: ["forbidden-substring:ну"]
-                ),
+                failures: ["empty-output"],
                 errorKind: nil
             ),
         ])
@@ -35,9 +30,10 @@ struct CleanupBenchmarkFailureBreakdownTests {
         let rendered = CleanupBenchmarkReportFormatter.renderFailureBreakdown(report)
 
         #expect(rendered.contains("candidate,sample_index,failure,runs"))
-        #expect(rendered.contains("openai:gpt-test,1,forbidden-substring:ну,2"))
-        #expect(rendered.contains("openai:gpt-test,1,sentence-structure,1"))
+        #expect(rendered.contains("openai:gpt-test,1,empty-output,2"))
+        #expect(rendered.contains("openai:gpt-test,1,judge-error,1"))
         #expect(!rendered.contains("sample-secret"))
+        #expect(!rendered.contains("OUTPUT-SECRET"))
         #expect(!rendered.contains("raw"))
         #expect(!rendered.contains("cleaned"))
     }
@@ -53,10 +49,7 @@ struct CleanupBenchmarkFailureBreakdownTests {
                     sampleId: "sample-secret",
                     candidateName: candidates[0].name,
                     durationNanoseconds: 12_000_000,
-                    quality: CleanupQualityResult(
-                        passed: false,
-                        failures: ["sentence-structure"]
-                    ),
+                    failures: ["judge-error"],
                     errorKind: nil
                 ),
             ])
@@ -68,11 +61,11 @@ struct CleanupBenchmarkFailureBreakdownTests {
         )
 
         #expect(result.exitCode == 2)
-        #expect(result.stdout.contains("candidate,runs,passed,errors,p50_ms,p95_ms"))
+        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
         #expect(result.stdout.contains("candidate,sample_index,failure,runs"))
-        #expect(result.stdout.contains("passthrough:none,1,sentence-structure,1"))
-        #expect(result.stdout.contains("candidate,category,runs,passed,errors,p50_ms,p95_ms"))
-        #expect(result.stdout.contains("passthrough:none,uncategorized,1,0,0,12.0,12.0"))
+        #expect(result.stdout.contains("passthrough:none,1,judge-error,1"))
+        #expect(result.stdout.contains("candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
+        #expect(result.stdout.contains("passthrough:none,uncategorized,1,1,12.0,12.0,,,"))
         #expect(!result.stdout.contains("sample-secret"))
     }
 }

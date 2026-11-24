@@ -7,90 +7,14 @@ import SlovoCore
 
 @Suite("Cleanup benchmark harness")
 struct CleanupBenchmarkTests {
-    /// Stated sensitivity: a pass-through cleaner must not pass quality just
-    /// because it is fast; the gate must catch filler words, missing casing, and
-    /// missing punctuation without comparing the full answer byte-for-byte.
-    @Test
-    func qualityGateRejectsPassThroughAndChatResponses() {
-        let sample = CleanupBenchmarkSample(
-            id: "mixed-ru-en-fillers",
-            raw: "ну вот запушь pr в github пожалуйста",
-            expectation: CleanupQualityExpectation(
-                requiredSubstrings: ["PR", "GitHub"],
-                forbiddenSubstrings: ["ну", "вот"]
-            )
-        )
-
-        let passThrough = CleanupQualityGate.evaluate(output: sample.raw, sample: sample)
-        #expect(!passThrough.passed)
-        #expect(passThrough.failures.contains("forbidden-substring:ну"))
-        #expect(passThrough.failures.contains("required-substring:PR"))
-        #expect(passThrough.failures.contains("terminal-punctuation"))
-
-        let chatResponse = CleanupQualityGate.evaluate(
-            output: "I'm not sure what you would like me to do with this transcript.",
-            sample: sample
-        )
-        #expect(!chatResponse.passed)
-        #expect(chatResponse.failures.contains("chat-response"))
-
-        let wrapped = CleanupQualityGate.evaluate(
-            output: "Sure: Запушь PR в GitHub, пожалуйста.",
-            sample: sample
-        )
-        #expect(!wrapped.passed)
-        #expect(wrapped.failures.contains("chat-response"))
-
-        let cleaned = CleanupQualityGate.evaluate(
-            output: "Запушь PR в GitHub, пожалуйста.",
-            sample: sample
-        )
-        #expect(cleaned.passed)
-    }
-
-    /// Stated sensitivity: a cleanup output that keeps a long dictated stream as
-    /// one run-on sentence must fail even when it preserves terms and punctuation.
-    @Test
-    func qualityGateCanRequireSentenceStructure() {
-        let sample = CleanupBenchmarkSample(
-            id: "run-on",
-            raw: "сначала проверь cleanup потом запусти тесты потом открой pull request",
-            expectation: CleanupQualityExpectation(
-                requiredSubstrings: ["cleanup", "pull request"],
-                minimumSentenceTerminators: 2
-            )
-        )
-
-        let runOn = CleanupQualityGate.evaluate(
-            output: "Сначала проверь cleanup, потом запусти тесты, потом открой pull request.",
-            sample: sample
-        )
-        #expect(!runOn.passed)
-        #expect(runOn.failures.contains("sentence-structure"))
-
-        let structured = CleanupQualityGate.evaluate(
-            output: "Сначала проверь cleanup. Потом запусти тесты. Потом открой pull request.",
-            sample: sample
-        )
-        #expect(structured.passed)
-    }
-
     /// Stated sensitivity: a runner that times only one provider, reuses one
     /// provider output for all candidates, skips samples, or compares providers
     /// in candidate-major batches will miss the recorded interleaved call matrix.
     @Test
     func runnerInvokesEveryCandidateForEverySampleAndRecordsTiming() async {
         let samples = [
-            CleanupBenchmarkSample(
-                id: "one",
-                raw: "ну проверь pr",
-                expectation: CleanupQualityExpectation(requiredSubstrings: ["PR"], forbiddenSubstrings: ["ну"])
-            ),
-            CleanupBenchmarkSample(
-                id: "two",
-                raw: "вот github работает",
-                expectation: CleanupQualityExpectation(requiredSubstrings: ["GitHub"], forbiddenSubstrings: ["вот"])
-            ),
+            CleanupBenchmarkSample(id: "one", raw: "ну проверь pr", reference: "Проверь PR."),
+            CleanupBenchmarkSample(id: "two", raw: "вот github работает", reference: "GitHub работает."),
         ]
         let first = RecordingCleaner(output: "Проверь PR.")
         let second = RecordingCleaner(output: "GitHub работает.")
@@ -125,11 +49,7 @@ struct CleanupBenchmarkTests {
     /// than hot in-app cleanup behavior.
     @Test
     func runnerWarmsCandidatesBeforeRecordedRuns() async {
-        let sample = CleanupBenchmarkSample(
-            id: "warm",
-            raw: "ну проверь latency",
-            expectation: CleanupQualityExpectation(requiredSubstrings: ["Latency"])
-        )
+        let sample = CleanupBenchmarkSample(id: "warm", raw: "ну проверь latency", reference: "Проверь latency.")
         let cleaner = RecordingCleaner(output: "Проверь latency.")
         let durations = Mutex<[UInt64]>([42])
         let timer = CleanupBenchmarkTimer { operation in
@@ -157,17 +77,42 @@ struct CleanupBenchmarkTests {
         #expect(timerDurationsConsumed)
     }
 
-    /// Stated sensitivity: breaking the CLI exit decision or bypassing argument
-    /// parsing leaves the executable path green while the library pieces pass.
+    /// Stated sensitivity: a driver that builds the judge or sends a request without
+    /// `--judge` makes the CI smoke stage call the network, and fails this test.
     @Test
-    func commandDriverRunsCliPathAndReturnsQualityFailureExit() async {
-        let result = await CleanupBenchmarkCommandDriver().run(
-            arguments: ["--providers", "passthrough"],
-            environment: [:]
-        )
+    func commandDriverWithoutJudgeSendsNothingAndIssuesNoVerdict() async throws {
+        let transport = FakeJudgeTransport()
+        let driver = CleanupBenchmarkCommandDriver(makeTransport: { _ in transport })
+
+        let result = await driver.run(arguments: ["--providers", "passthrough"], environment: [:])
+
+        #expect(result.exitCode == 0)
+        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
+        #expect(result.stdout.contains("passthrough:none,55,0,"))
+        #expect(!result.stdout.contains("verdict"))
+        #expect(result.stderr.isEmpty)
+        #expect(transport.recorded().isEmpty)
+    }
+
+    /// Stated sensitivity: an exit code that ignores failed runs lets a provider
+    /// error or an empty output pass a CI step.
+    @Test
+    func commandDriverExitsNonZeroWhenARunFailed() async {
+        let driver = CleanupBenchmarkCommandDriver(runBenchmark: { candidates, _, _, _, _, _ in
+            CleanupBenchmarkReport(runs: [
+                CleanupBenchmarkRun(
+                    sampleId: "hidden",
+                    candidateName: candidates[0].name,
+                    durationNanoseconds: 0,
+                    failures: ["provider-error"],
+                    errorKind: .providerError
+                ),
+            ])
+        })
+
+        let result = await driver.run(arguments: ["--providers", "passthrough"], environment: [:])
 
         #expect(result.exitCode == 2)
-        #expect(result.stdout.contains("passthrough:none"))
         #expect(result.stderr.isEmpty)
     }
 
@@ -181,7 +126,6 @@ struct CleanupBenchmarkTests {
                     sampleId: "hidden",
                     candidateName: candidates[0].name,
                     durationNanoseconds: 1_000_000,
-                    quality: CleanupQualityResult(passed: true, failures: []),
                     errorKind: nil
                 ),
             ])
@@ -194,6 +138,23 @@ struct CleanupBenchmarkTests {
         #expect(result.stderr.isEmpty)
     }
 
+    /// Stated sensitivity: trimming nothing before the emptiness check lets a
+    /// whitespace-only answer through as an output; the fuzzy score of the empty
+    /// text still comes out as 0.
+    @Test
+    func emptyOutputIsAFailureAndScoresZero() async {
+        let sample = CleanupBenchmarkSample(id: "empty", raw: "ну привет", reference: "Привет.")
+        let report = await CleanupBenchmarkRunner().run(
+            candidates: [CleanupBenchmarkCandidate(provider: "fake", model: "m", cleaner: RecordingCleaner(output: " \n "))],
+            samples: [sample],
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: [])
+        )
+
+        #expect(report.runs.map(\.failures) == [["empty-output"]])
+        #expect(report.runs.map(\.scores.fuzzy) == [0])
+    }
+
     /// The rendered report shows metrics only, never the run's sample id.
     /// (End-to-end raw/cleaned redaction is covered by `runnerStoresCoarseErrorKindOnly`.)
     @Test
@@ -203,7 +164,7 @@ struct CleanupBenchmarkTests {
                 sampleId: "sample-secret",
                 candidateName: "openai:gpt-test",
                 durationNanoseconds: 12_000_000,
-                quality: CleanupQualityResult(passed: true, failures: []),
+                output: "OUTPUT-SECRET",
                 errorKind: nil
             ),
         ])
@@ -213,17 +174,14 @@ struct CleanupBenchmarkTests {
         #expect(rendered.contains("openai:gpt-test"))
         #expect(rendered.contains("p50_ms"))
         #expect(!rendered.contains("sample-secret"))
+        #expect(!rendered.contains("OUTPUT-SECRET"))
     }
 
     /// Stated sensitivity: if the runner stores `String(describing: error)`, a
     /// provider error can persist payload text even when the formatter hides it.
     @Test
     func runnerStoresCoarseErrorKindOnly() async {
-        let sample = CleanupBenchmarkSample(
-            id: "sensitive-sample",
-            raw: "S3NT1NEL-RAW",
-            expectation: CleanupQualityExpectation()
-        )
+        let sample = CleanupBenchmarkSample(id: "sensitive-sample", raw: "S3NT1NEL-RAW", reference: "Reference.")
         let report = await CleanupBenchmarkRunner().run(
             candidates: [
                 CleanupBenchmarkCandidate(
@@ -238,7 +196,7 @@ struct CleanupBenchmarkTests {
         )
 
         #expect(report.runs.map(\.errorKind) == [.providerError])
-        #expect(report.runs.map(\.quality.failures) == [["provider-error"]])
+        #expect(report.runs.map(\.failures) == [["provider-error"]])
         #expect(report.runs.map(\.sampleId) == ["sensitive-sample"])
         #expect(!String(describing: report.runs).contains("S3NT1NEL"))
         let rendered = CleanupBenchmarkReportFormatter.render(report)

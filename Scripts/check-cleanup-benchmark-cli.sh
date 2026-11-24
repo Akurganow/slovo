@@ -15,10 +15,7 @@ cat > "$sample_file" <<'JSON'
   {
     "id": "smoke",
     "raw": "Hello.",
-    "expectation": {
-      "requiredSubstrings": ["Hello"],
-      "minimumSentenceTerminators": 1
-    }
+    "reference": "Hello."
   }
 ]
 JSON
@@ -33,5 +30,5 @@ if ! swift run --disable-automatic-resolution slovo-cleanup-benchmark \
     exit 1
 fi
 
-grep -q "candidate,runs,passed,errors,p50_ms,p95_ms" "$output_file"
-grep -q "passthrough:none,1,1,0," "$output_file"
+grep -q "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev" "$output_file"
+grep -q "passthrough:none,1,0,.*,1.000,," "$output_file"
