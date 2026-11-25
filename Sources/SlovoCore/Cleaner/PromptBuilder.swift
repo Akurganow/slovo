@@ -87,8 +87,8 @@ public struct PromptBuilder: Sendable {
     /// protected term phonetically in the dictation's own alphabet ("RCV" → "РСВ"), and a
     /// preserve-only rule leaves that mangled form untouched. A recorded expansion rides
     /// along as a gloss, so all three guards are load-bearing: one keeps the gloss out of the
-    /// output, one keeps correction from inserting a term nobody said, and one leaves an
-    /// everyday word that matches a term as spoken.
+    /// output, one keeps correction from inserting a term nobody said, and one keeps a term
+    /// from replacing an everyday word that matches it.
     private func vocabularyBlock(entries: some Sequence<String>) -> String {
         let lines = [
             "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
@@ -97,7 +97,7 @@ public struct PromptBuilder: Sendable {
             "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
                 + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
                 + "and the sentence uses it as that term, replace it with the spelling given here.",
-            "An ordinary word in its everyday sense stays as spoken, even when it matches a listed term.",
+            "An ordinary word in its everyday sense is never replaced with a listed term, even when it matches one.",
             "The parenthetical is context only: never write it into the output, "
                 + "and never expand an abbreviation the speaker said in short form.",
             "Never introduce a term from this list that the speaker did not say.",

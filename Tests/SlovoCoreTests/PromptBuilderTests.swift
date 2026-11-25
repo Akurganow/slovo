@@ -130,7 +130,7 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("Correct spellings of the speaker's terms"))
         #expect(!systemText.contains("Preserve these terms verbatim wherever the transcript already spells them correctly."))
         #expect(!systemText.contains("replace it with the spelling given here"))
-        #expect(!systemText.contains("An ordinary word in its everyday sense stays as spoken"))
+        #expect(!systemText.contains("An ordinary word in its everyday sense"))
         #expect(!systemText.contains(PromptBuilderFixtures.parentheticalGuardLine))
         #expect(!systemText.contains("Never introduce a term from this list that the speaker did not say."))
     }

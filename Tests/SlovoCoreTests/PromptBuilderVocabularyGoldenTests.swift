@@ -57,7 +57,7 @@ struct PromptBuilderVocabularyGoldenTests {
         "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
             + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
             + "and the sentence uses it as that term, replace it with the spelling given here.",
-        "An ordinary word in its everyday sense stays as spoken, even when it matches a listed term.",
+        "An ordinary word in its everyday sense is never replaced with a listed term, even when it matches one.",
         PromptBuilderFixtures.parentheticalGuardLine,
         "Never introduce a term from this list that the speaker did not say.",
         "</vocabulary>",
