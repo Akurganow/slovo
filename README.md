@@ -331,8 +331,7 @@ swift run --disable-automatic-resolution slovo-cleanup-benchmark \
 ```
 
 See [docs/references/cleanup-benchmark.md](docs/references/cleanup-benchmark.md)
-for the latest latency/quality snapshot and the curated model reference
-table.
+for the report format and for where each run's results are kept.
 
 ## Run Locally
 
