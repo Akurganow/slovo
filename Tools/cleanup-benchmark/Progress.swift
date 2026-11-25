@@ -53,7 +53,7 @@ public enum CleanupBenchmarkProgress: Equatable, Sendable {
         }
     }
 
-    /// The default sink: each line goes to standard error at once. The report owns standard output.
+    /// The command-line tool's sink: each line goes to standard error at once. The report owns standard output.
     public static let toStandardError: @Sendable (CleanupBenchmarkProgress) -> Void = { event in
         // Best effort: a closed standard error never stops the run.
         try? FileHandle.standardError.write(contentsOf: Data((event.line + "\n").utf8))

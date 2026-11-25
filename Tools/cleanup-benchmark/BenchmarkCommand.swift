@@ -73,7 +73,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             try $1.write(to: URL(fileURLWithPath: $0), options: .atomic)
         },
         appendDataFile: @escaping @Sendable (String, Data) throws -> Void = CleanupBenchmarkCommandDriver.appendDataFile,
-        progress: @escaping @Sendable (CleanupBenchmarkProgress) -> Void = CleanupBenchmarkProgress.toStandardError
+        progress: @escaping @Sendable (CleanupBenchmarkProgress) -> Void = { _ in }
     ) {
         self.makeCandidates = makeCandidates
         self.runBenchmark = runBenchmark
