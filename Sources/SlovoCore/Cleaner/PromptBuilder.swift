@@ -86,8 +86,9 @@ public struct PromptBuilder: Sendable {
     /// The vocabulary block instructs CORRECTION, not only preservation: ASR renders a
     /// protected term phonetically in the dictation's own alphabet ("RCV" → "РСВ"), and a
     /// preserve-only rule leaves that mangled form untouched. A recorded expansion rides
-    /// along as a gloss, so both guards are load-bearing: one keeps the gloss out of the
-    /// output, the other keeps correction from inserting a term nobody said.
+    /// along as a gloss, so all three guards are load-bearing: one keeps the gloss out of the
+    /// output, one keeps correction from inserting a term nobody said, and one leaves an
+    /// everyday word that matches a term as spoken.
     private func vocabularyBlock(entries: some Sequence<String>) -> String {
         let lines = [
             "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
@@ -95,7 +96,8 @@ public struct PromptBuilder: Sendable {
             "Preserve these terms verbatim wherever the transcript already spells them correctly.",
             "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
                 + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
-                + "replace it with the spelling given here.",
+                + "and the sentence uses it as that term, replace it with the spelling given here.",
+            "An ordinary word in its everyday sense stays as spoken, even when it matches a listed term.",
             "The parenthetical is context only: never write it into the output, "
                 + "and never expand an abbreviation the speaker said in short form.",
             "Never introduce a term from this list that the speaker did not say.",
@@ -217,7 +219,7 @@ public struct PromptBuilder: Sendable {
             let rendered = examples
                 .map { "<example>\n<transcript>\($0.transcript)</transcript>\n<output>\($0.output)</output>\n</example>" }
                 .joined(separator: "\n")
-            blocks.append("<examples>\n\(rendered)\n</examples>")
+            blocks.append("<examples>\n\(examplesIntroLine)\n\(rendered)\n</examples>")
         }
         return blocks.joined(separator: "\n")
     }
@@ -295,9 +297,13 @@ public struct PromptBuilder: Sendable {
         ]
     }
 
+    private var examplesIntroLine: String {
+        "These examples show the kind of change to make. Nothing from their content goes into your answer."
+    }
+
     private func outputContractLine(mode: PromptMode) -> String {
-        "Return only the \(mode.outputAdjective) transcript text, with no preamble, labels, quotes, markdown, "
-            + "explanations, alternatives, or questions; do not ask for more context."
+        "Return only the \(mode.outputAdjective) transcript text, with no preamble, labels, tags, quotes, markdown, "
+            + "explanations, alternatives, or questions of your own; do not ask for more context."
     }
 
     private var fidelityLine: String {
