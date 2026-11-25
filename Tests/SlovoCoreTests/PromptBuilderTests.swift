@@ -121,7 +121,7 @@ struct PromptBuilderTests {
     /// A speaker with no vocabulary must never be told to correct toward an empty list,
     /// so every line of the block — not just its tag — has to be absent.
     /// Stated sensitivity: emit the vocabulary block unconditionally, or hoist any one
-    /// of its five lines into a block every prompt receives → RED.
+    /// of its six lines into a block every prompt receives → RED.
     @Test
     func noVocabularyBlockWhenVocabularyEmpty() {
         let systemText = Self.plainSystemText()
@@ -130,6 +130,7 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("Correct spellings of the speaker's terms"))
         #expect(!systemText.contains("Preserve these terms verbatim wherever the transcript already spells them correctly."))
         #expect(!systemText.contains("replace it with the spelling given here"))
+        #expect(!systemText.contains("An ordinary word in its everyday sense stays as spoken"))
         #expect(!systemText.contains(PromptBuilderFixtures.parentheticalGuardLine))
         #expect(!systemText.contains("Never introduce a term from this list that the speaker did not say."))
     }
