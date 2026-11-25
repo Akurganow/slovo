@@ -1,38 +1,52 @@
 import Dispatch
 import SlovoCore
 
+/// What one cleaning call returned: the text, and what the provider charged for it.
+public struct CleanupBenchmarkCleaned: Equatable, Sendable {
+    public let text: String
+    /// Nil when the provider named no cost.
+    public let costUSD: Double?
+
+    public init(text: String, costUSD: Double? = nil) {
+        self.text = text
+        self.costUSD = costUSD
+    }
+}
+
 public struct TimedCleanupOutput: Equatable, Sendable {
     public let output: String
+    public let costUSD: Double?
     public let durationNanoseconds: UInt64
 
-    public init(output: String, durationNanoseconds: UInt64) {
+    public init(output: String, costUSD: Double? = nil, durationNanoseconds: UInt64) {
         self.output = output
+        self.costUSD = costUSD
         self.durationNanoseconds = durationNanoseconds
     }
 }
 
 public struct CleanupBenchmarkTimer: Sendable {
-    private let measureBody: @Sendable (@escaping @Sendable () async throws -> String) async throws -> TimedCleanupOutput
+    private let measureBody: @Sendable (@escaping @Sendable () async throws -> CleanupBenchmarkCleaned) async throws -> TimedCleanupOutput
 
     @preconcurrency
     public init(
-        measure: @escaping @Sendable (@escaping @Sendable () async throws -> String) async throws -> TimedCleanupOutput
+        measure: @escaping @Sendable (@escaping @Sendable () async throws -> CleanupBenchmarkCleaned) async throws -> TimedCleanupOutput
     ) {
         measureBody = measure
     }
 
     @preconcurrency
     public func measure(
-        _ operation: @escaping @Sendable () async throws -> String
+        _ operation: @escaping @Sendable () async throws -> CleanupBenchmarkCleaned
     ) async throws -> TimedCleanupOutput {
         try await measureBody(operation)
     }
 
     public static let continuous = CleanupBenchmarkTimer { operation in
         let start = DispatchTime.now().uptimeNanoseconds
-        let output = try await operation()
+        let cleaned = try await operation()
         let end = DispatchTime.now().uptimeNanoseconds
-        return TimedCleanupOutput(output: output, durationNanoseconds: end - start)
+        return TimedCleanupOutput(output: cleaned.text, costUSD: cleaned.costUSD, durationNanoseconds: end - start)
     }
 }
 
@@ -96,12 +110,24 @@ public struct CleanupBenchmarkSample: Codable, Equatable, Sendable {
 public struct CleanupBenchmarkCandidate: Sendable {
     public let provider: String
     public let model: String
-    public let cleaner: any Cleaner
+    public let clean: @Sendable (String, CleanupConfig, PersonalizationContext) async throws -> CleanupBenchmarkCleaned
 
-    public init(provider: String, model: String, cleaner: any Cleaner) {
+    @preconcurrency
+    public init(
+        provider: String,
+        model: String,
+        clean: @escaping @Sendable (String, CleanupConfig, PersonalizationContext) async throws -> CleanupBenchmarkCleaned
+    ) {
         self.provider = provider
         self.model = model
-        self.cleaner = cleaner
+        self.clean = clean
+    }
+
+    /// A candidate whose provider reports no cost.
+    public init(provider: String, model: String, cleaner: any Cleaner) {
+        self.init(provider: provider, model: model) { raw, config, context in
+            CleanupBenchmarkCleaned(text: try await cleaner.clean(raw, config: config, context: context))
+        }
     }
 
     public var name: String {

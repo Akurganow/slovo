@@ -30,5 +30,6 @@ if ! swift run --disable-automatic-resolution slovo-cleanup-benchmark \
     exit 1
 fi
 
-grep -q "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev" "$output_file"
-grep -Eq '^passthrough:none,1,0,[0-9]+\.[0-9],[0-9]+\.[0-9],1\.000,,$' "$output_file"
+grep -q "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd" "$output_file"
+grep -Eq '^passthrough:none,1,0,[0-9]+\.[0-9],[0-9]+\.[0-9],1\.000,,,0\.000000$' "$output_file"
+grep -q '^progress: cleanup finished: calls made 1, failed 0$' "$error_file"

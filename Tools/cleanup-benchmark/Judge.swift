@@ -44,22 +44,30 @@ public struct CleanupBenchmarkJudge: Sendable {
     }
 
     /// Scores `runs` and returns them in the same order. `record` is called with
-    /// each run as soon as it is scored.
+    /// each run as soon as it is scored, and `progress` with each candidate's start and finish.
     @preconcurrency
     public func score(
         _ runs: [CleanupBenchmarkRun],
         samples: [CleanupBenchmarkSample],
-        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
+        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in },
+        progress: @Sendable (CleanupBenchmarkProgress) -> Void = { _ in }
     ) async -> (runs: [CleanupBenchmarkRun], info: CleanupBenchmarkJudgeInfo) {
         var info = CleanupBenchmarkJudgeInfo()
         var scored = runs
         let bySample = Dictionary(samples.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         // Per candidate, so the embedding models a run names are those that served this candidate's batches.
-        for indices in Dictionary(grouping: runs.indices, by: { runs[$0].candidateName }).values {
-            let items = indices.compactMap { index -> Item? in
-                guard let output = runs[index].output, let sample = bySample[runs[index].sampleId] else { return nil }
-                return Item(index: index, output: output, sample: sample)
+        let groups = Dictionary(grouping: runs.indices, by: { runs[$0].candidateName }).sorted { $0.key < $1.key }
+            .map { candidate, indices in
+                (candidate: candidate, items: indices.compactMap { index -> Item? in
+                    guard let output = runs[index].output, let sample = bySample[runs[index].sampleId] else { return nil }
+                    return Item(index: index, output: output, sample: sample)
+                })
             }
+        let judged = groups.reduce(0) { $0 + $1.items.count }
+        var failed = 0
+        progress(.judgeStarted(runs: judged))
+        for (candidate, items) in groups {
+            progress(.judgeCandidateStarted(candidate: candidate, runs: items.count))
             // A run that already has its embedding keeps it: only the others are embedded.
             let embedded = await embed(
                 Set(items.filter { runs[$0.index].scores.embedding == nil }.flatMap { [$0.output] + $0.sample.references }).sorted()
@@ -96,7 +104,13 @@ public struct CleanupBenchmarkJudge: Sendable {
                 finish(item, nil)
             }
             await decide(items.filter { runs[$0.index].scores.jev == nil }, finish: finish)
+            let candidateFailed = items.filter { item in
+                scored[item.index].failures.contains { Self.ownFailures.contains($0) }
+            }.count
+            failed += candidateFailed
+            progress(.judgeCandidateFinished(candidate: candidate, judged: items.count, failed: candidateFailed))
         }
+        progress(.judgeFinished(judged: judged, failed: failed, costUSD: info.costUSD))
         return (scored, info)
     }
 

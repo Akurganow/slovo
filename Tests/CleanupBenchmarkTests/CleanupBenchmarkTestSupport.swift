@@ -146,10 +146,14 @@ final class DriverFixture: Sendable {
     ]}
     """
 
+    /// What every fake cleaning call reports it cost.
+    static let callCostUSD = 0.25
+
     let files: Mutex<[String: Data]>
     let transport: FakeJudgeTransport
     private let cleanerCalls = Mutex(0)
     private let cleanersFail = Mutex(false)
+    private let progressEvents = Mutex<[CleanupBenchmarkProgress]>([])
 
     init(files: [String: String] = [:], transport: FakeJudgeTransport = FakeJudgeTransport()) throws {
         var contents = files.mapValues { Data($0.utf8) }
@@ -166,6 +170,11 @@ final class DriverFixture: Sendable {
         cleanersFail.withLock { $0 = fail }
     }
 
+    /// The progress events of every `run`, in the order they were emitted.
+    var progress: [CleanupBenchmarkProgress] {
+        progressEvents.withLock { $0 }
+    }
+
     func file(_ path: String) -> Data? {
         files.withLock { $0[path] }
     }
@@ -179,15 +188,16 @@ final class DriverFixture: Sendable {
         let driver = CleanupBenchmarkCommandDriver(
             makeCandidates: { specs, _ in
                 specs.map { spec in
-                    CleanupBenchmarkCandidate(
-                        provider: "fake",
-                        model: spec.model,
-                        cleaner: CountingCleaner(
-                            output: spec.model == "bad" ? "WRONG text." : "Hello there.",
-                            called: { self.cleanerCalls.withLock { $0 += 1 } },
-                            fails: { self.cleanersFail.withLock { $0 } }
-                        )
+                    let cleaner = CountingCleaner(
+                        output: spec.model == "bad" ? "WRONG text." : "Hello there.",
+                        called: { self.cleanerCalls.withLock { $0 += 1 } },
+                        fails: { self.cleanersFail.withLock { $0 } }
                     )
+                    return CleanupBenchmarkCandidate(provider: "fake", model: spec.model) { raw, config, context in
+                        CleanupBenchmarkCleaned(
+                            text: try await cleaner.clean(raw, config: config, context: context), costUSD: Self.callCostUSD
+                        )
+                    }
                 }
             },
             makeTransport: { _ in self.transport },
@@ -200,7 +210,8 @@ final class DriverFixture: Sendable {
             },
             appendDataFile: { path, data in
                 self.files.withLock { $0[path, default: Data()].append(data) }
-            }
+            },
+            progress: { event in self.progressEvents.withLock { $0.append(event) } }
         )
         return await driver.run(
             arguments: ["--samples", "samples.json"] + arguments,

@@ -24,6 +24,7 @@ public struct CleanupBenchmarkRunPlan: Sendable {
     public let warmupRepetitions: Int
     public let previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun]
     public let record: @Sendable (CleanupBenchmarkRun) -> Void
+    public let progress: @Sendable (CleanupBenchmarkProgress) -> Void
 }
 
 public struct CleanupBenchmarkCommandDriver: Sendable {
@@ -35,6 +36,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     private let readDataFile: @Sendable (String) throws -> Data
     private let writeDataFile: @Sendable (String, Data) throws -> Void
     private let appendDataFile: @Sendable (String, Data) throws -> Void
+    private let progress: @Sendable (CleanupBenchmarkProgress) -> Void
 
     @preconcurrency
     public init(
@@ -52,7 +54,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 repetitions: plan.repetitions,
                 warmupRepetitions: plan.warmupRepetitions,
                 previous: plan.previous,
-                record: plan.record
+                record: plan.record,
+                progress: plan.progress
             )
         },
         makeTransport: @escaping @Sendable ([String: String]) throws -> any CleanupBenchmarkTransport = { environment in
@@ -69,7 +72,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         writeDataFile: @escaping @Sendable (String, Data) throws -> Void = {
             try $1.write(to: URL(fileURLWithPath: $0), options: .atomic)
         },
-        appendDataFile: @escaping @Sendable (String, Data) throws -> Void = CleanupBenchmarkCommandDriver.appendDataFile
+        appendDataFile: @escaping @Sendable (String, Data) throws -> Void = CleanupBenchmarkCommandDriver.appendDataFile,
+        progress: @escaping @Sendable (CleanupBenchmarkProgress) -> Void = { _ in }
     ) {
         self.makeCandidates = makeCandidates
         self.runBenchmark = runBenchmark
@@ -78,6 +82,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         self.readDataFile = readDataFile
         self.writeDataFile = writeDataFile
         self.appendDataFile = appendDataFile
+        self.progress = progress
     }
 
     /// Exit codes: see `usage`.
@@ -101,7 +106,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             repetitions: setup.repetitions,
             warmupRepetitions: setup.options.warmupRepetitions,
             previous: setup.previous,
-            record: { setup.recorder?.record($0) }
+            record: { setup.recorder?.record($0) },
+            progress: progress
         ))
         let (report, errors) = await finish(benchmark, setup: setup)
         var rendered = CleanupBenchmarkReportFormatter.render(report)
@@ -313,7 +319,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         if let judge = setup.judge {
             // An empty output stays a recorded failure of the candidate: the judge never sees it.
             let pending = report.runs.indices.filter { !report.runs[$0].isComplete(judged: true) && !report.runs[$0].hasEmptyOutput }
-            let scored = await judge.score(pending.map { report.runs[$0] }, samples: setup.samples) { setup.recorder?.record($0) }
+            let scored = await judge.score(pending.map { report.runs[$0] }, samples: setup.samples, record: { setup.recorder?.record($0) }, progress: progress)
             var runs = report.runs
             for (index, run) in zip(pending, scored.runs) {
                 runs[index] = run
@@ -344,6 +350,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     /// are named in the errors and leave their old entries as they were.
     private func writeBaseline(_ report: CleanupBenchmarkReport, judge: CleanupBenchmarkJudge, setup: Setup) -> [String] {
         guard let path = setup.options.writeBaselinePath, let existing = setup.existingBaseline else { return [] }
+        progress(.baselineWriteStarted)
+        var written = 0
+        defer { progress(.baselineWriteFinished(written: written, notWritten: setup.candidates.count - written)) }
         var errors: [String] = []
         var entries: [String: CleanupBenchmarkBaselineEntry] = [:]
         for candidate in setup.candidates {
@@ -366,6 +375,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         guard !entries.isEmpty else { return errors }
         do {
             try writeDataFile(path, try existing.merging(entries).encoded())
+            written = entries.count
         } catch {
             errors.append("baseline not written: \(error)")
         }
@@ -392,6 +402,9 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
 
     Notes:
       The report prints aggregate metrics only. It does not print raw transcripts, cleaned output, or API keys.
+      Standard output is the report; progress lines (names and counts) go to standard error as the run goes.
+      cost_usd is the sum of the cleanup calls' usage.cost over the row's runs, those kept from --outputs-file included;
+      judge_cost_usd covers this process's judge requests only.
       The passthrough candidate is the raw-mode (cleanup disabled) baseline: a no-op cleaner timed in place of the whole cleaner stage raw mode skips.
       Without --judge only the fuzzy coefficient is computed, no request leaves the Mac except the candidates' own, and no verdict is issued.
       --judge sends each sample's raw text, references and the candidate's output to OpenRouter (Jev decisions and embeddings) and needs OPENROUTER_API_KEY.

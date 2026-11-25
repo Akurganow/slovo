@@ -20,6 +20,8 @@ enum CleanupBenchmarkOutputsFile {
         let jevQuestions: [String: [Double]]
         let models: [String]
         let failures: [String]
+        /// Optional so that a line written before it existed decodes, with no cost.
+        let costUSD: Double?
         /// Optional so that a line without one, such as one written before it existed,
         /// decodes and is refused.
         let rawsSHA256: String?
@@ -41,6 +43,7 @@ enum CleanupBenchmarkOutputsFile {
             jevQuestions = run.scores.jevQuestions
             models = run.scores.models
             failures = run.failures
+            costUSD = run.costUSD
             rawsSHA256 = binding.rawsSHA256
             promptSHA256 = binding.promptSHA256
             scoringSHA256 = binding.scoringSHA256(sampleId: run.sampleId)
@@ -63,6 +66,7 @@ enum CleanupBenchmarkOutputsFile {
             try container.encode(jevQuestions, forKey: .jevQuestions)
             try container.encode(models, forKey: .models)
             try container.encode(failures, forKey: .failures)
+            try container.encode(costUSD, forKey: .costUSD)
             try container.encode(rawsSHA256, forKey: .rawsSHA256)
             try container.encode(promptSHA256, forKey: .promptSHA256)
             try container.encode(scoringSHA256, forKey: .scoringSHA256)
@@ -126,6 +130,7 @@ enum CleanupBenchmarkOutputsFile {
                     models: otherScoring && !jevHeld ? [] : line.models
                 ),
                 failures: line.failures,
+                costUSD: line.costUSD,
                 errorKind: line.output == nil ? .providerError : nil
             )
             runs[run.key] = run

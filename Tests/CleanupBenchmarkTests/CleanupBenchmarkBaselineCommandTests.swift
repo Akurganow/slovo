@@ -157,7 +157,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         ])
 
         #expect(result.exitCode == 2)
-        #expect(result.stderr.contains("no baseline entry for fake:good: 10 of its runs"))
+        #expect(result.stderr.contains("baseline entry for fake:good not written: runs with no full score or with a failure: 10"))
         #expect(!result.stderr.contains("--outputs-file"))
 
         let withFile = await fixture.run([
@@ -184,7 +184,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         ])
 
         #expect(result.exitCode == 2)
-        #expect(result.stderr.contains("no baseline entry for fake:bad: 10 of its runs"))
+        #expect(result.stderr.contains("baseline entry for fake:bad not written: runs with no full score or with a failure: 10"))
         #expect(!result.stderr.contains("fake:good"))
         #expect(try baseline(fixture).candidates.keys.sorted() == ["fake:good", "other:untouched"])
     }

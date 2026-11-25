@@ -8,8 +8,10 @@ public struct CleanupBenchmarkSummary: Equatable, Sendable {
     public let medianMilliseconds: Double
     public let p95Milliseconds: Double
     public let means: CleanupBenchmarkMeans
+    /// The sum of what the row's runs cost, kept ones included; nil when no run names a cost.
+    public let costUSD: Double?
 
-    /// The columns after the leading names: runs, failed runs, latency, means.
+    /// The columns after the leading names: runs, failed runs, latency, means, cost.
     fileprivate var columns: [String] {
         [
             "\(runCount)",
@@ -19,6 +21,7 @@ public struct CleanupBenchmarkSummary: Equatable, Sendable {
             CleanupBenchmarkReportFormatter.format(means.fuzzy),
             CleanupBenchmarkReportFormatter.format(means.embedding),
             CleanupBenchmarkReportFormatter.format(means.jev),
+            costUSD.map { String(format: "%.6f", $0) } ?? "",
         ]
     }
 }
@@ -101,7 +104,8 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
             errorCount: candidateRuns.filter { !$0.failures.isEmpty }.count,
             medianMilliseconds: percentile(durations, percentile: 0.5),
             p95Milliseconds: percentile(durations, percentile: 0.95),
-            means: CleanupBenchmarkMeans(candidateRuns)
+            means: CleanupBenchmarkMeans(candidateRuns),
+            costUSD: candidateRuns.compactMap(\.costUSD).reduce(nil) { ($0 ?? 0) + $1 }
         )
     }
 
@@ -115,7 +119,7 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
 
 public enum CleanupBenchmarkReportFormatter {
     public static func render(_ report: CleanupBenchmarkReport) -> String {
-        let header = "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"
+        let header = "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd"
         let rows = report.summaries.map { summary in
             [summary.candidateName] + summary.columns
         }
@@ -185,7 +189,7 @@ public enum CleanupBenchmarkReportFormatter {
     }
 
     public static func renderCategoryBreakdown(_ report: CleanupBenchmarkReport) -> String {
-        let header = "candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"
+        let header = "candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd"
         let rows = report.categorySummaries.map { summary in
             [summary.summary.candidateName, summary.category.rawValue] + summary.summary.columns
         }

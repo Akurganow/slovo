@@ -68,6 +68,17 @@ public struct OpenRouterCleaner: Cleaner {
         context: PersonalizationContext,
         hints: CleanupHints
     ) async throws -> String {
+        try await cleanReportingCost(raw, config: config, context: context, hints: hints).text
+    }
+
+    /// `clean` plus the cost OpenRouter charged for the request, nil when the reply names none.
+    /// Its one caller outside the app is the cleanup benchmark, which reports what cleanup costs.
+    public func cleanReportingCost(
+        _ raw: String,
+        config: CleanupConfig,
+        context: PersonalizationContext,
+        hints: CleanupHints
+    ) async throws -> (text: String, costUSD: Double?) {
         let key: String
         do {
             key = try keyProvider.apiKey()
@@ -149,7 +160,7 @@ public struct OpenRouterCleaner: Cleaner {
 
         log.event("cleanup ok")
         log.logLength(of: cleaned)
-        return cleaned
+        return (cleaned, decoded.cost)
     }
 
     /// Names a cleanup failure on the readable log: which failure, the provider's

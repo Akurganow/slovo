@@ -171,7 +171,7 @@ jobs:
           # The outputs file holds output text, so it stays on the runner: no step uploads
           # or prints it. It is the tool's resume record (Benchmarks/cleanup/README.md).
           outputs="${RUNNER_TEMP}/outputs.jsonl"
-          # The tool prints aggregate CSV on stdout.
+          # The tool prints aggregate CSV on stdout and its progress lines on stderr.
           benchmark() {
             swift run --disable-automatic-resolution slovo-cleanup-benchmark \
               --providers catalog --judge --write-baseline "$baseline" \

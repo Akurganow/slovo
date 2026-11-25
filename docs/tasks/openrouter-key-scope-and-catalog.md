@@ -301,7 +301,9 @@ DeepSeek V4.1 Flash replaced DeepSeek V4 Flash, and Qwen3.8 Flash replaced
 Qwen3.6 Flash. A stored replaced id now
 moves to the newer release of the same line, not to the default. The
 candidates, the benchmark runs and the reasons each successor was taken or
-left are in `docs/references/cleanup-benchmark.md`.
+left were recorded in `docs/references/cleanup-benchmark.md`, sections
+"Latest Live Snapshot" and "Catalog refresh of 2026-09-27", which commit
+`8dd82da` still holds.
 
 ## 9. Owner decisions on the rev 2 judgment calls (2026-08-26)
 

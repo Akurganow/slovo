@@ -4,7 +4,7 @@ import Foundation
 @main
 enum CleanupBenchmarkCommand {
     static func main() async {
-        let result = await CleanupBenchmarkCommandDriver().run(
+        let result = await CleanupBenchmarkCommandDriver(progress: CleanupBenchmarkProgress.toStandardError).run(
             arguments: Array(CommandLine.arguments.dropFirst()),
             environment: ProcessInfo.processInfo.environment
         )
