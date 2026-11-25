@@ -11,20 +11,16 @@ public enum CleanupBenchmarkCandidateFactory {
             let keyProvider = StaticCleanupKeyProvider(
                 key: try key("OPENROUTER_API_KEY", in: environment)
             )
-            return CleanupBenchmarkCandidate(
-                provider: spec.provider.rawValue,
-                model: spec.model,
-                cleaner: OpenRouterCleaner(
-                    keyProvider: keyProvider,
-                    promptBuilder: PromptBuilder()
-                )
-            )
+            let cleaner = OpenRouterCleaner(keyProvider: keyProvider, promptBuilder: PromptBuilder())
+            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context in
+                let cleaned = try await cleaner.cleanReportingCost(raw, config: config, context: context, hints: CleanupHints())
+                return CleanupBenchmarkCleaned(text: cleaned.text, costUSD: cleaned.costUSD)
+            }
         case .passThrough:
-            return CleanupBenchmarkCandidate(
-                provider: spec.provider.rawValue,
-                model: spec.model,
-                cleaner: PassThrough()
-            )
+            // No request is made, so the cost is known: nothing.
+            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context in
+                CleanupBenchmarkCleaned(text: try await PassThrough().clean(raw, config: config, context: context), costUSD: 0)
+            }
         }
     }
 

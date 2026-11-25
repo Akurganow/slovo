@@ -87,7 +87,7 @@ struct CleanupBenchmarkProviderTests {
     /// Stated sensitivity: swapping key names in the real benchmark factory
     /// leaves the CLI benchmarking a provider that the app cannot run.
     @Test
-    func candidateFactorySelectsOpenRouterAndKey() throws {
+    func candidateFactorySelectsOpenRouterAndKey() async throws {
         let environment = [
             "OPENROUTER_API_KEY": "openrouter-key",
         ]
@@ -101,8 +101,9 @@ struct CleanupBenchmarkProviderTests {
             environment: [:]
         )
 
-        #expect(openRouter.cleaner is OpenRouterCleaner)
-        #expect(passThrough.cleaner is PassThrough)
+        #expect(openRouter.name == "openrouter:openai/gpt-6-luna")
+        let cleaned = try await passThrough.clean("raw", CleanupConfig(model: "none", writingStyle: .casual), PersonalizationContext(vocabulary: []))
+        #expect(cleaned == CleanupBenchmarkCleaned(text: "raw", costUSD: 0), "pass-through makes no request, so it costs nothing")
         #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("OPENROUTER_API_KEY")) {
             _ = try CleanupBenchmarkCandidateFactory.makeCandidate(
                 for: CleanupBenchmarkProviderSpec(provider: .openRouter, model: "openai/gpt-6-luna"),

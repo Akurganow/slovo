@@ -21,8 +21,8 @@ The report is CSV-like aggregate output. Without `--judge` it holds the fuzzy
 coefficient only and no verdict:
 
 ```text
-candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev
-openrouter:<model>,275,0,<p50>,<p95>,<mean>,,
+candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd
+openrouter:<model>,275,0,<p50>,<p95>,<mean>,,,<cost>
 ```
 
 With `--judge` the embedding and Jev means fill in, and a line names the judge's

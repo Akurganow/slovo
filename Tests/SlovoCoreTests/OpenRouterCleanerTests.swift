@@ -109,6 +109,32 @@ struct OpenRouterCleanerTests {
         #expect(output == reply)
     }
 
+    /// Stated sensitivity: reading the cost from another field (`total_tokens`, say), or decoding
+    /// `usage` strictly so that a malformed one fails the reply, turns the `usage` rows RED: the
+    /// cleaned text must come back whatever `usage` holds, with no cost unless it is a number.
+    @Test(arguments: [
+        (#","usage":{"prompt_tokens":18,"completion_tokens":3,"total_tokens":21,"cost":4.95e-06}"#, 4.95e-06 as Double?),
+        ("", nil),
+        (#","usage":null"#, nil),
+        (#","usage":"unavailable""#, nil),
+        (#","usage":{"prompt_tokens":18}"#, nil),
+        (#","usage":{"cost":"free"}"#, nil),
+    ])
+    func reportedCostIsUsageCostAndNeverFailsTheReply(usage: String, expectedCost: Double?) async throws {
+        let body = Data(#"{"choices":[{"message":{"role":"assistant","content":"cleaned"}}]\#(usage)}"#.utf8)
+        let scenario = StubScenario(response: .http(status: 200, headers: [:], body: body))
+        let cleaner = OpenRouterCleaner(
+            session: scenario.makeSession(),
+            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+            promptBuilder: PromptBuilder()
+        )
+
+        let reply = try await cleaner.cleanReportingCost("raw", config: Self.config, context: Self.context, hints: CleanupHints())
+
+        #expect(reply.text == "cleaned")
+        #expect(reply.costUSD == expectedCost)
+    }
+
     /// Stated sensitivity: add a retry loop on transport failure -> the transcript
     /// is sent more than once and the request count assertion fails.
     @Test

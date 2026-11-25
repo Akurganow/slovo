@@ -97,10 +97,10 @@ public enum CleanupBenchmarkBarError: Error, Equatable, CustomStringConvertible,
     public var description: String {
         switch self {
         case .incompleteRuns(let candidate, let count):
-            "no baseline entry for \(candidate): \(count) of its runs have no full score or carry a failure"
+            "baseline entry for \(candidate) not written: runs with no full score or with a failure: \(count)"
         case .emptyOutputs(let candidate, let count):
-            "no baseline entry for \(candidate): \(count) of its runs returned an empty output, which judging again "
-                + "does not change; run the candidate again with a new --outputs-file, or none"
+            "baseline entry for \(candidate) not written: runs with an empty output: \(count); judging again "
+                + "does not change them; run the candidate again with a new --outputs-file, or none"
         }
     }
 }

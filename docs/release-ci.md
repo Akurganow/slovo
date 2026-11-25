@@ -321,7 +321,9 @@ runs in the `release-push` environment with the deploy key and a token with
 
 **The artifact.** `cleanup-baseline` holds `baseline.json`, the baseline with fresh
 entries, `report.csv`, the aggregate report, and `failed-rows.tsv`, the verdict rows
-that failed. It is kept for seven days and is uploaded even after a red step.
+that failed. It is kept for seven days and is uploaded even after a red step. The job
+log shows the tool's progress lines while it runs, and the report, with each candidate's
+cleanup cost, when it ends.
 
 **What a run does.** The tool's exit code decides.
 
