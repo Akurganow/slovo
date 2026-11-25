@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 import CleanupBenchmark
+import SlovoCore
 
 @Suite("Cleanup benchmark baseline command")
 struct CleanupBenchmarkBaselineCommandTests {
@@ -28,12 +29,22 @@ struct CleanupBenchmarkBaselineCommandTests {
         )
     }
 
-    /// Stated sensitivity: a write that replaces the file loses `other:untouched`;
-    /// one that skips a candidate that ran leaves it without an entry; digest, judge
-    /// ids and one stat set per sample are what a later `--baseline` run reads.
+    /// Stated sensitivity: a write that replaces the file loses the entry of the catalogue
+    /// model that did not run; a merge that keeps every old entry leaves `other:orphan`,
+    /// a model outside the catalogue, in the file; one that drops every entry that did not
+    /// run loses the catalogue model's entry; one that skips a candidate that ran leaves it
+    /// without an entry; digest, judge ids and one stat set per sample are what a later
+    /// `--baseline` run reads.
     @Test
-    func writeBaselineAddsEntriesForCandidatesThatRanAndKeepsTheRest() async throws {
-        let fixture = try DriverFixture(files: ["baseline.json": Self.other])
+    func writeBaselineAddsEntriesForCandidatesThatRanKeepsCatalogueModelsAndDropsTheRest() async throws {
+        let recorded = try #require(try CleanupBenchmarkBaselineFile.decode(Data(Self.other.utf8)).candidates["other:untouched"])
+        let catalogueName = "openrouter:\(Config.defaultOpenRouterModel)"
+        let fixture = try DriverFixture(files: [
+            "baseline.json": String(
+                decoding: try CleanupBenchmarkBaselineFile(candidates: [catalogueName: recorded, "other:orphan": recorded]).encoded(),
+                as: UTF8.self
+            ),
+        ])
 
         let result = await fixture.run([
             "--providers", "openrouter:good,openrouter:bad", "--judge",
@@ -42,7 +53,7 @@ struct CleanupBenchmarkBaselineCommandTests {
 
         #expect(result.stderr.isEmpty)
         let file = try baseline(fixture)
-        #expect(Set(file.candidates.keys) == ["other:untouched", "fake:good", "fake:bad"])
+        #expect(Set(file.candidates.keys) == [catalogueName, "fake:good", "fake:bad"])
         let good = try #require(file.candidates["fake:good"])
         #expect(Set(good.samples.keys) == ["one", "two"])
         #expect(good.snapshots == ["fake/embedding-snapshot", "fake/jev-snapshot"])
@@ -51,7 +62,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(abs((good.samples["one"]?.jev ?? 0) - 0.05) < 1e-9)
         #expect(good.repetitions == (try judgeSettings()).bar.repetitions)
         #expect(good.style == .casual)
-        #expect(file.candidates["other:untouched"]?.datasetSHA256 == "x")
+        #expect(file.candidates[catalogueName]?.datasetSHA256 == "x")
     }
 
     /// Stated sensitivity: an exit code that does not follow the verdict makes the
@@ -186,7 +197,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(result.exitCode == 2)
         #expect(result.stderr.contains("baseline entry for fake:bad not written: runs with no full score or with a failure: 10"))
         #expect(!result.stderr.contains("fake:good"))
-        #expect(try baseline(fixture).candidates.keys.sorted() == ["fake:good", "other:untouched"])
+        #expect(try baseline(fixture).candidates.keys.sorted() == ["fake:good"])
     }
 
     /// Stated sensitivity: a baseline recorded with other questions must be refused,

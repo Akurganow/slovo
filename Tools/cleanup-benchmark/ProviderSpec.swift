@@ -15,20 +15,30 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
         self.model = model
     }
 
+    /// The baseline name of the candidate built from this spec.
+    public var name: String {
+        "\(provider.rawValue):\(model)"
+    }
+
+    /// One OpenRouter spec per model of the app's cleanup list.
+    public static var catalog: [CleanupBenchmarkProviderSpec] {
+        CleanupModelCatalog.options.map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }
+    }
+
     public static func parseList(_ value: String) throws -> [CleanupBenchmarkProviderSpec] {
         let specs = try value
             .split(separator: ",")
             .flatMap { token in
                 token.trimmingCharacters(in: .whitespaces) == "catalog"
-                    ? CleanupModelCatalog.options.map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }
+                    ? catalog
                     : [try parse(String(token))]
             }
         guard !specs.isEmpty else {
             throw CleanupBenchmarkProviderSpecError.empty
         }
         var seen = Set<String>()
-        if let duplicate = specs.first(where: { !seen.insert("\($0.provider.rawValue):\($0.model)").inserted }) {
-            throw CleanupBenchmarkProviderSpecError.duplicate("\(duplicate.provider.rawValue):\(duplicate.model)")
+        if let duplicate = specs.first(where: { !seen.insert($0.name).inserted }) {
+            throw CleanupBenchmarkProviderSpecError.duplicate(duplicate.name)
         }
         return specs
     }

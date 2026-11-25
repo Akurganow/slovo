@@ -72,10 +72,10 @@ struct CleanupModelSelectionTests {
     // changes `options`, which IS pinned deterministically.
     @Test
     func fallbackOrderIsCatalogDeclarationOrder() {
-        let r = derive(defaultId, .known([mimo, "mistralai/mistral-small-2603"]))
+        let r = derive(defaultId, .known([mimo, "deepseek/deepseek-v4.1-flash"]))
         #expect(r.effective == mimo)
         #expect(r.note == .substitution(preferred: defaultId, effective: mimo))
-        #expect(r.options.map(\.id) == [mimo, "mistralai/mistral-small-2603"])
+        #expect(r.options.map(\.id) == [mimo, "deepseek/deepseek-v4.1-flash"])
     }
 
     // K2 row 5: custom id in scope.

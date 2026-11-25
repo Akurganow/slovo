@@ -52,7 +52,8 @@ Write the output entirely in Spanish; the only exceptions are the names and prot
 Produce a faithful Spanish rendering of what the speaker said — never a summary, expansion, or improvement of it.
 </task>
 <output_rules>
-Return only the translated transcript text, with no preamble, labels, quotes, markdown, explanations, alternatives, or questions; do not ask for more context.
+Return only the translated transcript text, with no preamble, labels, tags, quotes, markdown, \
+explanations, alternatives, or questions of your own; do not ask for more context.
 Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript.
 Never append closing pleasantries such as "thank you", "thanks", or "thank you for watching/listening"; output only what the speaker actually said.
 Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, spacing, and grammar; beyond translation and these fixes, change nothing.
