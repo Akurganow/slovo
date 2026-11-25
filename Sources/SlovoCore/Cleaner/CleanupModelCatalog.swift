@@ -29,8 +29,8 @@ public enum CleanupModelCatalog {
             displayName: "Claude Haiku 5.5"
         ),
         CleanupModelOption(
-            id: "google/gemini-3.1-flash-lite",
-            displayName: "Gemini 3.1 Flash Lite"
+            id: "xiaomi/mimo-v2.6-flash",
+            displayName: "MiMo V2.6 Flash"
         ),
         CleanupModelOption(
             id: "qwen/qwen3.8-flash",
@@ -43,10 +43,6 @@ public enum CleanupModelCatalog {
         CleanupModelOption(
             id: "mistralai/mistral-small-2603",
             displayName: "Mistral Small 4"
-        ),
-        CleanupModelOption(
-            id: "minimax/minimax-m3",
-            displayName: "MiniMax M3"
         ),
     ]
 }

@@ -6,7 +6,7 @@ struct CleanupModelSelectionTests {
     private let catalog = CleanupModelCatalog.options
     private let defaultId = Config.defaultOpenRouterModel
     private let haiku = "anthropic/claude-haiku-5.5"
-    private let gemini = "google/gemini-3.1-flash-lite"
+    private let mimo = "xiaomi/mimo-v2.6-flash"
 
     private func derive(_ preference: String, _ scope: CleanupModelScope) -> CleanupModelSelection.Result {
         CleanupModelSelection.derive(preference: preference, catalog: catalog, scope: scope)
@@ -48,10 +48,10 @@ struct CleanupModelSelectionTests {
     // K2 row 3: catalog preference in scope — untouched, options filtered in catalog order.
     @Test
     func catalogPreferenceInScope() {
-        let r = derive(gemini, .known([defaultId, gemini]))
-        #expect(r.options.map(\.id) == [defaultId, gemini])
+        let r = derive(mimo, .known([defaultId, mimo]))
+        #expect(r.options.map(\.id) == [defaultId, mimo])
         #expect(r.customRow == nil)
-        #expect(r.effective == gemini)
+        #expect(r.effective == mimo)
         #expect(r.note == nil)
     }
 
@@ -59,10 +59,10 @@ struct CleanupModelSelectionTests {
     // the original preference (K1's behavioral half: derivation, not rewriting).
     @Test
     func catalogPreferenceOutOfScopeSubstitutesDefault() {
-        let r = derive(haiku, .known([defaultId, gemini]))
+        let r = derive(haiku, .known([defaultId, mimo]))
         #expect(r.effective == defaultId)
         #expect(r.note == .substitution(preferred: haiku, effective: defaultId))
-        #expect(r.options.map(\.id) == [defaultId, gemini])
+        #expect(r.options.map(\.id) == [defaultId, mimo])
     }
 
     // K2 row 4, default also out of scope → FIRST catalog-declaration-order id in
@@ -72,10 +72,10 @@ struct CleanupModelSelectionTests {
     // changes `options`, which IS pinned deterministically.
     @Test
     func fallbackOrderIsCatalogDeclarationOrder() {
-        let r = derive(defaultId, .known([gemini, "minimax/minimax-m3"]))
-        #expect(r.effective == gemini)
-        #expect(r.note == .substitution(preferred: defaultId, effective: gemini))
-        #expect(r.options.map(\.id) == [gemini, "minimax/minimax-m3"])
+        let r = derive(defaultId, .known([mimo, "mistralai/mistral-small-2603"]))
+        #expect(r.effective == mimo)
+        #expect(r.note == .substitution(preferred: defaultId, effective: mimo))
+        #expect(r.options.map(\.id) == [mimo, "mistralai/mistral-small-2603"])
     }
 
     // K2 row 5: custom id in scope.
