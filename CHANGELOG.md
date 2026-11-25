@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows Keep a Changelog, and this project uses Semantic Versioning
 once public releases begin.
 
+## [0.39.1] - 2026-11-25
+
+### Fixed
+
+- Keep everyday words that match a vocabulary term, and drop Mistral Small 4 (#251)
+
 ## [0.39.0] - 2026-11-25
 
 ### Added
