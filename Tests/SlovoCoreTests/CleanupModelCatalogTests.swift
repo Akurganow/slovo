@@ -19,7 +19,6 @@ struct CleanupModelCatalogTests {
             "xiaomi/mimo-v2.6-flash",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
-            "mistralai/mistral-small-2603",
         ])
         #expect(!ids.contains("google/gemini-2.5-flash-lite"),
                 "the retired Gemini id must be gone; a stale id would surface as a runtime OpenRouter apiError")
@@ -42,7 +41,6 @@ struct CleanupModelCatalogTests {
             "xiaomi/mimo-v2.6-flash",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
-            "mistralai/mistral-small-2603",
         ] {
             let name = CleanupModelCatalog.displayName(for: id)
             #expect(!name.isEmpty && name != id,

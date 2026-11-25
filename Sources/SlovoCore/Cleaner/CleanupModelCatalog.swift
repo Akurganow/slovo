@@ -40,9 +40,5 @@ public enum CleanupModelCatalog {
             id: "deepseek/deepseek-v4.1-flash",
             displayName: "DeepSeek V4.1 Flash"
         ),
-        CleanupModelOption(
-            id: "mistralai/mistral-small-2603",
-            displayName: "Mistral Small 4"
-        ),
     ]
 }
