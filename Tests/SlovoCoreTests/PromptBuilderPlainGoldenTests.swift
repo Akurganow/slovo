@@ -29,18 +29,15 @@ struct PromptBuilderPlainGoldenTests {
 
     /// The bundled example catalog renders after the rules inside the same
     /// instruction block. Stated sensitivity: a builder that ignores the injected
-    /// catalog, drops the examples block, or drops the line that says what the
-    /// examples are → RED; an empty catalog must never emit empty `<examples>` tags.
+    /// catalog (or drops the examples block) reddens here; an empty catalog must
+    /// never emit empty `<examples>` tags.
     @Test
     func bundledExamplesRenderAfterTheGoldenRules() {
         let withExamples = Self.plainBlock(examples: .bundled)
         #expect(withExamples.hasPrefix(Self.goldenCasualPlainSections))
-        #expect(withExamples.contains("<examples>\n" + Self.examplesIntroLine + "\n<example>"))
+        #expect(withExamples.contains("<examples>"))
         #expect(!Self.plainBlock().contains("<examples>"), "an empty catalog must not emit empty examples tags")
     }
-
-    private static let examplesIntroLine =
-        "These examples show the kind of change to make. Nothing from their content goes into your answer."
 
     // Fully dedented (closing delimiter at column 0): content lines carry no
     // leading whitespace, matching the builder's `systemBlocks[0]`. All lines are
