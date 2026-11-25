@@ -332,6 +332,102 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("grammar checker"))
     }
 
+    private static let advisoryHeader = "Advisory context (may be wrong — use only if it helps, never force):"
+
+    private static func collisionLine(word: String, term: String) -> String {
+        "The transcript's word \"\(word)\" shares its letters with the listed term \(term); "
+            + "keep it as transcribed unless the sentence uses it as the name \(term)."
+    }
+
+    private static func prompt(raw: String, terms: [String], hints: CleanupHints = CleanupHints()) -> CleanupPrompt {
+        PromptBuilder().buildPrompt(
+            raw: raw,
+            config: CleanupConfig(writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: terms.enumerated().map { index, term in
+                Term(term: term, expansion: nil, lang: .en, weight: 100 - index)
+            }),
+            hints: hints
+        )
+    }
+
+    /// Stated sensitivity: drop the collision lines, emit them for a word the term
+    /// does not match, list them in vocabulary order instead of transcript order, or
+    /// leave the header off an advisory that has no hints → RED.
+    @Test
+    func everydayWordsThatOnlyShareLettersWithTermsGetOneLineEachInTranscriptOrder() {
+        let prompt = Self.prompt(
+            raw: "We booked two rooms. A cop stopped us, and the ads were everywhere.",
+            terms: ["ADS", "COP", "GitHub", "Rooms"]
+        )
+
+        #expect(prompt.systemBlocks.last == [
+            "<advisory>",
+            Self.advisoryHeader,
+            Self.collisionLine(word: "rooms", term: "Rooms"),
+            Self.collisionLine(word: "cop", term: "COP"),
+            Self.collisionLine(word: "ads", term: "ADS"),
+            "</advisory>",
+        ].joined(separator: "\n"))
+    }
+
+    /// Stated sensitivity: report a term the transcript also holds as listed, or repeat
+    /// the line for a term listed twice → RED.
+    @Test
+    func aTermWrittenAsListedGivesNoLineAndATermListedTwiceGivesOne() {
+        let exact = Self.prompt(raw: "COP and cop again", terms: ["COP"])
+        #expect(!exact.systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+
+        let repeated = Self.prompt(raw: "cop and cop again", terms: ["COP", "COP"])
+        #expect(repeated.systemBlocks.last == [
+            "<advisory>",
+            Self.advisoryHeader,
+            Self.collisionLine(word: "cop", term: "COP"),
+            "</advisory>",
+        ].joined(separator: "\n"))
+    }
+
+    /// Stated sensitivity: emit the advisory whenever the vocabulary is non-empty
+    /// instead of only when a word collides → RED.
+    @Test
+    func noCollisionAndNoHintsGivesNoAdvisoryBlock() {
+        let systemBlocks = Self.prompt(raw: "We booked a table at COP.", terms: ["ADS", "COP"]).systemBlocks
+
+        #expect(systemBlocks.count == 2)
+        #expect(!systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+    }
+
+    /// Stated sensitivity: ignore the term's own spacing or punctuation, or skip
+    /// multi-word terms → RED.
+    @Test
+    func multiWordAndPunctuatedTermsCollideOnlyAtWordBoundariesInAnotherCase() {
+        let prompt = Self.prompt(raw: "we use open  ai and Node.JS", terms: ["Open AI", "node.js"])
+
+        #expect(prompt.systemBlocks.last == [
+            "<advisory>",
+            Self.advisoryHeader,
+            Self.collisionLine(word: "open ai", term: "Open AI"),
+            Self.collisionLine(word: "node.js", term: "node.js"),
+            "</advisory>",
+        ].joined(separator: "\n"))
+
+        let exact = Self.prompt(raw: "we use Open AI and node.js", terms: ["Open AI", "node.js"])
+        #expect(!exact.systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+    }
+
+    /// Stated sensitivity: put the collision lines before the hint lines, or drop them
+    /// when hints exist → RED.
+    @Test
+    func collisionLinesFollowTheHintLines() {
+        let prompt = Self.prompt(raw: "the ads", terms: ["ADS"], hints: CleanupHints(inputLocale: "ru"))
+        let lines = (prompt.systemBlocks.last ?? "").split(separator: "\n").map(String.init)
+
+        #expect(lines.first == "<advisory>")
+        #expect(lines.dropFirst().first == Self.advisoryHeader)
+        #expect(lines.contains("Keyboard input language at dictation time: Russian (ru)."))
+        #expect(lines.dropLast().last == Self.collisionLine(word: "ads", term: "ADS"))
+        #expect(lines.last == "</advisory>")
+    }
+
     /// Stated sensitivity: the existing 3-arg overload must keep producing NO
     /// advisory block, so old callers are unchanged; adding a block there turns red.
     @Test

@@ -4,32 +4,43 @@ import Foundation
 /// and approximately across scripts (`latinFold`, `nearMatch`). Term-miss detection
 /// and the cleanup prompt both use it.
 enum TermSearch {
-    /// NFC + lowercase + whitespace runs collapsed to single spaces (which
-    /// subsumes trimming). As a term key this collapses case-variant vocabulary
+    /// NFC + whitespace runs collapsed to single spaces (which subsumes
+    /// trimming), letter case kept.
+    static func normalize(_ text: String) -> String {
+        text.precomposedStringWithCanonicalMapping
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+    }
+
+    /// `normalize` + lowercase. As a term key this collapses case-variant vocabulary
     /// rows onto one statistic — matching, and via NFC slightly stronger than,
     /// the bias head's own case-insensitive collapsing.
     static func fold(_ text: String) -> String {
-        text.precomposedStringWithCanonicalMapping
-            .lowercased()
-            .split(whereSeparator: \.isWhitespace)
-            .joined(separator: " ")
+        normalize(text).lowercased()
     }
 
     /// Whether `key` occurs in `text` at word boundaries: the scalars
     /// adjacent to the match are neither letters nor digits. Interior
     /// punctuation ("node.js", "a/b testing") matches literally.
     static func contains(_ key: String, in text: String) -> Bool {
-        guard !key.isEmpty else { return false }
+        firstMatch(of: key, in: text) != nil
+    }
+
+    /// The first word-boundary occurrence of `key` in `text`, compared literally:
+    /// fold both sides for a case-insensitive search, normalize both for a
+    /// case-sensitive one.
+    static func firstMatch(of key: String, in text: String) -> Range<String.Index>? {
+        guard !key.isEmpty else { return nil }
         var searchRange = text.startIndex..<text.endIndex
         while let match = text.range(of: key, range: searchRange) {
             if isBoundary(before: match.lowerBound, in: text),
                isBoundary(after: match.upperBound, in: text) {
-                return true
+                return match
             }
             guard match.lowerBound < text.endIndex else { break }
             searchRange = text.index(after: match.lowerBound)..<text.endIndex
         }
-        return false
+        return nil
     }
 
     private static func isBoundary(before index: String.Index, in text: String) -> Bool {

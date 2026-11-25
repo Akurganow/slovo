@@ -24,8 +24,8 @@ struct PromptBuilderVocabularyGoldenTests {
     /// The block's tags, line order, and line separation are its contract, not merely
     /// the presence of each line — and it is ONE system block of its own, emitted once.
     /// Stated sensitivity: collapse the newline join, glue the tags to the content,
-    /// mangle either tag, reorder the lines, emit the block twice, emit it before the
-    /// instructions, or fold it into `systemBlocks[0]` → RED.
+    /// mangle either tag, reorder the lines, change the licence line's wording, emit the
+    /// block twice, emit it before the instructions, or fold it into `systemBlocks[0]` → RED.
     @Test
     func vocabularyBlockMatchesGoldenLiteral() {
         let blocks = Self.blocks()
@@ -55,7 +55,8 @@ struct PromptBuilderVocabularyGoldenTests {
         "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: RCV (RingCentral Video)",
         "Preserve these terms verbatim wherever the transcript already spells them correctly.",
         "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
-            + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
+            + "— a Cyrillic rendering of a Latin acronym, a split-apart form, or a wrongly cased form "
+            + "that is not an ordinary word — "
             + "and the sentence uses it as that term, replace it with the spelling given here.",
         "An ordinary word in its everyday sense is never replaced with a listed term, even when it matches one.",
         PromptBuilderFixtures.parentheticalGuardLine,
