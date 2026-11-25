@@ -16,11 +16,10 @@ struct CleanupModelCatalogTests {
         #expect(ids == [
             "openai/gpt-6-luna",
             "anthropic/claude-haiku-5.5",
-            "google/gemini-3.1-flash-lite",
+            "xiaomi/mimo-v2.6-flash",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
             "mistralai/mistral-small-2603",
-            "minimax/minimax-m3",
         ])
         #expect(!ids.contains("google/gemini-2.5-flash-lite"),
                 "the retired Gemini id must be gone; a stale id would surface as a runtime OpenRouter apiError")
@@ -40,11 +39,10 @@ struct CleanupModelCatalogTests {
     @Test
     func newModelsAreHumanizedAndExistingNamesUnchanged() {
         for id in [
-            "google/gemini-3.1-flash-lite",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
             "mistralai/mistral-small-2603",
-            "minimax/minimax-m3",
+            "xiaomi/mimo-v2.6-flash",
         ] {
             let name = CleanupModelCatalog.displayName(for: id)
             #expect(!name.isEmpty && name != id,
