@@ -200,17 +200,19 @@ struct CleanupBenchmarkBarTests {
         #expect(file.entry(for: "a:new", fallback: "a:absent") == nil)
     }
 
-    /// Stated sensitivity: a merge that replaces the file, or drops the untouched
-    /// entries, erases other models' recorded slack.
+    /// Stated sensitivity: a merge that replaces the file, or drops the entries named in
+    /// `keeping`, erases other models' recorded slack; one that keeps every old entry leaves
+    /// `a:orphan`, named nowhere, in the file.
     @Test
-    func mergeReplacesNamedEntriesAndLeavesTheRestUntouched() throws {
+    func mergeReplacesNamedEntriesKeepsTheListedOnesAndDropsTheRest() throws {
         let kept = Self.entry(["kept"])
         let old = Self.entry(["old"])
         let new = Self.entry(["new"])
-        let file = CleanupBenchmarkBaselineFile(candidates: ["a:kept": kept, "a:ran": old])
+        let file = CleanupBenchmarkBaselineFile(candidates: ["a:kept": kept, "a:ran": old, "a:orphan": old])
 
-        let merged = file.merging(["a:ran": new, "a:added": new])
+        let merged = file.merging(["a:ran": new, "a:added": new], keeping: ["a:kept", "a:ran"])
 
+        #expect(merged.candidates["a:orphan"] == nil)
         #expect(merged.candidates["a:kept"] == kept)
         #expect(merged.candidates["a:ran"] == new)
         #expect(merged.candidates["a:added"] == new)

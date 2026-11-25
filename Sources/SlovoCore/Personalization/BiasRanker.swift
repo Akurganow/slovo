@@ -34,7 +34,7 @@ enum BiasRanker {
             .map { term in
                 (term: term, score: score(
                     weight: term.weight,
-                    missDates: missDates[TermMissDetector.fold(term.term)] ?? [],
+                    missDates: missDates[TermSearch.fold(term.term)] ?? [],
                     now: now
                 ))
             }

@@ -26,7 +26,7 @@ struct CleanupBenchmarkTests {
         let timer = CleanupBenchmarkTimer { operation in
             let output = try await operation()
             let duration = durations.withLock { $0.removeFirst() }
-            return TimedCleanupOutput(output: output, durationNanoseconds: duration)
+            return TimedCleanupOutput(output: output.text, durationNanoseconds: duration)
         }
 
         let report = await CleanupBenchmarkRunner(timer: timer).run(
@@ -81,7 +81,7 @@ struct CleanupBenchmarkTests {
         let timer = CleanupBenchmarkTimer { operation in
             let output = try await operation()
             let duration = durations.withLock { $0.removeFirst() }
-            return TimedCleanupOutput(output: output, durationNanoseconds: duration)
+            return TimedCleanupOutput(output: output.text, durationNanoseconds: duration)
         }
 
         let report = await CleanupBenchmarkRunner(timer: timer).run(

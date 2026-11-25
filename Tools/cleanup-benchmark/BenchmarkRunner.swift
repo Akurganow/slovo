@@ -44,6 +44,8 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
     /// Coarse failure codes: `provider-error`, `empty-output`, and the judge's
     /// `embedding-failed`, `jev-refusal`, `jev-request-failed`.
     public var failures: [String]
+    /// What the provider charged for the cleanup call; nil after a provider error or when it named no cost.
+    public let costUSD: Double?
     public let errorKind: CleanupBenchmarkErrorKind?
 
     public init(
@@ -56,6 +58,7 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
         output: String? = nil,
         scores: CleanupBenchmarkScores = CleanupBenchmarkScores(),
         failures: [String] = [],
+        costUSD: Double? = nil,
         errorKind: CleanupBenchmarkErrorKind?
     ) {
         self.sampleId = sampleId
@@ -67,6 +70,7 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
         self.output = output
         self.scores = scores
         self.failures = failures
+        self.costUSD = costUSD
         self.errorKind = errorKind
     }
 }
@@ -111,6 +115,17 @@ public enum CleanupBenchmarkErrorKind: String, Equatable, Sendable {
     case providerError = "provider-error"
 }
 
+/// The cleanup calls this process made, and how many of them ended in a failure code.
+private struct CleanupTally {
+    var calls = 0
+    var failed = 0
+
+    mutating func add(_ run: CleanupBenchmarkRun) {
+        calls += 1
+        if !run.failures.isEmpty { failed += 1 }
+    }
+}
+
 /// Where a run sits in the matrix: both counted from 1.
 private struct RunPosition {
     let sampleIndex: Int
@@ -133,7 +148,8 @@ public struct CleanupBenchmarkRunner: Sendable {
         repetitions: Int = 1,
         warmupRepetitions: Int = 0,
         previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:],
-        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in }
+        record: @Sendable (CleanupBenchmarkRun) -> Void = { _ in },
+        progress: @Sendable (CleanupBenchmarkProgress) -> Void = { _ in }
     ) async -> CleanupBenchmarkReport {
         let safeRepetitions = max(repetitions, 1)
         var runs: [CleanupBenchmarkRun] = []
@@ -151,13 +167,40 @@ public struct CleanupBenchmarkRunner: Sendable {
             }
         }
 
+        func isKept(_ candidate: CleanupBenchmarkCandidate, _ sample: CleanupBenchmarkSample, _ repetition: Int) -> CleanupBenchmarkRun? {
+            let key = CleanupBenchmarkRunKey(candidateName: candidate.name, sampleId: sample.id, repetition: repetition)
+            return previous[key].flatMap { $0.output == nil ? nil : $0 }
+        }
+        var keptByCandidate: [String: Int] = [:]
+        for candidate in candidates {
+            for sample in samples {
+                keptByCandidate[candidate.name, default: 0] += (1...safeRepetitions).filter { isKept(candidate, sample, $0) != nil }.count
+            }
+        }
+        let callsPerCandidate = samples.count * safeRepetitions
+        let kept = keptByCandidate.values.reduce(0, +)
+        progress(.cleanupStarted(
+            candidates: candidates.count,
+            samples: samples.count,
+            repetitions: safeRepetitions,
+            kept: kept
+        ))
+        for candidate in candidates where keptByCandidate[candidate.name] == callsPerCandidate {
+            progress(.candidateKept(candidate: candidate.name, kept: callsPerCandidate))
+        }
+
+        var total = CleanupTally()
+        var byCandidate: [String: CleanupTally] = [:]
         for repetition in 1...safeRepetitions {
+            var inRepetition = CleanupTally()
             for (index, sample) in samples.enumerated() {
                 for candidate in candidates {
-                    let key = CleanupBenchmarkRunKey(candidateName: candidate.name, sampleId: sample.id, repetition: repetition)
-                    if let earlier = previous[key], earlier.output != nil {
+                    if let earlier = isKept(candidate, sample, repetition) {
                         runs.append(earlier)
                         continue
+                    }
+                    if byCandidate[candidate.name] == nil {
+                        progress(.candidateStarted(candidate: candidate.name))
                     }
                     let run = await runCandidate(
                         candidate,
@@ -168,9 +211,22 @@ public struct CleanupBenchmarkRunner: Sendable {
                     )
                     record(run)
                     runs.append(run)
+                    total.add(run)
+                    inRepetition.add(run)
+                    byCandidate[candidate.name, default: CleanupTally()].add(run)
+                    if let tally = byCandidate[candidate.name],
+                       tally.calls == callsPerCandidate - (keptByCandidate[candidate.name] ?? 0) {
+                        progress(.candidateFinished(candidate: candidate.name, calls: tally.calls, failed: tally.failed))
+                    }
                 }
             }
+            if inRepetition.calls > 0 {
+                progress(.repetitionFinished(
+                    repetition: repetition, total: safeRepetitions, calls: inRepetition.calls, failed: inRepetition.failed
+                ))
+            }
         }
+        progress(.cleanupFinished(calls: total.calls, failed: total.failed))
 
         return CleanupBenchmarkReport(runs: runs)
     }
@@ -188,7 +244,7 @@ public struct CleanupBenchmarkRunner: Sendable {
         config: CleanupConfig,
         context: PersonalizationContext
     ) async {
-        _ = try? await candidate.cleaner.clean(sample.raw, config: config, context: context)
+        _ = try? await candidate.clean(sample.raw, config, context)
     }
 
     private func runCandidate(
@@ -200,7 +256,7 @@ public struct CleanupBenchmarkRunner: Sendable {
     ) async -> CleanupBenchmarkRun {
         do {
             let timed = try await timer.measure {
-                try await candidate.cleaner.clean(sample.raw, config: config, context: context)
+                try await candidate.clean(sample.raw, config, context)
             }
             let isEmpty = timed.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             return CleanupBenchmarkRun(
@@ -213,6 +269,7 @@ public struct CleanupBenchmarkRunner: Sendable {
                 output: timed.output,
                 scores: CleanupBenchmarkScores(fuzzy: FuzzyScore.best(timed.output, sample.references)),
                 failures: isEmpty ? [CleanupBenchmarkRun.emptyOutputCode] : [],
+                costUSD: timed.costUSD,
                 errorKind: nil
             )
         } catch {

@@ -64,6 +64,7 @@ struct PromptBuilderTranslateTests {
         #expect(block.contains(PromptBuilderFixtures.parentheticalGuardLine),
                 "a translated output must not absorb the recorded meaning of a protected term")
         #expect(block.contains("replace it with the spelling given here."))
+        #expect(block.contains("An ordinary word in its everyday sense is never replaced with a listed term"))
         #expect(block.contains("Never introduce a term from this list that the speaker did not say."))
     }
 

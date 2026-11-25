@@ -39,7 +39,8 @@ public struct PromptBuilder: Sendable {
     }
 
     /// Builds the cleanup prompt, appending one soft-worded advisory block when the
-    /// hints carry a locale and/or spell findings. The block is supplementary
+    /// hints carry a locale and/or spell findings, or when a transcript word only
+    /// shares its letters with a vocabulary term. The block is supplementary
     /// context — it is appended after the instruction and vocabulary blocks.
     public func buildPrompt(
         raw: String,
@@ -57,12 +58,13 @@ public struct PromptBuilder: Sendable {
         // canonically-equivalent-but-byte-different terms would let them swap between
         // runs and break the byte-stable prefix. Rows that render blank are dropped
         // rather than listed as empty entries.
-        let keptEntries = context.vocabulary
+        let sortedTerms = context.vocabulary
             .sorted { lhs, rhs in
                 lhs.weight == rhs.weight
                     ? lhs.term.unicodeScalars.lexicographicallyPrecedes(rhs.term.unicodeScalars)
                     : lhs.weight > rhs.weight
             }
+        let keptEntries = sortedTerms
             .map(\.vocabularyEntry)
             .filter { !$0.isEmpty }
 
@@ -72,7 +74,8 @@ public struct PromptBuilder: Sendable {
         if !keptEntries.isEmpty {
             systemBlocks.append(vocabularyBlock(entries: keptEntries))
         }
-        if let advisory = advisoryBlock(for: hints) {
+        let collisions = vocabularyCollisionLines(raw: raw, terms: sortedTerms.map(\.trimmedTerm))
+        if let advisory = advisoryBlock(for: hints, collisionLines: collisions) {
             systemBlocks.append("<advisory>\n\(advisory)\n</advisory>")
         }
 
@@ -86,21 +89,55 @@ public struct PromptBuilder: Sendable {
     /// The vocabulary block instructs CORRECTION, not only preservation: ASR renders a
     /// protected term phonetically in the dictation's own alphabet ("RCV" → "РСВ"), and a
     /// preserve-only rule leaves that mangled form untouched. A recorded expansion rides
-    /// along as a gloss, so both guards are load-bearing: one keeps the gloss out of the
-    /// output, the other keeps correction from inserting a term nobody said.
+    /// along as a gloss, so all three guards are load-bearing: one keeps the gloss out of the
+    /// output, one keeps correction from inserting a term nobody said, and one keeps a term
+    /// from replacing an everyday word that matches it. The licence to correct names the
+    /// forms it covers and excludes an ordinary word; `vocabularyCollisionLines` backs the
+    /// everyday-word line per dictation.
     private func vocabularyBlock(entries: some Sequence<String>) -> String {
         let lines = [
             "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
                 + entries.joined(separator: ", "),
             "Preserve these terms verbatim wherever the transcript already spells them correctly.",
             "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
-                + "— a Cyrillic rendering of a Latin acronym, a split-apart or wrongly cased form — "
-                + "replace it with the spelling given here.",
+                + "— a Cyrillic rendering of a Latin acronym, a split-apart form, or a wrongly cased form "
+                + "that is not an ordinary word — "
+                + "and the sentence uses it as that term, replace it with the spelling given here.",
+            "An ordinary word in its everyday sense is never replaced with a listed term, even when it matches one.",
             "The parenthetical is context only: never write it into the output, "
                 + "and never expand an abbreviation the speaker said in short form.",
             "Never introduce a term from this list that the speaker did not say.",
         ]
         return "<vocabulary>\n\(lines.joined(separator: "\n"))\n</vocabulary>"
+    }
+
+    /// One line per vocabulary term that the transcript holds only in another letter case
+    /// (word-boundary match, `TermSearch`), in the order the matches first appear.
+    /// A term the transcript also holds as listed is no collision. A listed term can
+    /// replace an everyday word that matches it ("ads" → ADS); naming the exact words of
+    /// this dictation narrows the vocabulary rule to them. The line names the transcript's
+    /// text in folded (lower-case) form.
+    private func vocabularyCollisionLines(raw: String, terms: [String]) -> [String] {
+        let foldedRaw = TermSearch.fold(raw)
+        let normalizedRaw = TermSearch.normalize(raw)
+        let collisions = terms.enumerated().compactMap { offset, term -> (at: String.Index, offset: Int, line: String)? in
+            let key = TermSearch.fold(term)
+            let name = TermSearch.normalize(term)
+            guard let match = TermSearch.firstMatch(of: key, in: foldedRaw),
+                  !TermSearch.contains(name, in: normalizedRaw)
+            else {
+                return nil
+            }
+            let line = "The transcript's word \"\(key)\" shares its letters with the listed term \(name); "
+                + "keep it as transcribed unless the sentence uses it as the name \(name)."
+            return (match.lowerBound, offset, line)
+        }
+        var lines: [String] = []
+        for collision in collisions.sorted(by: { ($0.at, $0.offset) < ($1.at, $1.offset) })
+        where !lines.contains(collision.line) {
+            lines.append(collision.line)
+        }
+        return lines
     }
 
     /// The advisory hint block, or nil when there is nothing to advise. The keyboard
@@ -109,8 +146,10 @@ public struct PromptBuilder: Sendable {
     /// code-switching. Spell and grammar signals stay soft: they must never force a
     /// correct proper noun, technical term, or intentional code-switched word to
     /// change, nor reword a sentence the speaker meant as dictated.
-    private func advisoryBlock(for hints: CleanupHints) -> String? {
-        guard hints.inputLocale != nil || !hints.spellFindings.isEmpty || !hints.grammarFindings.isEmpty else {
+    private func advisoryBlock(for hints: CleanupHints, collisionLines: [String]) -> String? {
+        guard hints.inputLocale != nil || !hints.spellFindings.isEmpty || !hints.grammarFindings.isEmpty
+            || !collisionLines.isEmpty
+        else {
             return nil
         }
         var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
@@ -157,7 +196,7 @@ public struct PromptBuilder: Sendable {
                     + "never let it reword a sentence the speaker clearly meant."
             )
         }
-        return lines.joined(separator: "\n")
+        return (lines + collisionLines).joined(separator: "\n")
     }
 
     /// Which prompt is being assembled. The mode owns every wording difference
@@ -296,8 +335,8 @@ public struct PromptBuilder: Sendable {
     }
 
     private func outputContractLine(mode: PromptMode) -> String {
-        "Return only the \(mode.outputAdjective) transcript text, with no preamble, labels, quotes, markdown, "
-            + "explanations, alternatives, or questions; do not ask for more context."
+        "Return only the \(mode.outputAdjective) transcript text, with no preamble, labels, tags, quotes, markdown, "
+            + "explanations, alternatives, or questions of your own; do not ask for more context."
     }
 
     private var fidelityLine: String {
@@ -419,12 +458,15 @@ public struct PromptBuilder: Sendable {
 }
 
 private extension Term {
+    var trimmedTerm: String {
+        term.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// The recorded expansion travels with the term so the model can recognize the
     /// full form behind an abbreviation it would otherwise not connect to a
     /// mis-recognized rendering. Empty when the row carries no usable term, so the
     /// caller can drop it instead of listing a blank entry.
     var vocabularyEntry: String {
-        let trimmedTerm = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTerm.isEmpty else {
             return ""
         }

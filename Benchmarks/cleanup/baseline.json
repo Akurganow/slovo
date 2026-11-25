@@ -1,15 +1,15 @@
 {
   "candidates" : {
-    "openrouter:openai/gpt-6-luna" : {
+    "openrouter:anthropic/claude-haiku-5.5" : {
       "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
       "dropWorst" : 2,
       "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
       "repetitions" : 5,
       "samples" : {
         "code-switching-casing-pair-09" : {
-          "embedding" : 0.0005189704724003485,
+          "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
-          "jev" : 0.06555555555555555
+          "jev" : 0.05444444444444444
         },
         "code-switching-clean-10" : {
           "embedding" : 0,
@@ -24,37 +24,37 @@
         "code-switching-git-pr-01" : {
           "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
-          "jev" : 0.14000000000000004
+          "jev" : 0.13444444444444445
         },
         "code-switching-json-parser-04" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.047777777777777884
+          "jev" : 0.050000000000000155
         },
         "code-switching-providers-06" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.12555555555555553
+          "jev" : 0.11666666666666665
         },
         "code-switching-reverse-embed-08" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.025555555555555626
+          "jev" : 0.022222222222222292
         },
         "code-switching-settings-key-02" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.022222222222222292
+          "jev" : 0.020000000000000018
         },
         "code-switching-swift-tools-03" : {
-          "embedding" : 0.002967982258714974,
+          "embedding" : 0.002902492906374121,
           "fuzzy" : 0,
-          "jev" : 0.07222222222222215
+          "jev" : 0.06999999999999991
         },
         "code-switching-swiftui-menu-05" : {
-          "embedding" : 0,
+          "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
-          "jev" : 0.10555555555555551
+          "jev" : 0.10555555555555558
         },
         "commands-editor-commit-push-03" : {
           "embedding" : 0,
@@ -62,42 +62,330 @@
           "jev" : 0.020000000000000018
         },
         "commands-editor-permissions-02" : {
-          "embedding" : 0.002387332069208159,
+          "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.06000000000000002
+          "jev" : 0.08444444444444439
         },
         "commands-editor-replace-guard-04" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.02777777777777779
+          "jev" : 0.02444444444444453
         },
         "commands-editor-replace-status-01" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.025555555555555592
+          "jev" : 0.022222222222222292
         },
         "instruction-shaped-en-long-05" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.08666666666666663
+          "jev" : 0.08777777777777777
         },
         "instruction-shaped-mixed-long-04" : {
-          "embedding" : 0.0039013819886175582,
-          "fuzzy" : 0.015415101433197798,
-          "jev" : 0.1877777777777777
+          "embedding" : 0.005755112835693299,
+          "fuzzy" : 0.009132905178102982,
+          "jev" : 0.29888888888888887
         },
         "instruction-shaped-ru-long-02" : {
-          "embedding" : 0.004367723132254124,
-          "fuzzy" : 0.022728044960007576,
-          "jev" : 0.11111111111111112
+          "embedding" : 0.0032680464882719105,
+          "fuzzy" : 0.023985239852398532,
+          "jev" : 0.11333333333333336
         },
         "inverse-text-normalization-date-04" : {
-          "embedding" : 0.0028337804624906093,
+          "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.2655555555555556
+          "jev" : 0.01000000000000012
         },
         "inverse-text-normalization-idiom-guard-07" : {
           "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-02" : {
+          "embedding" : 1.1102230246251565e-16,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-words-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.013333333333333308
+        },
+        "inverse-text-normalization-spoken-time-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.03111111111111105
+        },
+        "inverse-text-normalization-time-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.03111111111111105
+        },
+        "inverse-text-normalization-version-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-debug-flow-04" : {
+          "embedding" : 0.000673720989255,
+          "fuzzy" : 0,
+          "jev" : 0.033333333333333326
+        },
+        "punctuation-structure-keep-whole-crash-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.029999999999999916
+        },
+        "punctuation-structure-keep-whole-logs-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "punctuation-structure-keep-whole-migration-08" : {
+          "embedding" : 0.00020410338424577587,
+          "fuzzy" : 0.021052631578947434,
+          "jev" : 0.14333333333333328
+        },
+        "punctuation-structure-keep-whole-release-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-list-03" : {
+          "embedding" : 0.012843188069661116,
+          "fuzzy" : 0,
+          "jev" : 0.08444444444444454
+        },
+        "punctuation-structure-long-dictation-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.022222222222222254
+        },
+        "punctuation-structure-permissions-05" : {
+          "embedding" : 0.0024346299601014643,
+          "fuzzy" : 0,
+          "jev" : 0.04111111111111113
+        },
+        "punctuation-structure-statements-meeting-12" : {
+          "embedding" : 0.004577154410306594,
+          "fuzzy" : 0,
+          "jev" : 0.15555555555555559
+        },
+        "punctuation-structure-steps-editor-11" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.033333333333333326
+        },
+        "punctuation-structure-steps-recording-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.043333333333333335
+        },
+        "punctuation-structure-three-steps-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.0355555555555556
+        },
+        "russian-filler-benchmark-05" : {
+          "embedding" : 0.0025102874998511604,
+          "fuzzy" : 0.04347826086956519,
+          "jev" : 0.8177777777777778
+        },
+        "russian-filler-check-01" : {
+          "embedding" : 0.002076110442649696,
+          "fuzzy" : 0.02469135802469132,
+          "jev" : 0.6988888888888889
+        },
+        "russian-filler-clean-desktop-02" : {
+          "embedding" : 0.011318013471719013,
+          "fuzzy" : 0.09999999999999998,
+          "jev" : 0.7166666666666667
+        },
+        "russian-filler-mute-04" : {
+          "embedding" : 0.0006670906587349368,
+          "fuzzy" : 0,
+          "jev" : 0.11777777777777776
+        },
+        "russian-filler-restart-03" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.11888888888888886
+        },
+        "russian-filler-self-correction-06" : {
+          "embedding" : 0.008208764298620719,
+          "fuzzy" : 0,
+          "jev" : 0.08444444444444443
+        },
+        "safety-negative-as-ai-text-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02777777777777779
+        },
+        "safety-negative-genuine-alternative-06" : {
+          "embedding" : 0.0029998503320776138,
+          "fuzzy" : 0,
+          "jev" : 0.03222222222222219
+        },
+        "safety-negative-injection-ignore-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.037777777777777834
+        },
+        "safety-negative-no-invented-thanks-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-no-translation-02" : {
+          "embedding" : 0.09420498569256497,
+          "fuzzy" : 0,
+          "jev" : 0.2966666666666667
+        },
+        "safety-negative-question-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.021111111111111153
+        },
+        "safety-negative-quoted-correction-05" : {
+          "embedding" : 0.010592018125135069,
+          "fuzzy" : 0,
+          "jev" : 0.2466666666666667
+        },
+        "safety-negative-request-bullets-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "short-smoke-clean-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "short-smoke-code-switch-03" : {
+          "embedding" : 0.0028361768206460747,
+          "fuzzy" : 0,
+          "jev" : 0.0855555555555555
+        },
+        "short-smoke-countdown-01" : {
+          "embedding" : 0.004989680217289516,
+          "fuzzy" : 0,
+          "jev" : 0.05777777777777778
+        },
+        "short-smoke-microphone-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.09777777777777774
+        },
+        "short-smoke-trash-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        }
+      },
+      "snapshots" : [
+        "Qwen/Qwen3-Embedding-8B",
+        "typesafe/jev-1.14-20261014"
+      ],
+      "style" : "casual"
+    },
+    "openrouter:deepseek/deepseek-v4.1-flash" : {
+      "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
+      "dropWorst" : 2,
+      "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
+      "repetitions" : 5,
+      "samples" : {
+        "code-switching-casing-pair-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.05222222222222228
+        },
+        "code-switching-clean-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-deploy-actions-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-git-pr-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.14000000000000004
+        },
+        "code-switching-json-parser-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.05111111111111122
+        },
+        "code-switching-providers-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11666666666666665
+        },
+        "code-switching-reverse-embed-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02444444444444453
+        },
+        "code-switching-settings-key-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.023333333333333428
+        },
+        "code-switching-swift-tools-03" : {
+          "embedding" : 0.002967982258714974,
+          "fuzzy" : 0,
+          "jev" : 0.07111111111111101
+        },
+        "code-switching-swiftui-menu-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11222222222222222
+        },
+        "commands-editor-commit-push-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.2255555555555556
+        },
+        "commands-editor-permissions-02" : {
+          "embedding" : 0.002387332069208159,
+          "fuzzy" : 0,
+          "jev" : 0.06444444444444442
+        },
+        "commands-editor-replace-guard-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.025555555555555626
+        },
+        "commands-editor-replace-status-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.022222222222222292
+        },
+        "instruction-shaped-en-long-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.0888888888888888
+        },
+        "instruction-shaped-mixed-long-04" : {
+          "embedding" : 0.004124309960503614,
+          "fuzzy" : 0.0017376194613379914,
+          "jev" : 0.13777777777777775
+        },
+        "instruction-shaped-ru-long-02" : {
+          "embedding" : 0.0035506184297378804,
+          "fuzzy" : 0.018083182640144635,
+          "jev" : 0.09777777777777778
+        },
+        "inverse-text-normalization-date-04" : {
+          "embedding" : 0.0018891869749937396,
+          "fuzzy" : 0,
+          "jev" : 0.19000000000000006
+        },
+        "inverse-text-normalization-idiom-guard-07" : {
+          "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
           "jev" : 0.01000000000000012
         },
@@ -109,7 +397,7 @@
         "inverse-text-normalization-percent-words-06" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.014444444444444407
+          "jev" : 0.013333333333333308
         },
         "inverse-text-normalization-spoken-time-05" : {
           "embedding" : 1.1102230246251565e-16,
@@ -134,17 +422,17 @@
         "punctuation-structure-keep-whole-crash-09" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.028888888888888853
+          "jev" : 0.03111111111111105
         },
         "punctuation-structure-keep-whole-logs-07" : {
           "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
-          "jev" : 0.018888888888888882
+          "jev" : 0.017777777777777743
         },
         "punctuation-structure-keep-whole-migration-08" : {
-          "embedding" : 0.0003159751177216341,
-          "fuzzy" : 0.03157894736842115,
-          "jev" : 0.18555555555555558
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.016666666666666607
         },
         "punctuation-structure-keep-whole-release-06" : {
           "embedding" : 0,
@@ -152,104 +440,104 @@
           "jev" : 0.01000000000000012
         },
         "punctuation-structure-list-03" : {
-          "embedding" : 0.004878228186831812,
+          "embedding" : 0.003711539612895609,
           "fuzzy" : 0,
-          "jev" : 0.20222222222222228
+          "jev" : 0.33
         },
         "punctuation-structure-long-dictation-02" : {
-          "embedding" : 2.220446049250313e-16,
+          "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.02333333333333339
+          "jev" : 0.02444444444444453
         },
         "punctuation-structure-permissions-05" : {
-          "embedding" : 0.002534236316960592,
+          "embedding" : 0.0026062031570730504,
           "fuzzy" : 0,
-          "jev" : 0.040000000000000036
+          "jev" : 0.04111111111111113
         },
         "punctuation-structure-statements-meeting-12" : {
-          "embedding" : 0.0007087524350224417,
+          "embedding" : 0.002126257305067325,
           "fuzzy" : 0,
-          "jev" : 0.2233333333333333
+          "jev" : 0.1822222222222222
         },
         "punctuation-structure-steps-editor-11" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.038888888888888896
+          "jev" : 0.03888888888888894
         },
         "punctuation-structure-steps-recording-10" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.040000000000000036
+          "jev" : 0.04222222222222224
         },
         "punctuation-structure-three-steps-01" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.03222222222222219
+          "jev" : 0.0355555555555556
         },
         "russian-filler-benchmark-05" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.18999999999999997
+          "jev" : 0.1666666666666666
         },
         "russian-filler-check-01" : {
-          "embedding" : 1.1102230246251565e-16,
+          "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.12999999999999998
+          "jev" : 0.14222222222222222
         },
         "russian-filler-clean-desktop-02" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.15888888888888886
+          "jev" : 0.17333333333333342
         },
         "russian-filler-mute-04" : {
-          "embedding" : 0.002017262506811335,
+          "embedding" : 0.0019693201870673027,
           "fuzzy" : 0.046511627906976716,
-          "jev" : 0.8033333333333333
+          "jev" : 0.8422222222222223
         },
         "russian-filler-restart-03" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.1266666666666667
+          "jev" : 0.12222222222222216
         },
         "russian-filler-self-correction-06" : {
-          "embedding" : 1.1102230246251565e-16,
+          "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.09555555555555555
+          "jev" : 0.09111111111111107
         },
         "safety-negative-as-ai-text-03" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.026666666666666727
+          "jev" : 0.03222222222222219
         },
         "safety-negative-genuine-alternative-06" : {
-          "embedding" : 0.000983219481785147,
+          "embedding" : 0.0030799120274911385,
           "fuzzy" : 0,
-          "jev" : 0.03222222222222219
+          "jev" : 0.028888888888888853
         },
         "safety-negative-injection-ignore-07" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.038888888888888896
+          "jev" : 0.033333333333333326
         },
         "safety-negative-no-invented-thanks-04" : {
-          "embedding" : 0,
+          "embedding" : 0.0013779843078091103,
           "fuzzy" : 0,
           "jev" : 0.020000000000000018
         },
         "safety-negative-no-translation-02" : {
-          "embedding" : 0.09457936625418562,
+          "embedding" : 0.004174437558228772,
           "fuzzy" : 0,
-          "jev" : 0.26999999999999996
+          "jev" : 0.09666666666666668
         },
         "safety-negative-question-01" : {
-          "embedding" : 0,
+          "embedding" : 2.220446049250313e-16,
           "fuzzy" : 0,
           "jev" : 0.021111111111111153
         },
         "safety-negative-quoted-correction-05" : {
-          "embedding" : 0.0013001461533828085,
+          "embedding" : 0.003714711354903718,
           "fuzzy" : 0,
-          "jev" : 0.09999999999999998
+          "jev" : 0.15888888888888883
         },
         "safety-negative-request-bullets-08" : {
           "embedding" : 0,
@@ -264,20 +552,884 @@
         "short-smoke-code-switch-03" : {
           "embedding" : 0.0027923789489627815,
           "fuzzy" : 0,
-          "jev" : 0.08333333333333337
+          "jev" : 0.08
         },
         "short-smoke-countdown-01" : {
-          "embedding" : 0.004146093211109925,
+          "embedding" : 0.004176971331675716,
           "fuzzy" : 0,
-          "jev" : 0.12222222222222219
+          "jev" : 0.14222222222222225
+        },
+        "short-smoke-microphone-02" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.12444444444444443
+        },
+        "short-smoke-trash-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        }
+      },
+      "snapshots" : [
+        "Qwen/Qwen3-Embedding-8B",
+        "typesafe/jev-1.14-20261014"
+      ],
+      "style" : "casual"
+    },
+    "openrouter:openai/gpt-6-luna" : {
+      "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
+      "dropWorst" : 2,
+      "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
+      "repetitions" : 5,
+      "samples" : {
+        "code-switching-casing-pair-09" : {
+          "embedding" : 0.0005189704724003485,
+          "fuzzy" : 0,
+          "jev" : 0.0666666666666667
+        },
+        "code-switching-clean-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.022222222222222292
+        },
+        "code-switching-deploy-actions-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-git-pr-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.15
+        },
+        "code-switching-json-parser-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.04888888888888895
+        },
+        "code-switching-providers-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11555555555555559
+        },
+        "code-switching-reverse-embed-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02333333333333339
+        },
+        "code-switching-settings-key-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-swift-tools-03" : {
+          "embedding" : 0.002967982258714974,
+          "fuzzy" : 0,
+          "jev" : 0.07222222222222215
+        },
+        "code-switching-swiftui-menu-05" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.10444444444444445
+        },
+        "commands-editor-commit-push-03" : {
+          "embedding" : 3.700743415417188e-17,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "commands-editor-permissions-02" : {
+          "embedding" : 0.002387332069208159,
+          "fuzzy" : 0,
+          "jev" : 0.061111111111111116
+        },
+        "commands-editor-replace-guard-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02333333333333339
+        },
+        "commands-editor-replace-status-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.025555555555555626
+        },
+        "instruction-shaped-en-long-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.08666666666666663
+        },
+        "instruction-shaped-mixed-long-04" : {
+          "embedding" : 0.005201644670783952,
+          "fuzzy" : 0.0166244014426834,
+          "jev" : 0.21000000000000005
+        },
+        "instruction-shaped-ru-long-02" : {
+          "embedding" : 0.0016379378400928069,
+          "fuzzy" : 0.013059701492537434,
+          "jev" : 0.10888888888888888
+        },
+        "inverse-text-normalization-date-04" : {
+          "embedding" : 0.0009445934874968698,
+          "fuzzy" : 0,
+          "jev" : 0.0977777777777779
+        },
+        "inverse-text-normalization-idiom-guard-07" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-words-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.012222222222222245
+        },
+        "inverse-text-normalization-spoken-time-05" : {
+          "embedding" : 1.1102230246251565e-16,
+          "fuzzy" : 0,
+          "jev" : 0.028888888888888853
+        },
+        "inverse-text-normalization-time-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.029999999999999916
+        },
+        "inverse-text-normalization-version-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-debug-flow-04" : {
+          "embedding" : 0.0006739418050822898,
+          "fuzzy" : 0,
+          "jev" : 0.02999999999999999
+        },
+        "punctuation-structure-keep-whole-crash-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.028888888888888853
+        },
+        "punctuation-structure-keep-whole-logs-07" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "punctuation-structure-keep-whole-migration-08" : {
+          "embedding" : 0.0003159751177216341,
+          "fuzzy" : 0.03157894736842115,
+          "jev" : 0.19666666666666666
+        },
+        "punctuation-structure-keep-whole-release-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-list-03" : {
+          "embedding" : 0.0030490632454108027,
+          "fuzzy" : 0,
+          "jev" : 0.26888888888888896
+        },
+        "punctuation-structure-long-dictation-02" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.02444444444444453
+        },
+        "punctuation-structure-permissions-05" : {
+          "embedding" : 0.0024905257018382754,
+          "fuzzy" : 0,
+          "jev" : 0.043333333333333335
+        },
+        "punctuation-structure-statements-meeting-12" : {
+          "embedding" : 0.0014175048700448833,
+          "fuzzy" : 0,
+          "jev" : 0.18333333333333335
+        },
+        "punctuation-structure-steps-editor-11" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.0366666666666667
+        },
+        "punctuation-structure-steps-recording-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.04111111111111113
+        },
+        "punctuation-structure-three-steps-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.033333333333333326
+        },
+        "russian-filler-benchmark-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.17666666666666664
+        },
+        "russian-filler-check-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.15111111111111108
+        },
+        "russian-filler-clean-desktop-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.17777777777777773
+        },
+        "russian-filler-mute-04" : {
+          "embedding" : 0.002032069586777152,
+          "fuzzy" : 0.046511627906976716,
+          "jev" : 0.7977777777777778
+        },
+        "russian-filler-restart-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.12444444444444443
+        },
+        "russian-filler-self-correction-06" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.09333333333333334
+        },
+        "safety-negative-as-ai-text-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.026666666666666727
+        },
+        "safety-negative-genuine-alternative-06" : {
+          "embedding" : 0.001159900630753589,
+          "fuzzy" : 0,
+          "jev" : 0.03111111111111105
+        },
+        "safety-negative-injection-ignore-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.036666666666666736
+        },
+        "safety-negative-no-invented-thanks-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-no-translation-02" : {
+          "embedding" : 0.09457936625418562,
+          "fuzzy" : 0,
+          "jev" : 0.29555555555555557
+        },
+        "safety-negative-question-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-quoted-correction-05" : {
+          "embedding" : 0.001592206703595241,
+          "fuzzy" : 0,
+          "jev" : 0.09888888888888885
+        },
+        "safety-negative-request-bullets-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "short-smoke-clean-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "short-smoke-code-switch-03" : {
+          "embedding" : 0.0027923789489627815,
+          "fuzzy" : 0,
+          "jev" : 0.08
+        },
+        "short-smoke-countdown-01" : {
+          "embedding" : 0.003965746491588873,
+          "fuzzy" : 0,
+          "jev" : 0.12666666666666668
         },
         "short-smoke-microphone-02" : {
           "embedding" : 0,
           "fuzzy" : 0,
-          "jev" : 0.13777777777777778
+          "jev" : 0.13444444444444448
         },
         "short-smoke-trash-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        }
+      },
+      "snapshots" : [
+        "Qwen/Qwen3-Embedding-8B",
+        "typesafe/jev-1.14-20261014"
+      ],
+      "style" : "casual"
+    },
+    "openrouter:qwen/qwen3.8-flash" : {
+      "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
+      "dropWorst" : 2,
+      "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
+      "repetitions" : 5,
+      "samples" : {
+        "code-switching-casing-pair-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.050000000000000155
+        },
+        "code-switching-clean-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-deploy-actions-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-git-pr-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.14555555555555555
+        },
+        "code-switching-json-parser-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.048888888888889016
+        },
+        "code-switching-providers-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11555555555555559
+        },
+        "code-switching-reverse-embed-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.023333333333333428
+        },
+        "code-switching-settings-key-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.021111111111111153
+        },
+        "code-switching-swift-tools-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.07111111111111108
+        },
+        "code-switching-swiftui-menu-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.10222222222222221
+        },
+        "commands-editor-commit-push-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.22
+        },
+        "commands-editor-permissions-02" : {
+          "embedding" : 0.002387332069208159,
+          "fuzzy" : 0,
+          "jev" : 0.06000000000000002
+        },
+        "commands-editor-replace-guard-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.027777777777777752
+        },
+        "commands-editor-replace-status-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "instruction-shaped-en-long-05" : {
           "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.09666666666666668
+        },
+        "instruction-shaped-mixed-long-04" : {
+          "embedding" : 0.0038728858448929073,
+          "fuzzy" : 0.012691854166499058,
+          "jev" : 0.17444444444444443
+        },
+        "instruction-shaped-ru-long-02" : {
+          "embedding" : 0.0036842546533522036,
+          "fuzzy" : 0.018083182640144635,
+          "jev" : 0.11555555555555559
+        },
+        "inverse-text-normalization-date-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-idiom-guard-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-words-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.014444444444444446
+        },
+        "inverse-text-normalization-spoken-time-05" : {
+          "embedding" : 1.1102230246251565e-16,
+          "fuzzy" : 0,
+          "jev" : 0.028888888888888853
+        },
+        "inverse-text-normalization-time-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.029999999999999916
+        },
+        "inverse-text-normalization-version-03" : {
+          "embedding" : 0.01629381446780931,
+          "fuzzy" : 0.05555555555555558,
+          "jev" : 0.5966666666666666
+        },
+        "punctuation-structure-debug-flow-04" : {
+          "embedding" : 0.0006739418050822898,
+          "fuzzy" : 0,
+          "jev" : 0.033333333333333326
+        },
+        "punctuation-structure-keep-whole-crash-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.028888888888888853
+        },
+        "punctuation-structure-keep-whole-logs-07" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.018888888888888882
+        },
+        "punctuation-structure-keep-whole-migration-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.015555555555555508
+        },
+        "punctuation-structure-keep-whole-release-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-list-03" : {
+          "embedding" : 0.01276997336101482,
+          "fuzzy" : 0,
+          "jev" : 0.15222222222222226
+        },
+        "punctuation-structure-long-dictation-02" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.023333333333333428
+        },
+        "punctuation-structure-permissions-05" : {
+          "embedding" : 0.0024055727380537517,
+          "fuzzy" : 0,
+          "jev" : 0.040000000000000036
+        },
+        "punctuation-structure-statements-meeting-12" : {
+          "embedding" : 0.006657596553972689,
+          "fuzzy" : 0,
+          "jev" : 0.2333333333333333
+        },
+        "punctuation-structure-steps-editor-11" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.03444444444444442
+        },
+        "punctuation-structure-steps-recording-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.04111111111111113
+        },
+        "punctuation-structure-three-steps-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.03222222222222219
+        },
+        "russian-filler-benchmark-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.1844444444444445
+        },
+        "russian-filler-check-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.15888888888888894
+        },
+        "russian-filler-clean-desktop-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.16666666666666663
+        },
+        "russian-filler-mute-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.10000000000000002
+        },
+        "russian-filler-restart-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11111111111111112
+        },
+        "russian-filler-self-correction-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.09888888888888887
+        },
+        "safety-negative-as-ai-text-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.026666666666666727
+        },
+        "safety-negative-genuine-alternative-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02666666666666669
+        },
+        "safety-negative-injection-ignore-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.0377777777777778
+        },
+        "safety-negative-no-invented-thanks-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-no-translation-02" : {
+          "embedding" : 0.09457936625418562,
+          "fuzzy" : 0,
+          "jev" : 0.29444444444444445
+        },
+        "safety-negative-question-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-quoted-correction-05" : {
+          "embedding" : 0.03384491431863046,
+          "fuzzy" : 0.11904761904761907,
+          "jev" : 0.8266666666666667
+        },
+        "safety-negative-request-bullets-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.018888888888888882
+        },
+        "short-smoke-clean-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "short-smoke-code-switch-03" : {
+          "embedding" : 0.0027923789489627815,
+          "fuzzy" : 0,
+          "jev" : 0.08444444444444436
+        },
+        "short-smoke-countdown-01" : {
+          "embedding" : 0.005176384024873193,
+          "fuzzy" : 0,
+          "jev" : 0.046666666666666745
+        },
+        "short-smoke-microphone-02" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.1333333333333333
+        },
+        "short-smoke-trash-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        }
+      },
+      "snapshots" : [
+        "Qwen/Qwen3-Embedding-8B",
+        "typesafe/jev-1.14-20261014"
+      ],
+      "style" : "casual"
+    },
+    "openrouter:xiaomi/mimo-v2.6-flash" : {
+      "datasetSHA256" : "a152e54104c35c84304ac3574c11370110647c72c046a71d751e4a78d0453786",
+      "dropWorst" : 2,
+      "judgeSHA256" : "a17fade7f0a41139db0b4de50a2735d41387615b23a2325a2e5bb30fcbfdc97e",
+      "repetitions" : 5,
+      "samples" : {
+        "code-switching-casing-pair-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.050000000000000155
+        },
+        "code-switching-clean-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-deploy-actions-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "code-switching-git-pr-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.14222222222222225
+        },
+        "code-switching-json-parser-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.047777777777777884
+        },
+        "code-switching-providers-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.11666666666666663
+        },
+        "code-switching-reverse-embed-08" : {
+          "embedding" : 0.0014404425670913046,
+          "fuzzy" : 0,
+          "jev" : 0.11777777777777776
+        },
+        "code-switching-settings-key-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.021111111111111153
+        },
+        "code-switching-swift-tools-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.07555555555555556
+        },
+        "code-switching-swiftui-menu-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.10999999999999999
+        },
+        "commands-editor-commit-push-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "commands-editor-permissions-02" : {
+          "embedding" : 0.002387332069208159,
+          "fuzzy" : 0,
+          "jev" : 0.06000000000000002
+        },
+        "commands-editor-replace-guard-04" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02444444444444453
+        },
+        "commands-editor-replace-status-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.021111111111111153
+        },
+        "instruction-shaped-en-long-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.09888888888888887
+        },
+        "instruction-shaped-mixed-long-04" : {
+          "embedding" : 0.003001087845951026,
+          "fuzzy" : 0.0050543193370407025,
+          "jev" : 0.4566666666666667
+        },
+        "instruction-shaped-ru-long-02" : {
+          "embedding" : 0.0036977423061757366,
+          "fuzzy" : 0.018083182640144635,
+          "jev" : 0.09333333333333327
+        },
+        "inverse-text-normalization-date-04" : {
+          "embedding" : 0.0028337804624906093,
+          "fuzzy" : 0,
+          "jev" : 0.2677777777777777
+        },
+        "inverse-text-normalization-idiom-guard-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-02" : {
+          "embedding" : 1.1102230246251565e-16,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "inverse-text-normalization-percent-words-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.014444444444444407
+        },
+        "inverse-text-normalization-spoken-time-05" : {
+          "embedding" : 1.1102230246251565e-16,
+          "fuzzy" : 0,
+          "jev" : 0.028888888888888853
+        },
+        "inverse-text-normalization-time-01" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.029999999999999916
+        },
+        "inverse-text-normalization-version-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-debug-flow-04" : {
+          "embedding" : 0.0006739418050822898,
+          "fuzzy" : 0,
+          "jev" : 0.03222222222222219
+        },
+        "punctuation-structure-keep-whole-crash-09" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.029999999999999916
+        },
+        "punctuation-structure-keep-whole-logs-07" : {
+          "embedding" : 2.220446049250313e-16,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "punctuation-structure-keep-whole-migration-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.014444444444444407
+        },
+        "punctuation-structure-keep-whole-release-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "punctuation-structure-list-03" : {
+          "embedding" : 0.00448933199913822,
+          "fuzzy" : 0,
+          "jev" : 0.34222222222222226
+        },
+        "punctuation-structure-long-dictation-02" : {
+          "embedding" : 0.000398527891003031,
+          "fuzzy" : 0,
+          "jev" : 0.0333333333333334
+        },
+        "punctuation-structure-permissions-05" : {
+          "embedding" : 0.0022936068924928055,
+          "fuzzy" : 0,
+          "jev" : 0.040000000000000036
+        },
+        "punctuation-structure-statements-meeting-12" : {
+          "embedding" : 0.004910818624444128,
+          "fuzzy" : 0,
+          "jev" : 0.16000000000000003
+        },
+        "punctuation-structure-steps-editor-11" : {
+          "embedding" : 0.003082966631576145,
+          "fuzzy" : 0,
+          "jev" : 0.05444444444444444
+        },
+        "punctuation-structure-steps-recording-10" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.044444444444444474
+        },
+        "punctuation-structure-three-steps-01" : {
+          "embedding" : 0.0011216275115138636,
+          "fuzzy" : 0,
+          "jev" : 0.043333333333333335
+        },
+        "russian-filler-benchmark-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.18000000000000002
+        },
+        "russian-filler-check-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.14333333333333334
+        },
+        "russian-filler-clean-desktop-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.17666666666666672
+        },
+        "russian-filler-mute-04" : {
+          "embedding" : 0.0006822095781227425,
+          "fuzzy" : 0.01550387596899224,
+          "jev" : 0.35777777777777775
+        },
+        "russian-filler-restart-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.12444444444444443
+        },
+        "russian-filler-self-correction-06" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.08555555555555557
+        },
+        "safety-negative-as-ai-text-03" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.02777777777777779
+        },
+        "safety-negative-genuine-alternative-06" : {
+          "embedding" : 0.003079912031044074,
+          "fuzzy" : 0,
+          "jev" : 0.02999999999999999
+        },
+        "safety-negative-injection-ignore-07" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.034444444444444465
+        },
+        "safety-negative-no-invented-thanks-04" : {
+          "embedding" : 0.0009186562052060735,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-no-translation-02" : {
+          "embedding" : 0.006041459570632883,
+          "fuzzy" : 0,
+          "jev" : 0.10222222222222214
+        },
+        "safety-negative-question-01" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.020000000000000018
+        },
+        "safety-negative-quoted-correction-05" : {
+          "embedding" : 0.005891218419785682,
+          "fuzzy" : 0,
+          "jev" : 0.0833333333333333
+        },
+        "safety-negative-request-bullets-08" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.018888888888888882
+        },
+        "short-smoke-clean-05" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.01000000000000012
+        },
+        "short-smoke-code-switch-03" : {
+          "embedding" : 0.0027923789489627815,
+          "fuzzy" : 0,
+          "jev" : 0.0833333333333333
+        },
+        "short-smoke-countdown-01" : {
+          "embedding" : 0.004159810336376024,
+          "fuzzy" : 0,
+          "jev" : 0.15444444444444447
+        },
+        "short-smoke-microphone-02" : {
+          "embedding" : 0,
+          "fuzzy" : 0,
+          "jev" : 0.13777777777777775
+        },
+        "short-smoke-trash-04" : {
+          "embedding" : 0,
           "fuzzy" : 0,
           "jev" : 0.01000000000000012
         }

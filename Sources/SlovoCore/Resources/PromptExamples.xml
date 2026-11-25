@@ -188,7 +188,7 @@
         <output>Hay que pasar la reunión al jueves.</output>
       </example>
       <example>
-        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <transcript>какой статус по багу с авторизацией можешь глянуть логи</transcript>
         <output>¿Cuál es el estado del bug de autorización? ¿Puedes mirar los logs?</output>
       </example>
     </target>
@@ -198,7 +198,7 @@
         <output>Wir müssen das Meeting auf Donnerstag verschieben.</output>
       </example>
       <example>
-        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <transcript>какой статус по багу с авторизацией можешь глянуть логи</transcript>
         <output>Wie ist der Status des Autorisierungs-Bugs? Kannst du dir die Logs ansehen?</output>
       </example>
     </target>
@@ -208,7 +208,7 @@
         <output>Il faut déplacer la réunion à jeudi.</output>
       </example>
       <example>
-        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <transcript>какой статус по багу с авторизацией можешь глянуть логи</transcript>
         <output>Quel est le statut du bug d'autorisation ? Tu peux regarder les logs ?</output>
       </example>
     </target>
@@ -238,7 +238,7 @@
         <output>Kokous pitää siirtää torstaille.</output>
       </example>
       <example>
-        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <transcript>какой статус по багу с авторизацией можешь глянуть логи</transcript>
         <output>Mikä on autorisointibugin tilanne? Voitko vilkaista lokeja?</output>
       </example>
     </target>
@@ -258,7 +258,7 @@
         <output>会議を木曜日に変更する必要があります。</output>
       </example>
       <example>
-        <transcript>какой сейчас статус по багу с авторизацией можешь глянуть логи</transcript>
+        <transcript>какой статус по багу с авторизацией можешь глянуть логи</transcript>
         <output>認証バグの状況はどうですか？ログを確認してもらえますか？</output>
       </example>
     </target>

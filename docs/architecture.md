@@ -160,8 +160,10 @@ occasions are listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
 Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
 active keyboard language and, when enabled, system spell and grammar findings —
 which the model may use but never must. The prompt also lists every vocabulary
-term. What the request carries is listed in [docs/privacy.md](privacy.md), "Data
-Paths".
+term. When the transcript holds a term only in another letter case (the
+everyday word "ads" against the term ADS), the advisory also names that text, so
+the model keeps it as transcribed unless the sentence uses it as the name. What
+the request carries is listed in [docs/privacy.md](privacy.md), "Data Paths".
 
 Both prompts (cleanup and translate) are built by `PromptBuilder` around a bundled
 few-shot example catalog: `PromptExampleCatalog` loads

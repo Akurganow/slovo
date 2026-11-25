@@ -168,11 +168,14 @@ jobs:
           baseline="${RUNNER_TEMP}/baseline.json"
           report="${RUNNER_TEMP}/report.csv"
           failed="${RUNNER_TEMP}/failed-rows.tsv"
-          # The tool prints aggregate CSV on stdout. No --outputs-file: it holds output
-          # text, so it stays local (Benchmarks/cleanup/README.md).
+          # The outputs file holds output text, so it stays on the runner: no step uploads
+          # or prints it. It is the tool's resume record (Benchmarks/cleanup/README.md).
+          outputs="${RUNNER_TEMP}/outputs.jsonl"
+          # The tool prints aggregate CSV on stdout and its progress lines on stderr.
           benchmark() {
             swift run --disable-automatic-resolution slovo-cleanup-benchmark \
               --providers catalog --judge --write-baseline "$baseline" \
+              --outputs-file "$outputs" \
               --failure-breakdown --category-breakdown "$@"
           }
           # One run of the tool: its CSV goes to the log and to $report, its exit code to $code.
@@ -201,9 +204,22 @@ jobs:
             ' "$1"
           }
           names() { sort -u | paste -sd ',' - | sed 's/,/, /g'; }
+          # Exit 2 is often a provider error on a few calls. A resumed run with the same
+          # outputs file redoes only provider errors and missing runs and keeps every
+          # finished one, so up to two resumes pay only for the failed calls.
+          run_resumed() {
+            run_tool "$@"
+            for _ in 1 2; do
+              if [ "$code" -ne 2 ]; then
+                return 0
+              fi
+              echo "::warning::The benchmark exited 2. Resuming from the outputs file to redo the failed calls."
+              run_tool "$@"
+            done
+          }
 
           cp Benchmarks/cleanup/baseline.json "$baseline"
-          run_tool --baseline Benchmarks/cleanup/baseline.json
+          run_resumed --baseline Benchmarks/cleanup/baseline.json
 
           case "$code" in
             0)
@@ -215,7 +231,7 @@ jobs:
             4)
               # Before any request, so nothing was paid. Record entries without a
               # baseline to compare against: the only run the tool accepts then.
-              run_tool
+              run_resumed
               if [ "$code" -ne 0 ]; then
                 echo "::error::The run that re-records a stale baseline exited ${code}."
                 exit "$code"
@@ -355,7 +371,7 @@ jobs:
             summary="At ${SUBJECT}, a model failed the bar against its own recorded entry. Each model and category below had more misses than the entry allows. This branch holds the entries of that run."
             detail="$(cat "${RUNNER_TEMP}/degraded-rows.md")
 
-          Merging this pull request accepts the degradation. Closing it declines. Merging replaces the entry of every model in this run, not only the listed ones.
+          Merging this pull request accepts the degradation. Closing it declines. Merging replaces the entry of every model in this run, not only the listed ones, and drops the entry of a model that left the cleanup list.
           "
           fi
           # The attempt number keeps a re-run from pushing to the branch its first attempt made.

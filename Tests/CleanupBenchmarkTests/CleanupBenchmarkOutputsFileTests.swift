@@ -370,7 +370,7 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(result.exitCode == 0)
         #expect(result.stderr.isEmpty)
         let row = try #require(result.stdout.split(separator: "\n").first { $0.hasPrefix("fake:good,") })
-        #expect(row.hasSuffix(",1.000,,"))
+        #expect(row.hasSuffix(",1.000,,,0.500000"))
         #expect(fixture.cleaned == 2)
     }
 
@@ -391,5 +391,35 @@ struct CleanupBenchmarkOutputsFileTests {
 
         #expect(resumed.exitCode == 0)
         #expect(fixture.cleaned == 4)
+    }
+
+    /// Stated sensitivity: a line that does not store `costUSD`, or a resume that does not read
+    /// it back, reports the resumed runs as free (an empty column) after a restart; a line from
+    /// before the key existed must still decode, with no cost and no refusal. Two runs cost 0.25
+    /// each: the second process cleans nothing and still reports 0.500000, and with the key
+    /// removed from the file it reports none.
+    @Test
+    func costOfAKeptRunSurvivesTheOutputsFile() async throws {
+        let fixture = try DriverFixture()
+        let arguments = ["--providers", "openrouter:good", "--outputs-file", "out.jsonl"]
+        let first = await fixture.run(arguments)
+        #expect(first.stdout.contains(",0.500000"))
+
+        let resumed = await fixture.run(arguments)
+
+        #expect(fixture.cleaned == 2)
+        #expect(resumed.stdout.contains(",0.500000"))
+
+        let older = String(decoding: try #require(fixture.file("out.jsonl")), as: UTF8.self)
+            .replacingOccurrences(of: #""costUSD":0.25,"#, with: "")
+        #expect(!older.contains("costUSD"))
+        fixture.files.withLock { $0["out.jsonl"] = Data(older.utf8) }
+
+        let fromOlderFile = await fixture.run(arguments)
+
+        #expect(fromOlderFile.exitCode == 0)
+        #expect(fixture.cleaned == 2)
+        let row = try #require(fromOlderFile.stdout.split(separator: "\n").first { $0.hasPrefix("fake:good,") })
+        #expect(row.hasSuffix(",1.000,,,"))
     }
 }

@@ -129,7 +129,7 @@ other output on a messy one.
 | `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate. It fails the bar against another model's entry, and `--write-baseline` gives it an entry of its own when it is in `--providers`. |
 | `--baseline PATH` | Applies the bar (needs `--judge`; `--repetitions` defaults to `bar.repetitions` in `judge.json`). Every candidate needs an entry, its own or the fallback's. |
 | `--baseline-candidate ID` | The fallback entry for a candidate with none. |
-| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
+| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and keeps the entries of the other models of the cleanup list; any other entry, such as that of a model that left the list, is dropped (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
 | `--outputs-file PATH` | Opt-in, local, and the resume record (below). |
 
 `--providers catalog --judge --baseline PATH` judges every catalog model in one
@@ -137,8 +137,9 @@ run, each against its own entry.
 
 The outputs file is append-only JSON Lines. A line is added when a run's cleanup
 finishes and again when it is judged: sample index and id (from 1), candidate,
-repetition (from 1), output (`null` after a provider error), duration, the three
-coefficients, each Jev question's repeats, the models that answered, the failure
+repetition (from 1), output (`null` after a provider error), duration, the cost of the
+cleanup call (`null` after a provider error or when the reply named none; a line written
+before the key existed has none), the three coefficients, each Jev question's repeats, the models that answered, the failure
 codes, the writing style, the SHA-256 of the ids and raws of the dataset, the
 SHA-256 of the cleanup prompt (the system message sent for the style, with no
 vocabulary and no hints), the SHA-256 of what scored the line (the judge's settings
@@ -176,6 +177,15 @@ The exit code says what a CI step should do:
   The command stops before any request.
 - 64: the arguments or files are unusable in any other way (no key, no baseline
   entry, an unreadable file). The command stops before any request.
+
+While it runs, the command writes progress lines to standard error, each starting with
+`progress: `, as the events happen: the cleanup calls start (candidates, samples,
+repetitions, calls to make, runs kept from the outputs file), each candidate's first and
+last call made by this process, each repetition in which it made a call, the end of the
+cleanup, the judge's start and end with one start and end per candidate, and the baseline
+write. A line holds names and counts only. The order of the lines follows the run, which
+goes by repetition, then sample, then candidate, so lines of different candidates
+interleave. Standard output stays the report.
 
 The command asks for nothing interactively, so a CI step can call it. After a
 release that changes a file able to change cleanup output,
@@ -242,10 +252,19 @@ Reports stay aggregate-only:
 - no provider response bodies;
 - no caller-provided sample ids.
 
-Per candidate the report prints runs, failed runs, latency percentiles and the
-mean of each coefficient. With `--baseline` it adds one row per candidate and
+Per candidate the report prints runs, failed runs, latency percentiles, the
+mean of each coefficient and `cost_usd`. With `--baseline` it adds one row per candidate and
 per category: samples, misses, allowed misses, dropped repetitions outside the
 baseline's slack, the means, and `pass` or `fail`. A
-candidate passes when every one of its rows does. Use `--failure-breakdown` and
+candidate passes when every one of its rows does. `cost_usd` sums the `usage.cost` that OpenRouter returned for the row's cleanup calls
+(OpenRouter documentation, "Usage Accounting", Cost Breakdown:
+<https://openrouter.ai/docs/guides/guides/usage-accounting.md>; no published revision;
+it calls the field "The total amount charged to your account", in credits). It covers
+every run of the row, those kept from an outputs file included, and is empty when no
+run has a cost. A run without one (a failed call, or a run kept from a file written
+before the cost was stored) adds nothing, so the sum of such a row is partial. A call
+that was billed but failed is not counted, and warmup calls never are. `passthrough` makes no request, so its cost is `0.000000`. The judge's
+`judge_cost_usd` stays apart: it covers the judge's requests made by this process only.
+Use `--failure-breakdown` and
 `--category-breakdown` to inspect failures by sample index, failure code, and
 category without exposing payload text. Only `--outputs-file` writes output text.

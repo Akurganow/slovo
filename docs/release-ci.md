@@ -321,7 +321,9 @@ runs in the `release-push` environment with the deploy key and a token with
 
 **The artifact.** `cleanup-baseline` holds `baseline.json`, the baseline with fresh
 entries, `report.csv`, the aggregate report, and `failed-rows.tsv`, the verdict rows
-that failed. It is kept for seven days and is uploaded even after a red step.
+that failed. It is kept for seven days and is uploaded even after a red step. The job
+log shows the tool's progress lines while it runs, and the report, with each candidate's
+cleanup cost, when it ends.
 
 **What a run does.** The tool's exit code decides.
 
@@ -345,7 +347,8 @@ that failed. It is kept for seven days and is uploaded even after a red step.
   `chore(benchmark): accept the degraded cleanup baseline for <release or short
   commit id>`. Its body names each failed model and category with its misses against
   the allowed misses. Merging it accepts the degradation, and closing it declines.
-  Merging replaces the entry of every model in that run, not only the listed ones.
+  Merging replaces the entry of every model in that run, not only the listed ones, and
+  drops the entry of a model that left the cleanup list.
   With several baseline pull requests open, merge only the newest and close the
   older ones.
   The release note gains a section, "Cleanup benchmark: degradation", with the same
@@ -374,6 +377,14 @@ by a person with admin or write access, and no workflow does either:
    `data/reusables/actions/actions-do-not-trigger-workflows.md`). The first such pull
    request confirms this behaviour, because it is gated by a feature flag in that
    revision.
+
+**Failed calls.** The run writes the tool's outputs file to the runner's temporary
+directory, which no step uploads or prints, since it holds output text. When the tool
+exits 2, the step runs it again with the same file, up to twice. A resumed run redoes
+only provider errors and missing runs and keeps every finished one
+([`Benchmarks/cleanup/README.md`](../Benchmarks/cleanup/README.md), the outputs file),
+so a few transient provider errors cost only their own calls. An exit 2 that survives
+both resumes is a real error.
 
 **Red and green.** A real error turns the run red, and so does a failed push, a
 refused pull-request creation or a failed release-note edit. The release note is
