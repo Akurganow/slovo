@@ -375,6 +375,14 @@ by a person with admin or write access, and no workflow does either:
    request confirms this behaviour, because it is gated by a feature flag in that
    revision.
 
+**Failed calls.** The run writes the tool's outputs file to the runner's temporary
+directory, which no step uploads or prints, since it holds output text. When the tool
+exits 2, the step runs it again with the same file, up to twice. A resumed run redoes
+only provider errors and missing runs and keeps every finished one
+([`Benchmarks/cleanup/README.md`](../Benchmarks/cleanup/README.md), the outputs file),
+so a few transient provider errors cost only their own calls. An exit 2 that survives
+both resumes is a real error.
+
 **Red and green.** A real error turns the run red, and so does a failed push, a
 refused pull-request creation or a failed release-note edit. The release note is
 still written after a refused pull-request creation, and says so. The exit codes in
