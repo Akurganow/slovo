@@ -347,7 +347,8 @@ cleanup cost, when it ends.
   `chore(benchmark): accept the degraded cleanup baseline for <release or short
   commit id>`. Its body names each failed model and category with its misses against
   the allowed misses. Merging it accepts the degradation, and closing it declines.
-  Merging replaces the entry of every model in that run, not only the listed ones.
+  Merging replaces the entry of every model in that run, not only the listed ones, and
+  drops the entry of a model that left the cleanup list.
   With several baseline pull requests open, merge only the newest and close the
   older ones.
   The release note gains a section, "Cleanup benchmark: degradation", with the same

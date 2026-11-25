@@ -347,7 +347,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
     }
 
     /// Writes an entry for each candidate whose runs are all complete; the others
-    /// are named in the errors and leave their old entries as they were.
+    /// are named in the errors and keep their old entries. The file keeps the entries
+    /// of the other models of the cleanup list and drops those of models that left it.
     private func writeBaseline(_ report: CleanupBenchmarkReport, judge: CleanupBenchmarkJudge, setup: Setup) -> [String] {
         guard let path = setup.options.writeBaselinePath, let existing = setup.existingBaseline else { return [] }
         progress(.baselineWriteStarted)
@@ -374,7 +375,7 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
         }
         guard !entries.isEmpty else { return errors }
         do {
-            try writeDataFile(path, try existing.merging(entries).encoded())
+            try writeDataFile(path, try existing.merging(entries, keeping: Set(CleanupBenchmarkProviderSpec.catalog.map(\.name))).encoded())
             written = entries.count
         } catch {
             errors.append("baseline not written: \(error)")
@@ -415,7 +416,8 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
       A judged run uses --providers catalog or a named model: passthrough is judged like any candidate; it fails against another model's
       entry, and --write-baseline gives it an entry of its own when it is in --providers.
       --write-baseline writes an entry for each candidate whose runs are all complete (an output, no failure, three
-      coefficients) and leaves every other entry as it is. A candidate with incomplete runs gets no entry; stderr says how many.
+      coefficients) and keeps the entries of the other models of the cleanup list. An entry of a model that left the
+      list is dropped. A candidate with incomplete runs gets no entry; stderr says how many.
       --outputs-file is append-only JSON Lines, local, with the candidates' output text. A line is added when a run's cleanup
       finishes and again when it is judged. Naming an existing file resumes it: complete runs are not repeated, a run with an
       output but no full score is judged again, a provider error is run again, an empty output is neither. A file written for other

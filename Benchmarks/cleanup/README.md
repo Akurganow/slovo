@@ -129,7 +129,7 @@ other output on a messy one.
 | `--judge` | Adds the embedding and Jev coefficients. Needs `OPENROUTER_API_KEY`, from the environment or `--env-file`. Use `--providers catalog` or a named model: `passthrough`, the default list's last entry, is judged like any candidate. It fails the bar against another model's entry, and `--write-baseline` gives it an entry of its own when it is in `--providers`. |
 | `--baseline PATH` | Applies the bar (needs `--judge`; `--repetitions` defaults to `bar.repetitions` in `judge.json`). Every candidate needs an entry, its own or the fallback's. |
 | `--baseline-candidate ID` | The fallback entry for a candidate with none. |
-| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and leaves every other entry as it is (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
+| `--write-baseline PATH` | Writes an entry for each candidate whose runs are all complete (an output, no failure, all three coefficients) and keeps the entries of the other models of the cleanup list; an entry of a model that left the list is dropped (needs `--judge`). A candidate with incomplete runs gets no entry; stderr says how many runs are missing. |
 | `--outputs-file PATH` | Opt-in, local, and the resume record (below). |
 
 `--providers catalog --judge --baseline PATH` judges every catalog model in one

@@ -72,9 +72,12 @@ public struct CleanupBenchmarkBaselineFile: Codable, Equatable, Sendable {
         return try encoder.encode(self) + Data("\n".utf8)
     }
 
-    /// The entries of `entries` replace those of the same name; all others stay.
-    public func merging(_ entries: [String: CleanupBenchmarkBaselineEntry]) -> CleanupBenchmarkBaselineFile {
-        CleanupBenchmarkBaselineFile(candidates: candidates.merging(entries) { _, new in new })
+    /// `entries` and those of this file named in `keeping`; an entry of the file named nowhere is dropped.
+    public func merging(
+        _ entries: [String: CleanupBenchmarkBaselineEntry],
+        keeping names: Set<String>
+    ) -> CleanupBenchmarkBaselineFile {
+        CleanupBenchmarkBaselineFile(candidates: candidates.filter { names.contains($0.key) }.merging(entries) { _, new in new })
     }
 
     /// The entry a candidate is judged against: its own, else the named fallback's.
