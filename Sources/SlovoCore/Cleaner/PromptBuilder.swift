@@ -92,8 +92,8 @@ public struct PromptBuilder: Sendable {
     /// along as a gloss, so all three guards are load-bearing: one keeps the gloss out of the
     /// output, one keeps correction from inserting a term nobody said, and one keeps a term
     /// from replacing an everyday word that matches it. The licence to correct names the
-    /// forms it covers and excludes an ordinary word; on some models the everyday-word line
-    /// alone does not hold, which `vocabularyCollisionLines` backs per dictation.
+    /// forms it covers and excludes an ordinary word; `vocabularyCollisionLines` backs the
+    /// everyday-word line per dictation.
     private func vocabularyBlock(entries: some Sequence<String>) -> String {
         let lines = [
             "Correct spellings of the speaker's terms, each with its recorded meaning in parentheses where known: "
@@ -113,23 +113,23 @@ public struct PromptBuilder: Sendable {
 
     /// One line per vocabulary term that the transcript holds only in another letter case
     /// (word-boundary match, `TermSearch`), in the order the matches first appear.
-    /// A term the transcript also holds as listed is no collision. With a vocabulary such
-    /// as ADS or COP, cleanup models turned the everyday words "ads" and "cop" into the
-    /// terms, and no wording of the vocabulary block stopped it on every model; naming
-    /// the words per dictation did, while real repairs (github → GitHub) still passed.
-    /// The line names the transcript's text in folded (lower-case) form.
+    /// A term the transcript also holds as listed is no collision. A listed term can
+    /// replace an everyday word that matches it ("ads" → ADS); naming the exact words of
+    /// this dictation narrows the vocabulary rule to them. The line names the transcript's
+    /// text in folded (lower-case) form.
     private func vocabularyCollisionLines(raw: String, terms: [String]) -> [String] {
         let foldedRaw = TermSearch.fold(raw)
         let normalizedRaw = TermSearch.normalize(raw)
         let collisions = terms.enumerated().compactMap { offset, term -> (at: String.Index, offset: Int, line: String)? in
             let key = TermSearch.fold(term)
+            let name = TermSearch.normalize(term)
             guard let match = TermSearch.firstMatch(of: key, in: foldedRaw),
-                  !TermSearch.contains(TermSearch.normalize(term), in: normalizedRaw)
+                  !TermSearch.contains(name, in: normalizedRaw)
             else {
                 return nil
             }
-            let line = "The transcript's word \"\(key)\" shares its letters with the listed term \(term); "
-                + "keep it as transcribed unless the sentence uses it as the name \(term)."
+            let line = "The transcript's word \"\(key)\" shares its letters with the listed term \(name); "
+                + "keep it as transcribed unless the sentence uses it as the name \(name)."
             return (match.lowerBound, offset, line)
         }
         var lines: [String] = []

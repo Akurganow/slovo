@@ -370,8 +370,9 @@ struct PromptBuilderTests {
         ].joined(separator: "\n"))
     }
 
-    /// Stated sensitivity: report a term the transcript also holds as listed, or repeat
-    /// the line for a term listed twice → RED.
+    /// Stated sensitivity: report a term the transcript also holds as listed, repeat
+    /// the line for a term listed twice, or order a term by a later occurrence than its
+    /// first → RED.
     @Test
     func aTermWrittenAsListedGivesNoLineAndATermListedTwiceGivesOne() {
         let exact = Self.prompt(raw: "COP and cop again", terms: ["COP"])
@@ -382,6 +383,15 @@ struct PromptBuilderTests {
             "<advisory>",
             Self.advisoryHeader,
             Self.collisionLine(word: "cop", term: "COP"),
+            "</advisory>",
+        ].joined(separator: "\n"))
+
+        let reordered = Self.prompt(raw: "cop, then ads, then cop again", terms: ["COP", "ADS"])
+        #expect(reordered.systemBlocks.last == [
+            "<advisory>",
+            Self.advisoryHeader,
+            Self.collisionLine(word: "cop", term: "COP"),
+            Self.collisionLine(word: "ads", term: "ADS"),
             "</advisory>",
         ].joined(separator: "\n"))
     }

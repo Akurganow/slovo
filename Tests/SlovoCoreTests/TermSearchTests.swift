@@ -3,11 +3,9 @@ import Testing
 
 @testable import SlovoCore
 
-// Term identity and word-boundary containment for miss detection.
-// Contract under test: docs/superpowers/specs/2026-08-13-vocab-usage-weighting-design.md,
-// "Miss detection" — term key = NFC + lowercase + collapsed whitespace runs
-// (which subsumes trimming); boundary = adjacent
-// scalars are neither letters nor digits; interior punctuation matches literally.
+// Term identity and word-boundary containment. Contract: term key = NFC + lowercase +
+// collapsed whitespace runs (which subsumes trimming); boundary = adjacent scalars are
+// neither letters nor digits; interior punctuation matches literally.
 @Suite("Term search: keys and containment")
 struct TermSearchKeyTests {
     /// Stated sensitivity: drop `.lowercased()` from `fold` → keys differ → RED.
@@ -23,7 +21,7 @@ struct TermSearchKeyTests {
     /// nothing. SQLite compares `term_key` bytewise, so the normalization is
     /// what actually makes the two forms one row.
     /// Stated sensitivity: drop `.precomposedStringWithCanonicalMapping` from
-    /// `fold` → the byte arrays differ → RED.
+    /// `normalize` → the byte arrays differ → RED.
     @Test
     func canonicalCompositionIsNormalized() {
         let decomposed = "и\u{0306}ота"
@@ -74,10 +72,10 @@ struct TermSearchKeyTests {
 
 // Fuzzy near-match: ICU Any-Latin fold + windowed Levenshtein, gated to
 // folded keys of >= 5 characters. Threshold: foldedLength / 3,
-// integer division. Spec section "Miss detection", rule 2.
+// integer division.
 @Suite("Term search: fuzzy near-match")
 struct TermSearchFuzzyTests {
-    /// Folds `raw` the way detection does once per dictation, so each case reads
+    /// Folds `raw` the way term-miss detection does once per dictation, so each case reads
     /// as one key/transcript pair.
     private static func hasNearMatch(ofKey key: String, inRaw raw: String) -> Bool {
         TermSearch.nearMatch(ofKey: key, inRawTokens: TermSearch.latinTokens(inRaw: raw)) == .match

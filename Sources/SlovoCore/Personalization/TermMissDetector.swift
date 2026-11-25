@@ -14,10 +14,10 @@ struct TermMissDetection: Equatable, Sendable {
 /// with its cleanup output. No storage, no side effects — the orchestrator
 /// feeds it and a `TermMissRecording` sink persists its result.
 ///
-/// One `TermSearch.fold` serves both roles: it turns a vocabulary surface into its event
-/// identity ("key") and a transcript into matchable text. Folding both sides
-/// the same way is what lets a key be searched inside a transcript at all, and
-/// it means a surface stored with stray or doubled whitespace still matches.
+/// One `TermSearch.fold` serves both roles: it turns a vocabulary surface into its
+/// event identity ("key") and a transcript into matchable text. Folding both sides
+/// the same way is what lets a key be searched inside a transcript at all, and it
+/// means a surface stored with stray or doubled whitespace still matches.
 enum TermMissDetector {
     /// Classifies every vocabulary term against one dictation. Rule 1: found
     /// in raw → the ASR handled it, nothing recorded (v1 stores no hits).

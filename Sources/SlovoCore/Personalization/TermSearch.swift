@@ -1,8 +1,8 @@
 import Foundation
 
-/// Finds a vocabulary term in text at word boundaries, exactly (`fold`, `contains`)
-/// and approximately across scripts (`latinFold`, `nearMatch`). Term-miss detection
-/// and the cleanup prompt both use it.
+/// Finds a vocabulary term in text at word boundaries, exactly (`normalize`, `fold`,
+/// `contains`, `firstMatch`) and approximately across scripts (`latinFold`, `nearMatch`).
+/// Term-miss detection uses both; the cleanup prompt uses the exact search.
 enum TermSearch {
     /// NFC + whitespace runs collapsed to single spaces (which subsumes
     /// trimming), letter case kept.
