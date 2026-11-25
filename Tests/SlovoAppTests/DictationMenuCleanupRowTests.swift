@@ -11,14 +11,14 @@ import Testing
 @Suite("Dictation menu cleanup rows")
 struct DictationMenuCleanupRowTests {
     private let haiku = "anthropic/claude-haiku-5.5"
-    private let qwen = "qwen/qwen3.8-flash"
+    private let mimo = "xiaomi/mimo-v2.6-flash"
 
     /// The Cleanup Model row names the selected model's display name, checks exactly
     /// that model in its submenu, and a click on another row writes that row's id.
     /// Stated sensitivity: the row title loses "Cleanup Model: " or shows the raw id,
     /// a wrong selected model is passed, the rows lose their `representedObject`,
     /// the click's cast targets the wrong type, or the click writes another field or
-    /// a fixed value → RED. The start model (Haiku) and the clicked model (Qwen)
+    /// a fixed value → RED. The start model (Haiku) and the clicked model (MiMo)
     /// both differ from the default, so a write of the default is no equal update.
     @Test
     func cleanupModelRowShowsTheSelectedModelAndWritesTheChosenId() throws {
@@ -35,9 +35,9 @@ struct DictationMenuCleanupRowTests {
             #expect(item.target === shell.app)
         }
 
-        let chosen = try #require(submenu.item(exactly: "Qwen3.8 Flash"))
+        let chosen = try #require(submenu.item(exactly: "MiMo V2.6 Flash"))
         chosen.click()
-        #expect(shell.store.state.config.openRouterModel == qwen)
+        #expect(shell.store.state.config.openRouterModel == mimo)
     }
 
     /// The model submenu lists exactly the options it is given, checking the selected

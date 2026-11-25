@@ -39,10 +39,10 @@ struct CleanupModelCatalogTests {
     @Test
     func newModelsAreHumanizedAndExistingNamesUnchanged() {
         for id in [
+            "xiaomi/mimo-v2.6-flash",
             "qwen/qwen3.8-flash",
             "deepseek/deepseek-v4.1-flash",
             "mistralai/mistral-small-2603",
-            "xiaomi/mimo-v2.6-flash",
         ] {
             let name = CleanupModelCatalog.displayName(for: id)
             #expect(!name.isEmpty && name != id,
