@@ -262,6 +262,14 @@ is a file's content, the entry names the file.
 
 - The production composition passes both hint providers, input-source language
   and spell check, to the pipeline.
+- The spell-check hint provider asks the system checker for spelling and
+  grammar in one call. It hands the vocabulary to that call's document as
+  ignored words and never learns a word, since a learned word is device-global
+  and persistent. No test reaches the system checker, so only a live run
+  proves this.
+- The input-source reader takes the copied keyboard input source as retained
+  and its language property as unretained. No test reaches the input-source
+  service, so only a live run proves this.
 - The personalization database passphrase derives from this Mac's hardware
   identity, never from a literal shared by all installs.
 - The Keychain presence check runs an attributes-only query for one match and
