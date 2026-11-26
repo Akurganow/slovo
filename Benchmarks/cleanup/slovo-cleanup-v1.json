@@ -1802,6 +1802,357 @@
       },
       "spoken": "короче надо закрыть этот pull request до релиза и обновить changelog",
       "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-vot-filler-01",
+      "category": "russian-filler",
+      "raw": "Вот давай начнем с отчета по продажам за прошлый месяц.",
+      "references": [
+        "Давай начнем с отчета по продажам за прошлый месяц."
+      ],
+      "spoken": "вот давай начнём с отчёта по продажам за прошлый месяц",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-vot-this-file-02",
+      "category": "russian-filler",
+      "raw": "Открой вот этот файл и проверь цифры в первой таблице.",
+      "references": [
+        "Открой вот этот файл и проверь цифры в первой таблице."
+      ],
+      "spoken": "открой вот этот файл и проверь цифры в первой таблице",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-tak-filler-03",
+      "category": "russian-filler",
+      "raw": "Так давай посмотрим, что у нас сегодня в логах.",
+      "references": [
+        "Давай посмотрим, что у нас сегодня в логах."
+      ],
+      "spoken": "так давай посмотрим что у нас сегодня в логах",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-tak-make-it-so-04",
+      "category": "russian-filler",
+      "raw": "Сделай так, чтобы кнопка не пропадала во время загрузки.",
+      "references": [
+        "Сделай так, чтобы кнопка не пропадала во время загрузки."
+      ],
+      "spoken": "сделай так чтобы кнопка не пропадала во время загрузки",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-znachit-filler-05",
+      "category": "russian-filler",
+      "raw": "Значит нам нужно перенести встречу на четверг.",
+      "references": [
+        "Нам нужно перенести встречу на четверг."
+      ],
+      "spoken": "значит нам нужно перенести встречу на четверг",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-znachit-means-06",
+      "category": "russian-filler",
+      "raw": "Это значит, что релиз откладывается до понедельника.",
+      "references": [
+        "Это значит, что релиз откладывается до понедельника."
+      ],
+      "spoken": "это значит что релиз откладывается до понедельника",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-poetomu-cause-07",
+      "category": "russian-filler",
+      "raw": "Тест упал и поэтому мы не выпустили версию в пятницу.",
+      "references": [
+        "Тест упал, и поэтому мы не выпустили версию в пятницу."
+      ],
+      "spoken": "тест упал и поэтому мы не выпустили версию в пятницу",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-nu-filler-only-08",
+      "category": "russian-filler",
+      "raw": "Ну мы вчера закончили отчет и отправили его клиенту.",
+      "references": [
+        "Мы вчера закончили отчет и отправили его клиенту."
+      ],
+      "spoken": "ну мы вчера закончили отчёт и отправили его клиенту",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-like-filler-09",
+      "category": "short-smoke",
+      "raw": "We need to like finish the report before the meeting.",
+      "references": [
+        "We need to finish the report before the meeting."
+      ],
+      "spoken": "we need to like finish the report before the meeting",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-like-verb-10",
+      "category": "short-smoke",
+      "raw": "I like the new design of the report.",
+      "references": [
+        "I like the new design of the report."
+      ],
+      "spoken": "i like the new design of the report",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-so-filler-11",
+      "category": "short-smoke",
+      "raw": "So I checked the logs this morning and everything looked fine.",
+      "references": [
+        "I checked the logs this morning and everything looked fine."
+      ],
+      "spoken": "so i checked the logs this morning and everything looked fine",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-so-consequence-12",
+      "category": "short-smoke",
+      "raw": "The train was late so we stopped at a cafe.",
+      "references": [
+        "The train was late, so we stopped at a cafe."
+      ],
+      "spoken": "the train was late so we stopped at a cafe",
+      "voice": "Samantha"
+    },
+    {
+      "id": "punctuation-structure-ru-then-two-steps-13",
+      "category": "punctuation-structure",
+      "raw": "Сначала открой настройки, потом перезапусти программу и проверь результат.",
+      "references": [
+        "Сначала открой настройки. Потом перезапусти программу и проверь результат."
+      ],
+      "spoken": "сначала открой настройки потом перезапусти программу и проверь результат",
+      "voice": "Milena"
+    },
+    {
+      "id": "punctuation-structure-ru-otherwise-one-14",
+      "category": "punctuation-structure",
+      "raw": "Нужно закрыть задачу сегодня, иначе релиз сдвинется на неделю.",
+      "references": [
+        "Нужно закрыть задачу сегодня, иначе релиз сдвинется на неделю."
+      ],
+      "spoken": "нужно закрыть задачу сегодня иначе релиз сдвинется на неделю",
+      "voice": "Milena"
+    },
+    {
+      "id": "punctuation-structure-en-two-statements-15",
+      "category": "punctuation-structure",
+      "raw": "The server restarted at noon the logs are empty now.",
+      "references": [
+        "The server restarted at noon. The logs are empty now."
+      ],
+      "spoken": "the server restarted at noon the logs are empty now",
+      "voice": "Samantha"
+    },
+    {
+      "id": "punctuation-structure-en-because-one-16",
+      "category": "punctuation-structure",
+      "raw": "We canceled the meeting because the room was already booked.",
+      "references": [
+        "We canceled the meeting because the room was already booked."
+      ],
+      "spoken": "we cancelled the meeting because the room was already booked",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-ru-spoken-period-17",
+      "category": "short-smoke",
+      "raw": "Мы ничего не успели, точка.",
+      "references": [
+        "Мы ничего не успели."
+      ],
+      "spoken": "мы ничего не успели точка",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-spoken-question-mark-18",
+      "category": "short-smoke",
+      "raw": "Did you finish the report question mark?",
+      "references": [
+        "Did you finish the report?"
+      ],
+      "spoken": "did you finish the report question mark",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-ru-comma-as-content-19",
+      "category": "short-smoke",
+      "raw": "Он поставил запятую не там и предложение потеряло смысл.",
+      "references": [
+        "Он поставил запятую не там, и предложение потеряло смысл."
+      ],
+      "spoken": "он поставил запятую не там и предложение потеряло смысл",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-comma-as-content-20",
+      "category": "short-smoke",
+      "raw": "the comma in this sentence is in the wrong place.",
+      "references": [
+        "The comma in this sentence is in the wrong place."
+      ],
+      "spoken": "the comma in this sentence is in the wrong place",
+      "voice": "Samantha"
+    },
+    {
+      "id": "russian-filler-only-fillers-21",
+      "category": "russian-filler",
+      "raw": "Ну в общем вот.",
+      "references": [
+        "Ну в общем вот."
+      ],
+      "spoken": "ну в общем вот",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-cancelled-word-22",
+      "category": "russian-filler",
+      "raw": "Ну вот, сохрани ой нет.",
+      "references": [
+        "Ну вот."
+      ],
+      "spoken": "ну вот сохрани ой нет",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-only-fillers-23",
+      "category": "short-smoke",
+      "raw": "Well, you know I mean.",
+      "references": [
+        "Well, you know I mean."
+      ],
+      "spoken": "hmm well uh you know i mean",
+      "voice": "Samantha"
+    },
+    {
+      "id": "code-switching-ru-ui-names-24",
+      "category": "code-switching",
+      "raw": "Открой вкладку Settings и нажми кнопку Save.",
+      "references": [
+        "Открой вкладку Settings и нажми кнопку Save."
+      ],
+      "spoken": "открой вкладку settings и нажми кнопку save",
+      "voice": "Milena"
+    },
+    {
+      "id": "code-switching-ru-descriptive-phrase-25",
+      "category": "code-switching",
+      "raw": "Заполни Steps to Reproduce и приложи Log.",
+      "references": [
+        "Заполни steps to reproduce и приложи log."
+      ],
+      "spoken": "заполни steps to reproduce и приложи лог",
+      "voice": "Milena"
+    },
+    {
+      "id": "inverse-text-normalization-ru-version-digits-26",
+      "category": "inverse-text-normalization",
+      "raw": "Обнови до версии 002.",
+      "references": [
+        "Обнови до версии 002."
+      ],
+      "spoken": "обнови до версии ноль ноль два",
+      "voice": "Milena"
+    },
+    {
+      "id": "inverse-text-normalization-en-version-27",
+      "category": "inverse-text-normalization",
+      "raw": "We are shipping version 2.3 on Friday.",
+      "references": [
+        "We are shipping version 2.3 on Friday."
+      ],
+      "spoken": "we are shipping version two point three on friday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "inverse-text-normalization-ru-evening-time-28",
+      "category": "inverse-text-normalization",
+      "raw": "Созвонимся завтра в 8 вечера.",
+      "references": [
+        "Созвонимся завтра в 8 вечера."
+      ],
+      "spoken": "созвонимся завтра в восемь вечера",
+      "voice": "Milena"
+    },
+    {
+      "id": "inverse-text-normalization-en-five-pm-29",
+      "category": "inverse-text-normalization",
+      "raw": "The meeting starts at 5 p.m.",
+      "references": [
+        "The meeting starts at 5 p.m."
+      ],
+      "spoken": "the meeting starts at five pm",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-contractions-30",
+      "category": "short-smoke",
+      "raw": "We're not sure it's ready and we don't have the logs yet so it's hard to say.",
+      "references": [
+        "We're not sure it's ready, and we don't have the logs yet, so it's hard to say."
+      ],
+      "spoken": "we're not sure it's ready and we don't have the logs yet so it's hard to say",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-colloquial-kinda-gonna-31",
+      "category": "short-smoke",
+      "raw": "It's kinda slow and I'm gonna check the logs again tomorrow.",
+      "references": [
+        "It's kinda slow and I'm gonna check the logs again tomorrow."
+      ],
+      "spoken": "it's kinda slow and i'm gonna check the logs again tomorrow",
+      "voice": "Samantha"
+    },
+    {
+      "id": "russian-filler-colloquial-koroche-32",
+      "category": "russian-filler",
+      "raw": "Короче мы не потянем это к пятнице.",
+      "references": [
+        "Короче, мы не потянем это к пятнице.",
+        "Мы не потянем это к пятнице."
+      ],
+      "spoken": "короче мы не потянем это к пятнице",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-colloquial-logs-33",
+      "category": "russian-filler",
+      "raw": "Глянь там какая-то фигня в логах.",
+      "references": [
+        "Глянь, там какая-то фигня в логах."
+      ],
+      "spoken": "глянь там какая-то фигня в логах",
+      "voice": "Milena"
+    },
+    {
+      "id": "punctuation-structure-en-long-sentence-34",
+      "category": "punctuation-structure",
+      "raw": "After the meeting with the design team we decided to move the launch to next month because the payment page still has a few bugs and nobody wants to ship something that might confuse the customers.",
+      "references": [
+        "After the meeting with the design team we decided to move the launch to next month, because the payment page still has a few bugs and nobody wants to ship something that might confuse the customers."
+      ],
+      "spoken": "after the meeting with the design team we decided to move the launch to next month because the payment page still has a few bugs and nobody wants to ship something that might confuse the customers",
+      "voice": "Samantha"
+    },
+    {
+      "id": "punctuation-structure-ru-long-sentence-35",
+      "category": "punctuation-structure",
+      "raw": "После встречи с командой дизайна мы решили перенести запуск на следующий месяц, потому что на странице оплаты все еще есть несколько ошибок никто не хочет выпускать то, что может запутать клиентов.",
+      "references": [
+        "После встречи с командой дизайна мы решили перенести запуск на следующий месяц, потому что на странице оплаты все еще есть несколько ошибок. Никто не хочет выпускать то, что может запутать клиентов."
+      ],
+      "spoken": "после встречи с командой дизайна мы решили перенести запуск на следующий месяц потому что на странице оплаты всё ещё есть несколько ошибок и никто не хочет выпускать то что может запутать клиентов",
+      "voice": "Milena"
     }
   ]
 }
