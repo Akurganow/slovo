@@ -433,7 +433,7 @@ public struct PromptBuilder: Sendable {
         return [
             "Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, "
                 + "spacing, and grammar\(fixSuffix).",
-            "Always remove discourse fillers, words that only fill a pause (such as um, uh, er, ну, вот, короче, эээ)"
+            "Remove discourse fillers (such as um, uh, er, ну, вот, короче, эээ) when they only fill a pause"
                 + "\(fillerSuffix); a word that carries cause, contrast, order, or who did what stays "
                 + "(поэтому, но, потом, therefore).",
             "Correct the conventional casing of acronyms and camel-case names (api → API); product and "
