@@ -25,7 +25,7 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `vocabulary` | 4 | A vocabulary sent with the dictation: a misheard listed term is repaired to its listed spelling, and an everyday word that matches a term keeps its everyday form |
 | `hints` | 8 | On-device hints sent with the dictation, right or planted wrong: a keyboard language, a spell guess or a grammar finding; the reference is the cleanup no hint changes |
 
-Total: **198 samples**, 54 of them clean cases: the raw text equals its first
+Total: **198 samples**, 55 of them clean cases: the raw text equals its first
 reference. A full run is samples × repetitions, so "990 runs" = 198 × 5.
 
 Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
@@ -232,7 +232,7 @@ finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the cost of the
 cleanup call (`null` after a provider error or when the reply named none; a line written
 before the key existed has none), the three coefficients, each Jev question's repeats, the models that answered, the failure
-codes, the writing style, the SHA-256 of the ids, raws, `translateTo` targets, vocabularies and hints of
+codes, the writing style, the SHA-256 of the ids, raws and `translateTo` targets of
 the dataset, the SHA-256 of the cleanup prompts (the system message sent for the
 style, with no vocabulary and no hints, one translate message per target in the
 dataset, and the whole system message of each sample that carries a vocabulary or hints), the SHA-256 of what scored the line (the judge's settings

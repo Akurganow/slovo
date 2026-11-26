@@ -1,16 +1,27 @@
 extension PromptBuilder {
-    /// Hand-kept: WhisperKit's language table is a dictionary, so the source order that lists the standard name first is lost,
-    /// and the catalogue picks "Moldovan", "Haitian", "Letzeburgesch", "Panjabi". Two-script targets name the script.
+    /// The name the translate directive gives a target: the script-qualified name where a language
+    /// has two scripts, else the standard name, else the code.
     public static func translationTargetName(for code: String) -> String {
-        promptTargetNames[code] ?? RecognitionLanguageCatalog.displayName(for: code) ?? code
+        scriptTargetNames[code] ?? standardLanguageName(for: code) ?? code
     }
 
-    private static let promptTargetNames: [String: String] = [
+    /// The standard English name of a language for the prompt, else the catalogue's name, else nil.
+    /// The catalogue keeps WhisperKit's shortest synonym ("Moldovan" for ro), so the prompt names the
+    /// standard language here; the translate target also names the script where a language has two.
+    static func standardLanguageName(for code: String) -> String? {
+        standardNames[code] ?? RecognitionLanguageCatalog.displayName(for: code)
+    }
+
+    private static let standardNames: [String: String] = [
         "ro": "Romanian",
         "ht": "Haitian Creole",
         "lb": "Luxembourgish",
-        "pa": "Punjabi, in Gurmukhi script",
+        "pa": "Punjabi",
+    ]
+
+    private static let scriptTargetNames: [String: String] = [
         "zh": "Simplified Chinese",
-        "sr": "Serbian, in Cyrillic script",
+        "sr": "Cyrillic Serbian",
+        "pa": "Gurmukhi Punjabi",
     ]
 }

@@ -194,7 +194,7 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
             throw refuse(.vocabulary, "a vocabulary term is empty")
         }
         guard category != .vocabulary || !vocabulary.isEmpty else {
-            throw refuse(.vocabulary, "a vocabulary sample carries a vocabulary")
+            throw refuse(.vocabulary, "a vocabulary sample carries no vocabulary: add one or change its category")
         }
         var hints = CleanupHints()
         if let object = try container.decodeIfPresent(CleanupBenchmarkHintsObject.self, forKey: .hints) {
@@ -216,7 +216,7 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
             )
         }
         guard category != .hints || hints != CleanupHints() else {
-            throw refuse(.hints, "a hints sample carries hints")
+            throw refuse(.hints, "a hints sample carries no hints: add them or change its category")
         }
         return (vocabulary, hints)
     }

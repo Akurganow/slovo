@@ -183,6 +183,26 @@ struct PromptBuilderTests {
         #expect(!veryCasual.contains("Rewrite the transcript"))
     }
 
+    /// The formal and very casual style lines say they extend the fixes below. The
+    /// translate prompt carries no style line: its register is the "as \(style)" phrase.
+    /// Stated sensitivity: return "" for the formal style line → the first expectation
+    /// reddens; render the style line in translate mode → the translate expectations redden → RED.
+    @Test
+    func styleLinesExtendTheFixesInPlainModeOnly() {
+        #expect(Self.plainSystemText(style: .formal).contains("Formal style, in addition to the fixes below:"))
+        #expect(Self.plainSystemText(style: .veryCasual).contains("Very casual style, in addition to the fixes below:"))
+
+        for style in [WritingStyle.formal, .casual] {
+            let translate = PromptBuilder().buildPrompt(
+                raw: "hello",
+                config: CleanupConfig(writingStyle: style, translationTargetLanguage: .ru, translate: true),
+                context: PersonalizationContext(vocabulary: [])
+            ).systemText
+            #expect(!translate.contains("Formal style"))
+            #expect(!translate.contains("Casual style"))
+        }
+    }
+
     /// The filler and run-on rules are pinned by the plain golden; this pins the two
     /// examples that teach them on Russian input.
     /// Stated sensitivity: removing the translate-trap example or the
@@ -202,7 +222,9 @@ struct PromptBuilderTests {
     }
 
     /// Stated sensitivity: dropping the advisory append (so hints never reach the
-    /// prompt) makes the present-case assertions go red.
+    /// prompt) makes the present-case assertions go red. Restoring the spell sentence
+    /// without its last clause ("use a suggestion only to fix a misspelled common word")
+    /// makes the clause expectation go red.
     @Test
     func advisoryBlockCarriesLocaleAndSpellFindings() {
         let hints = CleanupHints(
@@ -225,6 +247,7 @@ struct PromptBuilderTests {
         #expect(systemText.contains("recieve → receive, relieve"))
         #expect(systemText.contains("teh → the"))
         #expect(systemText.contains("keep it unchanged"))
+        #expect(systemText.contains("use a suggestion only to fix a misspelled common word"))
         // The advisory is supplementary context, wrapped in its provenance tag.
         #expect(prompt.advisory?.hasPrefix("<advisory>\nAdvisory context (may be wrong") == true)
     }
@@ -460,5 +483,50 @@ struct PromptBuilderTests {
         let prompt = CleanupPrompt(model: "m", prefixBlocks: ["A", "B"], advisory: advisory, input: "x")
 
         #expect(prompt.systemText == expected)
+    }
+
+    /// The advisory names the standard language, not the catalogue's synonym ("Moldovan" for ro),
+    /// and a translate target names its script where a language has two.
+    /// Stated sensitivity: resolve the advisory language through the catalogue's displayName →
+    /// "Moldovan (ro)" and the Romanian expectation reddens; drop the "Cyrillic" qualifier → RED.
+    @Test
+    func standardLanguageNamesReachTheAdvisoryAndTheTranslateTarget() {
+        let advisory = PromptBuilder().buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: []),
+            hints: CleanupHints(inputLocale: "ro")
+        ).systemText
+        #expect(advisory.contains("Keyboard input language at dictation time: Romanian (ro)."))
+        #expect(!advisory.contains("Moldovan"))
+
+        let serbian = PromptBuilder().buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, translationTargetLanguage: Language(rawValue: "sr"), translate: true),
+            context: PersonalizationContext(vocabulary: [])
+        ).systemText
+        #expect(serbian.contains("Translate the transcript into Cyrillic Serbian and remove dictation artifacts"))
+    }
+
+    /// The advisory's header ends with the output of its mode: the cleaned text in plain mode,
+    /// the translated text in translate mode.
+    /// Stated sensitivity: name "cleaned" in every mode → the translate expectation reddens → RED.
+    @Test
+    func advisoryHeaderNamesTheOutputOfItsMode() {
+        let hints = CleanupHints(inputLocale: "ro")
+        let plain = PromptBuilder().buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: []),
+            hints: hints
+        )
+        let translate = PromptBuilder().buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, translationTargetLanguage: .ru, translate: true),
+            context: PersonalizationContext(vocabulary: []),
+            hints: hints
+        )
+        #expect(plain.advisory?.contains("so the output is still only the cleaned text):") == true)
+        #expect(translate.advisory?.contains("so the output is still only the translated text):") == true)
     }
 }

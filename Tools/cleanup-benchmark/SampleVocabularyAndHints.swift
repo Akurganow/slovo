@@ -39,25 +39,4 @@ extension CleanupBenchmarkSample {
             Term(term: $0.term, expansion: $0.expansion, lang: .en, weight: VocabularyQuickAdd.weight)
         })
     }
-
-    /// The strings that stand for this sample's vocabulary and hints in a digest, none for a
-    /// sample with neither. Each string carries a prefix naming its part, and the digest
-    /// delimits strings by length, so no two different values give the same list.
-    var vocabularyAndHintsDigestInput: [String] {
-        var strings: [String] = []
-        for entry in vocabulary {
-            strings.append("vocabularyTerm=\(entry.term)")
-            if let expansion = entry.expansion { strings.append("vocabularyExpansion=\(expansion)") }
-        }
-        if let locale = hints.inputLocale { strings.append("inputLocale=\(locale)") }
-        for finding in hints.spellFindings {
-            strings.append("spellToken=\(finding.token)")
-            strings += finding.guesses.map { "spellGuess=\($0)" }
-        }
-        for finding in hints.grammarFindings {
-            strings += ["grammarFragment=\(finding.fragment)", "grammarMessage=\(finding.message)"]
-            strings += finding.corrections.map { "grammarCorrection=\($0)" }
-        }
-        return strings
-    }
 }

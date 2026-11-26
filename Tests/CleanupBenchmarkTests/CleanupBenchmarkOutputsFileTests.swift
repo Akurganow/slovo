@@ -42,11 +42,12 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(digest("de") != digest("es"))
     }
 
-    /// Stated sensitivity: a dataset digest that ignores a sample's vocabulary or hints lets a resume
+    /// Stated sensitivity: a prompt digest that ignores a sample's vocabulary or hints lets a resume
     /// keep outputs made under other vocabularies or hints, so each must change it, a changed
-    /// expansion, guess or locale included, and the prompt digest must follow them (the vocabulary
-    /// and advisory blocks are part of what is sent); the digest of a sample with neither equals the
-    /// ids-and-raws digest, so no earlier file is refused → RED.
+    /// expansion, guess or locale included (the vocabulary and advisory blocks are part of what is
+    /// sent); a sample with neither keeps the plain prompt digest, so no earlier file is refused → RED.
+    /// The ids-and-raws digest carries no vocabulary or hints: every variant has the digest of
+    /// `["t", "x"]`, so a vocabulary folded into it → RED.
     @Test
     func digestsFollowTheVocabularyAndHintsAndStayTheSameWithoutThem() {
         func sample(_ vocabulary: [CleanupBenchmarkVocabularyEntry] = [], _ hints: CleanupHints = CleanupHints()) -> CleanupBenchmarkSample {
@@ -69,9 +70,9 @@ struct CleanupBenchmarkOutputsFileTests {
             sample([], CleanupHints(grammarFindings: [GrammarFinding(fragment: "x", message: "m", corrections: [])])),
         ]
 
-        #expect(Set(variants.map { binding($0).rawsSHA256 }).count == variants.count)
+        let rawsDigest = CleanupBenchmarkDigest.sha256(of: ["t", "x"])
+        #expect(variants.map { binding($0).rawsSHA256 } == Array(repeating: rawsDigest, count: variants.count))
         #expect(Set(variants.map { binding($0).promptSHA256 }).count == variants.count)
-        #expect(binding(variants[0]).rawsSHA256 == CleanupBenchmarkDigest.sha256(of: ["t", "x"]))
         #expect(binding(variants[0]).promptSHA256 == CleanupBenchmarkOutputsBinding(
             samples: [CleanupBenchmarkSample(id: "u", raw: "y", references: ["y"])], judgeSHA256: nil, style: .casual
         ).promptSHA256)

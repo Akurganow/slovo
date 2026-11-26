@@ -157,9 +157,7 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
 
     init(samples: [CleanupBenchmarkSample], judgeSHA256: String?, style: WritingStyle) {
         rawsSHA256 = CleanupBenchmarkDigest.sha256(
-            of: samples.flatMap {
-                [$0.id, $0.raw] + ($0.translateTo.map { ["translateTo=\($0)"] } ?? []) + $0.vocabularyAndHintsDigestInput
-            }
+            of: samples.flatMap { [$0.id, $0.raw] + ($0.translateTo.map { ["translateTo=\($0)"] } ?? []) }
         )
         // One config per distinct target, the plain one (empty key) first.
         let configs = Dictionary(
@@ -168,7 +166,7 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
         )
         // A sample with a vocabulary or hints adds the system message it sends, so a change of the
         // vocabulary block or the advisory block refuses the file as a change of the instructions does.
-        let carrying = samples.filter { !$0.vocabularyAndHintsDigestInput.isEmpty }.map {
+        let carrying = samples.filter { !$0.vocabulary.isEmpty || $0.hints != CleanupHints() }.map {
             PromptBuilder().buildPrompt(
                 raw: $0.raw,
                 config: $0.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style),
