@@ -159,7 +159,7 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
         let prompt = PromptBuilder().buildPrompt(
             raw: "", config: CleanupConfig(writingStyle: style), context: PersonalizationContext(vocabulary: [])
         )
-        promptSHA256 = CleanupBenchmarkDigest.sha256(Data(prompt.systemBlocks.joined(separator: "\n\n").utf8))
+        promptSHA256 = CleanupBenchmarkDigest.sha256(Data(prompt.systemText.utf8))
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })

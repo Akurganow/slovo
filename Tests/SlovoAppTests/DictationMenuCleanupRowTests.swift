@@ -28,7 +28,7 @@ struct DictationMenuCleanupRowTests {
 
         let row = try #require(menu.item(exactly: "Cleanup Model: Claude Haiku 5.5"))
         let submenu = try #require(row.submenu)
-        #expect(submenu.items.map(\.title) == CleanupModelCatalog.options.map(\.displayName))
+        #expect(submenu.items.map(\.title) == CleanupModelCatalog.options(for: .openRouter).map(\.displayName))
         #expect(submenu.items.filter { $0.state == .on }.map(\.title) == ["Claude Haiku 5.5"])
         for item in submenu.items {
             #expect(item.action == #selector(AppDelegate.selectCleanupModel(_:)))

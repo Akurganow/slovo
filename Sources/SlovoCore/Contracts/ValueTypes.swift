@@ -94,10 +94,17 @@ public enum WritingStyle: String, Codable, Equatable, Sendable {
 
 public enum CleanupDefaults {
     public static let openRouterModel = "openai/gpt-6-luna"
+
+    /// The longest a cleanup request may take. A press is refused until the
+    /// previous dictation ends, so a request that never answers must end by
+    /// itself. Each provider's transport enforces it.
+    public static let deadline: TimeInterval = 10
 }
 
 /// Tunables for a single cleanup pass.
 public struct CleanupConfig: Equatable, Sendable {
+    /// Which provider runs the cleanup; `model` is one of its model ids.
+    public var provider: CleanupProviderID
     public var model: String
     public var writingStyle: WritingStyle
     /// When on, the orchestrator runs the on-device spell pass and passes its
@@ -119,6 +126,7 @@ public struct CleanupConfig: Equatable, Sendable {
     public var runsCleaner: Bool
 
     public init(
+        provider: CleanupProviderID = .openRouter,
         model: String = CleanupDefaults.openRouterModel,
         writingStyle: WritingStyle,
         useSpellCheckHints: Bool = true,
@@ -126,6 +134,7 @@ public struct CleanupConfig: Equatable, Sendable {
         translate: Bool = false,
         runsCleaner: Bool = true
     ) {
+        self.provider = provider
         self.model = model
         self.writingStyle = writingStyle
         self.useSpellCheckHints = useSpellCheckHints

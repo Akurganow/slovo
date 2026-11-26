@@ -97,7 +97,7 @@ struct OrchestratorTranslateTests {
     /// A failing cleaner in TRANSLATE mode must degrade exactly like plain mode: the
     /// RAW transcript is inserted and the existing sad-to-fail status is surfaced —
     /// no new status, no swallowed failure, no empty insertion.
-    /// Green now (PassThrough returns the raw transcript regardless of the mode).
+    /// Green now (`FallbackCleaner` returns the raw transcript regardless of the mode).
     /// Stated sensitivity: if the translate path swallowed the cleanup failure or
     /// inserted nothing → the raw-injection assert reddens; if it emitted a different
     /// status → the status assert reddens.

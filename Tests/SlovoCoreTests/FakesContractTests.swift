@@ -39,7 +39,8 @@ struct FakesContractTests {
             switch error {
             case .transport:
                 break  // correct — exactly the programmed case
-            case .missingKey, .rateLimited, .apiError:
+            case .missingKey, .timedOut, .offline, .tls, .badResponse,
+                 .rateLimited, .modelUnavailable, .refused, .noText:
                 Issue.record("FakeCleaner threw the wrong CleanupError case: \(error)")
             }
         } catch {

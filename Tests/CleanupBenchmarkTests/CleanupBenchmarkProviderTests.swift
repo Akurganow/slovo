@@ -30,7 +30,7 @@ struct CleanupBenchmarkProviderTests {
     /// outputs and their baseline slack (every consumer keys by the name), so the paid runs
     /// are doubled and merged; a repeated model, or a catalog model named again, must be
     /// refused.
-    @Test(arguments: ["passthrough,passthrough", "catalog,openrouter:\(CleanupModelCatalog.options[0].id)"])
+    @Test(arguments: ["passthrough,passthrough", "catalog,openrouter:\(CleanupModelCatalog.options(for: .openRouter)[0].id)"])
     func duplicateCandidateIsRefused(_ list: String) {
         #expect(throws: CleanupBenchmarkProviderSpecError.self) {
             try CleanupBenchmarkProviderSpec.parseList(list)
@@ -52,7 +52,7 @@ struct CleanupBenchmarkProviderTests {
     func catalogProviderExpandsToTheAppCatalog() throws {
         let specs = try CleanupBenchmarkProviderSpec.parseList("catalog,passthrough")
 
-        #expect(specs.dropLast().map(\.model) == CleanupModelCatalog.options.map(\.id))
+        #expect(specs.dropLast().map(\.model) == CleanupModelCatalog.options(for: .openRouter).map(\.id))
         #expect(specs.dropLast().allSatisfy { $0.provider == .openRouter })
         #expect(specs.last == CleanupBenchmarkProviderSpec(provider: .passThrough, model: "none"))
     }

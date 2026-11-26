@@ -192,7 +192,7 @@ xcrun stapler validate .build/dist/Slovo.dmg
   clipboard.
 - Offline, refused, unavailable, or misconfigured cleanup, a reply with nothing
   visible in it, or a request that takes longer than 10 seconds falls back to
-  `PassThrough` and preserves the user's words.
+  the spoken text and preserves the user's words.
 - An Error cue on a dictation that DID insert text means cleanup failed and the raw
   transcript was used. The same stream names the cause:
   `cleanup.failure kind=… status=… ms=…` for a provider failure, or

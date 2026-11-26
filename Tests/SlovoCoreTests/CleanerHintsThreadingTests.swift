@@ -19,19 +19,23 @@ struct CleanerHintsThreadingTests {
         spellFindings: [SpellFinding(token: "prieved", guesses: ["prived", "primed"])]
     )
 
-    /// Stated sensitivity: an OpenRouter cleaner that ignores `hints` (does not pass
-    /// them to `buildPrompt`) sends a system message with no advisory block, so the
+    /// Stated sensitivity: a route that ignores `hints` (passes `CleanupHints()` to
+    /// `buildPrompt`) sends a system message with no advisory block, so the
     /// locale and token never reach the request body — this turns red.
     @Test
-    func openRouterCleanerPutsHintsInTheRequestBody() async throws {
+    func routePutsHintsInTheRequestBody() async throws {
         let scenario = StubScenario(response: .http(
             status: 200,
             headers: [:],
             body: Data(#"{"choices":[{"message":{"role":"assistant","content":"cleaned"}}]}"#.utf8)
         ))
-        let cleaner = OpenRouterCleaner(
-            session: scenario.makeSession(),
-            keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key")),
+        let cleaner = CleanupRoute(
+            providers: CleanupProviders(
+                openRouter: OpenRouterProvider(
+                    session: scenario.makeSession(),
+                    keyProvider: FakeOpenRouterKeyProvider(.success("synthetic-openrouter-key"))
+                )
+            ),
             promptBuilder: PromptBuilder()
         )
 
@@ -46,16 +50,16 @@ struct CleanerHintsThreadingTests {
         #expect(systemContent.contains("prieved → prived, primed"))
     }
 
-    /// Stated sensitivity: a FallbackCleaner that forwards to the chain's 3-arg
+    /// Stated sensitivity: a FallbackCleaner that forwards to the wrapped cleaner's 3-arg
     /// `clean` (dropping hints) makes the recorded hints empty — this turns red.
     @Test
-    func fallbackCleanerForwardsHintsDownTheChain() async throws {
+    func fallbackCleanerForwardsHintsToTheWrappedCleaner() async throws {
         let recording = FakeCleaner(outcome: .success("HI"))
-        let fallback = FallbackCleaner(chain: [recording, PassThrough()], statusReporter: { _ in })
+        let fallback = FallbackCleaner(cleaner: recording, statusReporter: { _ in })
 
         _ = try await fallback.clean("raw", config: Self.config, context: Self.context, hints: Self.hints)
 
         #expect(recording.calls.last?.hints == Self.hints,
-                "the fallback chain must forward hints unchanged; got \(String(describing: recording.calls.last?.hints))")
+                "the fallback must forward hints unchanged; got \(String(describing: recording.calls.last?.hints))")
     }
 }

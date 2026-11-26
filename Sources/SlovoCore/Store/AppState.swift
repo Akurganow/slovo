@@ -79,13 +79,19 @@ public extension AppState {
     }
 
     var cleanupAvailability: CleanupAvailability {
-        CleanupAvailability.derive(preference: config.cleanupEnabled, keyPresent: isOpenRouterKeyPresent)
+        CleanupAvailability.derive(preference: config.cleanupEnabled, providerReady: isCleanupProviderReady)
+    }
+
+    private var isCleanupProviderReady: Bool {
+        switch config.cleanupProvider {
+        case .openRouter: isOpenRouterKeyPresent
+        }
     }
 
     var cleanupModelSelection: CleanupModelSelection.Result {
         CleanupModelSelection.derive(
-            preference: config.openRouterModel,
-            catalog: CleanupModelCatalog.options,
+            preference: config.cleanupModel,
+            catalog: CleanupModelCatalog.options(for: config.cleanupProvider),
             scope: cleanupScope.scope
         )
     }

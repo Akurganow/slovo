@@ -159,12 +159,12 @@ struct AppStoreEffectsTests {
         }))
         store.update { $0.applyScope(.pipelineStarted) }
         #expect(await waitUntil { fetches.withLock { $0 } == 1 })
-        store.update { $0.applyScope(.cleanupFailed(.apiError(status: 404))) }
+        store.update { $0.applyScope(.cleanupFailed(.modelUnavailable)) }
         store.update { $0.config.writingStyle = .formal }
         let configBeforeFold = store.state.config
         await gate.open()
         #expect(await waitUntil { store.state.cleanupScope.scope == .known(ids) })
-        #expect(fetches.withLock { $0 } == 1, "a 404 while a fetch is in flight must start no second fetch")
+        #expect(fetches.withLock { $0 } == 1, "a model-unavailable failure while a fetch is in flight must start no second fetch")
         #expect(store.state.config == configBeforeFold, "ids that exclude the preference must not rewrite it (K1)")
         store.update { $0.applyScope(.keySaved) }
         #expect(await waitUntil { fetches.withLock { $0 } == 2 && store.state.cleanupScope.scope == .known(ids) })

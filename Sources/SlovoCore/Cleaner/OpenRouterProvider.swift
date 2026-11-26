@@ -1,19 +1,18 @@
 import Foundation
 import os
 
-/// Rewrites a transcript through OpenRouter's OpenAI-compatible Chat
+/// Reaches a cleanup model through OpenRouter's OpenAI-compatible Chat
 /// Completions API.
-public struct OpenRouterCleaner: Cleaner {
-    // Internal so a test reads the session the public init chose.
+struct OpenRouterProvider: CleanupProvider {
+    // Internal so a test reads the session the init chose.
     let session: URLSession
     private let keyProvider: OpenRouterKeyProvider
-    private let promptBuilder: PromptBuilder
-    private let log: RedactionSafeLog
 
-    // Latency mark sink for the post-key-up cleanup step, on the same
+    // Latency mark and failure sink for the post-key-up cleanup step, on the same
     // subsystem/category as the orchestrator and paste injector so one `log show`
-    // predicate spans the whole key-up → inserted timeline. Distinct from `log`
-    // (redaction-safe cleanup outcomes) by role; carries a duration only.
+    // predicate spans the whole key-up → inserted timeline. Carries the HTTP
+    // status and durations, which only this transport knows; the route's
+    // redaction-safe log carries the outcome.
     private static let diagnosticLog = Logger(subsystem: "com.slovo.app", category: "dictation")
 
     private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
@@ -25,73 +24,37 @@ public struct OpenRouterCleaner: Cleaner {
     // timeoutIntervalForResource: "The resource timer starts when the request is
     // initiated and counts until either the request completes or this timeout interval
     // is reached, whichever comes first."
-    private static let deadline: TimeInterval = 10
     private static let cleanupSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = deadline
-        configuration.timeoutIntervalForResource = deadline
+        configuration.timeoutIntervalForRequest = CleanupDefaults.deadline
+        configuration.timeoutIntervalForResource = CleanupDefaults.deadline
         return URLSession(configuration: configuration)
     }()
 
-    public init(
-        keyProvider: OpenRouterKeyProvider,
-        promptBuilder: PromptBuilder,
-        log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "cleaner")
-    ) {
-        self.init(session: Self.cleanupSession, keyProvider: keyProvider, promptBuilder: promptBuilder, log: log)
+    init(keyProvider: OpenRouterKeyProvider) {
+        self.init(session: Self.cleanupSession, keyProvider: keyProvider)
     }
 
     // Internal so tests can pass a stub session.
-    init(
-        session: URLSession,
-        keyProvider: OpenRouterKeyProvider,
-        promptBuilder: PromptBuilder,
-        log: RedactionSafeLog = RedactionSafeLog(subsystem: "slovo", category: "cleaner")
-    ) {
+    init(session: URLSession, keyProvider: OpenRouterKeyProvider) {
         self.session = session
         self.keyProvider = keyProvider
-        self.promptBuilder = promptBuilder
-        self.log = log
     }
 
-    public func clean(
-        _ raw: String,
-        config: CleanupConfig,
-        context: PersonalizationContext
-    ) async throws -> String {
-        try await clean(raw, config: config, context: context, hints: CleanupHints())
-    }
-
-    public func clean(
-        _ raw: String,
-        config: CleanupConfig,
-        context: PersonalizationContext,
-        hints: CleanupHints
-    ) async throws -> String {
-        try await cleanReportingCost(raw, config: config, context: context, hints: hints).text
-    }
-
-    /// `clean` plus the cost OpenRouter charged for the request, nil when the reply names none.
-    /// Its one caller outside the app is the cleanup benchmark, which reports what cleanup costs.
-    public func cleanReportingCost(
-        _ raw: String,
-        config: CleanupConfig,
-        context: PersonalizationContext,
-        hints: CleanupHints
-    ) async throws -> (text: String, costUSD: Double?) {
+    func reply(to prompt: CleanupPrompt) async throws -> CleanupReply {
         let key: String
         do {
             key = try keyProvider.apiKey()
         } catch {
-            Self.logFailure(failureKind: "missingKey", failureStatus: "none", failureMs: 0)
-            throw CleanupError.missingKey
+            let failure = CleanupError.missingKey
+            Self.logFailure(failureKind: failure.logToken, failureStatus: "none", failureMs: 0)
+            throw failure
         }
 
-        let prompt = promptBuilder.buildPrompt(raw: raw, config: config, context: context, hints: hints)
         let body = OpenRouterRequest(
             model: prompt.model,
             messages: [
-                OpenRouterRequest.Message(role: "system", content: prompt.systemBlocks.joined(separator: "\n\n")),
+                OpenRouterRequest.Message(role: "system", content: prompt.systemText),
                 OpenRouterRequest.Message(role: "user", content: prompt.input),
             ],
             temperature: 0,
@@ -116,14 +79,13 @@ public struct OpenRouterCleaner: Cleaner {
         do {
             (data, response) = try await session.data(for: urlRequest)
         } catch let error as URLError {
-            let token = Self.transportToken(error)
-            log.event("cleanup failed: \(token)")
+            let failure = Self.transportFailure(error)
             Self.logFailure(
-                failureKind: token,
+                failureKind: failure.logToken,
                 failureStatus: "none",
                 failureMs: Self.elapsedMs(since: requestStartUptime)
             )
-            throw CleanupError.transport
+            throw failure
         }
         let requestMs = Self.elapsedMs(since: requestStartUptime)
         Self.diagnosticLog.info(
@@ -133,39 +95,38 @@ public struct OpenRouterCleaner: Cleaner {
         )
 
         guard let http = response as? HTTPURLResponse else {
-            log.event("cleanup failed: badResponse")
-            Self.logFailure(failureKind: "badResponse", failureStatus: "none", failureMs: requestMs)
-            throw CleanupError.transport
+            let failure = CleanupError.badResponse
+            Self.logFailure(failureKind: failure.logToken, failureStatus: "none", failureMs: requestMs)
+            throw failure
         }
 
         if http.statusCode == 429 {
             let retryAfter = http.value(forHTTPHeaderField: "retry-after").flatMap(TimeInterval.init)
-            log.event("cleanup failed: rateLimited")
-            Self.logFailure(failureKind: "rateLimited", failureStatus: "\(http.statusCode)", failureMs: requestMs)
-            throw CleanupError.rateLimited(retryAfter: retryAfter)
+            let failure = CleanupError.rateLimited(retryAfter: retryAfter)
+            Self.logFailure(failureKind: failure.logToken, failureStatus: "\(http.statusCode)", failureMs: requestMs)
+            throw failure
         }
         if http.statusCode >= 400 {
-            log.event("cleanup failed: apiError")
-            Self.logFailure(failureKind: "apiError", failureStatus: "\(http.statusCode)", failureMs: requestMs)
-            throw CleanupError.apiError(status: http.statusCode)
+            let failure = http.statusCode == 404 ? CleanupError.modelUnavailable : CleanupError.refused
+            Self.logFailure(failureKind: failure.logToken, failureStatus: "\(http.statusCode)", failureMs: requestMs)
+            throw failure
         }
 
         guard let decoded = try? JSONDecoder().decode(OpenRouterResponse.self, from: data),
               let cleaned = decoded.firstText
         else {
-            log.event("cleanup failed: apiError")
+            // Its own word, not `.noText`'s "apiError": the readable line tells an
+            // unreadable reply from a refusal.
             Self.logFailure(failureKind: "undecodable", failureStatus: "\(http.statusCode)", failureMs: requestMs)
-            throw CleanupError.apiError(status: http.statusCode)
+            throw CleanupError.noText
         }
 
-        log.event("cleanup ok")
-        log.logLength(of: cleaned)
-        return (cleaned, decoded.cost)
+        return CleanupReply(text: cleaned, costUSD: decoded.cost)
     }
 
     /// Names a cleanup failure on the readable log: which failure, the provider's
-    /// HTTP status when it answered, and how long the attempt took. The outcome
-    /// lines on `log` are redacted, and `cleanup.request` is emitted before the
+    /// HTTP status when it answered, and how long the attempt took. The route's
+    /// outcome lines are redacted, and `cleanup.request` is emitted before the
     /// status is known, so without this a refused or rate-limited request reads
     /// exactly like a fast success. The response body, the prompt, the transcript
     /// and the key never reach here.
@@ -178,19 +139,18 @@ public struct OpenRouterCleaner: Cleaner {
         )
     }
 
-    // Fixed tokens only: `RedactionSafeLog.event` must never receive a payload.
-    private static func transportToken(_ error: URLError) -> String {
+    private static func transportFailure(_ error: URLError) -> CleanupError {
         switch error.code {
         case .timedOut:
-            "timedOut"
+            .timedOut
         case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed,
              .internationalRoamingOff, .callIsActive:
-            "offline"
+            .offline
         case .secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted,
              .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected:
-            "tls"
+            .tls
         default:
-            "transport"
+            .transport
         }
     }
 

@@ -1,29 +1,29 @@
-/// A composite `Cleaner` that walks a chain, advancing to the next cleaner on any
-/// `CleanupError` and terminating at `PassThrough`. A non-`CleanupError` (e.g. a
-/// request body that fails to encode) is not caught here: it propagates to the
-/// orchestrator, which inserts the spoken text.
+/// Wraps one `Cleaner` and, on any `CleanupError`, reports the failure and
+/// returns the spoken text. A non-`CleanupError` (e.g. a request body that
+/// fails to encode) is not caught here: it propagates to the orchestrator,
+/// which inserts the spoken text.
 ///
-/// Every expected `CleanupError` advances WITH a user-visible sad-to-fail status.
+/// Every expected `CleanupError` falls back WITH a user-visible sad-to-fail status.
 /// Cleanup is always attempted upstream; preserving the user's voice-to-text
 /// intent is non-negotiable. The decision is a no-`default` switch so a future
 /// `CleanupError` case forces a deliberate visibility choice.
 /// `@unchecked Sendable` because of the `statusReporter` closure: it is invoked
 /// only synchronously from within `clean(...)` (never concurrently), and keeping
 /// it a plain closure lets existing tests pass an ordinary capturing reporter (a
-/// `@Sendable` reporter would forbid that). The chain of `Cleaner`s is genuinely
+/// `@Sendable` reporter would forbid that). The wrapped `Cleaner` is genuinely
 /// `Sendable`. The `onCleanupFailure` observer, like `statusReporter`, is invoked
 /// only synchronously from within `clean(...)`.
 public struct FallbackCleaner: Cleaner, @unchecked Sendable {
-    private let chain: [any Cleaner]
+    private let cleaner: any Cleaner
     private let statusReporter: (StatusMessage) -> Void
     private let onCleanupFailure: ((CleanupError) -> Void)?
 
     public init(
-        chain: [any Cleaner],
+        cleaner: any Cleaner,
         statusReporter: @escaping (StatusMessage) -> Void,
         onCleanupFailure: ((CleanupError) -> Void)? = nil
     ) {
-        self.chain = chain
+        self.cleaner = cleaner
         self.statusReporter = statusReporter
         self.onCleanupFailure = onCleanupFailure
     }
@@ -42,32 +42,21 @@ public struct FallbackCleaner: Cleaner, @unchecked Sendable {
         context: PersonalizationContext,
         hints: CleanupHints
     ) async throws -> String {
-        var lastError: CleanupError?
-        for cleaner in chain {
-            do {
-                return try await cleaner.clean(raw, config: config, context: context, hints: hints)
-            } catch let error as CleanupError {
-                // Only CleanupError degrades; report the visible cases, then advance.
-                report(error)
-                onCleanupFailure?(error)
-                lastError = error
-                continue
-            }
-            // A non-CleanupError is NOT caught here, so it propagates out.
+        do {
+            return try await cleaner.clean(raw, config: config, context: context, hints: hints)
+        } catch let error as CleanupError {
+            report(error)
+            onCleanupFailure?(error)
+            return raw
         }
-        // The chain should end in PassThrough (which never throws); if a chain was
-        // built without a terminal cleaner, surface the last degradation.
-        if let lastError {
-            throw lastError
-        }
-        return raw
     }
 
     /// Every `CleanupError` reports that the spoken text was inserted. The
     /// no-`default` switch makes a new `CleanupError` case a compile error here.
     private func report(_ error: CleanupError) {
         switch error {
-        case .transport, .missingKey, .rateLimited, .apiError:
+        case .missingKey, .timedOut, .offline, .tls, .transport, .badResponse,
+             .rateLimited, .modelUnavailable, .refused, .noText:
             statusReporter(.cleanupUnavailableInsertedAsSpoken)
         }
     }

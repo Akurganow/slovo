@@ -155,8 +155,8 @@ struct OrchestratorTermMissTests {
 
     /// An unexpected cleaner error (`catch` branch) inserts the spoken text and
     /// spawns no detection, because no cleaned text exists to compare. The failure
-    /// must REACH the actor's catch: `FallbackCleaner` degrades every `CleanupError`
-    /// to `PassThrough` (a success with `cleaned == raw`), so only a non-`CleanupError`
+    /// must REACH the actor's catch: `FallbackCleaner` returns the spoken text for every
+    /// `CleanupError` (a success with `cleaned == raw`), so only a non-`CleanupError`
     /// propagates — the same `ThrowingCleaner` shape
     /// `OrchestratorTests.unexpectedCleanerFailureInsertsTheSpokenText` uses.
     /// Stated sensitivity: spawn detection in the catch branch with the raw

@@ -7,11 +7,12 @@ public enum CleanupAvailability: Equatable, Sendable {
     case offByChoice
     case offNoKey
 
-    /// `preference` is the stored `Config.cleanupEnabled`; `keyPresent` is the
-    /// Keychain fact. A missing key wins: without one, cleanup cannot run
+    /// `preference` is the stored `Config.cleanupEnabled`; `providerReady` is
+    /// whether the chosen provider can run now (for OpenRouter, the Keychain
+    /// fact). An unready provider wins: without one, cleanup cannot run
     /// regardless of preference, and the preference itself is never rewritten.
-    static func derive(preference: Bool, keyPresent: Bool) -> CleanupAvailability {
-        guard keyPresent else { return .offNoKey }
+    static func derive(preference: Bool, providerReady: Bool) -> CleanupAvailability {
+        guard providerReady else { return .offNoKey }
         return preference ? .on : .offByChoice
     }
 

@@ -3,13 +3,22 @@ import Foundation
 /// Provider-neutral cleanup prompt built from config and personalization.
 public struct CleanupPrompt: Sendable, Equatable {
     public let model: String
-    public let systemBlocks: [String]
+    /// Instructions, then the vocabulary: the part a provider may cache.
+    public let prefixBlocks: [String]
+    /// The per-dictation advisory block, nil when there is none.
+    public let advisory: String?
     public let input: String
 
-    public init(model: String, systemBlocks: [String], input: String) {
+    public init(model: String, prefixBlocks: [String], advisory: String?, input: String) {
         self.model = model
-        self.systemBlocks = systemBlocks
+        self.prefixBlocks = prefixBlocks
+        self.advisory = advisory
         self.input = input
+    }
+
+    /// The system message: the prefix blocks, then the advisory, joined by a blank line.
+    public var systemText: String {
+        (prefixBlocks + (advisory.map { [$0] } ?? [])).joined(separator: "\n\n")
     }
 }
 
@@ -70,18 +79,18 @@ public struct PromptBuilder: Sendable {
 
         // Block order is the prompt's cache prefix: the stable instruction block first,
         // then the slow-moving vocabulary, then the per-dictation advisory.
-        var systemBlocks = [instructions(for: config)]
+        var prefixBlocks = [instructions(for: config)]
         if !keptEntries.isEmpty {
-            systemBlocks.append(vocabularyBlock(entries: keptEntries))
+            prefixBlocks.append(vocabularyBlock(entries: keptEntries))
         }
         let collisions = vocabularyCollisionLines(raw: raw, terms: sortedTerms.map(\.trimmedTerm))
-        if let advisory = advisoryBlock(for: hints, collisionLines: collisions) {
-            systemBlocks.append("<advisory>\n\(advisory)\n</advisory>")
-        }
+        let advisory = advisoryBlock(for: hints, collisionLines: collisions)
+            .map { "<advisory>\n\($0)\n</advisory>" }
 
         return CleanupPrompt(
             model: config.model,
-            systemBlocks: systemBlocks,
+            prefixBlocks: prefixBlocks,
+            advisory: advisory,
             input: "<transcript>\(raw)</transcript>"
         )
     }

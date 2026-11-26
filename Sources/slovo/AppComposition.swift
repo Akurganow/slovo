@@ -49,8 +49,8 @@ enum AppComposition {
         // app can gate dictation on its own warm-up either way.
         let modelWarmUp = speechModel.startWarmUp()
         let transcriber = speechModel.transcriber
-        let cleaner = OpenRouterCleaner(
-            keyProvider: openRouterKeyProvider,
+        let cleaner = CleanupRoute(
+            providers: CleanupProviders(openRouterKeys: openRouterKeyProvider),
             promptBuilder: PromptBuilder(examples: .bundled),
             log: log
         )

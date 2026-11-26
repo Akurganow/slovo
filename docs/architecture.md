@@ -105,14 +105,17 @@ standalone WhisperKit package). What leaves the Mac is listed in
   decoder's `skipSpecialTokens` option is the first-line, token-ID-exact
   optimization. Neither the cleaner nor the paste path ever sees a special
   token.
-- `Cleaner` rewrites the transcript into final prose when OpenRouter cleanup
-  succeeds; `FallbackCleaner` degrades a failed attempt to `PassThrough`, and the
-  orchestrator inserts the spoken text for an error the chain does not catch.
+- `Cleaner` rewrites the transcript into final prose. `CleanupRoute` is the one
+  the app and the cleanup benchmark build: it reaches a model through the
+  `CleanupProvider` port ("Cleanup Mechanism"). `FallbackCleaner` wraps it in
+  the pipeline and, on a `CleanupError`, reports the failure and returns the
+  spoken text. The orchestrator inserts the spoken text for an error that is not
+  a `CleanupError`.
 - `Injector` inserts the final text into the focused field with an atomic paste.
 - `CleanupAvailability` is the app layer's single source of truth for whether
   cleanup is effectively on and, when off, why (toggled off vs. no OpenRouter
   key). The menu, Settings, the recording glyph, and the dictation's settings
-  all read this one derivation (`preference && keyPresent`), so the state is
+  all read this one derivation (`preference && providerReady`), so the state is
   never re-derived divergently. Its derivation is the `cleanupAvailability`
   selector on `AppState` (see App State); the store publishes synchronously, so
   the Settings pane and the menu reflect a change within one runloop turn.
@@ -152,10 +155,12 @@ the copy, and a failed save or a successful removal drops it. The key-scope
 request (`/models/user`) is not tied to a dictation. `CleanupScopeReducer`
 decides when it is sent: every occasion but one goes through `fetchIfReady`,
 which needs cleanup effectively on, the pipeline started, the scope unknown and
-no fetch in flight. A cleanup call that fails with HTTP status 404 starts a
-fetch directly, with cleanup on and the pipeline started. It keeps the old scope
-until the answer replaces it; a failed fetch resets the scope to unknown. The
-occasions are listed in [docs/privacy.md](privacy.md), "Cloud Cleanup".
+no fetch in flight. A cleanup call that fails with `CleanupError.modelUnavailable`
+(the adapter's mapping of HTTP status 404) starts a fetch directly, with cleanup
+on and the pipeline started. The reducer reads that case and no HTTP status. It
+keeps the old scope until the answer replaces it; a failed fetch resets the
+scope to unknown. The occasions are listed in [docs/privacy.md](privacy.md),
+"Cloud Cleanup".
 
 Before each cleanup, Slovo adds advisory on-device hints to the prompt — the
 active keyboard language and, when enabled, system spell and grammar findings —
@@ -176,8 +181,56 @@ the examples; no prompt text is assembled from string literals scattered in code
 A translate hold reuses the same single cleanup request (it also translates into
 the configured target language) — there is no second pass.
 
-`OpenRouterCleaner` owns its network session, and one deadline bounds the whole
-request, so one cleanup request holds a dictation for at most 10 seconds.
+### The provider port
+
+`CleanupProvider` is the port to a cleanup model. An adapter maps a
+`CleanupPrompt` to its provider's request format and sampling settings, sends it
+over its own transport, and returns a `CleanupReply` (the text and, when the
+provider names one, the cost in US dollars) or throws a `CleanupError`. Any other
+error is a defect and reaches the orchestrator's unexpected-error path.
+
+`CleanupRoute` sits above the port. It picks the adapter the dictation's
+`CleanupConfig.provider` names from `CleanupProviders`, which builds every
+adapter once per composition. It builds the prompt, rejects a reply with no
+visible character as `.noText` for every adapter, and writes the outcome lines:
+`cleanup ok`, `len=N` and `cleanup failed: <token>`, and no outcome line for
+`.missingKey`. The token is `CleanupError.logToken`, one switch with no
+`default`, so a new case is a compile error there and in `FallbackCleaner`. The
+route does not fall back to the spoken text: the benchmark calls it directly and
+records each failure.
+
+`OpenRouterProvider` is the one adapter. It keeps the key read, the request
+format, its sampling (temperature 0, reasoning off) and the transport lines
+`cleanup.request` and `cleanup.failure`, which carry the HTTP status and the
+request's own time. It maps HTTP status 404 to `.modelUnavailable` and every other
+status of 400 or more to `.refused`. The `kind` of a `cleanup.failure` line is
+the error's `logToken`, except `undecodable` for a 200 reply it could not read,
+so the readable line tells an unreadable reply from a refusal.
+
+`CleanupPrompt` splits the system message at its cache boundary: `prefixBlocks`
+(instructions, then vocabulary) and the per-dictation `advisory`. `systemText`
+joins them with a blank line, and the benchmark's prompt hash covers it.
+
+`CleanupDefaults.deadline` is the one deadline: 10 seconds. Each transport
+enforces it. `OpenRouterProvider` sets both timers of its shared ephemeral
+session to it, so one cleanup request holds a dictation for at most 10 seconds.
+
+### The provider tag
+
+`CleanupProviderID` is the stored provider tag under `cleanup.provider`. Builds
+from v0.37.5 (`05720c1`) read that key. They turn cleanup off for a tag they do
+not know and keep every other setting. Builds before v0.37.5 refuse the whole
+config and use the defaults. A new key that no old build reads would keep the
+settings through a downgrade. But every old build would then run OpenRouter
+cleanup with the key it holds, against the user's choice, and the transcript
+would leave the Mac. Keeping the transcript on the Mac outranks keeping settings
+through a downgrade, so the tag stays `cleanup.provider`.
+
+While OpenRouter is the only provider, `ConfigStore` writes no `provider`: an
+absent tag and `"openrouter"` mean the same to every build.
+
+`CleanupModelCatalog.options(for:)` returns one model list per tag, and each
+provider keeps its own stored model.
 
 ## Storage
 

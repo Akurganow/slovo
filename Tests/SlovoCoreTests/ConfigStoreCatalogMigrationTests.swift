@@ -89,7 +89,7 @@ struct ConfigStoreCatalogMigrationTests {
     /// into a cycle, or keep a replaced id in the catalog → RED.
     @Test
     func everyReplacedModelResolvesToACatalogModel() {
-        let catalog = Set(CleanupModelCatalog.options.map(\.id))
+        let catalog = Set(CleanupModelCatalog.options(for: .openRouter).map(\.id))
         let successors = ConfigStore.openRouterModelSuccessors
 
         #expect(catalog.isDisjoint(with: successors.keys))

@@ -35,17 +35,16 @@ struct FallbackCleanerObserverTests {
     func observerReceivesTheCleanupErrorOnFailure() async throws {
         let box = ErrorBox()
         let cleaner = FallbackCleaner(
-            chain: [Failing(error: .apiError(status: 404)), PassThrough()],
+            cleaner: Failing(error: .modelUnavailable),
             statusReporter: { _ in },
             onCleanupFailure: { box.append($0) }
         )
         _ = try await cleaner.clean("raw", config: Self.config, context: Self.context)
         let seen = box.values
         #expect(seen.count == 1)
-        if case .apiError(let status) = seen.first {
-            #expect(status == 404)
-        } else {
+        guard case .modelUnavailable = seen.first else {
             Issue.record("observer received the wrong error case")
+            return
         }
     }
 
@@ -53,7 +52,7 @@ struct FallbackCleanerObserverTests {
     func observerSilentOnSuccess() async throws {
         let box = ErrorBox()
         let cleaner = FallbackCleaner(
-            chain: [Succeeding(), PassThrough()],
+            cleaner: Succeeding(),
             statusReporter: { _ in },
             onCleanupFailure: { box.append($0) }
         )
@@ -72,7 +71,7 @@ struct FallbackCleanerObserverTests {
         let injector = FakeInjector(outcome: .success)
         var dependencies = Dependencies(
             transcriber: FakeTranscriber(outcome: .success("raw words")),
-            cleaner: FakeCleaner(outcome: .failure(.apiError(status: 404))),
+            cleaner: FakeCleaner(outcome: .failure(.modelUnavailable)),
             injector: injector,
             personalization: FakePersonalizationSource(terms: []),
             audio: FakeSystemAudioController(
@@ -91,10 +90,9 @@ struct FallbackCleanerObserverTests {
         await orchestrator.awaitPipelineDrain()
 
         #expect(injector.calls.last == "raw words", "the failed cleanup must degrade to the raw transcript")
-        if case .apiError(let status) = box.values.first {
-            #expect(status == 404)
-        } else {
+        guard case .modelUnavailable = box.values.first else {
             Issue.record("the observer must receive the cleaner's failure; saw \(box.values)")
+            return
         }
         #expect(box.values.count == 1)
     }

@@ -22,7 +22,7 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
 
     /// One OpenRouter spec per model of the app's cleanup list.
     public static var catalog: [CleanupBenchmarkProviderSpec] {
-        CleanupModelCatalog.options.map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }
+        CleanupModelCatalog.options(for: .openRouter).map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }
     }
 
     public static func parseList(_ value: String) throws -> [CleanupBenchmarkProviderSpec] {

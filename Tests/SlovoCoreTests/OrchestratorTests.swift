@@ -93,8 +93,9 @@ struct OrchestratorTests {
     }
 
     /// A failing cleaner ⇒ the RAW transcript is injected (never lose the words).
-    /// Stated sensitivity: break the degradation (don't advance to PassThrough on
-    /// `.transport`) → the raw transcript is NOT injected → RED.
+    /// Stated sensitivity: make `FallbackCleaner` return an empty string instead of
+    /// the spoken text for a `CleanupError` → the raw transcript is NOT injected → RED.
+    /// A rethrow stays green: the orchestrator's own catch inserts the spoken text too.
     @Test
     func failingCleanerDegradesToRawTranscript() async {
         let transcriber = FakeTranscriber(outcome: .success("hi"))
@@ -106,7 +107,7 @@ struct OrchestratorTests {
         await Self.runSession(orchestrator)
 
         #expect(injector.calls.last == "hi",
-                "a failing cleaner must degrade to the RAW transcript via PassThrough; got \(String(describing: injector.calls.last))")
+                "a failing cleaner must degrade to the RAW transcript through FallbackCleaner; got \(String(describing: injector.calls.last))")
     }
 
     /// A persisted `cleanup.enabled=false` is a first-class user-off mode, not a
@@ -122,7 +123,7 @@ struct OrchestratorTests {
     /// and the availability override in `AppState.effectiveCleanupConfig`), or
     /// remove the `sessionSettings.cleanup.runsCleaner` guard -> `runsCleaner` reads
     /// `true`, the cleaner is called, and "HI" is injected -> RED. Build the
-    /// factory's chain without `dependencies.cleaner` -> the second dictation
+    /// factory's cleaner without `dependencies.cleaner` -> the second dictation
     /// injects "hi" -> RED.
     @Test
     func persistedDisabledConfigSkipsCleanerEndToEnd() async throws {

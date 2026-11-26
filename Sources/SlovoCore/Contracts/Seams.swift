@@ -61,7 +61,7 @@ public protocol Cleaner: Sendable {
     func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String
     /// Cleans with advisory on-device hints. The default implementation below DROPS
     /// the hints and forwards to the 3-arg `clean`; a cleaner that must act on hints
-    /// (e.g. the OpenRouter cleaner feeding `PromptBuilder`) MUST override this
+    /// (e.g. `CleanupRoute` feeding `PromptBuilder`) MUST override this
     /// requirement — inheriting the default silently ignores them.
     func clean(
         _ raw: String,
@@ -83,12 +83,47 @@ public extension Cleaner {
     }
 }
 
-/// Failure modes of a cleanup attempt.
+/// Why a cleanup attempt gave no text. Every case falls back to the spoken text.
 public enum CleanupError: Error, Sendable {
-    case transport
+    /// The provider cannot run yet: OpenRouter has no key.
     case missingKey
+    /// No answer arrived before the deadline.
+    case timedOut
+    /// The Mac has no network path to the provider.
+    case offline
+    /// The secure connection to the provider failed.
+    case tls
+    /// The link to the provider failed in another way.
+    case transport
+    /// Something answered, but not as the provider does.
+    case badResponse
+    /// The provider limits requests for now.
     case rateLimited(retryAfter: TimeInterval?)
-    case apiError(status: Int)
+    /// The provider cannot serve the chosen model to this account.
+    case modelUnavailable
+    /// The provider answered with an error of its own.
+    case refused
+    /// The provider answered with no text to insert.
+    case noText
+}
+
+extension CleanupError {
+    /// The fixed word a log line names this failure by. A provider's HTTP status
+    /// is a detail of that provider and has no word of its own: both refusals and
+    /// the missing text read "apiError". The switch has no `default`, so a new
+    /// case is a compile error here.
+    var logToken: String {
+        switch self {
+        case .missingKey: "missingKey"
+        case .timedOut: "timedOut"
+        case .offline: "offline"
+        case .tls: "tls"
+        case .transport: "transport"
+        case .badResponse: "badResponse"
+        case .rateLimited: "rateLimited"
+        case .modelUnavailable, .refused, .noText: "apiError"
+        }
+    }
 }
 
 /// Inserts finished text into the focused application.

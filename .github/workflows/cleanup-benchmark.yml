@@ -107,7 +107,8 @@ jobs:
             Sources/SlovoCore/Resources/PromptExamples.xml \
             Sources/SlovoCore/Cleaner/PromptExampleCatalog.swift \
             Sources/SlovoCore/Cleaner/OpenRouterRequest.swift \
-            Sources/SlovoCore/Cleaner/OpenRouterCleaner.swift \
+            Sources/SlovoCore/Cleaner/OpenRouterProvider.swift \
+            Sources/SlovoCore/Cleaner/CleanupRoute.swift \
             Sources/SlovoCore/VisibleText.swift \
             Sources/SlovoCore/Cleaner/CleanupModelCatalog.swift \
             Benchmarks/cleanup/slovo-cleanup-v1.json \
