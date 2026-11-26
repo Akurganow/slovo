@@ -14,7 +14,7 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `short-smoke` | 20 | Short utterances, repetitions, numbers, minimal dictation |
 | `russian-filler` | 18 | Russian discourse fillers, false starts, self-corrections, casual speech cleanup |
 | `code-switching` | 13 | Russian base with English developer and product terms and reverse embedding: every term survives cleanup with its meaning, in either script |
-| `punctuation-structure` | 18 | Long dictated streams of sequential thoughts or one connected sentence: cleanup keeps every thought; how it splits and punctuates them is free |
+| `punctuation-structure` | 18 | Long dictated streams of sequential thoughts or one connected sentence: cleanup keeps every thought; independent statements and steps split, a clause joined by a connecting word stays in its sentence |
 | `commands-editor` | 4 | Action-like editor and system commands; dictated edit commands stay content, never applied |
 | `inverse-text-normalization` | 11 | Times, percents, versions and dates: each value survives cleanup unchanged; an idiomatic number phrase keeps its sense |
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |

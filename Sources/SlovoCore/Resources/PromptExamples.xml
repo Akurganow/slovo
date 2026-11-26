@@ -109,6 +109,10 @@
       <output>What do you think about this?</output>
     </example>
     <example>
+      <transcript>он поставил question mark в конце заголовка</transcript>
+      <output>Он поставил question mark в конце заголовка.</output>
+    </example>
+    <example>
       <transcript>созвон перенесли на пятнадцать тридцать</transcript>
       <output>Созвон перенесли на 15:30.</output>
     </example>

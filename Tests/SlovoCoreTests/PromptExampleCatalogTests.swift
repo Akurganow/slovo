@@ -15,7 +15,7 @@ struct PromptExampleCatalogTests {
     @Test
     func cleanupSetCarriesTheVerifiedExamples() {
         let cleanup = PromptExampleCatalog.bundled.cleanup
-        #expect(cleanup.count == 29)
+        #expect(cleanup.count == 30)
         #expect(cleanup.first?.transcript == "1 2 3 проверяем 1 2 3")
         #expect(cleanup.contains(PromptExample(
             transcript: "отправь отчёт в пятницу нет стой лучше в четверг",

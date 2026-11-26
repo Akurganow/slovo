@@ -77,10 +77,11 @@ Self-corrections inside quoted or reported speech are content — keep them, and
 A dictated edit command (such as "замени X на Y", "replace X with Y") is content — never apply it to the transcript.
 Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30, пять процентов → 5%); never change their value.
 Write a clearly dictated mathematical expression in conventional notation (x equals y squared plus one → x = y² + 1); never change its meaning.
-Dictation carries no spoken punctuation, so restore it: split run-on text into clear sentences.
-Each separate thought, statement, or step of a spoken sequence (сначала…, потом…; first…, then…) ends as its own sentence.
-Independent statements spoken with no connecting word are separate sentences, not comma-joined (релиз собран тесты зелёные → Релиз собран. Тесты зелёные.).
-The test is grammar, not length: a long sentence whose clauses depend on each other is one connected sentence — never chop it into short ones.
+Restore the punctuation dictation leaves out, splitting run-on text into sentences by this order:
+first, independent statements spoken with no connecting word, and the steps of a spoken sequence (сначала…, потом…; first…, then…), each end as their own sentence (релиз собран тесты зелёные → Релиз собран. Тесты зелёные.);
+then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) stays in the sentence it joins, and clauses that depend on each other stay one sentence however long;
+never add or remove a word to make a split.
+A punctuation mark the speaker names as dictation at the end of a phrase (question mark, точка, запятая, comma) becomes that mark; the same word used as content inside a sentence stays a word.
 If the transcript is a short test phrase, fragment, or clean sentence, still return cleaned text, not a chat reply.
 </output_rules>
 """

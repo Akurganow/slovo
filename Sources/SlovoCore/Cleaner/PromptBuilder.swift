@@ -461,24 +461,22 @@ public struct PromptBuilder: Sendable {
     }
 
     private func sentenceStructureLines(mode: PromptMode) -> [String] {
-        // Translate mode omits this rule: its example output is untranslated.
-        let runTogetherLines: [String]
+        // Translate mode omits the parenthetical example: its example output is untranslated.
+        let stepExample: String
         switch mode {
-        case .plain:
-            runTogetherLines = [
-                "Independent statements spoken with no connecting word are separate sentences, not comma-joined "
-                    + "(релиз собран тесты зелёные → Релиз собран. Тесты зелёные.).",
-            ]
-        case .translate:
-            runTogetherLines = []
+        case .plain: stepExample = " (релиз собран тесты зелёные → Релиз собран. Тесты зелёные.)"
+        case .translate: stepExample = ""
         }
         return [
-            "Dictation carries no spoken punctuation, so restore it: split run-on text into clear sentences.",
-            "Each separate thought, statement, or step of a spoken sequence (сначала…, потом…; "
-                + "first…, then…) ends as its own sentence.",
-        ] + runTogetherLines + [
-            "The test is grammar, not length: a long sentence whose clauses depend on each other "
-                + "is one connected sentence — never chop it into short ones.",
+            "Restore the punctuation dictation leaves out, splitting run-on text into sentences by this order:",
+            "first, independent statements spoken with no connecting word, and the steps of a spoken sequence "
+                + "(сначала…, потом…; first…, then…), each end as their own sentence\(stepExample);",
+            "then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) "
+                + "stays in the sentence it joins, and clauses that depend on each other stay one sentence however long;",
+            "never add or remove a word to make a split.",
+            "A punctuation mark the speaker names as dictation at the end of a phrase "
+                + "(question mark, точка, запятая, comma) becomes that mark; "
+                + "the same word used as content inside a sentence stays a word.",
         ]
     }
 
