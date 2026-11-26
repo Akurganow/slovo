@@ -111,7 +111,9 @@ public struct PromptBuilder: Sendable {
             "If the transcript contains a phonetic or transliterated mis-recognition of one of these terms "
                 + "— a Cyrillic rendering of a Latin acronym, a split-apart form, or a wrongly cased form "
                 + "that is not an ordinary word — "
-                + "and the sentence uses it as that term, replace it with the spelling given here.",
+                + "and the sentence uses it as that term, replace it with the spelling given here. "
+                + "This repair restores the speaker's own term: it is not translation, "
+                + "and the rules that keep words as the speaker said them do not forbid it.",
             "An ordinary word in its everyday sense is never replaced with a listed term, even when it matches one.",
             "The parenthetical is context only: never write it into the output, "
                 + "and never expand an abbreviation the speaker said in short form.",
