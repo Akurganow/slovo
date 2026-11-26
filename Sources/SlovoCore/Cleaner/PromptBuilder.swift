@@ -252,15 +252,16 @@ public struct PromptBuilder: Sendable {
     /// mode's own hardest examples keep the few-shot recency slots.
     private func instructions(for config: CleanupConfig) -> String {
         let style = styleDescription(for: config.writingStyle)
+        let rule = styleRule(for: config.writingStyle)
         guard config.translate else {
-            return assemble(sections: plainSections(style: style), examples: examples.shared + examples.cleanup)
+            return assemble(sections: plainSections(style: style, rule: rule), examples: examples.shared + examples.cleanup)
         }
         let target = PromptBuilder.translationTargetName(for: config.translationTargetLanguage.rawValue)
         // Per-target LANGUAGE examples are gated on the language CODE: only
         // targets whose pairs passed independent language verification carry
         // them; every target still gets the language-neutral shared examples.
         let targetExamples = examples.translation[config.translationTargetLanguage.rawValue] ?? []
-        return assemble(sections: translateSections(style: style, target: target), examples: examples.shared + targetExamples)
+        return assemble(sections: translateSections(style: style, rule: rule, target: target), examples: examples.shared + targetExamples)
     }
 
     /// The written-prose register word, shared by both modes so the style governs the
@@ -270,6 +271,23 @@ public struct PromptBuilder: Sendable {
         case .formal: return "formal written prose"
         case .casual: return "casual written prose"
         case .veryCasual: return "very casual, conversational prose"
+        }
+    }
+
+    /// One output rule per register, rendered in the task section after the register phrase.
+    private func styleRule(for writingStyle: WritingStyle) -> String {
+        switch writingStyle {
+        case .formal:
+            return "Formal style: write contractions out in full (don't → do not) and replace a slang or colloquial "
+                + "word with its neutral word of the same meaning (потянем → успеем); keep every idea and the "
+                + "speaker's sentences. The examples are written in an everyday register; apply these changes on top of them."
+        case .casual:
+            return "Casual style: keep the speaker's contractions and everyday words as spoken; change no word for "
+                + "register. The examples show this style."
+        case .veryCasual:
+            return "Very casual style: use contractions where the speaker said the full form (do not → don't) and keep "
+                + "the speaker's colloquial words and short sentences; never join sentences. "
+                + "The examples show the casual style; apply these changes on top of them."
         }
     }
 
@@ -286,11 +304,11 @@ public struct PromptBuilder: Sendable {
         return blocks.joined(separator: "\n")
     }
 
-    private func plainSections(style: String) -> [PromptSection] {
+    private func plainSections(style: String, rule: String) -> [PromptSection] {
         [
             PromptSection(tag: "role", lines: roleLines(mode: .plain)),
             PromptSection(tag: "task", lines: taskLines(mode: .plain)
-                + ["Return the transcript as \(style), changing only what the rules below allow."]),
+                + ["Return the transcript as \(style), changing only what the rules below allow.", rule]),
             PromptSection(tag: "output_rules", lines:
                 [outputContractLine(mode: .plain), fidelityLine(mode: .plain), plainCompletenessLine, pleasantriesLine]
                 + plainLanguageLines
@@ -307,11 +325,12 @@ public struct PromptBuilder: Sendable {
         ]
     }
 
-    private func translateSections(style: String, target: String) -> [PromptSection] {
+    private func translateSections(style: String, rule: String, target: String) -> [PromptSection] {
         [
             PromptSection(tag: "role", lines: roleLines(mode: .translate)),
             PromptSection(tag: "task", lines: taskLines(mode: .translate) + [
                 "Translate the transcript into \(target) and remove dictation artifacts in the same pass, as \(style).",
+                rule,
                 "Write the output entirely in \(target); the only exceptions are the names and protected terms kept verbatim by the rules below.",
                 "Produce a faithful \(target) rendering of what the speaker said — never a summary, expansion, or improvement of it.",
             ]),
