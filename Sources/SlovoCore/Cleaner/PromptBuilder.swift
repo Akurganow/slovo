@@ -267,15 +267,16 @@ public struct PromptBuilder: Sendable {
     private func styleRule(for writingStyle: WritingStyle) -> String {
         switch writingStyle {
         case .formal:
-            return "Formal style: write contractions out in full (don't → do not) and replace a slang or colloquial "
-                + "word with its neutral word of the same meaning (потянем → успеем); keep every idea and the "
-                + "speaker's sentences. The examples are written in an everyday register; apply these changes on top of them."
+            return "Formal style: write contractions out in full (don't → do not), replace a slang or colloquial word "
+                + "with its neutral word of the same meaning (потянем → успеем), and bring the grammar to its standard "
+                + "form; keep every idea, the speaker's sentence boundaries, and every word that carries cause, "
+                + "contrast, or order. The examples are written in an everyday register; apply these changes on top of them."
         case .casual:
-            return "Casual style: keep the speaker's contractions and everyday words as spoken; change no word for "
-                + "register. The examples show this style."
+            return "Casual style: keep the speaker's contractions, everyday words, and grammar as spoken; change no "
+                + "word for register. The examples show this style."
         case .veryCasual:
             return "Very casual style: use contractions where the speaker said the full form (do not → don't) and keep "
-                + "the speaker's colloquial words and short sentences; never join sentences. "
+                + "the speaker's colloquial words, grammar, and short sentences; never join sentences. "
                 + "The examples show the casual style; apply these changes on top of them."
         }
     }
@@ -432,7 +433,7 @@ public struct PromptBuilder: Sendable {
         }
         return [
             "Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, "
-                + "spacing, and grammar\(fixSuffix).",
+                + "spacing, and grammar the recognizer broke, such as a garbled ending\(fixSuffix).",
             "Remove discourse fillers (such as um, uh, er, ну, вот, короче, эээ) when they only fill a pause"
                 + "\(fillerSuffix); a word that carries cause, contrast, order, or who did what stays "
                 + "(поэтому, но, потом, therefore).",
