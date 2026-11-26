@@ -961,11 +961,11 @@
       "id": "mixed-languages-es-en-merge-order-03",
       "category": "mixed-languages",
       "language": "es+en",
-      "raw": "Voy a hacer el deploy no perdón primero el merge del pull request en el repositorio.",
+      "raw": "Voy a hacer el deploy no perdón quiero decir el merge del pull request en el repositorio.",
       "references": [
-        "Voy a hacer primero el merge del pull request en el repositorio."
+        "Voy a hacer el merge del pull request en el repositorio."
       ],
-      "spoken": "voy a hacer el deploy no perdón primero el merge del pull request en el repositorio",
+      "spoken": "voy a hacer el deploy no perdón quiero decir el merge del pull request en el repositorio",
       "voice": "Mónica"
     },
     {
@@ -994,12 +994,12 @@
       "id": "mixed-languages-zh-en-release-notes-03",
       "category": "mixed-languages",
       "language": "zh+en",
-      "raw": "我先發布Release Notes那個不對 先在Dashboard上看一下数据再Deploy",
+      "raw": "我要打开Dashboard不对 我是說打開Release Notes看一下這次Deploy改了什麼",
       "references": [
-        "先在Dashboard上看一下数据，再Deploy。",
-        "先在Dashboard上看一下數據，再Deploy。"
+        "我要打开Release Notes，看一下这次Deploy改了什么。",
+        "我要打開Release Notes，看一下這次Deploy改了什麼。"
       ],
-      "spoken": "我先发布release notes那个不对先在dashboard上看一下数据再deploy",
+      "spoken": "我要打开dashboard 不对 我是说打开release notes看一下这次deploy改了什么",
       "voice": "Tingting"
     },
     {
@@ -1030,12 +1030,11 @@
       "id": "mixed-languages-hi-en-settings-03",
       "category": "mixed-languages",
       "language": "hi+en",
-      "raw": "Settings खोलो नहीं नहीं पहले Release Notes अपडेट करो.",
+      "raw": "Release Notes खोलो नहीं नहीं मेरा मतलब है Settings खोलो",
       "references": [
-        "पहले Release Notes अपडेट करो.",
-        "पहले Release Notes update करो."
+        "Settings खोलो."
       ],
-      "spoken": "settings खोलो नहीं नहीं पहले release notes update करो",
+      "spoken": "release notes खोलो नहीं नहीं मेरा मतलब है settings खोलो",
       "voice": "Lekha"
     },
     {
@@ -1257,11 +1256,11 @@
       "category": "translation",
       "language": "en",
       "translateTo": "ko",
-      "raw": "I need to buy milk and eggs I'm sorry bread and eggs on my way home.",
+      "raw": "I need to buy milk and eggs. no weight I mean bread and eggs on my way home.",
       "references": [
         "집에 가는 길에 빵과 달걀을 사야 해요."
       ],
-      "spoken": "I need to buy milk and eggs um sorry bread and eggs on my way home",
+      "spoken": "I need to buy milk and eggs no wait I mean bread and eggs on my way home",
       "voice": "Samantha"
     },
     {
