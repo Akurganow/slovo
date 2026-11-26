@@ -276,7 +276,7 @@ public struct PromptBuilder: Sendable {
             PromptSection(tag: "task", lines: taskLines(mode: .plain)
                 + ["Return the transcript as \(style), changing only what the rules below allow."]),
             PromptSection(tag: "output_rules", lines:
-                [outputContractLine(mode: .plain), fidelityLine, plainCompletenessLine, pleasantriesLine]
+                [outputContractLine(mode: .plain), fidelityLine(mode: .plain), plainCompletenessLine, pleasantriesLine]
                 + plainLanguageLines
                 + ["Preserve meaning, names, acronyms, commands, and intentional repetitions."]
                 + artifactLines(mode: .plain)
@@ -296,7 +296,7 @@ public struct PromptBuilder: Sendable {
                 "Produce a faithful \(target) rendering of what the speaker said — never a summary, expansion, or improvement of it.",
             ]),
             PromptSection(tag: "output_rules", lines:
-                [outputContractLine(mode: .translate), fidelityLine, pleasantriesLine]
+                [outputContractLine(mode: .translate), fidelityLine(mode: .translate), pleasantriesLine]
                 + artifactLines(mode: .translate)
                 + selfCorrectionLines(mode: .translate)
                 + [numbersLine, formulaLine]
@@ -304,8 +304,10 @@ public struct PromptBuilder: Sendable {
                 + [shortInputLine(mode: .translate)]),
             PromptSection(tag: "translation_rules", lines: [
                 "Preserve meaning over literalness; the result must read naturally to a native \(target) speaker.",
-                "Add nothing and drop nothing: every idea in the transcript, and only those, appears in the translation.",
-                "Fold code-switched input into \(target); keep names, commands, and protected vocabulary terms verbatim as given.",
+                "Add nothing and drop nothing: every idea the speaker dictated appears in the translation, "
+                    + "except what the rules above remove (fillers, false starts, and self-corrections).",
+                "Fold code-switched input into \(target); keep names, literal code or command-line text, "
+                    + "and protected vocabulary terms verbatim as given.",
                 // Deliberately restates taskLines' never-answer invariant: in translate
                 // mode the instruction-shaped transcript is the flagship trap, and the
                 // redundancy is load-bearing on mid-tier models (as in plainLanguageLines).
@@ -348,8 +350,11 @@ public struct PromptBuilder: Sendable {
             + "explanations, alternatives, or questions of your own; do not ask for more context."
     }
 
-    private var fidelityLine: String {
-        "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
+    private func fidelityLine(mode: PromptMode) -> String {
+        switch mode {
+        case .plain: return "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
+        case .translate: return "Do not add, invent, or infer any idea the speaker did not dictate."
+        }
     }
 
     /// The plain-mode mirror of `fidelityLine`: over-aggressive cleanup fails by
@@ -399,7 +404,7 @@ public struct PromptBuilder: Sendable {
             // The plain never-translate-a-term line would contradict this mode's
             // code-switch folding contract, so translate keeps only the
             // mentioned-phrase guard.
-            verbatimLine = "A phrase quoted or discussed as text stays exactly as the speaker said it."
+            verbatimLine = "A phrase quoted or discussed as text stays in the speaker's language, exactly as the speaker said it."
         }
         return [
             "Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, "
