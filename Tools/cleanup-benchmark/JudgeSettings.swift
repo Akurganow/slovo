@@ -21,6 +21,8 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
         public let repeats: Int
         /// Question key to question. The Jev coefficient is the lowest mean over these keys.
         public let questions: [String: Question]
+        /// The questions for a sample that translates: the plain set would fail a correct translation.
+        public let translationQuestions: [String: Question]
     }
 
     /// A yes/no question in the shape of OpenRouter's decisions endpoint
@@ -96,7 +98,7 @@ public struct CleanupBenchmarkJudgeSettings: Codable, Equatable, Sendable {
     /// or a floor outside 0...1, which would turn the bar off or trap in the miss count.
     public static func decode(_ data: Data) throws -> CleanupBenchmarkJudgeSettings {
         let settings = try JSONDecoder().decode(CleanupBenchmarkJudgeSettings.self, from: data)
-        guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty,
+        guard settings.jev.repeats >= 1, !settings.jev.questions.isEmpty, !settings.jev.translationQuestions.isEmpty,
               settings.bar.dropWorst >= 0, settings.bar.repetitions > settings.bar.dropWorst,
               (0...1).contains(settings.bar.allowance),
               [settings.bar.floors.jev, settings.bar.floors.embedding, settings.bar.floors.fuzzy].allSatisfy({ (0...1).contains($0) })

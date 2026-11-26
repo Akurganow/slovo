@@ -58,6 +58,48 @@ struct CleanupBenchmarkJudgeTests {
         }
     }
 
+    /// Stated sensitivity: a translation sample judged by the plain questions scores a correct
+    /// translation near 0 on `same_language`; it must be asked the translation set and told
+    /// the target's display name, and a plain sample must keep the plain set and the three
+    /// state fields, so sending `target_language` or the translation set for every sample, or
+    /// for neither, goes RED. Both samples must also get a Jev score: a client that reads the
+    /// answers for the plain question keys instead of the set it sent fails the translation
+    /// sample with `jev-request-failed` and no score → RED.
+    @Test
+    func translationSampleIsAskedTheTranslationQuestionsWithItsTarget() async throws {
+        let settings = try judgeSettings()
+        struct Body: Decodable {
+            let state: [String: String]
+            let questions: [String: CleanupBenchmarkJudgeSettings.Question]
+        }
+        func asked(for sample: CleanupBenchmarkSample) async throws -> (sent: Body, scored: CleanupBenchmarkRun) {
+            let transport = FakeJudgeTransport()
+            let run = CleanupBenchmarkRun(
+                sampleId: sample.id, sampleCategory: sample.category, candidateName: "fake:m", durationNanoseconds: 1,
+                output: "Hallo.", scores: CleanupBenchmarkScores(fuzzy: 1), errorKind: nil
+            )
+            let result = await Self.judge(transport, settings).score([run], samples: [sample])
+            let decision = transport.recorded().first { $0.path == settings.jev.path }
+            let sent = try JSONDecoder().decode(Body.self, from: try #require(decision).body)
+            return (sent, result.runs[0])
+        }
+        let translated = CleanupBenchmarkSample(
+            id: "t", category: .translation, raw: "Привет.", references: ["Hallo."], language: "ru", translationTarget: .init(code: "de")
+        )
+
+        let (translation, scoredTranslation) = try await asked(for: translated)
+        let (plain, scoredPlain) = try await asked(for: Self.sample)
+
+        #expect(translation.questions == settings.jev.translationQuestions)
+        #expect(translation.state["target_language"] == RecognitionLanguageCatalog.displayName(for: "de"))
+        #expect(translation.state["dictation"] == "Привет.")
+        #expect(plain.questions == settings.jev.questions)
+        #expect(plain.state["target_language"] == nil)
+        #expect(scoredTranslation.scores.jev != nil)
+        #expect(scoredTranslation.failures.isEmpty)
+        #expect(scoredPlain.scores.jev != nil)
+    }
+
     /// Stated sensitivity: the coefficient is the lowest of the five questions' means.
     /// A mean of the five (0.62 here) or the mean of the first repeat would turn it red.
     @Test

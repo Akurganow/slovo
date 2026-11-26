@@ -178,7 +178,8 @@ public struct CleanupBenchmarkJudge: Sendable {
         for _ in 0..<settings.jev.repeats {
             do {
                 let decision = try await client.decide(
-                    dictation: item.sample.raw, reference: item.sample.expected, output: item.output
+                    dictation: item.sample.raw, reference: item.sample.expected, output: item.output,
+                    translationTarget: item.sample.translationTarget
                 )
                 decided.cost += decision.cost ?? 0
                 if let model = decision.model {

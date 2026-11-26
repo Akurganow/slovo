@@ -205,7 +205,7 @@ public enum CleanupBenchmarkCommandError: Error, CustomStringConvertible, Equata
             return "--baseline and --write-baseline need --repetitions \(required) (bar.repetitions in judge.json), not \(given); "
                 + "leave --repetitions out to use it"
         case .outputsFileDatasetMismatch:
-            return "the outputs file was written for other sample ids or raws, or in an older format; name a new --outputs-file"
+            return "the outputs file was written for other sample ids, raws or translation targets, or in an older format; name a new --outputs-file"
         case .outputsFileIsAnotherInput(let other):
             return "--outputs-file names the same file as \(other); name a separate file for the outputs"
         case .duplicateSampleId(let id):

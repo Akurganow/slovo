@@ -1,14 +1,53 @@
 import Foundation
 import Testing
 
-import CleanupBenchmark
+@testable import CleanupBenchmark
+import SlovoCore
 
 @Suite("Cleanup benchmark outputs file")
 struct CleanupBenchmarkOutputsFileTests {
+    /// Stated sensitivity: a prompt digest over the plain prompt only lets a file resume under a
+    /// changed translate prompt, so it must change once a translation sample is added and
+    /// differ per target → RED.
+    @Test
+    func promptDigestFollowsTheTranslateTargets() {
+        let plain = CleanupBenchmarkSample(id: "a", raw: "x", references: ["x"])
+        func translated(_ target: String) -> CleanupBenchmarkSample {
+            CleanupBenchmarkSample(
+                id: "t", category: .translation, raw: "x", references: ["x"], translationTarget: .init(code: target)
+            )
+        }
+        func digest(_ samples: [CleanupBenchmarkSample]) -> String {
+            CleanupBenchmarkOutputsBinding(samples: samples, judgeSHA256: nil, style: .casual).promptSHA256
+        }
+        #expect(digest([plain, translated("de")]) != digest([plain]))
+        #expect(digest([plain, translated("de")]) != digest([plain, translated("es")]))
+    }
+
+    /// Stated sensitivity: a dataset digest over ids and raws only keeps the cleaned outputs of a
+    /// sample whose target changed, so they would be scored against the new target; it must change
+    /// with `translateTo`, and equal the ids-and-raws digest without one, so no older file is refused.
+    @Test
+    func datasetDigestFollowsTheTargetAndStaysTheSameWithoutOne() {
+        func digest(_ target: String?) -> String {
+            let sample = CleanupBenchmarkSample(
+                id: "t", category: target == nil ? .uncategorized : .translation, raw: "x", references: ["x"],
+                translationTarget: target.flatMap { .init(code: $0) }
+            )
+            return CleanupBenchmarkOutputsBinding(samples: [sample], judgeSHA256: nil, style: .casual).rawsSHA256
+        }
+
+        #expect(digest(nil) == CleanupBenchmarkDigest.sha256(of: ["t", "x"]))
+        #expect(digest("de") != digest(nil))
+        #expect(digest("de") != digest("es"))
+    }
+
     /// Stated sensitivity: a resume that repeats a complete run pays twice; one that
     /// skips the run with no line leaves it unscored. Two samples, one cleaned and
     /// judged in the file, the other missing: only the missing one costs a cleaner
-    /// call (1), a Jev decision per repeat (3) and one embeddings batch.
+    /// call (1), a Jev decision per repeat (3) and one embeddings batch. The kept run keeps
+    /// its sample's `language`, so the breakdown shows the `ru` row of a run read from the
+    /// file; a resume that drops it from the run loses that row → RED.
     @Test
     func resumedRunPaysOnlyForTheMissingRun() async throws {
         let fixture = try DriverFixture()
@@ -20,9 +59,12 @@ struct CleanupBenchmarkOutputsFileTests {
         let decisionsBefore = fixture.transport.requestCount(path: "/api/alpha/decisions")
         let embeddingsBefore = fixture.transport.requestCount(path: "/api/v1/embeddings")
 
-        let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
+        let result = await fixture.run([
+            "--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl", "--category-breakdown",
+        ])
 
         #expect(result.exitCode == 0)
+        #expect(result.stdout.contains("fake:good,ru,1,0,"))
         #expect(fixture.cleaned == 3)
         #expect(fixture.transport.requestCount(path: "/api/alpha/decisions") - decisionsBefore == 3)
         #expect(fixture.transport.requestCount(path: "/api/v1/embeddings") - embeddingsBefore == 1)
@@ -65,7 +107,7 @@ struct CleanupBenchmarkOutputsFileTests {
         let result = await fixture.run(["--providers", "openrouter:good", "--judge", "--outputs-file", "out.jsonl"])
 
         #expect(result.exitCode == 64)
-        #expect(result.stderr.contains("other sample ids or raws, or in an older format; name a new --outputs-file"))
+        #expect(result.stderr.contains("other sample ids, raws or translation targets, or in an older format; name a new --outputs-file"))
         #expect(fixture.cleaned == 0)
         #expect(fixture.transport.recorded().isEmpty)
     }
@@ -90,7 +132,7 @@ struct CleanupBenchmarkOutputsFileTests {
         let result = await fixture.run(arguments)
 
         #expect(result.exitCode == 64)
-        #expect(result.stderr.contains("other sample ids or raws"))
+        #expect(result.stderr.contains("other sample ids, raws or translation targets"))
         #expect(fixture.cleaned == 2)
         #expect(fixture.transport.recorded().count == requests)
     }

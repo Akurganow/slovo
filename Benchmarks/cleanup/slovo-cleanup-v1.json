@@ -456,6 +456,837 @@
       "references": [
         "The build passed."
       ]
+    },
+    {
+      "id": "languages-uk-table-booking-01",
+      "category": "languages",
+      "language": "uk",
+      "raw": "Мені треба забронювати столик на вівторок, но ні зачекай на четвер ввечері для чотирьох людей.",
+      "references": [
+        "Мені треба забронювати столик на четвер ввечері для чотирьох людей."
+      ],
+      "spoken": "мені треба забронювати столик на вівторок ну ні зачекай на четвер ввечері для чотирьох людей",
+      "voice": "Lesya"
+    },
+    {
+      "id": "languages-uk-errands-day-02",
+      "category": "languages",
+      "language": "uk",
+      "raw": "Вчора я нарешті розібрався з налаштуваннями принтера, а потім перевірив пошту і побачив, що клієнт прислав нові правки, тому я відкрив документ, виправив три абзаці і відправив його назад, а ще треба не забути оплатити інтернет, бо термін спливає у вівторок.",
+      "references": [
+        "Вчора я нарешті розібрався з налаштуваннями принтера, а потім перевірив пошту і побачив, що клієнт прислав нові правки. Тому я відкрив документ, виправив три абзаци і відправив його назад. А ще треба не забути оплатити інтернет, бо термін спливає у вівторок."
+      ],
+      "spoken": "вчора я нарешті розібрався з налаштуваннями принтера а потім перевірив пошту і побачив що клієнт прислав нові правки тому я відкрив документ виправив три абзаци і відправив його назад а ще треба не забути оплатити інтернет бо термін спливає у вівторок",
+      "voice": "Lesya"
+    },
+    {
+      "id": "languages-uk-meeting-discount-03",
+      "category": "languages",
+      "language": "uk",
+      "raw": "Нарада починається о 8.15 і знижка на квитки складає 25 відсотків.",
+      "references": [
+        "Нарада починається о 8.15, і знижка на квитки складає 25 відсотків."
+      ],
+      "spoken": "нарада починається о восьмій п'ятнадцять і знижка на квитки складає двадцять п'ять відсотків",
+      "voice": "Lesya"
+    },
+    {
+      "id": "languages-uk-work-home-04",
+      "category": "languages",
+      "language": "uk",
+      "raw": "Завтра я працюватиму вдома.",
+      "references": [
+        "Завтра я працюватиму вдома."
+      ],
+      "spoken": "завтра я працюватиму вдома",
+      "voice": "Lesya"
+    },
+    {
+      "id": "languages-de-table-booking-01",
+      "category": "languages",
+      "language": "de",
+      "raw": "Ich brauche einen Tisch für Freitag, nein für Samstag um 8 Uhr abends für 4 Personen.",
+      "references": [
+        "Ich brauche einen Tisch für Samstag um 8 Uhr abends für 4 Personen."
+      ],
+      "spoken": "ich brauche einen tisch für freitag äh nein für samstag um acht uhr abends für vier personen",
+      "voice": "Anna"
+    },
+    {
+      "id": "languages-de-heating-bill-02",
+      "category": "languages",
+      "language": "de",
+      "raw": "Gestern habe ich die Rechnung für die Heizung geprüft und dann habe ich gemerkt, dass der Betrag viel zu hoch ist, deshalb rufe ich morgen den Vermieter an und frage nach einer Erklärung und danach schreibe ich dem Nachbarn, ob er auch so eine Rechnung bekommen hat.",
+      "references": [
+        "Gestern habe ich die Rechnung für die Heizung geprüft, und dann habe ich gemerkt, dass der Betrag viel zu hoch ist. Deshalb rufe ich morgen den Vermieter an und frage nach einer Erklärung. Und danach schreibe ich dem Nachbarn, ob er auch so eine Rechnung bekommen hat.",
+        "Gestern habe ich die Rechnung für die Heizung geprüft, und dann habe ich gemerkt, dass der Betrag viel zu hoch ist. Deshalb rufe ich morgen den Vermieter an und frage nach einer Erklärung. Danach schreibe ich dem Nachbarn, ob er auch so eine Rechnung bekommen hat."
+      ],
+      "spoken": "gestern habe ich die rechnung für die heizung geprüft und dann habe ich gemerkt dass der betrag viel zu hoch ist deshalb rufe ich morgen den vermieter an und frage nach einer erklärung und danach schreibe ich dem nachbarn ob er auch so eine rechnung bekommen hat",
+      "voice": "Anna"
+    },
+    {
+      "id": "languages-de-train-discount-03",
+      "category": "languages",
+      "language": "de",
+      "raw": "Der Zug fährt um 6.45 Uhr ab und das Ticket ist um 30% günstiger.",
+      "references": [
+        "Der Zug fährt um 6.45 Uhr ab und das Ticket ist um 30% günstiger."
+      ],
+      "spoken": "der zug fährt um sechs uhr fünfundvierzig ab und das ticket ist um dreißig prozent günstiger",
+      "voice": "Anna"
+    },
+    {
+      "id": "languages-de-parcel-tomorrow-04",
+      "category": "languages",
+      "language": "de",
+      "raw": "Das Paket kommt morgen.",
+      "references": [
+        "Das Paket kommt morgen."
+      ],
+      "spoken": "das paket kommt morgen",
+      "voice": "Anna"
+    },
+    {
+      "id": "languages-es-hotel-room-01",
+      "category": "languages",
+      "language": "es",
+      "raw": "Necesito reservar una habitación para el jueves este no perdón para el viernes por dos noches en el centro.",
+      "references": [
+        "Necesito reservar una habitación para el viernes por dos noches en el centro."
+      ],
+      "spoken": "necesito reservar una habitación para el jueves este no perdón para el viernes por dos noches en el centro",
+      "voice": "Mónica"
+    },
+    {
+      "id": "languages-es-shopping-day-02",
+      "category": "languages",
+      "language": "es",
+      "raw": "Ayer fui al supermercado y compré leche, pan y huevos pero cuando llegué a casa me di cuenta de que olvidé el café así que tuve que volver a salir y de paso pasé por la farmacia a recoger la receta de mi madre.",
+      "references": [
+        "Ayer fui al supermercado y compré leche, pan y huevos, pero cuando llegué a casa me di cuenta de que olvidé el café, así que tuve que volver a salir. Y de paso pasé por la farmacia a recoger la receta de mi madre.",
+        "Ayer fui al supermercado y compré leche, pan y huevos, pero cuando llegué a casa me di cuenta de que olvidé el café, así que tuve que volver a salir. De paso pasé por la farmacia a recoger la receta de mi madre."
+      ],
+      "spoken": "ayer fui al supermercado y compré leche pan y huevos pero cuando llegué a casa me di cuenta de que olvidé el café así que tuve que volver a salir y de paso pasé por la farmacia a recoger la receta de mi madre",
+      "voice": "Mónica"
+    },
+    {
+      "id": "languages-es-meeting-discount-03",
+      "category": "languages",
+      "language": "es",
+      "raw": "La reunión termina a las 5 y cuarto y el descuento es del 15%.",
+      "references": [
+        "La reunión termina a las 5 y cuarto y el descuento es del 15%."
+      ],
+      "spoken": "la reunión termina a las cinco y cuarto y el descuento es del quince por ciento",
+      "voice": "Mónica"
+    },
+    {
+      "id": "languages-es-dentist-visit-04",
+      "category": "languages",
+      "language": "es",
+      "raw": "Mañana tengo una cita con el dentista.",
+      "references": [
+        "Mañana tengo una cita con el dentista."
+      ],
+      "spoken": "mañana tengo una cita con el dentista",
+      "voice": "Mónica"
+    },
+    {
+      "id": "languages-fr-table-booking-01",
+      "category": "languages",
+      "language": "fr",
+      "raw": "Je voudrais réserver une table pour vendredi et non pardon pour samedi soir à 8h pour 4 personnes.",
+      "references": [
+        "Je voudrais réserver une table pour samedi soir à 8h pour 4 personnes."
+      ],
+      "spoken": "je voudrais réserver une table pour vendredi euh non pardon pour samedi soir à huit heures pour quatre personnes",
+      "voice": "Thomas"
+    },
+    {
+      "id": "languages-fr-car-repair-02",
+      "category": "languages",
+      "language": "fr",
+      "raw": "Hier j'ai appelé le garage pour la voiture et ils m'ont dit que la réparation coûte 200 euros alors j'ai demandé un autre devis et en attendant je vais prendre le bus tous les matins ce qui est un peu long mais ça va.",
+      "references": [
+        "Hier j'ai appelé le garage pour la voiture et ils m'ont dit que la réparation coûte 200 euros. Alors j'ai demandé un autre devis, et en attendant je vais prendre le bus tous les matins, ce qui est un peu long, mais ça va."
+      ],
+      "spoken": "hier j'ai appelé le garage pour la voiture et ils m'ont dit que la réparation coûte deux cents euros alors j'ai demandé un autre devis et en attendant je vais prendre le bus tous les matins ce qui est un peu long mais ça va",
+      "voice": "Thomas"
+    },
+    {
+      "id": "languages-fr-film-discount-03",
+      "category": "languages",
+      "language": "fr",
+      "raw": "Le film commence à 20h30 et le billet est réduit de 20%.",
+      "references": [
+        "Le film commence à 20h30 et le billet est réduit de 20%."
+      ],
+      "spoken": "le film commence à vingt heures trente et le billet est réduit de vingt pour cent",
+      "voice": "Thomas"
+    },
+    {
+      "id": "languages-fr-evening-home-04",
+      "category": "languages",
+      "language": "fr",
+      "raw": "Je rentre à la maison ce soir.",
+      "references": [
+        "Je rentre à la maison ce soir."
+      ],
+      "spoken": "je rentre à la maison ce soir",
+      "voice": "Thomas"
+    },
+    {
+      "id": "languages-pt-hotel-room-01",
+      "category": "languages",
+      "language": "pt",
+      "raw": "Quero reservar um quarto para sexta-feira e não desculpa para sábado por duas noites perto da praia.",
+      "references": [
+        "Quero reservar um quarto para sábado por duas noites perto da praia."
+      ],
+      "spoken": "quero reservar um quarto para sexta-feira é não desculpa para sábado por duas noites perto da praia",
+      "voice": "Luciana"
+    },
+    {
+      "id": "languages-pt-market-day-02",
+      "category": "languages",
+      "language": "pt",
+      "raw": "Ontem eu fui ao mercado comprar frutas e legumes, depois passei na padaria porque acabou o pão em casa e quando voltei percebi que esqueci a carteira no caixa então eu tive que voltar correndo e por sorte a moça tinha guardado tudo.",
+      "references": [
+        "Ontem eu fui ao mercado comprar frutas e legumes. Depois passei na padaria porque acabou o pão em casa. E quando voltei, percebi que esqueci a carteira no caixa, então eu tive que voltar correndo. E por sorte, a moça tinha guardado tudo.",
+        "Ontem eu fui ao mercado comprar frutas e legumes. Depois passei na padaria porque acabou o pão em casa. Quando voltei, percebi que esqueci a carteira no caixa, então eu tive que voltar correndo. Por sorte, a moça tinha guardado tudo."
+      ],
+      "spoken": "ontem eu fui ao mercado comprar frutas e legumes depois passei na padaria porque acabou o pão em casa e quando voltei percebi que esqueci a carteira no caixa então tive que voltar correndo e por sorte a moça tinha guardado tudo",
+      "voice": "Luciana"
+    },
+    {
+      "id": "languages-pt-meeting-discount-03",
+      "category": "languages",
+      "language": "pt",
+      "raw": "A reunião começa às 4h30 e o desconto na passagem é de 20%.",
+      "references": [
+        "A reunião começa às 4h30 e o desconto na passagem é de 20%."
+      ],
+      "spoken": "a reunião começa às quatro e meia e o desconto na passagem é de vinte por cento",
+      "voice": "Luciana"
+    },
+    {
+      "id": "languages-pt-work-home-04",
+      "category": "languages",
+      "language": "pt",
+      "raw": "Amanhã eu vou trabalhar de casa.",
+      "references": [
+        "Amanhã eu vou trabalhar de casa."
+      ],
+      "spoken": "amanhã eu vou trabalhar de casa",
+      "voice": "Luciana"
+    },
+    {
+      "id": "languages-zh-flight-change-01",
+      "category": "languages",
+      "language": "zh",
+      "raw": "我想买周五的机票那个不对买周六早上的航班最好靠窗的座位。",
+      "references": [
+        "我想买周六早上的航班，最好靠窗的座位。"
+      ],
+      "spoken": "我想买周五的机票那个不对买周六早上的航班最好靠窗的座位",
+      "voice": "Tingting"
+    },
+    {
+      "id": "languages-zh-home-day-02",
+      "category": "languages",
+      "language": "zh",
+      "raw": "昨天我去超市买了牛奶和面包 然后回家做饭吃完饭以后 我又打扫了房间 还洗了衣服 最后给妈妈打了个电话 告诉妈妈周末我会回家看看",
+      "references": [
+        "昨天我去超市买了牛奶和面包，然后回家做饭。吃完饭以后，我又打扫了房间，还洗了衣服。最后给妈妈打了个电话，告诉妈妈周末我会回家看看。"
+      ],
+      "spoken": "昨天我去超市买了牛奶和面包然后回家做饭吃完饭以后我又打扫了房间还洗了衣服最后给妈妈打了个电话告诉妈妈周末我会回家看看",
+      "voice": "Tingting"
+    },
+    {
+      "id": "languages-zh-course-discount-03",
+      "category": "languages",
+      "language": "zh",
+      "raw": "课程下午3点15分开始报名费优惠了25%",
+      "references": [
+        "课程下午3点15分开始，报名费优惠了25%。"
+      ],
+      "spoken": "课程下午三点十五分开始报名费优惠了百分之二十五",
+      "voice": "Tingting"
+    },
+    {
+      "id": "languages-zh-doctor-visit-04",
+      "category": "languages",
+      "language": "zh",
+      "raw": "明天下午我要去医院看医生。",
+      "references": [
+        "明天下午我要去医院看医生。"
+      ],
+      "spoken": "明天下午我要去医院看医生",
+      "voice": "Tingting"
+    },
+    {
+      "id": "languages-ja-meeting-change-01",
+      "category": "languages",
+      "language": "ja",
+      "raw": "来週の月曜日にお客さんと会いましょう。 えっと違います。 火曜日の午後にお願いします。",
+      "references": [
+        "来週お客さんと会いましょう。火曜日の午後にお願いします。",
+        "来週の火曜日の午後にお客さんと会いましょう。"
+      ],
+      "spoken": "来週の月曜日にお客さんと会いましょうえっと違います火曜日の午後にお願いします",
+      "voice": "Kyoko"
+    },
+    {
+      "id": "languages-ja-weekend-errands-02",
+      "category": "languages",
+      "language": "ja",
+      "raw": "昨日は朝からスーパーで野菜と果物を買って それから家に帰って昼ご飯を作って その後で電気代を払って 夕方には妹に電話して 日曜日に遊びに行くと伝えました",
+      "references": [
+        "昨日は朝からスーパーで野菜と果物を買って、それから家に帰って昼ご飯を作って、その後で電気代を払って、夕方には妹に電話して、日曜日に遊びに行くと伝えました。"
+      ],
+      "spoken": "昨日は朝からスーパーで野菜と果物を買ってそれから家に帰って昼ご飯を作ってその後で電気代を払って夕方には妹に電話して日曜日に遊びに行くと伝えました",
+      "voice": "Kyoko"
+    },
+    {
+      "id": "languages-ja-train-discount-03",
+      "category": "languages",
+      "language": "ja",
+      "raw": "電車は7時15分に出発して運賃は20%安くなります。",
+      "references": [
+        "電車は7時15分に出発して、運賃は20%安くなります。"
+      ],
+      "spoken": "電車は七時十五分に出発して運賃は二十パーセント安くなります",
+      "voice": "Kyoko"
+    },
+    {
+      "id": "languages-ja-work-home-04",
+      "category": "languages",
+      "language": "ja",
+      "raw": "明日は家で仕事をします。",
+      "references": [
+        "明日は家で仕事をします。"
+      ],
+      "spoken": "明日は家で仕事をします",
+      "voice": "Kyoko"
+    },
+    {
+      "id": "languages-ko-dinner-change-01",
+      "category": "languages",
+      "language": "ko",
+      "raw": "금요일에 점심 먹어요 음 아니 토요일에 저녁 먹어요 강남역 근처에서 친구들이랑 같이 먹어요. 그리고 예약도 제가 할게요.",
+      "references": [
+        "토요일에 저녁 먹어요. 강남역 근처에서 친구들이랑 같이 먹어요. 그리고 예약도 제가 할게요."
+      ],
+      "spoken": "금요일에 점심 먹어요 음 아니 토요일에 저녁 먹어요 강남역 근처에서 친구들이랑 같이 먹어요 그리고 예약도 제가 할게요",
+      "voice": "Yuna"
+    },
+    {
+      "id": "languages-ko-weekend-errands-02",
+      "category": "languages",
+      "language": "ko",
+      "raw": "어제 아침에 마트에 가서 채소와 과일을 사고 집에 돌아와서 점심을 만들고 그 다음에 전기 요금을 내고 저녁에는 동생에게 전화해서 일요일에 놀러간다고 말했어요. 그리고 밤에는 친구에게 문자도 보냈어요 그리고 그 다음에는 설거지를 하고 청소도 했어요. 정말 바쁜 하루였어요",
+      "references": [
+        "어제 아침에 마트에 가서 채소와 과일을 사고, 집에 돌아와서 점심을 만들고, 그 다음에 전기 요금을 내고, 저녁에는 동생에게 전화해서 일요일에 놀러 간다고 말했어요. 그리고 밤에는 친구에게 문자도 보냈어요. 그리고 그 다음에는 설거지를 하고 청소도 했어요. 정말 바쁜 하루였어요."
+      ],
+      "spoken": "어제 아침에 마트에 가서 채소와 과일을 사고 집에 돌아와서 점심을 만들고 그 다음에 전기 요금을 내고 저녁에는 동생에게 전화해서 일요일에 놀러 간다고 말했어요 그리고 밤에는 친구에게 문자도 보냈어요 그리고 그 다음에는 설거지를 하고 청소도 했어요 정말 바쁜 하루였어요",
+      "voice": "Yuna"
+    },
+    {
+      "id": "languages-ko-train-discount-03",
+      "category": "languages",
+      "language": "ko",
+      "raw": "기차는 7시 15분에 출발하고 요금은 20% 할인됩니다.",
+      "references": [
+        "기차는 7시 15분에 출발하고 요금은 20% 할인됩니다."
+      ],
+      "spoken": "기차는 일곱 시 십오 분에 출발하고 요금은 이십 퍼센트 할인됩니다",
+      "voice": "Yuna"
+    },
+    {
+      "id": "languages-ko-work-home-04",
+      "category": "languages",
+      "language": "ko",
+      "raw": "내일은 집에서 일합니다.",
+      "references": [
+        "내일은 집에서 일합니다."
+      ],
+      "spoken": "내일은 집에서 일합니다",
+      "voice": "Yuna"
+    },
+    {
+      "id": "languages-hi-market-day-01",
+      "category": "languages",
+      "language": "hi",
+      "raw": "मुझे आज शाम बाजार जाना है, उम नहीं कल सुबह जाना है, और मेरे साथ मेरा दोस्त भी आएगा.",
+      "references": [
+        "मुझे कल सुबह बाजार जाना है, और मेरे साथ मेरा दोस्त भी आएगा."
+      ],
+      "spoken": "मुझे आज शाम बाजार जाना है उम्म नहीं कल सुबह जाना है और मेरे साथ मेरा दोस्त भी आएगा",
+      "voice": "Lekha"
+    },
+    {
+      "id": "languages-hi-weekend-errands-02",
+      "category": "languages",
+      "language": "hi",
+      "raw": "कल मैं बाजार गया और बहां से दूध और फल खरीदे फिर घर आकर खाना बनाया और खाने के बाद बिजली का बिल जमा किया इसके बाद मैंने अपने भाई को फोन किया और उसे बताया कि हम रविवार को उसके घर आएंगे",
+      "references": [
+        "कल मैं बाजार गया और वहां से दूध और फल खरीदे. फिर घर आकर खाना बनाया और खाने के बाद बिजली का बिल जमा किया. इसके बाद मैंने अपने भाई को फोन किया और उसे बताया कि हम रविवार को उसके घर आएंगे."
+      ],
+      "spoken": "कल मैं बाजार गया और वहां से दूध और फल खरीदे फिर घर आकर खाना बनाया और खाने के बाद बिजली का बिल जमा किया इसके बाद मैंने अपने भाई को फोन किया और उसे बताया कि हम रविवार को उसके घर आएंगे",
+      "voice": "Lekha"
+    },
+    {
+      "id": "languages-hi-meeting-percent-03",
+      "category": "languages",
+      "language": "hi",
+      "raw": "मीटिंग सुबह 9 बजे शुरू होगी और लगभग 20 प्रतिशत लोग देर से आएंगे.",
+      "references": [
+        "मीटिंग सुबह 9 बजे शुरू होगी और लगभग 20 प्रतिशत लोग देर से आएंगे.",
+        "Meeting सुबह 9 बजे शुरू होगी और लगभग 20 प्रतिशत लोग देर से आएंगे."
+      ],
+      "spoken": "मीटिंग सुबह नौ बजे शुरू होगी और लगभग बीस प्रतिशत लोग देर से आएंगे",
+      "voice": "Lekha"
+    },
+    {
+      "id": "languages-hi-work-home-04",
+      "category": "languages",
+      "language": "hi",
+      "raw": "कल हम घर से काम करेंगे.",
+      "references": [
+        "कल हम घर से काम करेंगे."
+      ],
+      "spoken": "कल हम घर से काम करेंगे",
+      "voice": "Lekha"
+    },
+    {
+      "id": "languages-ar-hotel-room-01",
+      "category": "languages",
+      "language": "ar",
+      "raw": "أريد حجز غرفة يوم الجمعة أمم لا يوم السبت لأربعة أشخاص في الفندق القريب من المحطة",
+      "references": [
+        "أريد حجز غرفة يوم السبت لأربعة أشخاص في الفندق القريب من المحطة."
+      ],
+      "spoken": "أريد حجز غرفة يوم الجمعة امم لا يوم السبت لأربعة أشخاص في الفندق القريب من المحطة",
+      "voice": "Majed"
+    },
+    {
+      "id": "languages-ar-errands-day-02",
+      "category": "languages",
+      "language": "ar",
+      "raw": "أمس ذهبت إلى السوق وإشتريت بعض الفواكه والخضروات ثم رجعت إلى البيت وطبخت العشاء وبعد ذلك دفعت فاتورة الكهرباء وأتصلت بأختي لأخبرها أننا سنزورها يوم الأحد وفي المساء ذهبنا إلى المقهى وشربنا الشاي مع الأصدقاء وتحدثنا عن العمل.",
+      "references": [
+        "أمس ذهبت إلى السوق واشتريت بعض الفواكه والخضروات، ثم رجعت إلى البيت وطبخت العشاء. وبعد ذلك دفعت فاتورة الكهرباء واتصلت بأختي لأخبرها أننا سنزورها يوم الأحد. وفي المساء ذهبنا إلى المقهى وشربنا الشاي مع الأصدقاء وتحدثنا عن العمل."
+      ],
+      "spoken": "أمس ذهبت إلى السوق واشتريت بعض الفواكه والخضروات ثم رجعت إلى البيت وطبخت العشاء وبعد ذلك دفعت فاتورة الكهرباء واتصلت بأختي لأخبرها أننا سنزورها يوم الأحد وفي المساء ذهبنا إلى المقهى وشربنا الشاي مع الأصدقاء وتحدثنا عن العمل",
+      "voice": "Majed"
+    },
+    {
+      "id": "languages-ar-train-discount-03",
+      "category": "languages",
+      "language": "ar",
+      "raw": "القطار يغادر الساعة السابعة وربع وسعر التذكرة أقل بعشرين بالمئة من السعر العادي.",
+      "references": [
+        "القطار يغادر الساعة السابعة وربع، وسعر التذكرة أقل بعشرين بالمئة من السعر العادي."
+      ],
+      "spoken": "القطار يغادر الساعة السابعة والربع وسعر التذكرة أقل بعشرين بالمئة من السعر العادي",
+      "voice": "Majed"
+    },
+    {
+      "id": "languages-ar-work-home-04",
+      "category": "languages",
+      "language": "ar",
+      "raw": "غدا سأعمل من البيت.",
+      "references": [
+        "غدا سأعمل من البيت."
+      ],
+      "spoken": "غدا سأعمل من البيت",
+      "voice": "Majed"
+    },
+    {
+      "id": "mixed-languages-de-en-release-notes-01",
+      "category": "mixed-languages",
+      "language": "de+en",
+      "raw": "Bitte schick mir die Release Notes bevor wir das Feature live schalten.",
+      "references": [
+        "Bitte schick mir die Release Notes, bevor wir das Feature live schalten."
+      ],
+      "spoken": "bitte schick mir die release notes bevor wir das feature live schalten",
+      "voice": "Anna"
+    },
+    {
+      "id": "mixed-languages-de-en-hotfix-dashboard-02",
+      "category": "mixed-languages",
+      "language": "de+en",
+      "raw": "Das Dashboard zeigt einen Fehler also müssen wir den Hotfix noch heute deployen.",
+      "references": [
+        "Das Dashboard zeigt einen Fehler, also müssen wir den Hotfix noch heute deployen."
+      ],
+      "spoken": "das dashboard zeigt einen fehler also müssen wir den hotfix noch heute deployen",
+      "voice": "Anna"
+    },
+    {
+      "id": "mixed-languages-de-en-pull-request-03",
+      "category": "mixed-languages",
+      "language": "de+en",
+      "raw": "Ich öffne zuerst den Pull-Request. Nein, ich schreibe zuerst die Release Notes.",
+      "references": [
+        "Ich schreibe zuerst die Release Notes."
+      ],
+      "spoken": "ich öffne zuerst den pull request äh nein ich schreibe zuerst die release notes",
+      "voice": "Anna"
+    },
+    {
+      "id": "mixed-languages-es-en-dashboard-review-01",
+      "category": "mixed-languages",
+      "language": "es+en",
+      "raw": "Abre el dashboard y revisa el pull request antes del deploy.",
+      "references": [
+        "Abre el dashboard y revisa el pull request antes del deploy."
+      ],
+      "spoken": "abre el dashboard y revisa el pull request antes del deploy",
+      "voice": "Mónica"
+    },
+    {
+      "id": "mixed-languages-es-en-feature-flag-02",
+      "category": "mixed-languages",
+      "language": "es+en",
+      "raw": "Necesito actualizar los Release Notes y activar el Feature Flag.",
+      "references": [
+        "Necesito actualizar los Release Notes y activar el Feature Flag."
+      ],
+      "spoken": "necesito actualizar los release notes y activar el feature flag",
+      "voice": "Mónica"
+    },
+    {
+      "id": "mixed-languages-es-en-merge-order-03",
+      "category": "mixed-languages",
+      "language": "es+en",
+      "raw": "Voy a hacer el deploy no perdón primero el merge del pull request en el repositorio.",
+      "references": [
+        "Voy a hacer primero el merge del pull request en el repositorio."
+      ],
+      "spoken": "voy a hacer el deploy no perdón primero el merge del pull request en el repositorio",
+      "voice": "Mónica"
+    },
+    {
+      "id": "mixed-languages-zh-en-dashboard-01",
+      "category": "mixed-languages",
+      "language": "zh+en",
+      "raw": "请先看一下Dashboard上的数据然后更新Release Notes",
+      "references": [
+        "请先看一下Dashboard上的数据，然后更新Release Notes。"
+      ],
+      "spoken": "请先看一下dashboard上的数据然后更新release notes",
+      "voice": "Tingting"
+    },
+    {
+      "id": "mixed-languages-zh-en-deploy-02",
+      "category": "mixed-languages",
+      "language": "zh+en",
+      "raw": "我已经把Dashboard上的 bug 修好了现在可以Deploy了",
+      "references": [
+        "我已经把Dashboard上的 bug 修好了，现在可以Deploy了。"
+      ],
+      "spoken": "我已经把dashboard上的bug修好了现在可以deploy了",
+      "voice": "Tingting"
+    },
+    {
+      "id": "mixed-languages-zh-en-release-notes-03",
+      "category": "mixed-languages",
+      "language": "zh+en",
+      "raw": "我先發布Release Notes那個不對 先在Dashboard上看一下数据再Deploy",
+      "references": [
+        "先在Dashboard上看一下数据，再Deploy。",
+        "先在Dashboard上看一下數據，再Deploy。"
+      ],
+      "spoken": "我先发布release notes那个不对先在dashboard上看一下数据再deploy",
+      "voice": "Tingting"
+    },
+    {
+      "id": "mixed-languages-hi-en-release-01",
+      "category": "mixed-languages",
+      "language": "hi+en",
+      "raw": "आज मैंने नया फीचर रिलीज किया और डाशबॉर्ड पर एरर्स देखे.",
+      "references": [
+        "आज मैंने नया फीचर रिलीज किया और डाशबॉर्ड पर एरर्स देखे.",
+        "आज मैंने नया feature release किया और dashboard पर errors देखे."
+      ],
+      "spoken": "आज मैंने नया feature release किया और dashboard पर errors देखे",
+      "voice": "Lekha"
+    },
+    {
+      "id": "mixed-languages-hi-en-review-02",
+      "category": "mixed-languages",
+      "language": "hi+en",
+      "raw": "अब पुल रिक्वेस्ट का रिवियू करो फिर डिपलोई कर देना.",
+      "references": [
+        "अब पुल रिक्वेस्ट का रिवियू करो, फिर डिपलोई कर देना.",
+        "अब pull request का review करो, फिर deploy कर देना."
+      ],
+      "spoken": "अब pull request का review करो फिर deploy कर देना",
+      "voice": "Lekha"
+    },
+    {
+      "id": "mixed-languages-hi-en-settings-03",
+      "category": "mixed-languages",
+      "language": "hi+en",
+      "raw": "Settings खोलो नहीं नहीं पहले Release Notes अपडेट करो.",
+      "references": [
+        "पहले Release Notes अपडेट करो.",
+        "पहले Release Notes update करो."
+      ],
+      "spoken": "settings खोलो नहीं नहीं पहले release notes update करो",
+      "voice": "Lekha"
+    },
+    {
+      "id": "mixed-languages-uk-ru-meeting-day-01",
+      "category": "mixed-languages",
+      "language": "uk+ru",
+      "raw": "Ми домовилися зустрітися в понеділок, а він каже «Давай, лучше во вторник, потому что в понеділок я занят».",
+      "references": [
+        "Ми домовилися зустрітися в понеділок, а він каже: «Давай лучше во вторник, потому что в понеділок я занят»."
+      ],
+      "spoken": "ми домовилися зустрітися в понеділок а він каже давай лучше во вторник потому что в понеділок я занят",
+      "voice": "Lesya"
+    },
+    {
+      "id": "mixed-languages-uk-ru-budget-call-02",
+      "category": "mixed-languages",
+      "language": "uk+ru",
+      "raw": "Дзвінок про бюджет перенесли на середу так, що сьогодні нічого не нужно готовить, а завтра ми повернемося до цього.",
+      "references": [
+        "Дзвінок про бюджет перенесли на середу, так що сьогодні нічого не нужно готовить, а завтра ми повернемося до цього."
+      ],
+      "spoken": "дзвінок про бюджет перенесли на середу так что сегодня ничего не нужно готовить а завтра ми повернемося до цього",
+      "voice": "Lesya"
+    },
+    {
+      "id": "mixed-languages-uk-ru-report-deadline-03",
+      "category": "mixed-languages",
+      "language": "uk+ru",
+      "raw": "Колега запитав, коли буде готовий звіт, а я відповів, у понеділок, ой ні, почекай, во вторник утром.",
+      "references": [
+        "Колега запитав, коли буде готовий звіт, а я відповів: во вторник утром."
+      ],
+      "spoken": "колега запитав коли буде готовий звіт а я відповів у понеділок ой ні почекай во вторник утром",
+      "voice": "Lesya"
+    },
+    {
+      "id": "translation-ru-to-en-sales-report-01",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Завтра в 10 утра у нас встреча с командой разработки и мне нужно подготовить отчет по продажам за неделю.",
+      "references": [
+        "Tomorrow at 10 a.m. we have a meeting with the development team, and I need to prepare the weekly sales report."
+      ],
+      "spoken": "завтра в десять утра у нас встреча с командой разработки и мне нужно подготовить отчёт по продажам за неделю",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-kazan-trip-02",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Короче, надо заказать билеты в Казань на Пятницу, ой нет, на субботу и забронировать отель недалеко от вокзала.",
+      "references": [
+        "I need to order tickets to Kazan for Saturday and book a hotel near the train station."
+      ],
+      "spoken": "короче надо заказать билеты в казань на пятницу ой нет на субботу и забронировать отель недалеко от вокзала",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-en-to-en-release-check-01",
+      "category": "translation",
+      "language": "ru+en",
+      "translateTo": "en",
+      "raw": "Открой Pull Request, проверь, что диплой прошел успешный обнови релиз ноутс.",
+      "references": [
+        "Open the pull request, check that the deploy went through successfully, and update the release notes."
+      ],
+      "spoken": "открой pull request проверь что deploy прошёл успешно и обнови release notes",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-de-to-en-dentist-01",
+      "category": "translation",
+      "language": "de",
+      "translateTo": "en",
+      "raw": "Ich möchte morgen früh einen Termin beim Zahnarzt vereinbaren und danach noch einkaufen gehen.",
+      "references": [
+        "Tomorrow morning I want to make a dentist appointment and then go shopping."
+      ],
+      "spoken": "ich möchte morgen früh einen termin beim zahnarzt vereinbaren und danach noch einkaufen gehen",
+      "voice": "Anna"
+    },
+    {
+      "id": "translation-es-to-en-car-repair-01",
+      "category": "translation",
+      "language": "es",
+      "translateTo": "en",
+      "raw": "Mañana tengo que llevar el coche al taller y después recoger a los niños del colegio.",
+      "references": [
+        "Tomorrow I have to take the car to the garage and then pick up the kids from school."
+      ],
+      "spoken": "mañana tengo que llevar el coche al taller y después recoger a los niños del colegio",
+      "voice": "Mónica"
+    },
+    {
+      "id": "translation-uk-to-en-client-email-01",
+      "category": "translation",
+      "language": "uk",
+      "translateTo": "en",
+      "raw": "Нам потрібно відправити лист клієнту до обіду і ще підготувати звіт про продажі за місяць.",
+      "references": [
+        "We need to send an email to the client before lunch and also prepare the monthly sales report."
+      ],
+      "spoken": "нам потрібно відправити лист клієнту до обіду і ще підготувати звіт про продажі за місяць",
+      "voice": "Lesya"
+    },
+    {
+      "id": "translation-zh-to-en-business-trip-01",
+      "category": "translation",
+      "language": "zh",
+      "translateTo": "en",
+      "raw": "我下周要去北京出差需要提前订好酒店和高铁票。",
+      "references": [
+        "Next week I am going to Beijing on a business trip and need to book the hotel and high-speed train tickets in advance."
+      ],
+      "spoken": "我下周要去北京出差需要提前订好酒店和高铁票",
+      "voice": "Tingting"
+    },
+    {
+      "id": "translation-en-to-ru-printer-fix-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ru",
+      "raw": "The printer in the office is not working again so please ask the support team to look at it this afternoon.",
+      "references": [
+        "Принтер в офисе опять не работает, поэтому, пожалуйста, попросите службу поддержки посмотреть его сегодня днём."
+      ],
+      "spoken": "the printer in the office is not working again so please ask the support team to look at it this afternoon",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ru-invoice-reminder-02",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ru",
+      "raw": "Please send the invoice to the client by the end of the week and remind them about the payment.",
+      "references": [
+        "Пожалуйста, отправьте счёт клиенту до конца недели и напомните им об оплате."
+      ],
+      "spoken": "please send the invoice to the client by the end of the week and uh remind them about the payment",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-de-weekend-plan-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "de",
+      "raw": "We are going to visit my parents this weekend and we will bring some fresh bread and cheese.",
+      "references": [
+        "Wir besuchen dieses Wochenende meine Eltern und bringen frisches Brot und Käse mit."
+      ],
+      "spoken": "we are going to visit my parents this weekend and we will bring some fresh bread and cheese",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-es-hotel-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "es",
+      "raw": "Could you book a quiet room for two nights near the train station?",
+      "references": [
+        "¿Podrías reservar una habitación tranquila para dos noches cerca de la estación de tren?"
+      ],
+      "spoken": "could you book a quiet room for two nights near the train station",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-zh-presentation-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "zh",
+      "raw": "The presentation starts at 9:30 and I still need to print the slides.",
+      "references": [
+        "演示9:30开始，我还需要打印幻灯片。",
+        "汇报9:30开始，我还需要打印幻灯片。"
+      ],
+      "spoken": "the presentation starts at nine thirty and I still need to print the slides",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-pt-delivery-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "pt",
+      "raw": "The package arrived yesterday but the box was damaged so I would like a refund.",
+      "references": [
+        "O pacote chegou ontem, mas a caixa estava danificada, então gostaria de um reembolso."
+      ],
+      "spoken": "the package arrived yesterday but the box was damaged so I would like a refund",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-pt-dinner-plan-02",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "pt",
+      "raw": "Let's have dinner on Friday no wait on Saturday at a small restaurant near the beach.",
+      "references": [
+        "Vamos jantar no sábado em um pequeno restaurante perto da praia."
+      ],
+      "spoken": "let's have dinner on friday no wait on saturday at a small restaurant near the beach",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ko-museum-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ko",
+      "raw": "The museum opens at 10 and the tickets for students are half price.",
+      "references": [
+        "박물관은 10시에 열고 학생 입장권은 반값입니다."
+      ],
+      "spoken": "the museum opens at ten and the tickets for students are half price",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ko-groceries-02",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ko",
+      "raw": "I need to buy milk and eggs I'm sorry bread and eggs on my way home.",
+      "references": [
+        "집에 가는 길에 빵과 달걀을 사야 해요."
+      ],
+      "spoken": "I need to buy milk and eggs um sorry bread and eggs on my way home",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-en-meeting-move-01",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "en",
+      "raw": "So the meeting is on Tuesday. No wait Wednesday at 10.30 in the small conference room.",
+      "references": [
+        "The meeting is on Wednesday at 10.30 in the small conference room."
+      ],
+      "spoken": "so the meeting is on tuesday no wait wednesday at ten thirty in the small conference room",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-ru-to-ru-plan-change-01",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "ru",
+      "raw": "Давай созвонимся в понедельник, но нет, во вторник после обеда и обсудим план на месяц.",
+      "references": [
+        "Давай созвонимся во вторник после обеда и обсудим план на месяц."
+      ],
+      "spoken": "давай созвонимся в понедельник ну нет во вторник после обеда и обсудим план на месяц",
+      "voice": "Milena"
     }
   ]
 }

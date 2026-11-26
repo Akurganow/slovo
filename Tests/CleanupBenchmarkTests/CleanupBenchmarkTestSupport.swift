@@ -141,7 +141,7 @@ final class DriverFixture: Sendable {
     /// fixture's own.
     static let samples = """
     {"samples": [
-      {"id": "one", "category": "short-smoke", "raw": "Ну я сейчас проверяю, как работает диктовка.", "references": ["Hello there."]},
+      {"id": "one", "category": "languages", "language": "ru", "raw": "Ну я сейчас проверяю, как работает диктовка.", "references": ["Hello there."]},
       {"id": "two", "category": "code-switching", "raw": "Проверь latency на staging.", "references": ["Hello there."]}
     ]}
     """

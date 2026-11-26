@@ -60,36 +60,78 @@ public enum CleanupBenchmarkCategory: String, Codable, Equatable, Hashable, Send
     case inverseTextNormalization = "inverse-text-normalization"
     case safetyNegative = "safety-negative"
     case instructionShaped = "instruction-shaped-transcript"
+    case languages
+    case mixedLanguages = "mixed-languages"
+    case translation
+}
+
+/// The language a translation sample is cleaned into: its catalogue code and the name the
+/// translate prompt and the judge use.
+public struct CleanupBenchmarkTranslationTarget: Equatable, Sendable {
+    public let code: String
+    public let name: String
+
+    /// Nil for a code the catalogue does not offer.
+    public init?(code: String) {
+        guard RecognitionLanguageCatalog.isSupported(code), let name = RecognitionLanguageCatalog.displayName(for: code) else {
+            return nil
+        }
+        self.code = code
+        self.name = name
+    }
 }
 
 /// One dictation and the cleanup it should produce. The references are what every output
 /// is scored against, never the dirty `raw` text. The first is the expected result; the
 /// others are equally valid forms of it (the other script of an English term).
-public struct CleanupBenchmarkSample: Codable, Equatable, Sendable {
+public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
     public let id: String
     public let category: CleanupBenchmarkCategory
     public let raw: String
     public let references: [String]
+    /// The spoken language: one recognition code, or two joined by `+` for mixed speech.
+    public let language: String?
+    /// The sample runs as a translate hold into it.
+    public let translationTarget: CleanupBenchmarkTranslationTarget?
 
     /// The first reference.
     public var expected: String {
         references[0]
     }
 
+    public var translateTo: String? {
+        translationTarget?.code
+    }
+
     public init(
         id: String,
         category: CleanupBenchmarkCategory = .uncategorized,
         raw: String,
-        references: [String]
+        references: [String],
+        language: String? = nil,
+        translationTarget: CleanupBenchmarkTranslationTarget? = nil
     ) {
         self.id = id
         self.category = category
         self.raw = raw
         self.references = references
+        self.language = language
+        self.translationTarget = translationTarget
+    }
+
+    /// The config a cleanup call for this sample is made with: a translation sample is the
+    /// app's translate hold into its target.
+    public func cleanupConfig(model: String, style: WritingStyle) -> CleanupConfig {
+        var config = CleanupConfig(model: model, writingStyle: style)
+        if let translationTarget {
+            config.translate = true
+            config.translationTargetLanguage = Language(rawValue: translationTarget.code)
+        }
+        return config
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, category, raw, references
+        case id, category, raw, references, language, translateTo
     }
 
     public init(from decoder: Decoder) throws {
@@ -98,12 +140,56 @@ public struct CleanupBenchmarkSample: Codable, Equatable, Sendable {
         guard !references.isEmpty else {
             throw DecodingError.dataCorruptedError(forKey: .references, in: container, debugDescription: "a sample needs a reference")
         }
+        let category = try container.decodeIfPresent(CleanupBenchmarkCategory.self, forKey: .category) ?? .uncategorized
+        let language = try container.decodeIfPresent(String.self, forKey: .language)
+        let translateTo = try container.decodeIfPresent(String.self, forKey: .translateTo)
+        try Self.validate(category: category, language: language, hasTarget: translateTo != nil, in: container)
+        var target: CleanupBenchmarkTranslationTarget?
+        if let translateTo {
+            guard let resolved = CleanupBenchmarkTranslationTarget(code: translateTo) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .translateTo, in: container, debugDescription: "\(translateTo) is not a recognition language"
+                )
+            }
+            target = resolved
+        }
         self.init(
             id: try container.decode(String.self, forKey: .id),
-            category: try container.decodeIfPresent(CleanupBenchmarkCategory.self, forKey: .category) ?? .uncategorized,
+            category: category,
             raw: try container.decode(String.self, forKey: .raw),
-            references: references
+            references: references,
+            language: language,
+            translationTarget: target
         )
+    }
+
+    /// A code the catalogue does not offer would reach the prompt as a bare string, and a key
+    /// the category does not take would be silently unused.
+    private static func validate(
+        category: CleanupBenchmarkCategory,
+        language: String?,
+        hasTarget: Bool,
+        in container: KeyedDecodingContainer<CodingKeys>
+    ) throws {
+        func refuse(_ key: CodingKeys, _ reason: String) -> DecodingError {
+            DecodingError.dataCorruptedError(forKey: key, in: container, debugDescription: reason)
+        }
+        guard (category == .translation) == hasTarget else {
+            throw refuse(.translateTo, "translateTo belongs to the translation category and only to it")
+        }
+        let codes = language?.split(separator: "+", omittingEmptySubsequences: false).map(String.init) ?? []
+        if let bad = codes.first(where: { !RecognitionLanguageCatalog.isSupported($0) }) {
+            throw refuse(.language, "\(bad) is not a recognition language")
+        }
+        let fits = switch category {
+        case .languages: codes.count == 1
+        case .mixedLanguages: codes.count == 2
+        case .translation: codes.count <= 2
+        default: codes.isEmpty
+        }
+        guard fits else {
+            throw refuse(.language, "language does not fit the \(category.rawValue) category")
+        }
     }
 }
 

@@ -103,6 +103,38 @@ struct CleanupBenchmarkTests {
         #expect(timerDurationsConsumed)
     }
 
+    /// Stated sensitivity: a translation sample must reach the cleaner as the app's translate hold,
+    /// in the warmup call and in the measured one; a runner that builds the config without the
+    /// flag or the target in either path, keeps one config for the whole candidate, or sets the
+    /// flag on a plain sample → RED. The run carries the sample's `language`; a runner that
+    /// drops it from the successful run → RED.
+    @Test
+    func translationSampleIsCleanedAsATranslateHoldAndAPlainOneIsNot() async {
+        let samples = [
+            CleanupBenchmarkSample(id: "plain", raw: "Привет.", references: ["Привет."]),
+            CleanupBenchmarkSample(
+                id: "translated", category: .translation, raw: "Привет.", references: ["Hello."], language: "ru", translationTarget: .init(code: "de")
+            ),
+        ]
+        let seen = Mutex<[String]>([])
+        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "m") { raw, config, _ in
+            seen.withLock { $0.append("\(config.translate):\(config.translationTargetLanguage)") }
+            return CleanupBenchmarkCleaned(text: raw)
+        }
+
+        let report = await CleanupBenchmarkRunner().run(
+            candidates: [candidate],
+            samples: samples,
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
+            context: PersonalizationContext(vocabulary: []),
+            warmupRepetitions: 1
+        )
+
+        // The plain sample keeps the config's default target, which a plain pass never reads.
+        #expect(seen.withLock { $0 } == ["false:en", "true:de", "false:en", "true:de"])
+        #expect(report.runs.map(\.sampleLanguage) == [nil, "ru"])
+    }
+
     /// Stated sensitivity: a driver that calls `makeTransport` without `--judge` makes the CI
     /// smoke stage reach the network; the factory throws here, so that run exits 64 → RED.
     @Test
@@ -113,8 +145,8 @@ struct CleanupBenchmarkTests {
         let result = await driver.run(arguments: ["--providers", "passthrough"], environment: [:])
 
         #expect(result.exitCode == 0)
-        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
-        #expect(result.stdout.contains("passthrough:none,55,0,"))
+        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev"))
+        #expect(result.stdout.contains("passthrough:none,\(try CleanupBenchmarkDefaults.samples().count),0,"))
         #expect(!result.stdout.contains("verdict"))
         #expect(result.stderr.isEmpty)
     }
@@ -207,10 +239,14 @@ struct CleanupBenchmarkTests {
     }
 
     /// Stated sensitivity: if the runner stores `String(describing: error)`, a
-    /// provider error can persist payload text even when the formatter hides it.
+    /// provider error can persist payload text even when the formatter hides it. A failed run
+    /// keeps the sample's `language` too, so its failure counts in its language row; a runner
+    /// that drops it from the failed run → RED.
     @Test
     func runnerStoresCoarseErrorKindOnly() async {
-        let sample = CleanupBenchmarkSample(id: "sensitive-sample", raw: "S3NT1NEL-RAW", references: ["Reference."])
+        let sample = CleanupBenchmarkSample(
+            id: "sensitive-sample", category: .languages, raw: "S3NT1NEL-RAW", references: ["Reference."], language: "uk"
+        )
         let report = await CleanupBenchmarkRunner().run(
             candidates: [
                 CleanupBenchmarkCandidate(
@@ -227,6 +263,7 @@ struct CleanupBenchmarkTests {
         #expect(report.runs.map(\.errorKind) == [.providerError])
         #expect(report.runs.map(\.failures) == [["provider-error"]])
         #expect(report.runs.map(\.sampleId) == ["sensitive-sample"])
+        #expect(report.runs.map(\.sampleLanguage) == ["uk"])
         #expect(!String(describing: report.runs).contains("S3NT1NEL"))
         let rendered = CleanupBenchmarkReportFormatter.render(report)
         #expect(!rendered.contains("S3NT1NEL"))

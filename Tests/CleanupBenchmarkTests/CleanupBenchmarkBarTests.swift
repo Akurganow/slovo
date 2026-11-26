@@ -14,16 +14,20 @@ struct CleanupBenchmarkBarTests {
         CleanupBenchmarkScores(fuzzy: fuzzy, embedding: embedding, jev: jev)
     }
 
-    private static func run(_ id: String, _ category: CleanupBenchmarkCategory, _ scores: CleanupBenchmarkScores) -> CleanupBenchmarkRun {
+    private static func run(
+        _ id: String, _ category: CleanupBenchmarkCategory, _ scores: CleanupBenchmarkScores, language: String? = nil
+    ) -> CleanupBenchmarkRun {
         CleanupBenchmarkRun(
-            sampleId: id, sampleCategory: category, candidateName: "c", durationNanoseconds: 1,
+            sampleId: id, sampleCategory: category, sampleLanguage: language, candidateName: "c", durationNanoseconds: 1,
             output: "text", scores: scores, errorKind: nil
         )
     }
 
     /// One sample's five repetitions: `bad` of them score 0.1 on every coefficient, the rest 0.9.
-    private static func sample(_ id: String, _ category: CleanupBenchmarkCategory, bad: Int = 0) -> [CleanupBenchmarkRun] {
-        (0..<5).map { run(id, category, $0 < bad ? scores(fuzzy: 0.1, embedding: 0.1, jev: 0.1) : scores()) }
+    private static func sample(
+        _ id: String, _ category: CleanupBenchmarkCategory, bad: Int = 0, language: String? = nil
+    ) -> [CleanupBenchmarkRun] {
+        (0..<5).map { run(id, category, $0 < bad ? scores(fuzzy: 0.1, embedding: 0.1, jev: 0.1) : scores(), language: language) }
     }
 
     /// `count` samples of one category, the first `badSamples` of them failing in `bad` repetitions.
@@ -154,8 +158,31 @@ struct CleanupBenchmarkBarTests {
         let result = Self.verdict(runs)
 
         #expect(result.rows.first?.passed == true)
-        #expect(result.rows.first { $0.category == .shortSmoke }?.passed == false)
+        #expect(result.rows.first { $0.label == "short-smoke" }?.passed == false)
         #expect(!result.passed)
+    }
+
+    /// Stated sensitivity: a language of four samples that misses on two hides under its category
+    /// (56 samples of another language there allow three misses), so a verdict with no language
+    /// rows passes where it must fail; one miss in four stays within the allowance. A language
+    /// row that took the `translation` samples' `language` would add a row of its own, and one
+    /// that put the language rows before the categories would reorder the verdict.
+    @Test
+    func aLanguageOfFourSamplesFailsOnTwoMissesAndFailsTheVerdict() {
+        func runs(badSamples: Int) -> [CleanupBenchmarkRun] {
+            (0..<56).flatMap { Self.sample("de\($0)", .languages, language: "de") }
+                + (0..<4).flatMap { Self.sample("uk\($0)", .languages, bad: $0 < badSamples ? 5 : 0, language: "uk") }
+                + Self.sample("tr", .translation, bad: 0, language: "uk")
+        }
+        let two = Self.verdict(runs(badSamples: 2))
+        let one = Self.verdict(runs(badSamples: 1))
+
+        #expect(two.rows.map(\.label) == [nil, "languages", "translation", "de", "uk"])
+        #expect(two.rows.first { $0.label == "languages" }?.passed == true)
+        #expect(two.rows.first { $0.label == "uk" }?.passed == false)
+        #expect(two.rows.first { $0.label == "uk" }?.samples == 4)
+        #expect(!two.passed)
+        #expect(one.passed)
     }
 
     /// Stated sensitivity: a row of no samples that passes would let a candidate whose runs
@@ -305,7 +332,19 @@ struct CleanupBenchmarkBarTests {
         questions["plain_text"] = nil
         let fewer = CleanupBenchmarkJudgeSettings(
             jev: CleanupBenchmarkJudgeSettings.Jev(
-                model: settings.jev.model, path: settings.jev.path, repeats: settings.jev.repeats, questions: questions
+                model: settings.jev.model, path: settings.jev.path, repeats: settings.jev.repeats, questions: questions,
+                translationQuestions: settings.jev.translationQuestions
+            ),
+            embedding: settings.embedding,
+            bar: settings.bar
+        )
+
+        var translationQuestions = settings.jev.translationQuestions
+        translationQuestions["in_target_language"] = nil
+        let fewerTranslation = CleanupBenchmarkJudgeSettings(
+            jev: CleanupBenchmarkJudgeSettings.Jev(
+                model: settings.jev.model, path: settings.jev.path, repeats: settings.jev.repeats,
+                questions: settings.jev.questions, translationQuestions: translationQuestions
             ),
             embedding: settings.embedding,
             bar: settings.bar
@@ -324,6 +363,7 @@ struct CleanupBenchmarkBarTests {
 
         #expect(try looser.judgeSHA256() == settings.judgeSHA256())
         #expect(try fewer.judgeSHA256() != settings.judgeSHA256())
+        #expect(try fewerTranslation.judgeSHA256() != settings.judgeSHA256())
         #expect(try otherPrefix.judgeSHA256() != settings.judgeSHA256())
     }
 

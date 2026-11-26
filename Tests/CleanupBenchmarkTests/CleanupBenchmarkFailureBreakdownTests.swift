@@ -61,11 +61,11 @@ struct CleanupBenchmarkFailureBreakdownTests {
         )
 
         #expect(result.exitCode == 2)
-        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
+        #expect(result.stdout.contains("candidate,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev"))
         #expect(result.stdout.contains("candidate,sample_index,failure,runs"))
         #expect(result.stdout.contains("passthrough:none,1,jev-refusal,1"))
-        #expect(result.stdout.contains("candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev"))
-        #expect(result.stdout.contains("passthrough:none,uncategorized,1,1,12.0,12.0,,,"))
+        #expect(result.stdout.contains("candidate,category,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev"))
+        #expect(result.stdout.contains("passthrough:none,uncategorized,1,1,12.0,12.0,12.0,,,"))
         #expect(!result.stdout.contains("sample-secret"))
     }
 }
