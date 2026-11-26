@@ -21,19 +21,20 @@ The report is CSV-like aggregate output. Without `--judge` it holds the fuzzy
 coefficient only and no verdict:
 
 ```text
-candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd
-openrouter:<model>,275,0,<p50>,<p95>,<mean>,,,<cost>
+candidate,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev,cost_usd
+openrouter:<model>,640,0,<p50>,<p95>,<max>,<mean>,,,<cost>
 ```
 
 With `--judge` the embedding and Jev means fill in, and a line names the judge's
 response models and its cost. With `--baseline` the report adds one row per
-candidate and per category: samples, misses, allowed misses, dropped repetitions
+candidate and per row (overall, each category, each language): samples, misses, allowed misses, dropped repetitions
 above the entry's slack plus the floor on any coefficient, the three means, and
 `pass` or `fail`.
 
 With `--failure-breakdown`, the command appends aggregate failure-code counts
 (`provider-error`, `empty-output`, `embedding-failed`, `jev-refusal`, `jev-request-failed`) by sample index. With
-`--category-breakdown`, it also appends category-level rows.
+`--category-breakdown`, it also appends category-level rows, then a row per language
+of the `languages` and `mixed-languages` samples, its code in the `category` column.
 
 Reports intentionally do not print raw transcripts, cleaned text, references,
 prompts, API keys, response bodies, or caller-provided sample ids. The opt-in
@@ -50,7 +51,11 @@ the environment or `--env-file`.
 `--samples` accepts either a top-level JSON array or an object with a `samples`
 array. Each sample has an `id`, an optional `category`, the `raw` dictation and
 `references`, a non-empty list: the first is the expected cleanup, the others are
-equally valid forms of it. Other keys are ignored.
+equally valid forms of it. A sample may also carry `language`, a recognition
+code (or two joined by `+`), and `translateTo`, a recognition code that makes it run
+as a translate hold; the loader refuses a code the app's catalogue does not offer
+and a category that disagrees with these keys
+(`Benchmarks/cleanup/README.md`, "Taxonomy"). Other keys are ignored.
 
 ```json
 {
@@ -80,13 +85,16 @@ holds the plain account, the bar and the flags; the settings live in
   so a letter with its combining marks counts once. The library is vendored in
   `Tools/cleanup-benchmark-fuzz` (rapidfuzz-cpp, MIT; release, commit and
   SHA-256 in `VENDORED.txt` beside it) because upstream ships no `Package.swift`.
+- A sample with `translateTo` is asked `translationQuestions` instead of `questions`,
+  and its Jev state gains `target_language`, the catalogue's display name of the
+  target. The coefficient stays the lowest question mean.
 - A refused Jev question is a judge error for that output, never a score. The
   failure codes in `--failure-breakdown` are `provider-error`, `empty-output`,
   `embedding-failed`, `jev-refusal` and `jev-request-failed`.
 - The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-55 synthetic/public-style samples, grouped as:
+128 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
@@ -98,6 +106,9 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 | `inverse-text-normalization` | 7 |
 | `safety-negative` | 8 |
 | `instruction-shaped-transcript` | 3 |
+| `languages` | 40 |
+| `mixed-languages` | 15 |
+| `translation` | 18 |
 
 The `instruction-shaped-transcript` category is the permanent tripwire for the
 executed-dictation failure class: long task-shaped dictations (the flagship is a

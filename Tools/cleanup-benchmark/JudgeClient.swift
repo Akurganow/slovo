@@ -92,8 +92,11 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
         )
     }
 
-    /// The five questions about one output, answered once.
-    public func decide(dictation: String, reference: String, output: String) async throws -> CleanupBenchmarkJevDecision {
+    /// The questions about one output, answered once: the plain set, or the translation set
+    /// with `target_language` in the state when the sample translates into `translationTarget`.
+    public func decide(
+        dictation: String, reference: String, output: String, translationTarget: CleanupBenchmarkTranslationTarget?
+    ) async throws -> CleanupBenchmarkJevDecision {
         struct Request: Encodable {
             let model: String
             let state: [String: String]
@@ -112,14 +115,15 @@ public struct CleanupBenchmarkJudgeClient: Sendable {
             let usage: Usage?
         }
         let jev = settings.jev
-        let body = try Self.encode(Request(
-            model: jev.model,
-            state: ["dictation": dictation, "reference_cleanup": reference, "cleaned_text": output],
-            questions: jev.questions
-        ))
+        var state = ["dictation": dictation, "reference_cleanup": reference, "cleaned_text": output]
+        if let translationTarget {
+            state["target_language"] = translationTarget.name
+        }
+        let questions = translationTarget == nil ? jev.questions : jev.translationQuestions
+        let body = try Self.encode(Request(model: jev.model, state: state, questions: questions))
         let response = try Self.decode(Response.self, from: try await transport.post(path: jev.path, body: body))
         var answers: [String: CleanupBenchmarkJevAnswer] = [:]
-        for key in jev.questions.keys {
+        for key in questions.keys {
             guard let answer = response.answers[key] else {
                 throw CleanupBenchmarkJudgeError.missingAnswer(key)
             }

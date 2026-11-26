@@ -83,7 +83,7 @@ enum CleanupBenchmarkOutputsFile {
 
     /// The last line of each run, as a run. A line that does not decode is the one a
     /// killed process left half written: its run is simply done again. A line written
-    /// for other ids or raws, or by another style, refuses the file. A line scored under
+    /// for other ids, raws or translation targets, or by another style, refuses the file. A line scored under
     /// other judge settings or references keeps its output and loses its judge scores. The
     /// fuzzy score is computed again from the output, against the current references.
     static func resume(
@@ -117,6 +117,7 @@ enum CleanupBenchmarkOutputsFile {
             let run = CleanupBenchmarkRun(
                 sampleId: line.sampleId,
                 sampleCategory: sample.category,
+                sampleLanguage: sample.language,
                 sampleIndex: line.sample,
                 candidateName: line.candidate,
                 repetition: line.repetition,
@@ -140,14 +141,13 @@ enum CleanupBenchmarkOutputsFile {
 }
 
 /// What every line of the outputs file was written under. A resume refuses a file
-/// written for other ids or raws (the cleanup output depends on nothing else of the
-/// dataset), under another cleanup prompt or by another style. A line scored under other
+/// written for other ids, raws or translation targets, under another cleanup prompt or by another style. A line scored under other
 /// judge settings or other references (nil without `--judge`) is judged again, or only
 /// embedded again when just its alternative references changed.
 struct CleanupBenchmarkOutputsBinding: Sendable {
     let rawsSHA256: String
-    /// The system message every candidate is sent for `style`: the instruction block, with no
-    /// vocabulary and no hints, which the benchmark never passes.
+    /// The distinct system messages the samples send for `style`: the instruction block, with no
+    /// vocabulary and no hints, which the benchmark never passes, and one translate block per target.
     let promptSHA256: String
     let judgeSHA256: String?
     let style: WritingStyle
@@ -155,11 +155,17 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
     let references: [String: [String]]
 
     init(samples: [CleanupBenchmarkSample], judgeSHA256: String?, style: WritingStyle) {
-        rawsSHA256 = CleanupBenchmarkDigest.sha256(of: samples.flatMap { [$0.id, $0.raw] })
-        let prompt = PromptBuilder().buildPrompt(
-            raw: "", config: CleanupConfig(writingStyle: style), context: PersonalizationContext(vocabulary: [])
+        rawsSHA256 = CleanupBenchmarkDigest.sha256(
+            of: samples.flatMap { [$0.id, $0.raw] + ($0.translateTo.map { ["translateTo=\($0)"] } ?? []) }
         )
-        promptSHA256 = CleanupBenchmarkDigest.sha256(Data(prompt.systemText.utf8))
+        // One config per distinct target, the plain one (empty key) first.
+        let configs = Dictionary(
+            samples.map { ($0.translateTo ?? "", $0.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style)) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        promptSHA256 = CleanupBenchmarkDigest.sha256(of: configs.sorted { $0.key < $1.key }.map { _, config in
+            PromptBuilder().buildPrompt(raw: "", config: config, context: PersonalizationContext(vocabulary: [])).systemText
+        })
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })

@@ -19,17 +19,34 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `inverse-text-normalization` | 7 | Times, percents, versions and dates: each value survives cleanup unchanged; an idiomatic number phrase keeps its sense |
 | `safety-negative` | 8 | No chat wrapper, no unsolicited translation, no invented closing pleasantries, preserve dictated text (quoted corrections, genuine alternatives, injection-style text cleaned as content) |
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
+| `languages` | 40 | Plain dictation in uk, de, es, fr, pt, zh, ja, ko, hi and ar, four samples each: a filler with a self-correction, a long run-on, a time and a percentage, and at least one clean case |
+| `mixed-languages` | 15 | Speech mixing two languages in one utterance: de+en, es+en, zh+en, hi+en and uk+ru, three samples each |
+| `translation` | 18 | The translate hold: speech in one language, cleaned and translated into the target; the reference is in the target language |
 
-Total: **55 samples**, 21 of them clean cases: the raw text equals its first
-reference. A full run is samples × repetitions, so "275 runs" = 55 × 5.
+Total: **128 samples**, 40 of them clean cases: the raw text equals its first
+reference. A full run is samples × repetitions, so "640 runs" = 128 × 5.
 
 Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
 reference is the expected cleanup. The others are equally valid forms of it: the
 other script of an English term (`main` for `мейн`, `пиар` for `PR`). Where the raw writes an English term in Cyrillic, another reference holds its
 Latin form. Where it writes one in Latin and the recognizer, run on the sample's
 spoken text, rendered it in Cyrillic, another reference holds that rendering. A
-misheard word is not a rendering. Either script is accepted. Other keys
-are ignored.
+misheard word is not a rendering. Either script is accepted.
+
+Two optional keys carry the language:
+
+- `language`: the spoken language, a code of the app's recognition catalogue, or
+  two codes joined by `+` for mixed speech (`uk`, `de+en`). A `languages` sample
+  has one code and a `mixed-languages` sample two. A `translation` sample may
+  carry it, as its source. No other category takes it.
+- `translateTo`: one catalogue code. A sample with it runs as the app's translate
+  hold: the cleanup request is made with the translate flag on and the code as
+  the target, and the judge asks the translation questions below. Exactly the
+  `translation` samples carry it.
+
+The loader refuses a code the catalogue does not offer and a category that
+disagrees with these keys. `spoken` and `voice`, kept on the samples added for
+the languages, and any other key are ignored.
 
 ## The form of a raw transcript
 
@@ -71,6 +88,47 @@ English terms with a Russian accent, so the recognizer's misreadings of
 English terms were not kept: those raws write the term as Whisper writes it
 from a clear speaker.
 
+### Samples in other languages
+
+A sample of `languages`, `mixed-languages` or `translation` is made so:
+
+1. Write the spoken text, as words, with no punctuation.
+2. Synthesise it with one macOS `say` voice: Lesya for uk, Anna for de, Mónica for
+   es, Thomas for fr, Luciana for pt, Tingting for zh, Kyoko for ja, Yuna for ko,
+   Lekha for hi, Majed for ar, Samantha for en, Milena for ru. A mixed sample uses
+   the voice of its first language.
+3. Transcribe it once through the app's live session path and model, as above, with
+   the decoding the app uses: language `.auto`, no bias terms, audio in 100 ms
+   chunks at real-time pace, then `finish()`.
+4. The recognizer's output is the `raw`, verbatim. A raw is never edited. If the
+   recognizer garbled a content word that no cleanup could repair, rewrite the
+   spoken text and transcribe again, and drop the earlier output.
+5. Keep `spoken` and `voice` on the sample, so the raw can be made again.
+
+The recognizer's form, per language:
+
+- **Times and percentages.** Digits: `9.30` (uk, ru, de `9.30 Uhr`), `9h30` (fr,
+  pt), `9点半` (zh), `9時半` (ja), `9시 반` (ko), with `%` or, in hi, `20 प्रतिशत`.
+  Spanish keeps `5 y cuarto`. Arabic keeps numbers as words.
+- **Punctuation.** A full-width `。` ends zh and ja sentences, and long zh and ja
+  runs may have spaces between clauses instead of marks. hi and ar end with an
+  ASCII `.`.
+- **Script.** zh mixed with English comes back in Traditional characters, or in a
+  mix of Traditional and Simplified within one sample, where plain zh is
+  Simplified. A reference keeps the script of its raw, and where the raw is
+  Traditional a second reference holds the Simplified form.
+- **English terms.** In uk and in hi they come back in Cyrillic or Devanagari
+  renderings (`полреквест`, `पुल रिक्वेस्ट`); a hi sample whose raw writes them
+  in Devanagari has a second reference with the Latin form. In de and es they stay
+  Latin, German taking noun hyphenation (`Pull-Request`) and capitals.
+- **Fillers.** Most spoken fillers are lost or turned into another word (uk `ну`
+  becomes `но`, fr `euh` becomes `et`). A raw keeps only the fillers the recognizer
+  kept.
+
+The references in these languages are written by a model and checked by a second
+model. No speaker of these languages has read them, so a reference can hold a slip
+that no check here would show.
+
 ## What a pass means
 
 Each output is scored against its sample's references, never against the dirty
@@ -79,7 +137,12 @@ dictation. Three coefficients, each from 0 to 1:
 - **fuzzy:** how close the words are, in any order; the best over the references;
 - **embedding:** how close the meaning is as a vector; the best over the references;
 - **Jev:** five yes/no judgments made from the dictation, the first reference and
-  the output; the coefficient is the lowest of the five.
+  the output; the coefficient is the lowest of the five. A `translation` sample
+  is asked its own five (`translationQuestions` in `judge.json`): the plain ones
+  would fail a correct translation, so `same_language` becomes `in_target_language`,
+  asked against the target language's name, and the other four allow translation.
+  `plain_text` and the other questions that both sets share appear in both, so an
+  edit to one is made in both.
 
 Word order, word form, casing, inner punctuation and the final mark are never
 checked. The only check on the text itself is that the output is not empty.
@@ -102,12 +165,17 @@ references: an entry is never a separate expected result for that model.
 - A candidate's sample is within slack when, for each coefficient, its slack is at
   most the entry's on that sample plus the coefficient's floor (the floors are in
   `judge.json`).
-- A candidate passes when, overall and in every category, the samples not within
-  slack number at most the allowance's share of the row's samples (`judge.json`),
-  and never fewer than one. A row of a few samples therefore tolerates one miss.
+- A candidate passes when, overall, in every category and in every language, the
+  samples not within slack number at most the allowance's share of the row's
+  samples (`judge.json`), and never fewer than one. A row of a few samples
+  therefore tolerates one miss, and a language of four samples fails on two.
+  A language row holds the samples of that `language` in `languages` and
+  `mixed-languages` (`uk`, `de+en`), after the category rows. `translation` has
+  no row per target: a target has one or two samples, and a two-sample row fails
+  only when both miss.
 - The trade: the `dropWorst` largest slacks are dropped per coefficient, so
   different repetitions may fail different coefficients without failing the bar.
-  The report prints, per candidate and category, `dropped_outside`, how many
+  The report prints, per candidate and row, `dropped_outside`, how many
   dropped repetitions were above the entry's slack plus the floor on any
   coefficient, so such failures stay visible.
 - A candidate is judged against its own entry. A candidate with no entry (a new
@@ -140,9 +208,10 @@ finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the cost of the
 cleanup call (`null` after a provider error or when the reply named none; a line written
 before the key existed has none), the three coefficients, each Jev question's repeats, the models that answered, the failure
-codes, the writing style, the SHA-256 of the ids and raws of the dataset, the
-SHA-256 of the cleanup prompt (the system message sent for the style, with no
-vocabulary and no hints), the SHA-256 of what scored the line (the judge's settings
+codes, the writing style, the SHA-256 of the ids, raws and `translateTo` targets of
+the dataset, the SHA-256 of the cleanup prompts (the system message sent for the
+style, with no vocabulary and no hints, and one translate message per target in the
+dataset), the SHA-256 of what scored the line (the judge's settings
 and the sample's references) and the SHA-256 of what Jev scored it under (the
 judge's settings and the sample's first reference); the last two are empty without
 `--judge`. It holds output text, so it stays local.
@@ -154,7 +223,7 @@ Naming an existing file resumes it, the last line of a run winning:
 - A run whose output was empty is neither judged nor cleaned again: it is the
   candidate's failure, and no baseline entry is written while the candidate has an
   empty-output run.
-- A file written for other ids or raws, under another cleanup prompt or by another `--style`, is refused.
+- A file written for other ids, raws or translation targets, under another cleanup prompt or by another `--style`, is refused.
 - A line scored under other judge settings keeps its output and is judged again.
   A line whose references changed but not the first keeps its Jev score, because
   Jev reads only the dictation, the first reference and the output: only the
@@ -219,7 +288,8 @@ The sample text (the dataset's synthetic samples, or the file `--samples` names)
 the candidate's output, nothing else:
 
 - `POST https://openrouter.ai/api/alpha/decisions` (Jev): the sample's raw
-  text, its first reference and the output, once per repeat.
+  text, its first reference and the output, once per repeat. A translation sample
+  adds the display name of its target language.
 - `POST https://openrouter.ai/api/v1/embeddings`: the references and the output.
 
 No audio and no personal vocabulary are involved. The candidate's own request is
@@ -252,10 +322,12 @@ Reports stay aggregate-only:
 - no provider response bodies;
 - no caller-provided sample ids.
 
-Per candidate the report prints runs, failed runs, latency percentiles, the
-mean of each coefficient and `cost_usd`. With `--baseline` it adds one row per candidate and
-per category: samples, misses, allowed misses, dropped repetitions outside the
-baseline's slack, the means, and `pass` or `fail`. A
+Per candidate the report prints runs, failed runs, latency (`p50_ms`, `p95_ms`
+and `max_ms`, the slowest run, over the runs without a provider error), the
+mean of each coefficient and `cost_usd`. With `--baseline` it adds one row per candidate,
+per category and per language (the rows of "What a pass means"): samples, misses,
+allowed misses, dropped repetitions outside the baseline's slack, the means, and
+`pass` or `fail`. A
 candidate passes when every one of its rows does. `cost_usd` sums the `usage.cost` that OpenRouter returned for the row's cleanup calls
 (OpenRouter documentation, "Usage Accounting", Cost Breakdown:
 <https://openrouter.ai/docs/guides/guides/usage-accounting.md>; no published revision;
@@ -267,4 +339,6 @@ that was billed but failed is not counted, and warmup calls never are. `passthro
 `judge_cost_usd` stays apart: it covers the judge's requests made by this process only.
 Use `--failure-breakdown` and
 `--category-breakdown` to inspect failures by sample index, failure code, and
-category without exposing payload text. Only `--outputs-file` writes output text.
+category without exposing payload text. The `category` column of both tables also
+holds a language code in the rows that follow the categories.
+Only `--outputs-file` writes output text.

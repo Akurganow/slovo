@@ -113,8 +113,8 @@ public enum CleanupBenchmarkBarError: Error, Equatable, CustomStringConvertible,
 private let floatTolerance = 1e-9
 
 public struct CleanupBenchmarkVerdictRow: Equatable, Sendable {
-    /// Nil for the candidate's samples overall.
-    public let category: CleanupBenchmarkCategory?
+    /// A category or a language code; nil for the candidate's samples overall.
+    public let label: String?
     public let samples: Int
     /// Samples not within slack.
     public let misses: Int
@@ -143,7 +143,7 @@ public struct CleanupBenchmarkVerdict: Equatable, Sendable {
 /// candidate are measured the same way. A sample is within slack when, for every
 /// coefficient, the candidate's slack is at most the entry's plus the coefficient's floor.
 /// A candidate passes when the samples not within slack number at most the allowance's
-/// share of the row's samples, and at least one, overall and in every category.
+/// share of the row's samples, and at least one, overall, in every category and in every language of the two language categories.
 public enum CleanupBenchmarkBar {
     private typealias Coefficient = KeyPath<CleanupBenchmarkScores, Double?>
     private typealias Floors = CleanupBenchmarkJudgeSettings.Bar.Floors
@@ -246,7 +246,7 @@ public enum CleanupBenchmarkBar {
         settings: CleanupBenchmarkJudgeSettings.Bar
     ) -> CleanupBenchmarkVerdict {
         let own = runs.filter { $0.candidateName == candidateName }
-        func row(_ category: CleanupBenchmarkCategory?, _ group: [CleanupBenchmarkRun]) -> CleanupBenchmarkVerdictRow {
+        func row(_ label: String?, _ group: [CleanupBenchmarkRun]) -> CleanupBenchmarkVerdictRow {
             let bySample = Dictionary(grouping: group, by: \.sampleId)
             var misses = 0
             var droppedOutside = 0
@@ -264,7 +264,7 @@ public enum CleanupBenchmarkBar {
             // sample. A row with no samples has no verdict to pass.
             let allowedMisses = max(1, Int((settings.allowance * Double(bySample.count) + floatTolerance).rounded(.down)))
             return CleanupBenchmarkVerdictRow(
-                category: category,
+                label: label,
                 samples: bySample.count,
                 misses: misses,
                 allowedMisses: allowedMisses,
@@ -273,11 +273,10 @@ public enum CleanupBenchmarkBar {
                 passed: !group.isEmpty && misses <= allowedMisses
             )
         }
-        let categories = Set(own.map(\.sampleCategory)).sorted { $0.rawValue < $1.rawValue }
         return CleanupBenchmarkVerdict(
             candidateName: candidateName,
             baselineName: baselineName,
-            rows: [row(nil, own)] + categories.map { category in row(category, own.filter { $0.sampleCategory == category }) }
+            rows: [row(nil, own)] + own.rowGroups().map { row($0.label, $0.runs) }
         )
     }
 }

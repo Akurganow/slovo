@@ -32,6 +32,8 @@ public struct CleanupBenchmarkScores: Equatable, Sendable {
 public struct CleanupBenchmarkRun: Equatable, Sendable {
     public let sampleId: String
     public let sampleCategory: CleanupBenchmarkCategory
+    /// The sample's `language`; it makes a row of the bar only in the two language categories.
+    public let sampleLanguage: String?
     /// 1-based position of the sample in the dataset.
     public let sampleIndex: Int
     public let candidateName: String
@@ -51,6 +53,7 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
     public init(
         sampleId: String,
         sampleCategory: CleanupBenchmarkCategory = .uncategorized,
+        sampleLanguage: String? = nil,
         sampleIndex: Int = 1,
         candidateName: String,
         repetition: Int = 1,
@@ -63,6 +66,7 @@ public struct CleanupBenchmarkRun: Equatable, Sendable {
     ) {
         self.sampleId = sampleId
         self.sampleCategory = sampleCategory
+        self.sampleLanguage = sampleLanguage
         self.sampleIndex = sampleIndex
         self.candidateName = candidateName
         self.repetition = repetition
@@ -160,7 +164,7 @@ public struct CleanupBenchmarkRunner: Sendable {
                     await warmCandidate(
                         candidate,
                         sample: sample,
-                        config: candidateConfig(for: candidate, base: config),
+                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle),
                         context: context
                     )
                 }
@@ -206,7 +210,7 @@ public struct CleanupBenchmarkRunner: Sendable {
                         candidate,
                         sample: sample,
                         position: RunPosition(sampleIndex: index + 1, repetition: repetition),
-                        config: candidateConfig(for: candidate, base: config),
+                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle),
                         context: context
                     )
                     record(run)
@@ -229,13 +233,6 @@ public struct CleanupBenchmarkRunner: Sendable {
         progress(.cleanupFinished(calls: total.calls, failed: total.failed))
 
         return CleanupBenchmarkReport(runs: runs)
-    }
-
-    private func candidateConfig(for candidate: CleanupBenchmarkCandidate, base: CleanupConfig) -> CleanupConfig {
-        CleanupConfig(
-            model: candidate.model,
-            writingStyle: base.writingStyle
-        )
     }
 
     private func warmCandidate(
@@ -262,6 +259,7 @@ public struct CleanupBenchmarkRunner: Sendable {
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
                 sampleCategory: sample.category,
+                sampleLanguage: sample.language,
                 sampleIndex: position.sampleIndex,
                 candidateName: candidate.name,
                 repetition: position.repetition,
@@ -276,6 +274,7 @@ public struct CleanupBenchmarkRunner: Sendable {
             return CleanupBenchmarkRun(
                 sampleId: sample.id,
                 sampleCategory: sample.category,
+                sampleLanguage: sample.language,
                 sampleIndex: position.sampleIndex,
                 candidateName: candidate.name,
                 repetition: position.repetition,

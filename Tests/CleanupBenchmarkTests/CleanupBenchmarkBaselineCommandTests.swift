@@ -87,7 +87,7 @@ struct CleanupBenchmarkBaselineCommandTests {
         #expect(own.stdout.contains("fake:good,fake:good,all,2,0,1,0,"))
         #expect(own.stdout.contains("fake:bad,fake:bad,all,2,0,1,0,"))
         let verdicts = own.stdout.split(separator: "\n").filter { $0.hasSuffix(",pass") || $0.hasSuffix(",fail") }
-        #expect(verdicts.count == 6)
+        #expect(verdicts.count == 8)
         #expect(verdicts.allSatisfy { $0.hasSuffix(",pass") })
 
         // Only `good` keeps an entry; `bad` is judged against it.

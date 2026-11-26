@@ -7,6 +7,8 @@ public struct CleanupBenchmarkSummary: Equatable, Sendable {
     public let errorCount: Int
     public let medianMilliseconds: Double
     public let p95Milliseconds: Double
+    /// The slowest of the runs the percentiles read.
+    public let maxMilliseconds: Double
     public let means: CleanupBenchmarkMeans
     /// The sum of what the row's runs cost, kept ones included; nil when no run names a cost.
     public let costUSD: Double?
@@ -18,6 +20,7 @@ public struct CleanupBenchmarkSummary: Equatable, Sendable {
             "\(errorCount)",
             CleanupBenchmarkReportFormatter.format(medianMilliseconds),
             CleanupBenchmarkReportFormatter.format(p95Milliseconds),
+            CleanupBenchmarkReportFormatter.format(maxMilliseconds),
             CleanupBenchmarkReportFormatter.format(means.fuzzy),
             CleanupBenchmarkReportFormatter.format(means.embedding),
             CleanupBenchmarkReportFormatter.format(means.jev),
@@ -26,9 +29,23 @@ public struct CleanupBenchmarkSummary: Equatable, Sendable {
     }
 }
 
+/// One row of the category breakdown: a category, or a language code.
 public struct CleanupBenchmarkCategorySummary: Equatable, Sendable {
-    public let category: CleanupBenchmarkCategory
+    public let label: String
     public let summary: CleanupBenchmarkSummary
+}
+
+extension [CleanupBenchmarkRun] {
+    /// The groups the bar and the breakdown judge apart: each category, then each language of the
+    /// two language categories (`translation` gets no row per target: a target has one or two
+    /// samples, and a two-sample row fails only when both miss). Each part sorted by label.
+    func rowGroups() -> [(label: String, runs: [CleanupBenchmarkRun])] {
+        let categories = Set(map(\.sampleCategory)).sorted { $0.rawValue < $1.rawValue }
+        let spoken = filter { [.languages, .mixedLanguages].contains($0.sampleCategory) }
+        let languages = Set(spoken.compactMap(\.sampleLanguage)).sorted()
+        return categories.map { category in (category.rawValue, filter { $0.sampleCategory == category }) }
+            + languages.map { language in (language, spoken.filter { $0.sampleLanguage == language }) }
+    }
 }
 
 /// Mean coefficients over the runs that have them; nil when no run does.
@@ -72,13 +89,12 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
     }
 
     public var categorySummaries: [CleanupBenchmarkCategorySummary] {
-        let keys = runs.map { CategorySummaryKey(candidateName: $0.candidateName, category: $0.sampleCategory) }.uniqued()
-        return keys.sorted().map { key in
-            let summary = Self.summary(
-                of: runs.filter { $0.candidateName == key.candidateName && $0.sampleCategory == key.category },
-                candidateName: key.candidateName
-            )
-            return CleanupBenchmarkCategorySummary(category: key.category, summary: summary)
+        runs.map(\.candidateName).uniqued().sorted().flatMap { candidateName in
+            runs.filter { $0.candidateName == candidateName }.rowGroups().map { group in
+                CleanupBenchmarkCategorySummary(
+                    label: group.label, summary: Self.summary(of: group.runs, candidateName: candidateName)
+                )
+            }
         }
     }
 
@@ -104,6 +120,7 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
             errorCount: candidateRuns.filter { !$0.failures.isEmpty }.count,
             medianMilliseconds: percentile(durations, percentile: 0.5),
             p95Milliseconds: percentile(durations, percentile: 0.95),
+            maxMilliseconds: durations.last.map { Double($0) / 1_000_000 } ?? 0,
             means: CleanupBenchmarkMeans(candidateRuns),
             costUSD: candidateRuns.compactMap(\.costUSD).reduce(nil) { ($0 ?? 0) + $1 }
         )
@@ -119,7 +136,7 @@ public struct CleanupBenchmarkReport: Equatable, Sendable {
 
 public enum CleanupBenchmarkReportFormatter {
     public static func render(_ report: CleanupBenchmarkReport) -> String {
-        let header = "candidate,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd"
+        let header = "candidate,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev,cost_usd"
         let rows = report.summaries.map { summary in
             [summary.candidateName] + summary.columns
         }
@@ -139,8 +156,9 @@ public enum CleanupBenchmarkReportFormatter {
         return lines.joined(separator: "\n")
     }
 
-    /// Per candidate and per category: samples, misses, allowed misses, dropped repetitions
-    /// above the entry's slack plus the floor on any coefficient, means, verdict.
+    /// Per candidate and per row (overall, each category, each language): samples, misses, allowed
+    /// misses, dropped repetitions above the entry's slack plus the floor on any coefficient, means,
+    /// verdict.
     private static func renderVerdicts(_ report: CleanupBenchmarkReport) -> String {
         let header = "candidate,baseline,category,samples,misses,allowed_misses,dropped_outside,fuzzy,embedding,jev,verdict"
         let rows = report.verdicts.flatMap { verdict in
@@ -148,7 +166,7 @@ public enum CleanupBenchmarkReportFormatter {
                 [
                     verdict.candidateName,
                     verdict.baselineName,
-                    row.category?.rawValue ?? "all",
+                    row.label ?? "all",
                     "\(row.samples)",
                     "\(row.misses)",
                     "\(row.allowedMisses)",
@@ -189,9 +207,9 @@ public enum CleanupBenchmarkReportFormatter {
     }
 
     public static func renderCategoryBreakdown(_ report: CleanupBenchmarkReport) -> String {
-        let header = "candidate,category,runs,failed_runs,p50_ms,p95_ms,fuzzy,embedding,jev,cost_usd"
+        let header = "candidate,category,runs,failed_runs,p50_ms,p95_ms,max_ms,fuzzy,embedding,jev,cost_usd"
         let rows = report.categorySummaries.map { summary in
-            [summary.summary.candidateName, summary.category.rawValue] + summary.summary.columns
+            [summary.summary.candidateName, summary.label] + summary.summary.columns
         }
         return ([header] + rows.map { $0.joined(separator: ",") }).joined(separator: "\n")
     }
@@ -202,18 +220,6 @@ public enum CleanupBenchmarkReportFormatter {
 
     fileprivate static func format(_ milliseconds: Double) -> String {
         String(format: "%.1f", milliseconds)
-    }
-}
-
-private struct CategorySummaryKey: Comparable, Hashable {
-    let candidateName: String
-    let category: CleanupBenchmarkCategory
-
-    static func < (lhs: CategorySummaryKey, rhs: CategorySummaryKey) -> Bool {
-        if lhs.candidateName != rhs.candidateName {
-            return lhs.candidateName < rhs.candidateName
-        }
-        return lhs.category.rawValue < rhs.category.rawValue
     }
 }
 
