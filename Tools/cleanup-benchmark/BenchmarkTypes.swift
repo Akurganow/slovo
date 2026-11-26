@@ -77,11 +77,11 @@ public struct CleanupBenchmarkTranslationTarget: Equatable, Sendable {
 
     /// Nil for a code the catalogue does not offer.
     public init?(code: String) {
-        guard RecognitionLanguageCatalog.isSupported(code), let name = RecognitionLanguageCatalog.displayName(for: code) else {
+        guard RecognitionLanguageCatalog.isSupported(code) else {
             return nil
         }
         self.code = code
-        self.name = name
+        self.name = PromptBuilder.translationTargetName(for: code)
     }
 }
 

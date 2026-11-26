@@ -113,6 +113,22 @@ struct PromptBuilderTranslateTests {
         #expect(!russian.contains("Translate the transcript into English"))
     }
 
+    /// The catalogue's shortest synonym is not the name a model should see: "Moldovan" for
+    /// Romanian, and "Chinese" for Simplified Chinese. Stated sensitivity: return the catalogue's
+    /// `displayName` for every code → the Romanian and Simplified Chinese directives redden → RED.
+    @Test
+    func translateTargetUsesThePromptNameWhereTheCatalogueNameIsWrong() {
+        let romanian = Self.translateSystemText(style: .casual, target: Language(rawValue: "ro"))
+        #expect(romanian.contains("Translate the transcript into Romanian"))
+        #expect(!romanian.contains("Moldovan"), "the catalogue synonym must not reach the prompt")
+
+        let chinese = Self.translateSystemText(style: .casual, target: Language(rawValue: "zh"))
+        #expect(chinese.contains("Translate the transcript into Simplified Chinese"))
+
+        let spanish = Self.translateSystemText(style: .casual, target: Language(rawValue: "es"))
+        #expect(spanish.contains("Translate the transcript into Spanish"))
+    }
+
     /// Per-target example gating: a verified core target (en) carries its own
     /// examples block; a target outside the verified core carries NO examples at
     /// all — its prompt stays example-free exactly like today.
