@@ -432,8 +432,9 @@ public struct PromptBuilder: Sendable {
             "Always remove discourse fillers, words that only fill a pause (such as um, uh, er, ну, вот, короче, эээ)"
                 + "\(fillerSuffix); a word that carries cause, contrast, order, or who did what stays "
                 + "(поэтому, но, потом, therefore).",
-            "Correct the conventional casing of acronyms and camel-case names (api → API); plain "
-                + "technical phrases stay lowercase.",
+            "Correct the conventional casing of acronyms and camel-case names (api → API); product and "
+                + "interface names keep their capitals (Settings, GitHub), and descriptive phrases stay lowercase "
+                + "even when the transcript capitalises them (steps to reproduce).",
             verbatimLine,
         ]
     }
@@ -456,7 +457,9 @@ public struct PromptBuilder: Sendable {
 
     private var numbersLine: String {
         "Write clearly dictated number, date, and time phrases in conventional written form "
-            + "(fifteen thirty → 15:30, пять процентов → 5%); never change their value."
+            + "(fifteen thirty → 15:30, пять процентов → 5%); never change their value. "
+            + "A version keeps the speaker's digits (версия 001 → 001), and a time keeps the speaker's clock "
+            + "(в 8 вечера stays в 8 вечера) with the time separator of the transcript language."
     }
 
     private var formulaLine: String {
