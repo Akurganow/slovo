@@ -21,7 +21,7 @@ extension PromptBuilder {
 
     private static let scriptTargetNames: [String: String] = [
         "zh": "Simplified Chinese",
-        "sr": "Cyrillic Serbian",
-        "pa": "Gurmukhi Punjabi",
+        "sr": "Serbian, in Cyrillic script",
+        "pa": "Punjabi, in Gurmukhi script",
     ]
 }

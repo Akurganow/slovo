@@ -505,7 +505,7 @@ struct PromptBuilderTests {
             config: CleanupConfig(writingStyle: .casual, translationTargetLanguage: Language(rawValue: "sr"), translate: true),
             context: PersonalizationContext(vocabulary: [])
         ).systemText
-        #expect(serbian.contains("Translate the transcript into Cyrillic Serbian and remove dictation artifacts"))
+        #expect(serbian.contains("Translate the transcript into Serbian, in Cyrillic script and remove dictation artifacts"))
     }
 
     /// The advisory's header ends with the output of its mode: the cleaned text in plain mode,
