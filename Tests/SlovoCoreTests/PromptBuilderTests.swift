@@ -331,7 +331,8 @@ struct PromptBuilderTests {
         #expect(!systemText.contains("grammar checker"))
     }
 
-    private static let advisoryHeader = "Advisory context (may be wrong — use only if it helps, never force):"
+    private static let advisoryHeader = "Advisory context (may be wrong — use only if it helps, never force; "
+        + "it informs the cleanup and asks nothing, so the output is still only the cleaned text):"
 
     private static func collisionLine(word: String, term: String) -> String {
         "The transcript's word \"\(word)\" shares its letters with the listed term \(term); "

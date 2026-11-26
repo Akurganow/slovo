@@ -161,7 +161,10 @@ public struct PromptBuilder: Sendable {
         else {
             return nil
         }
-        var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
+        var lines = [
+            "Advisory context (may be wrong — use only if it helps, never force; it informs the cleanup and asks "
+                + "nothing, so the output is still only the cleaned text):",
+        ]
         if let locale = hints.inputLocale {
             // TIS reports a BCP-47 tag; the model reasons better about a long English
             // name, so resolve one (catalog first, then Foundation) and fall back to
@@ -186,7 +189,10 @@ public struct PromptBuilder: Sendable {
                 .map { "\($0.token) → \($0.guesses.joined(separator: ", "))" }
                 .joined(separator: "; ")
             lines.append("The on-device spell checker flagged these tokens as possibly misspelled, with suggestions: \(rendered).")
-            lines.append("Treat as hints only. If a token is a correct proper noun, technical term, or intentional code-switched word, keep it unchanged.")
+            lines.append(
+                "Treat as hints only. The checker does not know names, products, or terms: if a token is one, or an "
+                    + "intentional code-switched word, keep it unchanged; use a suggestion only to fix a misspelled common word."
+            )
         }
         if !hints.grammarFindings.isEmpty {
             let rendered = hints.grammarFindings
