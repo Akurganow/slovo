@@ -15,8 +15,8 @@ let package = Package(
     dependencies: [
         // Zetetic's SQLCipher-enabled distribution of upstream GRDB (tags
         // mirror groue/GRDB.swift): the personalization DB is encrypted at rest.
-        .package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.11.1"),
-        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
+        .package(url: "https://github.com/sqlcipher/GRDB.swift.git", from: "7.12.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.1.1"),
         // Command plugin only (Scripts/lint.sh). No target uses the build-tool
         // plugin: it hands its prebuild command the whole process environment
         // (SwiftLintPlugins 0.65.1 source, SwiftLintBuildToolPlugin.swift:87),
@@ -24,11 +24,11 @@ let package = Package(
         // API keys included (swift-package-manager swift-6.4.0-RELEASE source,
         // Sources/Build/BuildPlan/BuildPlan.swift:907; reproduced on 6.4.0).
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
-        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.1"),
+        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.2"),
         // Sparkle 2 auto-update engine. App target only — SlovoCore stays
         // Sparkle-free, enforced by the SwiftPM target graph (an `import Sparkle`
         // in the core cannot compile).
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.5"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
     ],
     targets: [
         // Objective-C interop shims that Swift cannot express live here — a

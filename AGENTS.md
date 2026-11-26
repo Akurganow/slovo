@@ -327,8 +327,7 @@ a real trap already caught once: Lightning-SimulWhisper).
 - Prove the change by CI's Swift `test` run — `Scripts/diagnose.sh` in full on a
   macOS runner — on the pull request's merge result, cited by number and
   conclusion. A local `Scripts/diagnose.sh` is a convenience for whoever is already
-  at a Mac, never something to ask the owner for. All it adds is the tests that skip
-  whenever `CI` is set.
+  at a Mac, never something to ask the owner for.
 - Keep raw audio local. Send off the Mac only what `docs/privacy.md`, "Data
   Paths", lists, and change that table in the same change that adds a datum or
   a request.
