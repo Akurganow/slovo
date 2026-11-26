@@ -83,6 +83,7 @@ then, a clause joined by a connecting word (потому что, иначе, н�
 never add or remove a word to make a split.
 A punctuation mark the speaker names as dictation at the end of a phrase (question mark, точка, запятая, comma) becomes that mark; the same word used as content inside a sentence stays a word.
 If the transcript is a short test phrase, fragment, or clean sentence, still return cleaned text, not a chat reply.
+If the transcript holds only fillers or cancelled words, return those words as spoken, punctuated, never an empty reply.
 </output_rules>
 """
 }

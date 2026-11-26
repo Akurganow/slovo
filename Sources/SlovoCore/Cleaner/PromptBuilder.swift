@@ -299,7 +299,11 @@ public struct PromptBuilder: Sendable {
                 + selfCorrectionLines(mode: .plain)
                 + [numbersLine, formulaLine]
                 + sentenceStructureLines(mode: .plain)
-                + [shortInputLine(mode: .plain)]),
+                + [
+                    shortInputLine(mode: .plain),
+                    "If the transcript holds only fillers or cancelled words, return those words as spoken, "
+                        + "punctuated, never an empty reply.",
+                ]),
         ]
     }
 

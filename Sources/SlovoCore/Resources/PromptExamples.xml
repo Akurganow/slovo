@@ -141,6 +141,10 @@
       <output>Я запушил фикс в feature branch, но code review ещё не прошёл.</output>
     </example>
     <example>
+      <transcript>эээ ну вот</transcript>
+      <output>Эээ, ну вот.</output>
+    </example>
+    <example>
       <transcript>добавь unit test для http client</transcript>
       <output>Добавь unit test для HTTP client.</output>
     </example>
