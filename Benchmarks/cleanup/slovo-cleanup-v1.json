@@ -1286,6 +1286,522 @@
       ],
       "spoken": "давай созвонимся в понедельник ну нет во вторник после обеда и обсудим план на месяц",
       "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-send-report-01",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Дима, отправь отчет Кате до пятницы, пожалуйста.",
+      "references": [
+        "Dima, send the report to Katya by Friday, please.",
+        "Dima, send the report to Kate by Friday, please."
+      ],
+      "spoken": "дима отправь отчёт кате до пятницы пожалуйста",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-en-to-en-git-status-02",
+      "category": "translation",
+      "language": "ru+en",
+      "translateTo": "en",
+      "raw": "Перед релизом запусти git status и пришли мне результат.",
+      "references": [
+        "Before the release, run git status and send me the result."
+      ],
+      "spoken": "перед релизом запусти git status и пришли мне результат",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-en-to-ru-submit-order-label-03",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ru",
+      "raw": "The button still says \"Submit Order\" on the checkout page.",
+      "references": [
+        "Кнопка на странице оформления заказа по-прежнему называется «Submit Order».",
+        "Кнопка на странице оформления заказа по-прежнему называется \"Submit Order\"."
+      ],
+      "spoken": "the button still says submit order on the checkout page",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ko-library-day-04",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ko",
+      "raw": "Let's meet at the library on Monday. no wait on Tuesday after lunch.",
+      "references": [
+        "화요일 점심 후에 도서관에서 만나요.",
+        "점심 후 화요일에 도서관에서 만나자."
+      ],
+      "spoken": "let's meet at the library on monday no wait on tuesday after lunch",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-de-call-time-05",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "de",
+      "raw": "The call starts at 4 um no sorry at 5.30.",
+      "references": [
+        "Der Anruf beginnt um 5.30 Uhr.",
+        "Der Anruf beginnt um 5:30 Uhr.",
+        "Das Gespräch beginnt um 5:30 Uhr."
+      ],
+      "spoken": "the call starts at four um no sorry at five thirty",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-pt-room-number-06",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "pt",
+      "raw": "We are in room 4 um no sorry room 5 on the second floor.",
+      "references": [
+        "Estamos no quarto 5, no segundo andar.",
+        "Estamos na sala 5, no segundo andar."
+      ],
+      "spoken": "we are in room four um no sorry room five on the second floor",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ro-keys-noon-07",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ro",
+      "raw": "I will pick up the keys from Elena at 12.",
+      "references": [
+        "Voi ridica cheile de la Elena la ora 12.",
+        "Voi lua cheile de la Elena la 12."
+      ],
+      "spoken": "i will pick up the keys from elena at twelve",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-zh-ticket-price-08",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "zh",
+      "raw": "The tickets cost $12 each.",
+      "references": [
+        "每张票12美元。",
+        "门票每张12美元。"
+      ],
+      "spoken": "the tickets cost twelve dollars each",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-sr-marco-call-09",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "sr",
+      "raw": "Marco called me twice this morning.",
+      "references": [
+        "Марко ме је јутрос два пута звао.",
+        "Марко ме је јутрос звао два пута."
+      ],
+      "spoken": "marko called me twice this morning",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-pa-flight-evening-10",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "pa",
+      "raw": "My flight lands at 6:15 in the evening.",
+      "references": [
+        "ਮੇਰੀ ਉਡਾਣ ਸ਼ਾਮ ਨੂੰ 6:15 ਵਜੇ ਉਤਰੇਗੀ।",
+        "ਮੇਰੀ ਫਲਾਈਟ ਸ਼ਾਮ ਨੂੰ 6:15 ਵਜੇ ਉਤਰੇਗੀ।"
+      ],
+      "spoken": "my flight lands at six fifteen in the evening",
+      "voice": "Samantha"
+    },
+    {
+      "id": "translation-en-to-ht-water-bottles-11",
+      "category": "translation",
+      "language": "en",
+      "translateTo": "ht",
+      "raw": "Please bring three bottles of water.",
+      "references": [
+        "Tanpri pote twa boutèy dlo.",
+        "Tanpri pote twa boutey dlo."
+      ],
+      "spoken": "please bring three bottles of water",
+      "voice": "Samantha"
+    },
+    {
+      "id": "vocabulary-ru-acronym-cyrillic-01",
+      "category": "vocabulary",
+      "raw": "Запиши в календарь МАР на четверг в 3 часа.",
+      "references": [
+        "Запиши в календарь MAR на четверг в 3 часа."
+      ],
+      "vocabulary": [
+        {
+          "term": "MAR",
+          "expansion": "Monthly Account Review"
+        }
+      ],
+      "spoken": "запиши в календарь эм эй эр на четверг в три часа",
+      "voice": "Milena"
+    },
+    {
+      "id": "vocabulary-en-split-name-02",
+      "category": "vocabulary",
+      "raw": "We moved all the tickets into Storm Desk last week.",
+      "references": [
+        "We moved all the tickets into Stormdesk last week."
+      ],
+      "vocabulary": [
+        {
+          "term": "Stormdesk",
+          "expansion": "support ticket tool"
+        },
+        {
+          "term": "Lumen Grid"
+        }
+      ],
+      "spoken": "we moved all the tickets into stormdesk last week",
+      "voice": "Samantha"
+    },
+    {
+      "id": "vocabulary-en-everyday-word-spot-03",
+      "category": "vocabulary",
+      "raw": "I found a quiet spot for lunch near the office no wait near the station.",
+      "references": [
+        "I found a quiet spot for lunch near the station."
+      ],
+      "vocabulary": [
+        {
+          "term": "Spot",
+          "expansion": "uptime monitor"
+        }
+      ],
+      "spoken": "i found a quiet spot for lunch near the office no wait near the station",
+      "voice": "Samantha"
+    },
+    {
+      "id": "vocabulary-ru-everyday-word-pulse-04",
+      "category": "vocabulary",
+      "raw": "После бега у меня пульс 120, ой нет 130.",
+      "references": [
+        "После бега у меня пульс 130."
+      ],
+      "vocabulary": [
+        {
+          "term": "Пульс",
+          "expansion": "приложение для учёта сердцебиения"
+        }
+      ],
+      "spoken": "после бега у меня пульс сто двадцать ой нет сто тридцать",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-vocab-acronym-12",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Добавь KIP в план на среду и напиши мне.",
+      "references": [
+        "Add KAP to the plan for Wednesday and message me."
+      ],
+      "vocabulary": [
+        {
+          "term": "KAP"
+        },
+        {
+          "term": "Orbit Desk"
+        }
+      ],
+      "spoken": "добавь кей эй пи в план на среду и напиши мне",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-vocab-split-name-13",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "В понедельник мы перенесли все заявки в Брайт Лейн.",
+      "references": [
+        "On Monday we moved all the requests to Brightlane."
+      ],
+      "vocabulary": [
+        {
+          "term": "Brightlane",
+          "expansion": "ticket tracker"
+        }
+      ],
+      "spoken": "в понедельник мы перенесли все заявки в bright lane",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-vocab-lookalike-bridge-14",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Мы перешли через мост и сели отдохнуть на лавочке.",
+      "references": [
+        "We crossed the bridge and sat down to rest on a bench."
+      ],
+      "vocabulary": [
+        {
+          "term": "Bridge"
+        }
+      ],
+      "spoken": "мы перешли через мост и сели отдохнуть на лавочке",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-en-vocab-lookalike-wave-15",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Над морем поднялась высокая волна и все побежали к берегу.",
+      "references": [
+        "A high wave rose over the sea and everyone ran to the shore."
+      ],
+      "vocabulary": [
+        {
+          "term": "Волна"
+        }
+      ],
+      "spoken": "над морем поднялась высокая волна и все побежали к берегу",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-ru-quick-reply-06",
+      "category": "short-smoke",
+      "raw": "Да давай попробуем.",
+      "references": [
+        "Да, давай попробуем."
+      ],
+      "spoken": "да давай попробуем",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-quick-reply-right-01",
+      "category": "hints",
+      "raw": "Да давай попробуем.",
+      "references": [
+        "Да, давай попробуем."
+      ],
+      "hints": {
+        "inputLocale": "ru"
+      },
+      "spoken": "да давай попробуем",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-quick-reply-wrong-01",
+      "category": "hints",
+      "raw": "Да давай попробуем.",
+      "references": [
+        "Да, давай попробуем."
+      ],
+      "hints": {
+        "inputLocale": "en"
+      },
+      "spoken": "да давай попробуем",
+      "voice": "Milena"
+    },
+    {
+      "id": "translation-ru-to-de-doctor-day-16",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "de",
+      "raw": "Завтра я иду к врачу в 9 утра, а потом на работу.",
+      "references": [
+        "Morgen gehe ich um 9 Uhr zum Arzt und danach zur Arbeit.",
+        "Morgen früh um 9 Uhr gehe ich zum Arzt, und danach gehe ich zur Arbeit."
+      ],
+      "spoken": "завтра я иду к врачу в девять утра а потом на работу",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-to-de-doctor-day-right-01",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "de",
+      "raw": "Завтра я иду к врачу в 9 утра, а потом на работу.",
+      "references": [
+        "Morgen gehe ich um 9 Uhr zum Arzt und danach zur Arbeit.",
+        "Morgen früh um 9 Uhr gehe ich zum Arzt, und danach gehe ich zur Arbeit."
+      ],
+      "hints": {
+        "inputLocale": "ru"
+      },
+      "spoken": "завтра я иду к врачу в девять утра а потом на работу",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-to-de-doctor-day-wrong-01",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "de",
+      "raw": "Завтра я иду к врачу в 9 утра, а потом на работу.",
+      "references": [
+        "Morgen gehe ich um 9 Uhr zum Arzt und danach zur Arbeit.",
+        "Morgen früh um 9 Uhr gehe ich zum Arzt, und danach gehe ich zur Arbeit."
+      ],
+      "hints": {
+        "inputLocale": "en"
+      },
+      "spoken": "завтра я иду к врачу в девять утра а потом на работу",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-nordwav-notes-07",
+      "category": "short-smoke",
+      "raw": "The team now keeps its notes in Nordwav since Monday um no sorry since Tuesday.",
+      "references": [
+        "The team now keeps its notes in Nordwav since Tuesday.",
+        "The team now keeps its notes in Nordwave since Tuesday."
+      ],
+      "spoken": "the team now keeps its notes in nordwave since monday um no sorry since tuesday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "hints-en-nordwav-notes-right-01",
+      "category": "hints",
+      "raw": "The team now keeps its notes in Nordwav since Monday um no sorry since Tuesday.",
+      "references": [
+        "The team now keeps its notes in Nordwav since Tuesday.",
+        "The team now keeps its notes in Nordwave since Tuesday."
+      ],
+      "hints": {
+        "spell": [
+          {
+            "token": "Nordwav",
+            "guesses": [
+              "Nordwave"
+            ]
+          }
+        ]
+      },
+      "spoken": "the team now keeps its notes in nordwave since monday um no sorry since tuesday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "hints-en-nordwav-notes-wrong-01",
+      "category": "hints",
+      "raw": "The team now keeps its notes in Nordwav since Monday um no sorry since Tuesday.",
+      "references": [
+        "The team now keeps its notes in Nordwav since Tuesday.",
+        "The team now keeps its notes in Nordwave since Tuesday."
+      ],
+      "hints": {
+        "spell": [
+          {
+            "token": "Nordwav",
+            "guesses": [
+              "Norway"
+            ]
+          }
+        ]
+      },
+      "spoken": "the team now keeps its notes in nordwave since monday um no sorry since tuesday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-ru-kolobrik-launch-08",
+      "category": "short-smoke",
+      "raw": "Мы ну запустили колобрик для всех клиентов в пятницу, ой нет в четверг.",
+      "references": [
+        "Мы запустили колобрик для всех клиентов в четверг."
+      ],
+      "spoken": "мы ну запустили колобрик для всех клиентов в пятницу ой нет в четверг",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-kolobrik-launch-wrong-01",
+      "category": "hints",
+      "raw": "Мы ну запустили колобрик для всех клиентов в пятницу, ой нет в четверг.",
+      "references": [
+        "Мы запустили колобрик для всех клиентов в четверг."
+      ],
+      "hints": {
+        "spell": [
+          {
+            "token": "колобрик",
+            "guesses": [
+              "колобок"
+            ]
+          }
+        ]
+      },
+      "spoken": "мы ну запустили колобрик для всех клиентов в пятницу ой нет в четверг",
+      "voice": "Milena"
+    },
+    {
+      "id": "short-smoke-en-colloquial-party-09",
+      "category": "short-smoke",
+      "raw": "Me and him ain't going to the party on Friday. No, sorry. on Saturday.",
+      "references": [
+        "Me and him ain't going to the party on Saturday."
+      ],
+      "spoken": "me and him ain't going to the party on friday no sorry on saturday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "hints-en-colloquial-party-wrong-01",
+      "category": "hints",
+      "raw": "Me and him ain't going to the party on Friday. No, sorry. on Saturday.",
+      "references": [
+        "Me and him ain't going to the party on Saturday."
+      ],
+      "hints": {
+        "grammar": [
+          {
+            "fragment": "Me and him ain't going",
+            "message": "Use the subject form and standard negation: 'He and I are not going'.",
+            "corrections": [
+              "He and I are not going"
+            ]
+          }
+        ]
+      },
+      "spoken": "me and him ain't going to the party on friday no sorry on saturday",
+      "voice": "Samantha"
+    },
+    {
+      "id": "code-switching-ru-pull-request-changelog-11",
+      "category": "code-switching",
+      "raw": "Короче, надо закрыть этот пул-реквест до релиза и обновить чейнджлок.",
+      "references": [
+        "Надо закрыть этот пул-реквест до релиза и обновить чейнджлог.",
+        "Надо закрыть этот pull request до релиза и обновить changelog."
+      ],
+      "spoken": "короче надо закрыть этот pull request до релиза и обновить changelog",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-pull-request-changelog-right-01",
+      "category": "hints",
+      "raw": "Короче, надо закрыть этот пул-реквест до релиза и обновить чейнджлок.",
+      "references": [
+        "Надо закрыть этот пул-реквест до релиза и обновить чейнджлог.",
+        "Надо закрыть этот pull request до релиза и обновить changelog."
+      ],
+      "hints": {
+        "inputLocale": "ru"
+      },
+      "spoken": "короче надо закрыть этот pull request до релиза и обновить changelog",
+      "voice": "Milena"
+    },
+    {
+      "id": "hints-ru-pull-request-changelog-wrong-01",
+      "category": "hints",
+      "raw": "Короче, надо закрыть этот пул-реквест до релиза и обновить чейнджлок.",
+      "references": [
+        "Надо закрыть этот пул-реквест до релиза и обновить чейнджлог.",
+        "Надо закрыть этот pull request до релиза и обновить changelog."
+      ],
+      "hints": {
+        "inputLocale": "en"
+      },
+      "spoken": "короче надо закрыть этот pull request до релиза и обновить changelog",
+      "voice": "Milena"
     }
   ]
 }

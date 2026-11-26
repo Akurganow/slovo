@@ -97,13 +97,13 @@ holds the plain account, the bar and the flags; the settings live in
 - The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-128 synthetic/public-style samples, grouped as:
+163 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
-| `short-smoke` | 5 |
+| `short-smoke` | 9 |
 | `russian-filler` | 6 |
-| `code-switching` | 10 |
+| `code-switching` | 11 |
 | `punctuation-structure` | 12 |
 | `commands-editor` | 4 |
 | `inverse-text-normalization` | 7 |
@@ -111,7 +111,9 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 | `instruction-shaped-transcript` | 3 |
 | `languages` | 40 |
 | `mixed-languages` | 15 |
-| `translation` | 18 |
+| `translation` | 36 |
+| `vocabulary` | 4 |
+| `hints` | 8 |
 
 The `instruction-shaped-transcript` category is the permanent tripwire for the
 executed-dictation failure class: long task-shaped dictations (the flagship is a
