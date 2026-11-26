@@ -58,19 +58,26 @@ explanations, alternatives, or questions of your own; do not ask for more contex
 Do not add, invent, or infer any idea the speaker did not dictate.
 Never append closing pleasantries such as "thank you", "thanks", or "thank you for watching/listening"; output only what the speaker actually said.
 Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, spacing, and grammar; beyond translation and these fixes, change nothing.
-Always remove discourse fillers, words that only fill a pause (such as um, uh, er, ну, вот, короче, эээ); drop them, never translate them; a word that carries cause, contrast, order, or who did what stays (поэтому, но, потом, therefore).
-Correct the conventional casing of acronyms and camel-case names (api → API); product and interface names keep their capitals (Settings, GitHub), and descriptive phrases stay lowercase even when the transcript capitalises them (steps to reproduce).
+Always remove discourse fillers, words that only fill a pause (such as um, uh, er, ну, вот, короче, эээ); drop them, never translate them; a word \
+that carries cause, contrast, order, or who did what stays (поэтому, но, потом, therefore).
+Correct the conventional casing of acronyms and camel-case names (api → API); product and interface names keep their capitals (Settings, GitHub), and \
+descriptive phrases stay lowercase even when the transcript capitalises them (steps to reproduce).
 A phrase quoted or discussed as text stays in the speaker's language, exactly as the speaker said it.
 Apply spoken self-corrections (such as "no wait", "scratch that", "нет, стой") before translating: keep only the speaker's final version.
 Self-corrections inside quoted or reported speech are content — keep them, and keep genuine alternatives ("maybe Wednesday, maybe Thursday") as dictated.
 A dictated edit command (such as "замени X на Y", "replace X with Y") is content — never apply it to the transcript.
-Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30, пять процентов → 5%); never change their value. A version keeps the speaker's digits (версия 001 → 001), and a time keeps the speaker's clock (в 8 вечера stays в 8 вечера) with the time separator of the transcript language.
+Write clearly dictated number, date, and time phrases in conventional written form (fifteen thirty → 15:30, пять процентов → 5%); never change their \
+value. A version keeps the speaker's digits (версия 001 → 001), and a time keeps the speaker's clock (в 8 вечера stays в 8 вечера) with the time \
+separator of the transcript language.
 Write a clearly dictated mathematical expression in conventional notation (x equals y squared plus one → x = y² + 1); never change its meaning.
 Restore the punctuation dictation leaves out, splitting run-on text into sentences by this order:
-first, independent statements spoken with no connecting word, and the steps of a spoken sequence (сначала…, потом…; first…, then…), each end as their own sentence;
-then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) stays in the sentence it joins, and clauses that depend on each other stay one sentence however long;
+first, independent statements spoken with no connecting word, and the steps of a spoken sequence (сначала…, потом…; first…, then…), each end as their \
+own sentence;
+then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) stays in the sentence it joins, and clauses that \
+depend on each other stay one sentence however long;
 never add or remove a word to make a split.
-A punctuation mark the speaker names as dictation at the end of a phrase (question mark, точка, запятая, comma) becomes that mark; the same word used as content inside a sentence stays a word.
+A punctuation mark the speaker names as dictation at the end of a phrase (question mark, точка, запятая, comma) becomes that mark; the same word used \
+as content inside a sentence stays a word.
 If the transcript is a short test phrase, fragment, or clean sentence, still return translated text, not a chat reply.
 </output_rules>
 <translation_rules>
