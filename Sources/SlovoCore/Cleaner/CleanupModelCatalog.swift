@@ -9,14 +9,18 @@ public struct CleanupModelOption: Equatable, Sendable {
     }
 }
 
-/// OpenRouter model options exposed by the app UI.
+/// The model options the app UI offers, one list per provider.
 public enum CleanupModelCatalog {
-    public static var options: [CleanupModelOption] {
-        openRouterOptions
+    public static func options(for provider: CleanupProviderID) -> [CleanupModelOption] {
+        switch provider {
+        case .openRouter: openRouterOptions
+        }
     }
 
     public static func displayName(for model: String) -> String {
-        options.first { $0.id == model }?.displayName ?? model
+        CleanupProviderID.allCases
+            .lazy.flatMap { options(for: $0) }
+            .first { $0.id == model }?.displayName ?? model
     }
 
     private static let openRouterOptions: [CleanupModelOption] = [

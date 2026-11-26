@@ -2,7 +2,7 @@ import Testing
 
 import SlovoCore
 
-// The byte-exact hardened TRANSLATE instruction sections (systemBlocks[0]).
+// The byte-exact hardened TRANSLATE instruction sections (prefixBlocks[0]).
 // Mirrors the plain golden: the literal is authored independently, NOT copied
 // from the builder's own output, so it pins drift and mutation rather than
 // tautologically mirroring the implementation under test. The per-target
@@ -21,7 +21,7 @@ struct PromptBuilderTranslateGoldenTests {
                 translate: true
             ),
             context: PersonalizationContext(vocabulary: [])
-        ).systemBlocks[0]
+        ).prefixBlocks[0]
     }
 
     /// The whole casual Spanish translate instruction block must be byte-identical
@@ -33,7 +33,7 @@ struct PromptBuilderTranslateGoldenTests {
     }
 
     // Fully dedented (closing delimiter at column 0): content lines carry no
-    // leading whitespace, matching the builder's `systemBlocks[0]`. All lines are
+    // leading whitespace, matching the builder's `prefixBlocks[0]`. All lines are
     // <=160 chars, so no lint-disable is needed (codebase convention).
     private static let goldenCasualSpanishTranslateSections = """
 <role>

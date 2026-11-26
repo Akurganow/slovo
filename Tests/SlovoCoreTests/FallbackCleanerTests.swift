@@ -13,9 +13,9 @@ struct FallbackCleanerTests {
     private static var context: PersonalizationContext { PersonalizationContext(vocabulary: []) }
 
     private static func fallback(
-        _ chain: [Cleaner], report: @escaping (StatusMessage) -> Void = { _ in }
+        _ cleaner: Cleaner, report: @escaping (StatusMessage) -> Void = { _ in }
     ) -> FallbackCleaner {
-        FallbackCleaner(chain: chain, statusReporter: report)
+        FallbackCleaner(cleaner: cleaner, statusReporter: report)
     }
 
     /// A NON-`CleanupError` (here `CancellationError`) must PROPAGATE —
@@ -24,36 +24,35 @@ struct FallbackCleanerTests {
     /// CancellationError is swallowed + degraded → does NOT throw → RED.
     @Test
     func nonCleanupErrorPropagates() async {
-        let chain: [Cleaner] = [ThrowingCleaner(CancellationError()), PassThrough()]
         var threw = false
         do {
-            _ = try await Self.fallback(chain).clean(Self.raw, config: Self.config, context: Self.context)
+            _ = try await Self.fallback(ThrowingCleaner(CancellationError())).clean(Self.raw, config: Self.config, context: Self.context)
         } catch is CancellationError {
             threw = true
         } catch {
             #expect(Bool(false), "expected CancellationError to propagate, got \(error)")
         }
-        #expect(threw, "a non-CleanupError must propagate, not be swallowed and degraded to PassThrough")
+        #expect(threw, "a non-CleanupError must propagate, not be swallowed and degraded to the spoken text")
     }
 
-    /// Every expected cleanup failure advances to `PassThrough` WITH the
+    /// Every expected cleanup failure falls back to the spoken text WITH the
     /// user-visible sad-to-fail status. Cleanup is always attempted upstream;
     /// insertion falls back to the direct transcript only when cleanup fails with
     /// `CleanupError` because the provider is unavailable, refused, or misconfigured.
-    /// Stated sensitivity: keep `.transport`, `.missingKey`, `.rateLimited`, and
-    /// `.apiError` silent -> RED.
+    /// Stated sensitivity: keep any of the ten cases silent, or skip `statusReporter`
+    /// altogether -> RED.
     @Test
-    func expectedCleanupErrorsAdvanceWithSadToFailStatus() async throws {
+    func expectedCleanupErrorsFallBackWithSadToFailStatus() async throws {
         let cases: [CleanupError] = [
-            .transport, .missingKey, .rateLimited(retryAfter: 1.0), .apiError(status: 500),
+            .missingKey, .timedOut, .offline, .tls, .transport, .badResponse,
+            .rateLimited(retryAfter: 1.0), .modelUnavailable, .refused, .noText,
         ]
         for failure in cases {
             var reported: [StatusMessage] = []
-            let chain: [Cleaner] = [FakeCleaner(outcome: .failure(failure)), PassThrough()]
-            let output = try await Self.fallback(chain, report: { reported.append($0) })
+            let output = try await Self.fallback(FakeCleaner(outcome: .failure(failure)), report: { reported.append($0) })
                 .clean(Self.raw, config: Self.config, context: Self.context)
 
-            #expect(output == Self.raw, "\(failure) must still degrade to PassThrough")
+            #expect(output == Self.raw, "\(failure) must still fall back to the spoken text")
             #expect(reported == [.cleanupUnavailableInsertedAsSpoken],
                     "\(failure) must report sad-to-fail status, got \(reported)")
         }

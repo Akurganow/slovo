@@ -49,7 +49,7 @@ struct CleanupScopeReducerTests {
     @Test
     func cleanupFailedBeforePipelineStartIsIgnored() {
         let s = reduce(CleanupScopeState(), .availabilityChanged(isOn: true))
-        #expect(reduce(s, .cleanupFailed(.apiError(status: 404))) == s)
+        #expect(reduce(s, .cleanupFailed(.modelUnavailable)) == s)
     }
 
     // K10 corner: a key save before hotkey start (pending onboarding) never fetches.
@@ -121,18 +121,19 @@ struct CleanupScopeReducerTests {
         }
     }
 
-    // K4d: only apiError(404) triggers the refresh; the WHOLE filter is reducer-owned (K11).
-    // Sensitivity: widen the filter to any apiError → the 403 case goes RED.
+    // K4d: only `.modelUnavailable` triggers the refresh; the WHOLE filter is reducer-owned (K11).
+    // Sensitivity: widen the filter to any failure, or to `.refused` → the other cases go RED;
+    // re-fetch on `.refused` instead of `.modelUnavailable` → the first expectation goes RED.
     @Test
-    func only404TriggersRefresh() {
+    func onlyModelUnavailableTriggersRefresh() {
         let s = known(["a/b"])
-        let s2 = reduce(s, .cleanupFailed(.apiError(status: 404)))
+        let s2 = reduce(s, .cleanupFailed(.modelUnavailable))
         #expect(s2.fetchInFlight)
         #expect(s2.generation == s.generation)
         #expect(s2.scope == .known(["a/b"]))  // stale-until-replaced: no interim reversion
         for error in [
-            CleanupError.apiError(status: 403), .transport, .missingKey,
-            .rateLimited(retryAfter: nil),
+            CleanupError.missingKey, .timedOut, .offline, .tls, .transport, .badResponse,
+            .rateLimited(retryAfter: nil), .refused, .noText,
         ] {
             #expect(reduce(s, .cleanupFailed(error)) == s)
         }
@@ -141,7 +142,7 @@ struct CleanupScopeReducerTests {
     // K4d: a FAILED refresh of a known scope fails open to .unknown.
     @Test
     func failedRefreshFailsOpen() {
-        let s = reduce(known(["a/b"]), .cleanupFailed(.apiError(status: 404)))
+        let s = reduce(known(["a/b"]), .cleanupFailed(.modelUnavailable))
         let s2 = reduce(s, .fetchCompleted(generation: s.generation, ids: nil))
         #expect(s2.scope == .unknown)
         #expect(!s2.fetchInFlight)

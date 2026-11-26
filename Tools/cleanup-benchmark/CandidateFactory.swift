@@ -11,8 +11,13 @@ public enum CleanupBenchmarkCandidateFactory {
             let keyProvider = StaticCleanupKeyProvider(
                 key: try key("OPENROUTER_API_KEY", in: environment)
             )
-            let cleaner = OpenRouterCleaner(keyProvider: keyProvider, promptBuilder: PromptBuilder())
+            let cleaner = CleanupRoute(
+                providers: CleanupProviders(openRouterKeys: keyProvider),
+                promptBuilder: PromptBuilder()
+            )
             return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context in
+                var config = config
+                config.provider = .openRouter
                 let cleaned = try await cleaner.cleanReportingCost(raw, config: config, context: context, hints: CleanupHints())
                 return CleanupBenchmarkCleaned(text: cleaned.text, costUSD: cleaned.costUSD)
             }

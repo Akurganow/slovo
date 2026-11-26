@@ -11,7 +11,7 @@ struct CleanupModelCatalogTests {
     /// variant trips the guard (it would leak chain-of-thought into dictation).
     @Test
     func openRouterCatalogExposesRoutedCloudCandidatesOnly() {
-        let ids = CleanupModelCatalog.options.map(\.id)
+        let ids = CleanupModelCatalog.options(for: .openRouter).map(\.id)
 
         #expect(ids == [
             "openai/gpt-6-luna",

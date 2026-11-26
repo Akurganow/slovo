@@ -2,7 +2,7 @@ import Testing
 
 import SlovoCore
 
-// The byte-exact hardened PLAIN cleanup instruction sections (systemBlocks[0]).
+// The byte-exact hardened PLAIN cleanup instruction sections (prefixBlocks[0]).
 // The golden literal is authored independently, NOT copied from the builder's own
 // output, so it pins drift and mutation rather than tautologically mirroring the
 // implementation under test. The examples block is pinned separately (catalog
@@ -17,7 +17,7 @@ struct PromptBuilderPlainGoldenTests {
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
-        ).systemBlocks[0]
+        ).prefixBlocks[0]
     }
 
     /// The whole casual plain instruction block must be byte-identical to the
@@ -40,7 +40,7 @@ struct PromptBuilderPlainGoldenTests {
     }
 
     // Fully dedented (closing delimiter at column 0): content lines carry no
-    // leading whitespace, matching the builder's `systemBlocks[0]`. All lines are
+    // leading whitespace, matching the builder's `prefixBlocks[0]`. All lines are
     // <=160 chars, so no lint-disable is needed (codebase convention).
     private static let goldenCasualPlainSections = """
 <role>

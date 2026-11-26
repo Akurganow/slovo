@@ -170,13 +170,15 @@ public enum ConfigStore {
             // Cleanup sends text off the machine, so a provider this build does not
             // know and a switch it cannot read both leave it off; the stored model id
             // still belongs to the user. A missing switch is the default, on.
-            let providerIsOpenRouter = cleanup.value(
-                "provider", String.self, default: true, whenUnreadable: false
+            // The value is itself optional, so `convert` returns a doubly optional:
+            // an unknown tag must be `nil` there, or it would pass as read and go unrecorded.
+            let storedProvider: CleanupProviderID? = cleanup.value(
+                "provider", String.self, default: CleanupProviderID.openRouter, whenUnreadable: .some(nil)
             ) {
-                $0 == "openrouter" ? true : nil
+                CleanupProviderID(rawValue: $0).map(Optional.some)
             }
             let cleanupEnabled = cleanup.value("enabled", default: defaults.cleanupEnabled, whenUnreadable: false)
-                && providerIsOpenRouter
+                && storedProvider != nil
 
             config = Config(
                 language: top.value("language", Language.self, default: defaults.language) {
@@ -189,6 +191,7 @@ public enum ConfigStore {
                 ),
                 asrModel: usesDefaultModel ? defaults.asrModel : storedModel,
                 usesVocabularyBias: asr.value("vocabularyBias", default: defaults.usesVocabularyBias),
+                cleanupProvider: storedProvider ?? .openRouter,
                 openRouterModel: ConfigStore.migratedOpenRouterModel(
                     cleanup.value(
                         "openRouterModel", String.self, default: defaults.openRouterModel,

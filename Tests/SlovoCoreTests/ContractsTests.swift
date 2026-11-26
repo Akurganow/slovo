@@ -63,8 +63,8 @@ struct ContractsTests {
     /// Each error case (incl. associated values + labels) is constructible
     /// with the exact labels, and each error enum is switched over EVERY case
     /// with NO `default`.
-    /// Stated sensitivity: change a label (`apiError(status:)` →
-    /// `apiError(code:)`), or add or drop a case → won't compile → RED.
+    /// Stated sensitivity: change a label (`rateLimited(retryAfter:)` →
+    /// `rateLimited(after:)`), or add or drop a case → won't compile → RED.
     @Test
     func errorCasesHaveExactAssociatedValues() {
         let t: [TranscriptionError] = [
@@ -73,11 +73,17 @@ struct ContractsTests {
             .engineFailure(underlying: CleanupError.transport),
         ]
         let c: [CleanupError] = [
-            .transport,
             .missingKey,
+            .timedOut,
+            .offline,
+            .tls,
+            .transport,
+            .badResponse,
             .rateLimited(retryAfter: 1.5),
             .rateLimited(retryAfter: nil),
-            .apiError(status: 503),
+            .modelUnavailable,
+            .refused,
+            .noText,
         ]
         let i: [InjectionError] = [.accessibilityDenied, .secureInputActive, .pasteFailed]
         for e in t {
@@ -87,7 +93,8 @@ struct ContractsTests {
         }
         for e in c {
             switch e {
-            case .transport, .missingKey, .rateLimited, .apiError: break
+            case .missingKey, .timedOut, .offline, .tls, .transport, .badResponse,
+                 .rateLimited, .modelUnavailable, .refused, .noText: break
             }
         }
         for e in i {

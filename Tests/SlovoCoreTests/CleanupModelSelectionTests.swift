@@ -3,7 +3,7 @@ import SlovoCore
 
 @Suite("CleanupModelSelection (spec rev 3 §4 K2)")
 struct CleanupModelSelectionTests {
-    private let catalog = CleanupModelCatalog.options
+    private let catalog = CleanupModelCatalog.options(for: .openRouter)
     private let defaultId = Config.defaultOpenRouterModel
     private let haiku = "anthropic/claude-haiku-5.5"
     private let mimo = "xiaomi/mimo-v2.6-flash"

@@ -32,7 +32,7 @@ struct AppStateTests {
     /// `config.cleanupEnabled` for `runsCleaner` → RED.
     @Test
     func effectiveCleanupConfigUsesTheDerivedModelAndAvailability() throws {
-        let other = try #require(CleanupModelCatalog.options.first { $0.id != Config.defaultOpenRouterModel })
+        let other = try #require(CleanupModelCatalog.options(for: .openRouter).first { $0.id != Config.defaultOpenRouterModel })
         var state = Self.launched()
         state.applyScope(.fetchCompleted(generation: state.cleanupScope.generation, ids: [other.id]))
         try #require(state.cleanupModelSelection.effective != state.config.openRouterModel,
@@ -52,7 +52,7 @@ struct AppStateTests {
     @Test
     func menuInputCarriesExactlyTheShownFields() throws {
         let base = Self.makeState()
-        let model = try #require(CleanupModelCatalog.options.first { $0.id != base.config.openRouterModel })
+        let model = try #require(CleanupModelCatalog.options(for: .openRouter).first { $0.id != base.config.openRouterModel })
         let shown: [(change: (inout AppState) -> Void, holds: (DictationMenuInput) -> Bool)] = [
             ({ $0.config.trigger = .rightOption }, { $0.hotkeyConfiguration.main == .rightOption }),
             ({ $0.config.translateTrigger = .leftShift }, { $0.hotkeyConfiguration.translate == .leftShift }),
@@ -143,7 +143,7 @@ struct AppStateTests {
     /// id) inside `applyScope` → RED.
     @Test
     func applyScopeNeverWritesConfig() throws {
-        let other = try #require(CleanupModelCatalog.options.first { $0.id != Config.defaultOpenRouterModel })
+        let other = try #require(CleanupModelCatalog.options(for: .openRouter).first { $0.id != Config.defaultOpenRouterModel })
         var known = Self.launched()
         known.applyScope(.fetchCompleted(generation: known.cleanupScope.generation, ids: [other.id]))
         #expect(known.config == Self.launched().config)
@@ -154,7 +154,7 @@ struct AppStateTests {
             .keySaved, .keyRemoved,
             .fetchCompleted(generation: known.cleanupScope.generation, ids: [other.id]),
             .fetchCompleted(generation: known.cleanupScope.generation, ids: nil),
-            .cleanupFailed(.apiError(status: 404)), .cleanupFailed(.transport),
+            .cleanupFailed(.modelUnavailable), .cleanupFailed(.transport),
         ]
         for event in events {
             var state = known

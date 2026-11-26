@@ -6,14 +6,15 @@ import Testing
 // and the dictation settings consume this value instead of re-deriving it.
 @Suite("CleanupAvailability")
 struct CleanupAvailabilityTests {
-    /// Stated sensitivity: swap the guard order (check preference before key) →
-    /// (false, false) derives `.offByChoice` instead of `.offNoKey` → RED.
+    /// Stated sensitivity: swap the guard order (check preference before readiness) →
+    /// (false, false) derives `.offByChoice` instead of `.offNoKey` → RED; ignore
+    /// `providerReady` → (true, false) derives `.on` → RED.
     @Test
     func derivationTable() {
-        #expect(CleanupAvailability.derive(preference: true, keyPresent: true) == .on)
-        #expect(CleanupAvailability.derive(preference: false, keyPresent: true) == .offByChoice)
-        #expect(CleanupAvailability.derive(preference: true, keyPresent: false) == .offNoKey)
-        #expect(CleanupAvailability.derive(preference: false, keyPresent: false) == .offNoKey)
+        #expect(CleanupAvailability.derive(preference: true, providerReady: true) == .on)
+        #expect(CleanupAvailability.derive(preference: false, providerReady: true) == .offByChoice)
+        #expect(CleanupAvailability.derive(preference: true, providerReady: false) == .offNoKey)
+        #expect(CleanupAvailability.derive(preference: false, providerReady: false) == .offNoKey)
     }
 
     /// Stated sensitivity: return a non-nil line for `.on`, or swap the two off

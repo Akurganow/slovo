@@ -14,7 +14,7 @@ struct PromptBuilderTests {
             raw: "hello",
             config: CleanupConfig(writingStyle: style),
             context: PersonalizationContext(vocabulary: vocabulary)
-        ).systemBlocks.joined(separator: "\n")
+        ).systemText
     }
 
     /// Terms are listed weight-descending, whatever order the context arrives in — the
@@ -158,7 +158,7 @@ struct PromptBuilderTests {
             config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n")
+        let systemText = prompt.systemText
 
         #expect(prompt.input == "<transcript>\(raw)</transcript>",
                 "real input must match the few-shot <transcript> format byte-for-byte")
@@ -194,7 +194,7 @@ struct PromptBuilderTests {
             config: CleanupConfig(writingStyle: .casual),
             context: PersonalizationContext(vocabulary: [])
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("<output>Переведи release notes на английский и запушь PR в GitHub.</output>"))
         // The anti-compression exemplar: a long complex sentence preserved whole.
@@ -218,16 +218,15 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("Advisory context (may be wrong"))
         #expect(systemText.contains("Keyboard input language at dictation time: Russian (ru)."))
         #expect(systemText.contains("recieve → receive, relieve"))
         #expect(systemText.contains("teh → the"))
         #expect(systemText.contains("keep it unchanged"))
-        // The advisory is supplementary context: it is the LAST system block,
-        // wrapped in its provenance tag.
-        #expect(prompt.systemBlocks.last?.hasPrefix("<advisory>\nAdvisory context (may be wrong") == true)
+        // The advisory is supplementary context, wrapped in its provenance tag.
+        #expect(prompt.advisory?.hasPrefix("<advisory>\nAdvisory context (may be wrong") == true)
     }
 
     /// Stated sensitivity: appending the advisory block unconditionally makes this
@@ -240,7 +239,7 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints()
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(!systemText.contains("Advisory context"))
     }
@@ -256,7 +255,7 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints(inputLocale: "en", spellFindings: [])
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("Keyboard input language at dictation time: English (en)."))
         #expect(!systemText.contains("flagged these tokens"))
@@ -283,7 +282,7 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("Advisory context (may be wrong"))
         #expect(systemText.contains("is: The word ‘is’ may not agree with the rest of the sentence."))
@@ -309,7 +308,7 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: hints
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("flagged these fragments: Consider ‘an’ instead (suggested: an)"))
         #expect(!systemText.contains(": : "), "an unresolved fragment must not emit a stray separator")
@@ -326,7 +325,7 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: []),
             hints: CleanupHints(spellFindings: [SpellFinding(token: "teh", guesses: ["the"])])
         )
-        let systemText = prompt.systemBlocks.joined(separator: "\n\n")
+        let systemText = prompt.systemText
 
         #expect(systemText.contains("teh → the"))
         #expect(!systemText.contains("grammar checker"))
@@ -360,7 +359,7 @@ struct PromptBuilderTests {
             terms: ["ADS", "COP", "GitHub", "Rooms"]
         )
 
-        #expect(prompt.systemBlocks.last == [
+        #expect(prompt.advisory == [
             "<advisory>",
             Self.advisoryHeader,
             Self.collisionLine(word: "rooms", term: "Rooms"),
@@ -376,10 +375,10 @@ struct PromptBuilderTests {
     @Test
     func aTermWrittenAsListedGivesNoLineAndATermListedTwiceGivesOne() {
         let exact = Self.prompt(raw: "COP and cop again", terms: ["COP"])
-        #expect(!exact.systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+        #expect(!exact.systemText.contains("<advisory>"))
 
         let repeated = Self.prompt(raw: "cop and cop again", terms: ["COP", "COP"])
-        #expect(repeated.systemBlocks.last == [
+        #expect(repeated.advisory == [
             "<advisory>",
             Self.advisoryHeader,
             Self.collisionLine(word: "cop", term: "COP"),
@@ -387,7 +386,7 @@ struct PromptBuilderTests {
         ].joined(separator: "\n"))
 
         let reordered = Self.prompt(raw: "cop, then ads, then cop again", terms: ["COP", "ADS"])
-        #expect(reordered.systemBlocks.last == [
+        #expect(reordered.advisory == [
             "<advisory>",
             Self.advisoryHeader,
             Self.collisionLine(word: "cop", term: "COP"),
@@ -400,10 +399,11 @@ struct PromptBuilderTests {
     /// instead of only when a word collides → RED.
     @Test
     func noCollisionAndNoHintsGivesNoAdvisoryBlock() {
-        let systemBlocks = Self.prompt(raw: "We booked a table at COP.", terms: ["ADS", "COP"]).systemBlocks
+        let prompt = Self.prompt(raw: "We booked a table at COP.", terms: ["ADS", "COP"])
 
-        #expect(systemBlocks.count == 2)
-        #expect(!systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+        #expect(prompt.prefixBlocks.count == 2)
+        #expect(prompt.advisory == nil)
+        #expect(!prompt.systemText.contains("<advisory>"))
     }
 
     /// Stated sensitivity: ignore the term's own spacing or punctuation, or skip
@@ -412,7 +412,7 @@ struct PromptBuilderTests {
     func multiWordAndPunctuatedTermsCollideOnlyAtWordBoundariesInAnotherCase() {
         let prompt = Self.prompt(raw: "we use open  ai and Node.JS", terms: ["Open AI", "node.js"])
 
-        #expect(prompt.systemBlocks.last == [
+        #expect(prompt.advisory == [
             "<advisory>",
             Self.advisoryHeader,
             Self.collisionLine(word: "open ai", term: "Open AI"),
@@ -421,7 +421,7 @@ struct PromptBuilderTests {
         ].joined(separator: "\n"))
 
         let exact = Self.prompt(raw: "we use Open AI and node.js", terms: ["Open AI", "node.js"])
-        #expect(!exact.systemBlocks.joined(separator: "\n\n").contains("<advisory>"))
+        #expect(!exact.systemText.contains("<advisory>"))
     }
 
     /// Stated sensitivity: put the collision lines before the hint lines, or drop them
@@ -429,7 +429,7 @@ struct PromptBuilderTests {
     @Test
     func collisionLinesFollowTheHintLines() {
         let prompt = Self.prompt(raw: "the ads", terms: ["ADS"], hints: CleanupHints(inputLocale: "ru"))
-        let lines = (prompt.systemBlocks.last ?? "").split(separator: "\n").map(String.init)
+        let lines = (prompt.advisory ?? "").split(separator: "\n").map(String.init)
 
         #expect(lines.first == "<advisory>")
         #expect(lines.dropFirst().first == Self.advisoryHeader)
@@ -448,6 +448,16 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: [])
         )
 
-        #expect(!prompt.systemBlocks.joined(separator: "\n\n").contains("Advisory context"))
+        #expect(!prompt.systemText.contains("Advisory context"))
+    }
+
+    /// The system message is the prefix blocks, then the advisory, each pair joined by one
+    /// blank line. Providers send exactly this text, and the benchmark hashes it.
+    /// Stated sensitivity: join with a single newline, or put the advisory first → RED.
+    @Test(arguments: [("C", "A\n\nB\n\nC"), (String?.none, "A\n\nB")])
+    func systemTextJoinsThePrefixThenTheAdvisoryByABlankLine(advisory: String?, expected: String) {
+        let prompt = CleanupPrompt(model: "m", prefixBlocks: ["A", "B"], advisory: advisory, input: "x")
+
+        #expect(prompt.systemText == expected)
     }
 }

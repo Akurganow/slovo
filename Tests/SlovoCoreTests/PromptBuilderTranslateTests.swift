@@ -20,7 +20,7 @@ struct PromptBuilderTranslateTests {
                 translate: true
             ),
             context: PersonalizationContext(vocabulary: vocabulary)
-        ).systemBlocks.joined(separator: "\n")
+        ).systemText
     }
 
     /// The Russian-target directive and code-switch fold, and the absence of the

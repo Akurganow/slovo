@@ -66,7 +66,7 @@ public enum CleanupScopeReducer {
             return s
         case .cleanupFailed(let error):
             // The whole K4d filter lives here (K11). No message-text parsing (K8).
-            guard case .apiError(status: 404) = error else { return s }
+            guard case .modelUnavailable = error else { return s }
             guard s.cleanupIsOn, s.pipelineHasStarted else { return s }
             s.fetchInFlight = true
             // Same generation: the stale scope stays applied until replaced (K4d).

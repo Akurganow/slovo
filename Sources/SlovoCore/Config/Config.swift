@@ -36,6 +36,12 @@ public enum HotkeyTrigger: String, CaseIterable, Equatable, Sendable {
     }
 }
 
+/// Where cleanup runs. The raw value is the stored tag, which every build since
+/// v0.37.5 reads under `cleanup.provider`.
+public enum CleanupProviderID: String, CaseIterable, Sendable {
+    case openRouter = "openrouter"
+}
+
 /// User-editable app configuration persisted as JSON.
 public struct Config: Equatable, Sendable {
     public static let defaultTrigger: HotkeyTrigger = .fn
@@ -62,6 +68,9 @@ public struct Config: Equatable, Sendable {
     /// window, so it trades sampling headroom for spelling fidelity. Off, the
     /// vocabulary still reaches cleanup in full.
     public var usesVocabularyBias: Bool
+    /// Where cleanup runs. Not saved while OpenRouter is the only provider: absent
+    /// and `"openrouter"` mean the same to every build.
+    public var cleanupProvider: CleanupProviderID
     public var openRouterModel: String
     /// Whether the cleanup step runs at all — the user's stored PREFERENCE.
     /// The per-session EFFECTIVE value also requires an OpenRouter key; see
@@ -91,6 +100,7 @@ public struct Config: Equatable, Sendable {
 
     public var cleanupConfig: CleanupConfig {
         CleanupConfig(
+            provider: cleanupProvider,
             model: cleanupModel,
             writingStyle: writingStyle,
             useSpellCheckHints: useSpellCheckHints,
@@ -101,7 +111,9 @@ public struct Config: Equatable, Sendable {
     }
 
     public var cleanupModel: String {
-        openRouterModel
+        switch cleanupProvider {
+        case .openRouter: openRouterModel
+        }
     }
 
     /// The Hotkey layer's view of the configured keys. The two are already known to
@@ -121,6 +133,7 @@ public struct Config: Equatable, Sendable {
         translateKeyIsAdditional: Bool = true,
         asrModel: String = Config.defaultAsrModel,
         usesVocabularyBias: Bool = false,
+        cleanupProvider: CleanupProviderID = .openRouter,
         openRouterModel: String = Config.defaultOpenRouterModel,
         cleanupEnabled: Bool = true,
         writingStyle: WritingStyle = .casual,
@@ -137,6 +150,7 @@ public struct Config: Equatable, Sendable {
         self.translateKeyIsAdditional = translateKeyIsAdditional
         self.asrModel = asrModel
         self.usesVocabularyBias = usesVocabularyBias
+        self.cleanupProvider = cleanupProvider
         self.openRouterModel = openRouterModel
         self.cleanupEnabled = cleanupEnabled
         self.writingStyle = writingStyle

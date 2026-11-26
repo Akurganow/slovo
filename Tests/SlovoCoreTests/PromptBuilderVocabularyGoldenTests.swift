@@ -10,7 +10,7 @@ import SlovoCore
 // newline join is itself part of what the comparison pins.
 @Suite("Cleanup prompt vocabulary golden")
 struct PromptBuilderVocabularyGoldenTests {
-    private static func blocks(hints: CleanupHints = CleanupHints()) -> [String] {
+    private static func prompt(hints: CleanupHints = CleanupHints()) -> CleanupPrompt {
         PromptBuilder().buildPrompt(
             raw: "hello",
             config: CleanupConfig(writingStyle: .casual),
@@ -18,36 +18,36 @@ struct PromptBuilderVocabularyGoldenTests {
                 Term(term: "RCV", expansion: "RingCentral Video", lang: .en, weight: 9),
             ]),
             hints: hints
-        ).systemBlocks
+        )
     }
 
     /// The block's tags, line order, and line separation are its contract, not merely
     /// the presence of each line — and it is ONE system block of its own, emitted once.
     /// Stated sensitivity: collapse the newline join, glue the tags to the content,
     /// mangle either tag, reorder the lines, change the licence line's wording, emit the
-    /// block twice, emit it before the instructions, or fold it into `systemBlocks[0]` → RED.
+    /// block twice, emit it before the instructions, or fold it into `prefixBlocks[0]` → RED.
     @Test
     func vocabularyBlockMatchesGoldenLiteral() {
-        let blocks = Self.blocks()
+        let blocks = Self.prompt().prefixBlocks
 
         #expect(blocks.count == 2, "the vocabulary block is its own system block, emitted exactly once")
         #expect(blocks.last == Self.goldenVocabularyBlock)
     }
 
     /// Block order is the prompt's cache prefix: the stable instruction block first, then
-    /// the slow-moving vocabulary, then the per-dictation advisory.
-    /// Stated sensitivity: append the advisory before the vocabulary block → the
-    /// per-index expectations redden.
+    /// the slow-moving vocabulary; the per-dictation advisory is outside the prefix.
+    /// Stated sensitivity: put the advisory into `prefixBlocks` (before or after the
+    /// vocabulary), or the vocabulary before the instructions → the expectations redden.
     @Test
-    func vocabularyPrecedesTheAdvisoryBlock() {
-        let blocks = Self.blocks(hints: CleanupHints(inputLocale: "ru"))
+    func vocabularyFollowsTheInstructionsAndTheAdvisoryStaysOutsideThePrefix() {
+        let prompt = Self.prompt(hints: CleanupHints(inputLocale: "ru"))
 
-        #expect(blocks.count == 3)
-        if blocks.count == 3 {
-            #expect(blocks[0].hasPrefix("<role>"))
-            #expect(blocks[1] == Self.goldenVocabularyBlock)
-            #expect(blocks[2].hasPrefix("<advisory>"))
+        #expect(prompt.prefixBlocks.count == 2)
+        if prompt.prefixBlocks.count == 2 {
+            #expect(prompt.prefixBlocks[0].hasPrefix("<role>"))
+            #expect(prompt.prefixBlocks[1] == Self.goldenVocabularyBlock)
         }
+        #expect(prompt.advisory?.hasPrefix("<advisory>") == true)
     }
 
     private static let goldenVocabularyBlock = [
