@@ -147,7 +147,8 @@ enum CleanupBenchmarkOutputsFile {
 struct CleanupBenchmarkOutputsBinding: Sendable {
     let rawsSHA256: String
     /// The distinct system messages the samples send for `style`: the instruction block, with no
-    /// vocabulary and no hints, which the benchmark never passes, and one translate block per target.
+    /// vocabulary and no hints, and one translate block per target; then the whole system message of
+    /// each sample that carries a vocabulary or hints.
     let promptSHA256: String
     let judgeSHA256: String?
     let style: WritingStyle
@@ -156,16 +157,28 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
 
     init(samples: [CleanupBenchmarkSample], judgeSHA256: String?, style: WritingStyle) {
         rawsSHA256 = CleanupBenchmarkDigest.sha256(
-            of: samples.flatMap { [$0.id, $0.raw] + ($0.translateTo.map { ["translateTo=\($0)"] } ?? []) }
+            of: samples.flatMap {
+                [$0.id, $0.raw] + ($0.translateTo.map { ["translateTo=\($0)"] } ?? []) + $0.vocabularyAndHintsDigestInput
+            }
         )
         // One config per distinct target, the plain one (empty key) first.
         let configs = Dictionary(
             samples.map { ($0.translateTo ?? "", $0.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style)) },
             uniquingKeysWith: { first, _ in first }
         )
+        // A sample with a vocabulary or hints adds the system message it sends, so a change of the
+        // vocabulary block or the advisory block refuses the file as a change of the instructions does.
+        let carrying = samples.filter { !$0.vocabularyAndHintsDigestInput.isEmpty }.map {
+            PromptBuilder().buildPrompt(
+                raw: $0.raw,
+                config: $0.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style),
+                context: $0.personalization,
+                hints: $0.hints
+            ).systemText
+        }
         promptSHA256 = CleanupBenchmarkDigest.sha256(of: configs.sorted { $0.key < $1.key }.map { _, config in
             PromptBuilder().buildPrompt(raw: "", config: config, context: PersonalizationContext(vocabulary: [])).systemText
-        })
+        } + carrying)
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })

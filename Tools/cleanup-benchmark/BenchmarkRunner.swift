@@ -148,7 +148,6 @@ public struct CleanupBenchmarkRunner: Sendable {
         candidates: [CleanupBenchmarkCandidate],
         samples: [CleanupBenchmarkSample],
         config: CleanupConfig,
-        context: PersonalizationContext,
         repetitions: Int = 1,
         warmupRepetitions: Int = 0,
         previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun] = [:],
@@ -164,8 +163,7 @@ public struct CleanupBenchmarkRunner: Sendable {
                     await warmCandidate(
                         candidate,
                         sample: sample,
-                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle),
-                        context: context
+                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle)
                     )
                 }
             }
@@ -210,8 +208,7 @@ public struct CleanupBenchmarkRunner: Sendable {
                         candidate,
                         sample: sample,
                         position: RunPosition(sampleIndex: index + 1, repetition: repetition),
-                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle),
-                        context: context
+                        config: sample.cleanupConfig(model: candidate.model, style: config.writingStyle)
                     )
                     record(run)
                     runs.append(run)
@@ -238,22 +235,20 @@ public struct CleanupBenchmarkRunner: Sendable {
     private func warmCandidate(
         _ candidate: CleanupBenchmarkCandidate,
         sample: CleanupBenchmarkSample,
-        config: CleanupConfig,
-        context: PersonalizationContext
+        config: CleanupConfig
     ) async {
-        _ = try? await candidate.clean(sample.raw, config, context)
+        _ = try? await candidate.clean(sample.raw, config, sample.personalization, sample.hints)
     }
 
     private func runCandidate(
         _ candidate: CleanupBenchmarkCandidate,
         sample: CleanupBenchmarkSample,
         position: RunPosition,
-        config: CleanupConfig,
-        context: PersonalizationContext
+        config: CleanupConfig
     ) async -> CleanupBenchmarkRun {
         do {
             let timed = try await timer.measure {
-                try await candidate.clean(sample.raw, config, context)
+                try await candidate.clean(sample.raw, config, sample.personalization, sample.hints)
             }
             let isEmpty = timed.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             return CleanupBenchmarkRun(

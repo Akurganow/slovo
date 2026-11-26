@@ -47,7 +47,12 @@ struct CleanupBenchmarkDatasetTests {
     /// must be refused when the file is read; dropping any one of the decoder's checks
     /// (catalogue code of `language` or of `translateTo`, translation if and only if
     /// `translateTo`, the number of codes a category takes, a third code in a translation
-    /// source included, `language` outside the three categories) lets its case load → RED. The last two cases are the accepted shapes.
+    /// source included, `language` outside the three categories) lets its case load → RED. The vocabulary
+    /// and hints cases are refused for the same reason: a blank term, an empty hints object or list, or a
+    /// spell token the raw (`x`) does not hold would reach the prompt as nothing or as a hint the
+    /// checker could not give, and a `vocabulary` or `hints` sample without its own key would test
+    /// nothing; dropping the blank-term check, the empty-hints checks, the spell-token check or either
+    /// category rule lets its case load → RED. The cases marked accepted are the accepted shapes.
     @Test(arguments: [
         (#""category": "translation", "language": "ru", "translateTo": "xx""#, false),
         (#""category": "translation", "language": "xx", "translateTo": "en""#, false),
@@ -62,6 +67,20 @@ struct CleanupBenchmarkDatasetTests {
         (#""category": "translation", "language": "ru+en+de", "translateTo": "en""#, false),
         (#""category": "translation", "language": "ru+en", "translateTo": "en""#, true),
         (#""category": "translation", "translateTo": "en""#, true),
+        (#""vocabulary": [{"term": "QRV"}, {"term": " \t"}]"#, false),
+        (#""vocabulary": [{"term": ""}]"#, false),
+        (#""hints": {}"#, false),
+        (#""hints": {"spell": []}"#, false),
+        (#""hints": {"grammar": []}"#, false),
+        (#""hints": {"spell": [{"token": "y", "guesses": ["x"]}]}"#, false),
+        (#""hints": {"spell": [{"token": "", "guesses": []}]}"#, false),
+        (#""category": "vocabulary""#, false),
+        (#""category": "vocabulary", "vocabulary": [], "hints": {"inputLocale": "en"}"#, false),
+        (#""category": "hints", "vocabulary": [{"term": "QRV"}]"#, false),
+        (#""category": "vocabulary", "vocabulary": [{"term": "QRV", "expansion": "Quick Review"}]"#, true),
+        (#""category": "hints", "hints": {"inputLocale": "en"}"#, true),
+        (#""category": "short-smoke", "vocabulary": [{"term": "QRV"}], "hints": {"spell": [{"token": "x", "guesses": []}]}"#, true),
+        (#""category": "translation", "translateTo": "de", "vocabulary": [{"term": "QRV"}], "hints": {"grammar": [{"fragment": "x", "message": "m"}]}"#, true),
     ])
     func sampleKeysAgreeWithTheirCategory(keys: String, accepted: Bool) {
         let data = Data(#"[{"id": "a", "raw": "x", "references": ["x"], \#(keys)}]"#.utf8)
@@ -72,6 +91,34 @@ struct CleanupBenchmarkDatasetTests {
                 try CleanupBenchmarkSampleLoader.decode(data)
             }
         }
+    }
+
+    /// Stated sensitivity: the keys must reach the sample as the values written: a term keeps its
+    /// expansion, an absent expansion stays nil, and every hint member lands in its own field of
+    /// `CleanupHints`; a decoder that swaps `message` and `fragment`, drops the guesses, or loses
+    /// the locale → RED. A sample with neither key has no vocabulary and the empty hints.
+    @Test
+    func vocabularyAndHintsDecodeIntoTheValuesWritten() throws {
+        let data = Data(#"""
+        [{"id": "a", "raw": "Kubrix me and him", "references": ["x"],
+          "vocabulary": [{"term": "QRV", "expansion": "Quick Review"}, {"term": "Zorp"}],
+          "hints": {"inputLocale": "en", "spell": [{"token": "Kubrix", "guesses": ["Kubrick", "Kubric"]}],
+                    "grammar": [{"fragment": "me and him", "message": "Check the pronouns.", "corrections": ["he and I"]}]}},
+         {"id": "b", "raw": "x", "references": ["x"]}]
+        """#.utf8)
+        let samples = try CleanupBenchmarkSampleLoader.decode(data)
+
+        #expect(samples[0].vocabulary == [
+            CleanupBenchmarkVocabularyEntry(term: "QRV", expansion: "Quick Review"),
+            CleanupBenchmarkVocabularyEntry(term: "Zorp"),
+        ])
+        #expect(samples[0].hints == CleanupHints(
+            inputLocale: "en",
+            spellFindings: [SpellFinding(token: "Kubrix", guesses: ["Kubrick", "Kubric"])],
+            grammarFindings: [GrammarFinding(fragment: "me and him", message: "Check the pronouns.", corrections: ["he and I"])]
+        ))
+        #expect(samples[1].vocabulary.isEmpty)
+        #expect(samples[1].hints == CleanupHints())
     }
 
     /// The sample is `russian-filler-check-01` of `Benchmarks/cleanup/slovo-cleanup-v1.json`.

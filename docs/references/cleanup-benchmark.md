@@ -55,7 +55,10 @@ equally valid forms of it. A sample may also carry `language`, a recognition
 code (or two joined by `+`), and `translateTo`, a recognition code that makes it run
 as a translate hold; the loader refuses a code the app's catalogue does not offer
 and a category that disagrees with these keys
-(`Benchmarks/cleanup/README.md`, "Taxonomy"). Other keys are ignored.
+(`Benchmarks/cleanup/README.md`, "Taxonomy"). It may carry `vocabulary` and `hints` too,
+which the cleanup call sends as the app does, and the categories `vocabulary` and `hints`
+name samples whose point is one of them (`Benchmarks/cleanup/README.md`, the sample keys
+after "Taxonomy"). Other keys are ignored.
 
 ```json
 {

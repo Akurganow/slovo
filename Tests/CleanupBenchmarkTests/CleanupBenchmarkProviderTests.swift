@@ -102,7 +102,8 @@ struct CleanupBenchmarkProviderTests {
         )
 
         #expect(openRouter.name == "openrouter:openai/gpt-6-luna")
-        let cleaned = try await passThrough.clean("raw", CleanupConfig(model: "none", writingStyle: .casual), PersonalizationContext(vocabulary: []))
+        let config = CleanupConfig(model: "none", writingStyle: .casual)
+        let cleaned = try await passThrough.clean("raw", config, PersonalizationContext(vocabulary: []), CleanupHints())
         #expect(cleaned == CleanupBenchmarkCleaned(text: "raw", costUSD: 0), "pass-through makes no request, so it costs nothing")
         #expect(throws: CleanupBenchmarkCandidateFactoryError.missingEnvironmentKey("OPENROUTER_API_KEY")) {
             _ = try CleanupBenchmarkCandidateFactory.makeCandidate(

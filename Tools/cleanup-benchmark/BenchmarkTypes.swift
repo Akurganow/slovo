@@ -63,6 +63,10 @@ public enum CleanupBenchmarkCategory: String, Codable, Equatable, Hashable, Send
     case languages
     case mixedLanguages = "mixed-languages"
     case translation
+    /// Plain samples whose point is the vocabulary they carry.
+    case vocabulary
+    /// Plain samples whose point is the on-device hints they carry.
+    case hints
 }
 
 /// The language a translation sample is cleaned into: its catalogue code and the name the
@@ -93,6 +97,10 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
     public let language: String?
     /// The sample runs as a translate hold into it.
     public let translationTarget: CleanupBenchmarkTranslationTarget?
+    /// The vocabulary the cleanup call carries; empty when the sample has none.
+    public let vocabulary: [CleanupBenchmarkVocabularyEntry]
+    /// The on-device hints the cleanup call carries; `CleanupHints()` when the sample has none.
+    public let hints: CleanupHints
 
     /// The first reference.
     public var expected: String {
@@ -109,7 +117,9 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
         raw: String,
         references: [String],
         language: String? = nil,
-        translationTarget: CleanupBenchmarkTranslationTarget? = nil
+        translationTarget: CleanupBenchmarkTranslationTarget? = nil,
+        vocabulary: [CleanupBenchmarkVocabularyEntry] = [],
+        hints: CleanupHints = CleanupHints()
     ) {
         self.id = id
         self.category = category
@@ -117,6 +127,8 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
         self.references = references
         self.language = language
         self.translationTarget = translationTarget
+        self.vocabulary = vocabulary
+        self.hints = hints
     }
 
     /// The config a cleanup call for this sample is made with: a translation sample is the
@@ -131,7 +143,7 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, category, raw, references, language, translateTo
+        case id, category, raw, references, language, translateTo, vocabulary, hints
     }
 
     public init(from decoder: Decoder) throws {
@@ -153,14 +165,60 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
             }
             target = resolved
         }
+        let raw = try container.decode(String.self, forKey: .raw)
+        let (vocabulary, hints) = try Self.decodeVocabularyAndHints(category: category, raw: raw, from: container)
         self.init(
             id: try container.decode(String.self, forKey: .id),
             category: category,
-            raw: try container.decode(String.self, forKey: .raw),
+            raw: raw,
             references: references,
             language: language,
-            translationTarget: target
+            translationTarget: target,
+            vocabulary: vocabulary,
+            hints: hints
         )
+    }
+
+    /// A blank term or an empty hints object would reach the prompt as nothing, and a spell token
+    /// the raw does not hold would plant a hint the on-device checker could never produce.
+    private static func decodeVocabularyAndHints(
+        category: CleanupBenchmarkCategory,
+        raw: String,
+        from container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> ([CleanupBenchmarkVocabularyEntry], CleanupHints) {
+        func refuse(_ key: CodingKeys, _ reason: String) -> DecodingError {
+            DecodingError.dataCorruptedError(forKey: key, in: container, debugDescription: reason)
+        }
+        let vocabulary = try container.decodeIfPresent([CleanupBenchmarkVocabularyEntry].self, forKey: .vocabulary) ?? []
+        guard vocabulary.allSatisfy({ !$0.term.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            throw refuse(.vocabulary, "a vocabulary term is empty")
+        }
+        guard category != .vocabulary || !vocabulary.isEmpty else {
+            throw refuse(.vocabulary, "a vocabulary sample carries a vocabulary")
+        }
+        var hints = CleanupHints()
+        if let object = try container.decodeIfPresent(CleanupBenchmarkHintsObject.self, forKey: .hints) {
+            guard object.inputLocale != nil || object.spell != nil || object.grammar != nil else {
+                throw refuse(.hints, "hints holds nothing: leave it out or give it a member")
+            }
+            guard object.spell?.isEmpty != true, object.grammar?.isEmpty != true else {
+                throw refuse(.hints, "hints holds an empty spell or grammar list: leave the member out")
+            }
+            if let missing = object.spell?.first(where: { $0.token.isEmpty || !raw.contains($0.token) }) {
+                throw refuse(.hints, "spell token \"\(missing.token)\" does not occur in the raw")
+            }
+            hints = CleanupHints(
+                inputLocale: object.inputLocale,
+                spellFindings: (object.spell ?? []).map { SpellFinding(token: $0.token, guesses: $0.guesses ?? []) },
+                grammarFindings: (object.grammar ?? []).map {
+                    GrammarFinding(fragment: $0.fragment, message: $0.message, corrections: $0.corrections ?? [])
+                }
+            )
+        }
+        guard category != .hints || hints != CleanupHints() else {
+            throw refuse(.hints, "a hints sample carries hints")
+        }
+        return (vocabulary, hints)
     }
 
     /// A code the catalogue does not offer would reach the prompt as a bare string, and a key
@@ -196,22 +254,22 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
 public struct CleanupBenchmarkCandidate: Sendable {
     public let provider: String
     public let model: String
-    public let clean: @Sendable (String, CleanupConfig, PersonalizationContext) async throws -> CleanupBenchmarkCleaned
+    public let clean: @Sendable (String, CleanupConfig, PersonalizationContext, CleanupHints) async throws -> CleanupBenchmarkCleaned
 
     @preconcurrency
     public init(
         provider: String,
         model: String,
-        clean: @escaping @Sendable (String, CleanupConfig, PersonalizationContext) async throws -> CleanupBenchmarkCleaned
+        clean: @escaping @Sendable (String, CleanupConfig, PersonalizationContext, CleanupHints) async throws -> CleanupBenchmarkCleaned
     ) {
         self.provider = provider
         self.model = model
         self.clean = clean
     }
 
-    /// A candidate whose provider reports no cost.
+    /// A candidate whose provider reports no cost and takes no hints.
     public init(provider: String, model: String, cleaner: any Cleaner) {
-        self.init(provider: provider, model: model) { raw, config, context in
+        self.init(provider: provider, model: model) { raw, config, context, _ in
             CleanupBenchmarkCleaned(text: try await cleaner.clean(raw, config: config, context: context))
         }
     }

@@ -23,7 +23,6 @@ struct CleanupBenchmarkProgressTests {
             candidates: candidates,
             samples: samples,
             config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: []),
             repetitions: repetitions,
             previous: previous,
             progress: { event in events.withLock { $0.append(event) } }
@@ -100,7 +99,7 @@ struct CleanupBenchmarkProgressTests {
     @Test
     func runCarriesTheCostOfItsCallAndAFailedCallHasNone() async {
         let calls = Mutex(0)
-        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "paid") { _, _, _ in
+        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "paid") { _, _, _, _ in
             guard calls.withLock({ $0 += 1; return $0 }) == 1 else { throw SensitiveError(payload: "provider down") }
             return CleanupBenchmarkCleaned(text: "Hello.", costUSD: 0.25)
         }

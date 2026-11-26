@@ -48,6 +48,28 @@ The loader refuses a code the catalogue does not offer and a category that
 disagrees with these keys. `spoken` and `voice`, kept on the samples added for
 the languages, and any other key are ignored.
 
+Two more optional keys make the cleanup call carry what the app sends for a dictation
+with a vocabulary or with on-device hints. A sample without them is called with an
+empty vocabulary and no hints. Every category takes them, and a `translation` sample
+that carries them keeps its category:
+
+- `vocabulary`: a list of `{"term": "QRV", "expansion": "Quick Review"}`, `expansion`
+  optional. Each entry reaches the prompt as a row the user added by hand: weight 3 and
+  language `en`, as `VocabularyQuickAdd` and the personalization source give it. A
+  `term` that is empty or only whitespace is refused.
+- `hints`: an object with any of `inputLocale` (`"en"`), `spell` (a list of
+  `{"token": "Kubrix", "guesses": ["Kubrick"]}`) and `grammar` (a list of
+  `{"fragment": "me and him", "message": "…", "corrections": ["he and I"]}`), where
+  `guesses` and `corrections` are optional. These are the checker findings the app
+  gathers at key-up. An object with no member, or a `spell` or `grammar` list written
+  empty, is refused. A `spell` token must occur in the sample's `raw`, as the checker
+  flags only words of the transcript.
+
+Every term and every hint is invented, never taken from a person's vocabulary or
+dictation. The categories `vocabulary` and `hints` are for plain samples whose point is
+the vocabulary or the hints: a `vocabulary` sample must carry a non-empty `vocabulary`,
+and a `hints` sample must carry `hints`. The default dataset has no sample in either.
+
 ## The form of a raw transcript
 
 Every `raw` is text the speech recognizer can emit: the app's WhisperKit model
@@ -208,10 +230,10 @@ finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the cost of the
 cleanup call (`null` after a provider error or when the reply named none; a line written
 before the key existed has none), the three coefficients, each Jev question's repeats, the models that answered, the failure
-codes, the writing style, the SHA-256 of the ids, raws and `translateTo` targets of
+codes, the writing style, the SHA-256 of the ids, raws, `translateTo` targets, vocabularies and hints of
 the dataset, the SHA-256 of the cleanup prompts (the system message sent for the
-style, with no vocabulary and no hints, and one translate message per target in the
-dataset), the SHA-256 of what scored the line (the judge's settings
+style, with no vocabulary and no hints, one translate message per target in the
+dataset, and the whole system message of each sample that carries a vocabulary or hints), the SHA-256 of what scored the line (the judge's settings
 and the sample's references) and the SHA-256 of what Jev scored it under (the
 judge's settings and the sample's first reference); the last two are empty without
 `--judge`. It holds output text, so it stays local.
@@ -223,7 +245,7 @@ Naming an existing file resumes it, the last line of a run winning:
 - A run whose output was empty is neither judged nor cleaned again: it is the
   candidate's failure, and no baseline entry is written while the candidate has an
   empty-output run.
-- A file written for other ids, raws or translation targets, under another cleanup prompt or by another `--style`, is refused.
+- A file written for other ids, raws, translation targets, vocabularies or hints, under another cleanup prompt or by another `--style`, is refused.
 - A line scored under other judge settings keeps its output and is judged again.
   A line whose references changed but not the first keeps its Jev score, because
   Jev reads only the dictation, the first reference and the output: only the

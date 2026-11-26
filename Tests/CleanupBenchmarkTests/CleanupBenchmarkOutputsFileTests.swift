@@ -42,6 +42,41 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(digest("de") != digest("es"))
     }
 
+    /// Stated sensitivity: a dataset digest that ignores a sample's vocabulary or hints lets a resume
+    /// keep outputs made under other vocabularies or hints, so each must change it, a changed
+    /// expansion, guess or locale included, and the prompt digest must follow them (the vocabulary
+    /// and advisory blocks are part of what is sent); the digest of a sample with neither equals the
+    /// ids-and-raws digest, so no earlier file is refused → RED.
+    @Test
+    func digestsFollowTheVocabularyAndHintsAndStayTheSameWithoutThem() {
+        func sample(_ vocabulary: [CleanupBenchmarkVocabularyEntry] = [], _ hints: CleanupHints = CleanupHints()) -> CleanupBenchmarkSample {
+            CleanupBenchmarkSample(id: "t", raw: "x", references: ["x"], vocabulary: vocabulary, hints: hints)
+        }
+        func binding(_ sample: CleanupBenchmarkSample) -> CleanupBenchmarkOutputsBinding {
+            CleanupBenchmarkOutputsBinding(samples: [sample], judgeSHA256: nil, style: .casual)
+        }
+        func spell(_ guess: String) -> CleanupHints {
+            CleanupHints(spellFindings: [SpellFinding(token: "x", guesses: [guess])])
+        }
+        let variants = [
+            sample(),
+            sample([.init(term: "QRV")]),
+            sample([.init(term: "QRV", expansion: "Quick Review")]),
+            sample([.init(term: "QRV", expansion: "Quick Reviews")]),
+            sample([], CleanupHints(inputLocale: "en")),
+            sample([], spell("y")),
+            sample([], spell("z")),
+            sample([], CleanupHints(grammarFindings: [GrammarFinding(fragment: "x", message: "m", corrections: [])])),
+        ]
+
+        #expect(Set(variants.map { binding($0).rawsSHA256 }).count == variants.count)
+        #expect(Set(variants.map { binding($0).promptSHA256 }).count == variants.count)
+        #expect(binding(variants[0]).rawsSHA256 == CleanupBenchmarkDigest.sha256(of: ["t", "x"]))
+        #expect(binding(variants[0]).promptSHA256 == CleanupBenchmarkOutputsBinding(
+            samples: [CleanupBenchmarkSample(id: "u", raw: "y", references: ["y"])], judgeSHA256: nil, style: .casual
+        ).promptSHA256)
+    }
+
     /// Stated sensitivity: a resume that repeats a complete run pays twice; one that
     /// skips the run with no line leaves it unscored. Two samples, one cleaned and
     /// judged in the file, the other missing: only the missing one costs a cleaner

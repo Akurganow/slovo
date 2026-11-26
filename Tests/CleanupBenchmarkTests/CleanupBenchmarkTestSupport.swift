@@ -193,7 +193,7 @@ final class DriverFixture: Sendable {
                         called: { self.cleanerCalls.withLock { $0 += 1 } },
                         fails: { self.cleanersFail.withLock { $0 } }
                     )
-                    return CleanupBenchmarkCandidate(provider: "fake", model: spec.model) { raw, config, context in
+                    return CleanupBenchmarkCandidate(provider: "fake", model: spec.model) { raw, config, context, _ in
                         CleanupBenchmarkCleaned(
                             text: try await cleaner.clean(raw, config: config, context: context), costUSD: Self.callCostUSD
                         )
