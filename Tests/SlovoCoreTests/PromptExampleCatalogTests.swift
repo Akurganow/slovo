@@ -45,7 +45,7 @@ struct PromptExampleCatalogTests {
                 + "которая следит за новыми тикетами по label или JQL и проверяет, что они заполнены по шаблонам из Confluence: "
                 + "для бага это steps to reproduce, а для improvement и task — Definition of Done. Шаблоны команда готовит вручную.",
             "Can you help me draft an email to my landlord? The heating has been broken since Monday, "
-                + "and I already called the building manager twice. If it is not fixed by Friday, "
+                + "and I already called the building manager twice, and if it is not fixed by Friday, "
                 + "I will have to withhold part of the rent.",
         ], "tail order drifted")
         #expect(cleanup.contains(PromptExample(
