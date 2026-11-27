@@ -19,7 +19,6 @@ public struct CleanupBenchmarkRunPlan: Sendable {
     public let candidates: [CleanupBenchmarkCandidate]
     public let samples: [CleanupBenchmarkSample]
     public let config: CleanupConfig
-    public let context: PersonalizationContext
     public let repetitions: Int
     public let warmupRepetitions: Int
     public let previous: [CleanupBenchmarkRunKey: CleanupBenchmarkRun]
@@ -50,7 +49,6 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
                 candidates: plan.candidates,
                 samples: plan.samples,
                 config: plan.config,
-                context: plan.context,
                 repetitions: plan.repetitions,
                 warmupRepetitions: plan.warmupRepetitions,
                 previous: plan.previous,
@@ -102,7 +100,6 @@ public struct CleanupBenchmarkCommandDriver: Sendable {
             candidates: setup.candidates,
             samples: setup.samples,
             config: CleanupConfig(model: "selected-per-candidate", writingStyle: setup.options.style),
-            context: PersonalizationContext(vocabulary: []),
             repetitions: setup.repetitions,
             warmupRepetitions: setup.options.warmupRepetitions,
             previous: setup.previous,

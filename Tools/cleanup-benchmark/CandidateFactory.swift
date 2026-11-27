@@ -15,15 +15,15 @@ public enum CleanupBenchmarkCandidateFactory {
                 providers: CleanupProviders(openRouterKeys: keyProvider),
                 promptBuilder: PromptBuilder()
             )
-            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context in
+            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context, hints in
                 var config = config
                 config.provider = .openRouter
-                let cleaned = try await cleaner.cleanReportingCost(raw, config: config, context: context, hints: CleanupHints())
+                let cleaned = try await cleaner.cleanReportingCost(raw, config: config, context: context, hints: hints)
                 return CleanupBenchmarkCleaned(text: cleaned.text, costUSD: cleaned.costUSD)
             }
         case .passThrough:
             // No request is made, so the cost is known: nothing.
-            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context in
+            return CleanupBenchmarkCandidate(provider: spec.provider.rawValue, model: spec.model) { raw, config, context, _ in
                 CleanupBenchmarkCleaned(text: try await PassThrough().clean(raw, config: config, context: context), costUSD: 0)
             }
         }

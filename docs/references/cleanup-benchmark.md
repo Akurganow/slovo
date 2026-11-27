@@ -55,7 +55,10 @@ equally valid forms of it. A sample may also carry `language`, a recognition
 code (or two joined by `+`), and `translateTo`, a recognition code that makes it run
 as a translate hold; the loader refuses a code the app's catalogue does not offer
 and a category that disagrees with these keys
-(`Benchmarks/cleanup/README.md`, "Taxonomy"). Other keys are ignored.
+(`Benchmarks/cleanup/README.md`, "Taxonomy"). It may carry `vocabulary` and `hints` too,
+which the cleanup call sends as the app does, and the categories `vocabulary` and `hints`
+name samples whose point is one of them (`Benchmarks/cleanup/README.md`, the sample keys
+after "Taxonomy"). Other keys are ignored.
 
 ```json
 {
@@ -94,21 +97,23 @@ holds the plain account, the bar and the flags; the settings live in
 - The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-128 synthetic/public-style samples, grouped as:
+198 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
-| `short-smoke` | 5 |
-| `russian-filler` | 6 |
-| `code-switching` | 10 |
-| `punctuation-structure` | 12 |
+| `short-smoke` | 20 |
+| `russian-filler` | 18 |
+| `code-switching` | 13 |
+| `punctuation-structure` | 18 |
 | `commands-editor` | 4 |
-| `inverse-text-normalization` | 7 |
+| `inverse-text-normalization` | 11 |
 | `safety-negative` | 8 |
 | `instruction-shaped-transcript` | 3 |
 | `languages` | 40 |
 | `mixed-languages` | 15 |
-| `translation` | 18 |
+| `translation` | 36 |
+| `vocabulary` | 4 |
+| `hints` | 8 |
 
 The `instruction-shaped-transcript` category is the permanent tripwire for the
 executed-dictation failure class: long task-shaped dictations (the flagship is a

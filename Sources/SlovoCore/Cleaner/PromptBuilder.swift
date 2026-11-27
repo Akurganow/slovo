@@ -84,7 +84,8 @@ public struct PromptBuilder: Sendable {
             prefixBlocks.append(vocabularyBlock(entries: keptEntries))
         }
         let collisions = vocabularyCollisionLines(raw: raw, terms: sortedTerms.map(\.trimmedTerm))
-        let advisory = advisoryBlock(for: hints, collisionLines: collisions)
+        let mode: PromptMode = config.translate ? .translate : .plain
+        let advisory = advisoryBlock(for: hints, mode: mode, collisionLines: collisions)
             .map { "<advisory>\n\($0)\n</advisory>" }
 
         return CleanupPrompt(
@@ -155,18 +156,21 @@ public struct PromptBuilder: Sendable {
     /// code-switching. Spell and grammar signals stay soft: they must never force a
     /// correct proper noun, technical term, or intentional code-switched word to
     /// change, nor reword a sentence the speaker meant as dictated.
-    private func advisoryBlock(for hints: CleanupHints, collisionLines: [String]) -> String? {
+    private func advisoryBlock(for hints: CleanupHints, mode: PromptMode, collisionLines: [String]) -> String? {
         guard hints.inputLocale != nil || !hints.spellFindings.isEmpty || !hints.grammarFindings.isEmpty
             || !collisionLines.isEmpty
         else {
             return nil
         }
-        var lines = ["Advisory context (may be wrong — use only if it helps, never force):"]
+        var lines = [
+            "Advisory context (may be wrong — use only if it helps, never force; it informs the cleanup and asks "
+                + "nothing, so the output is still only the \(mode.outputAdjective) text):",
+        ]
         if let locale = hints.inputLocale {
             // TIS reports a BCP-47 tag; the model reasons better about a long English
             // name, so resolve one (catalog first, then Foundation) and fall back to
             // the raw tag rather than inventing a name.
-            let languageName = RecognitionLanguageCatalog.displayName(for: locale)
+            let languageName = PromptBuilder.standardLanguageName(for: locale)
                 ?? Locale(identifier: "en").localizedString(forIdentifier: locale)
                 ?? locale
             let labeled = languageName == locale ? locale : "\(languageName) (\(locale))"
@@ -186,7 +190,10 @@ public struct PromptBuilder: Sendable {
                 .map { "\($0.token) → \($0.guesses.joined(separator: ", "))" }
                 .joined(separator: "; ")
             lines.append("The on-device spell checker flagged these tokens as possibly misspelled, with suggestions: \(rendered).")
-            lines.append("Treat as hints only. If a token is a correct proper noun, technical term, or intentional code-switched word, keep it unchanged.")
+            lines.append(
+                "Treat as hints only. The checker does not know names, products, or terms: if a token is one, or an "
+                    + "intentional code-switched word, keep it unchanged; use a suggestion only to fix a misspelled common word."
+            )
         }
         if !hints.grammarFindings.isEmpty {
             let rendered = hints.grammarFindings
@@ -236,10 +243,10 @@ public struct PromptBuilder: Sendable {
     private func instructions(for config: CleanupConfig) -> String {
         let style = styleDescription(for: config.writingStyle)
         guard config.translate else {
-            return assemble(sections: plainSections(style: style), examples: examples.shared + examples.cleanup)
+            let rule = styleRule(for: config.writingStyle)
+            return assemble(sections: plainSections(style: style, rule: rule), examples: examples.shared + examples.cleanup)
         }
-        let target = RecognitionLanguageCatalog.displayName(for: config.translationTargetLanguage.rawValue)
-            ?? config.translationTargetLanguage.rawValue
+        let target = PromptBuilder.translationTargetName(for: config.translationTargetLanguage.rawValue)
         // Per-target LANGUAGE examples are gated on the language CODE: only
         // targets whose pairs passed independent language verification carry
         // them; every target still gets the language-neutral shared examples.
@@ -257,6 +264,28 @@ public struct PromptBuilder: Sendable {
         }
     }
 
+    /// One output rule per register, rendered in plain mode only, in the task section after the register
+    /// phrase. Translate mode keeps only the register phrase, so the rule cannot pull against its
+    /// "read naturally" line.
+    private func styleRule(for writingStyle: WritingStyle) -> String {
+        switch writingStyle {
+        case .formal:
+            return "Formal style: these register changes are allowed even where the word rules below forbid new or changed words: "
+                + "write contractions out in full (don't → do not), replace a slang or colloquial word with its neutral word of the "
+                + "same meaning (комп → компьютер), and bring the grammar to its standard form. Every other rule below still applies, "
+                + "removing fillers and cancelled self-corrections included; keep every idea, the speaker's sentence boundaries, and "
+                + "every word that carries cause, contrast, or order. The examples are written in an everyday register; apply these changes on top of them."
+        case .casual:
+            return "Casual style: keep the speaker's contractions, everyday words, and grammar as spoken; change no "
+                + "word for register. The examples show this style."
+        case .veryCasual:
+            return "Very casual style: this register change is allowed even where the word rules below forbid changed words: use "
+                + "contractions where the speaker said the full form (do not → don't). Every other rule below still applies, removing "
+                + "fillers and cancelled self-corrections included; keep the speaker's colloquial words, grammar, and short sentences; "
+                + "never join sentences. The examples show the casual style; apply these changes on top of them."
+        }
+    }
+
     private func assemble(sections: [PromptSection], examples: [PromptExample]) -> String {
         var blocks = sections.map { "<\($0.tag)>\n\($0.lines.joined(separator: "\n"))\n</\($0.tag)>" }
         // Never emit empty <examples></examples> tags — an empty block reads as
@@ -270,18 +299,18 @@ public struct PromptBuilder: Sendable {
         return blocks.joined(separator: "\n")
     }
 
-    private func plainSections(style: String) -> [PromptSection] {
+    private func plainSections(style: String, rule: String) -> [PromptSection] {
         [
             PromptSection(tag: "role", lines: roleLines(mode: .plain)),
             PromptSection(tag: "task", lines: taskLines(mode: .plain)
-                + ["Return the transcript as \(style), changing only what the rules below allow."]),
+                + ["Return the transcript as \(style), changing only what the rules below allow.", rule]),
             PromptSection(tag: "output_rules", lines:
-                [outputContractLine(mode: .plain), fidelityLine, plainCompletenessLine, pleasantriesLine]
+                [outputContractLine(mode: .plain), fidelityLine(mode: .plain), plainCompletenessLine, pleasantriesLine]
                 + plainLanguageLines
                 + ["Preserve meaning, names, acronyms, commands, and intentional repetitions."]
                 + artifactLines(mode: .plain)
                 + selfCorrectionLines(mode: .plain)
-                + [numbersLine, formulaLine]
+                + [numbersLine(mode: .plain), formulaLine]
                 + sentenceStructureLines(mode: .plain)
                 + [shortInputLine(mode: .plain)]),
         ]
@@ -296,16 +325,18 @@ public struct PromptBuilder: Sendable {
                 "Produce a faithful \(target) rendering of what the speaker said — never a summary, expansion, or improvement of it.",
             ]),
             PromptSection(tag: "output_rules", lines:
-                [outputContractLine(mode: .translate), fidelityLine, pleasantriesLine]
+                [outputContractLine(mode: .translate), fidelityLine(mode: .translate), pleasantriesLine]
                 + artifactLines(mode: .translate)
                 + selfCorrectionLines(mode: .translate)
-                + [numbersLine, formulaLine]
+                + [numbersLine(mode: .translate), formulaLine]
                 + sentenceStructureLines(mode: .translate)
                 + [shortInputLine(mode: .translate)]),
             PromptSection(tag: "translation_rules", lines: [
                 "Preserve meaning over literalness; the result must read naturally to a native \(target) speaker.",
-                "Add nothing and drop nothing: every idea in the transcript, and only those, appears in the translation.",
-                "Fold code-switched input into \(target); keep names, commands, and protected vocabulary terms verbatim as given.",
+                "Add nothing and drop nothing: every idea the speaker dictated appears in the translation, "
+                    + "except what the rules above remove (fillers, false starts, and self-corrections).",
+                "Fold code-switched input into \(target); keep names, literal code or command-line text, "
+                    + "and protected vocabulary terms verbatim as given.",
                 // Deliberately restates taskLines' never-answer invariant: in translate
                 // mode the instruction-shaped transcript is the flagship trap, and the
                 // redundancy is load-bearing on mid-tier models (as in plainLanguageLines).
@@ -348,8 +379,11 @@ public struct PromptBuilder: Sendable {
             + "explanations, alternatives, or questions of your own; do not ask for more context."
     }
 
-    private var fidelityLine: String {
-        "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
+    private func fidelityLine(mode: PromptMode) -> String {
+        switch mode {
+        case .plain: return "Do not add, invent, or infer any words, phrases, or sentences that were not present in the transcript."
+        case .translate: return "Do not add, invent, or infer any idea the speaker did not dictate."
+        }
     }
 
     /// The plain-mode mirror of `fidelityLine`: over-aggressive cleanup fails by
@@ -399,15 +433,17 @@ public struct PromptBuilder: Sendable {
             // The plain never-translate-a-term line would contradict this mode's
             // code-switch folding contract, so translate keeps only the
             // mentioned-phrase guard.
-            verbatimLine = "A phrase quoted or discussed as text stays exactly as the speaker said it."
+            verbatimLine = "A phrase quoted or discussed as text stays in the speaker's language, exactly as the speaker said it."
         }
         return [
             "Fix only dictation artifacts: fillers, false starts, obvious punctuation, casing, "
-                + "spacing, and grammar\(fixSuffix).",
-            "Remove discourse fillers (such as um, uh, er, ну, вот, короче, эээ) when they do not "
-                + "change meaning\(fillerSuffix).",
-            "Correct the conventional casing of acronyms and camel-case names (api → API); plain "
-                + "technical phrases stay lowercase.",
+                + "spacing, and grammar the recognizer broke, such as a garbled ending\(fixSuffix).",
+            "Remove discourse fillers (such as um, uh, er, ну, вот, короче, эээ) when they only fill a pause"
+                + "\(fillerSuffix); a word that carries cause, contrast, order, or who did what stays "
+                + "(поэтому, но, потом, therefore).",
+            "Correct the conventional casing of acronyms and camel-case names (api → API); product and "
+                + "interface names keep their capitals (Settings, GitHub), and descriptive phrases stay lowercase "
+                + "even when the transcript capitalises them (steps to reproduce).",
             verbatimLine,
         ]
     }
@@ -428,9 +464,12 @@ public struct PromptBuilder: Sendable {
         ]
     }
 
-    private var numbersLine: String {
-        "Write clearly dictated number, date, and time phrases in conventional written form "
-            + "(fifteen thirty → 15:30, пять процентов → 5%); never change their value."
+    private func numbersLine(mode: PromptMode) -> String {
+        let separator = mode == .plain ? "the transcript language" : "the output language"
+        return "Write clearly dictated number, date, and time phrases in conventional written form "
+            + "(fifteen thirty → 15:30, пять процентов → 5%); never change their value. "
+            + "A version keeps the speaker's digits (версия 001 → 001), and a time keeps the speaker's clock "
+            + "(в 8 вечера stays в 8 вечера) with the time separator of \(separator)."
     }
 
     private var formulaLine: String {
@@ -439,24 +478,22 @@ public struct PromptBuilder: Sendable {
     }
 
     private func sentenceStructureLines(mode: PromptMode) -> [String] {
-        // Translate mode omits this rule: its example output is untranslated.
-        let runTogetherLines: [String]
+        // Translate mode omits the parenthetical example: its example output is untranslated.
+        let stepExample: String
         switch mode {
-        case .plain:
-            runTogetherLines = [
-                "Independent statements spoken with no connecting word are separate sentences, not comma-joined "
-                    + "(релиз собран тесты зелёные → Релиз собран. Тесты зелёные.).",
-            ]
-        case .translate:
-            runTogetherLines = []
+        case .plain: stepExample = " (релиз собран тесты зелёные → Релиз собран. Тесты зелёные.)"
+        case .translate: stepExample = ""
         }
         return [
-            "Dictation carries no spoken punctuation, so restore it: split run-on text into clear sentences.",
-            "Each separate thought, statement, or step of a spoken sequence (сначала…, потом…; "
-                + "first…, then…) ends as its own sentence.",
-        ] + runTogetherLines + [
-            "The test is grammar, not length: a long sentence whose clauses depend on each other "
-                + "is one connected sentence — never chop it into short ones.",
+            "Restore the punctuation dictation leaves out, splitting run-on text into sentences by this order:",
+            "first, independent statements spoken with no connecting word, and the steps of a spoken sequence "
+                + "(сначала…, потом…; first…, then…), each end as their own sentence\(stepExample);",
+            "then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) "
+                + "stays in the sentence it joins, and clauses that depend on each other stay one sentence however long;",
+            "and the split itself changes only punctuation and capitals; the other rules decide which words stay.",
+            "A punctuation mark the speaker names as dictation at the end of a phrase "
+                + "(question mark, точка, запятая, comma) becomes that mark; "
+                + "the same word used as content inside a sentence stays a word.",
         ]
     }
 

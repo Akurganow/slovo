@@ -147,7 +147,8 @@ enum CleanupBenchmarkOutputsFile {
 struct CleanupBenchmarkOutputsBinding: Sendable {
     let rawsSHA256: String
     /// The distinct system messages the samples send for `style`: the instruction block, with no
-    /// vocabulary and no hints, which the benchmark never passes, and one translate block per target.
+    /// vocabulary and no hints, and one translate block per target; then the id and the whole system
+    /// message of each sample that carries a vocabulary or hints.
     let promptSHA256: String
     let judgeSHA256: String?
     let style: WritingStyle
@@ -163,9 +164,22 @@ struct CleanupBenchmarkOutputsBinding: Sendable {
             samples.map { ($0.translateTo ?? "", $0.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style)) },
             uniquingKeysWith: { first, _ in first }
         )
+        // A sample with a vocabulary or hints adds its id and the system message it sends, so a change
+        // of the vocabulary block or the advisory block refuses the file as a change of the instructions
+        // does. The system message holds no raw, so without the id a vocabulary moved to another sample
+        // would leave the digest unchanged and resume would keep outputs made under the old one.
+        let carrying = samples.filter { !$0.vocabulary.isEmpty || $0.hints != CleanupHints() }.flatMap { sample in
+            let message = PromptBuilder().buildPrompt(
+                raw: sample.raw,
+                config: sample.cleanupConfig(model: CleanupDefaults.openRouterModel, style: style),
+                context: sample.personalization,
+                hints: sample.hints
+            ).systemText
+            return [sample.id, message]
+        }
         promptSHA256 = CleanupBenchmarkDigest.sha256(of: configs.sorted { $0.key < $1.key }.map { _, config in
             PromptBuilder().buildPrompt(raw: "", config: config, context: PersonalizationContext(vocabulary: [])).systemText
-        })
+        } + carrying)
         self.judgeSHA256 = judgeSHA256
         self.style = style
         references = Dictionary(samples.map { ($0.id, $0.references) }, uniquingKeysWith: { first, _ in first })

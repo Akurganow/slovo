@@ -15,6 +15,8 @@
 
   Every non-RU/EN example must pass independent language verification
   (grammar + naturalness as dictated speech) before shipping.
+
+  The cleanup examples are written in the casual style: the formal and very casual style lines in PromptBuilder.styleRule say so, so keep the examples casual.
 -->
 <promptExamples>
   <shared>
@@ -58,7 +60,7 @@
     </example>
     <example>
       <transcript>значит по плану мы сначала обновляем зависимости потом гоняем тесты и если всё зелёное выкатываем на прод</transcript>
-      <output>По плану мы сначала обновляем зависимости. Потом гоняем тесты. Если всё зелёное, выкатываем на прод.</output>
+      <output>По плану мы сначала обновляем зависимости. Потом гоняем тесты, и если всё зелёное, выкатываем на прод.</output>
     </example>
     <example>
       <transcript>сначала прочитай письмо потом собери вопросы после этого назначь встречу</transcript>
@@ -109,6 +111,10 @@
       <output>What do you think about this?</output>
     </example>
     <example>
+      <transcript>он поставил question mark в конце заголовка</transcript>
+      <output>Он поставил question mark в конце заголовка.</output>
+    </example>
+    <example>
       <transcript>созвон перенесли на пятнадцать тридцать</transcript>
       <output>Созвон перенесли на 15:30.</output>
     </example>
@@ -126,7 +132,7 @@
     </example>
     <example>
       <transcript>um so the main reason we decided to postpone the release is that the migration turned out to be way more complicated than we expected and we didn't want to ship something half tested right before the weekend so the new plan is to finish the remaining checks on monday and if everything looks good roll it out on tuesday morning</transcript>
-      <output>The main reason we decided to postpone the release is that the migration turned out to be way more complicated than we expected, and we didn't want to ship something half-tested right before the weekend. The new plan is to finish the remaining checks on Monday and, if everything looks good, roll it out on Tuesday morning.</output>
+      <output>The main reason we decided to postpone the release is that the migration turned out to be way more complicated than we expected, and we didn't want to ship something half-tested right before the weekend, so the new plan is to finish the remaining checks on Monday and, if everything looks good, roll it out on Tuesday morning.</output>
     </example>
     <example>
       <transcript>how do I roll back the last migration</transcript>
@@ -150,7 +156,7 @@
     </example>
     <example>
       <transcript>can you help me draft an email to my landlord um the heating has been broken since monday and i already called the building manager twice and if it is not fixed by friday i will have to withhold part of the rent</transcript>
-      <output>Can you help me draft an email to my landlord? The heating has been broken since Monday, and I already called the building manager twice. If it is not fixed by Friday, I will have to withhold part of the rent.</output>
+      <output>Can you help me draft an email to my landlord? The heating has been broken since Monday, and I already called the building manager twice, and if it is not fixed by Friday, I will have to withhold part of the rent.</output>
     </example>
   </cleanup>
   <translation>

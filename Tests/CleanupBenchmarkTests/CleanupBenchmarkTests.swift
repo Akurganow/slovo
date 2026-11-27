@@ -35,8 +35,7 @@ struct CleanupBenchmarkTests {
                 CleanupBenchmarkCandidate(provider: "fake-b", model: "b", cleaner: second),
             ],
             samples: samples,
-            config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: [])
+            config: CleanupConfig(model: "unused", writingStyle: .casual)
         )
 
         #expect(report.runs.map(\.durationNanoseconds) == [10, 20, 30, 40])
@@ -90,7 +89,6 @@ struct CleanupBenchmarkTests {
             ],
             samples: [sample],
             config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: []),
             repetitions: 1,
             warmupRepetitions: 2
         )
@@ -117,7 +115,7 @@ struct CleanupBenchmarkTests {
             ),
         ]
         let seen = Mutex<[String]>([])
-        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "m") { raw, config, _ in
+        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "m") { raw, config, _, _ in
             seen.withLock { $0.append("\(config.translate):\(config.translationTargetLanguage)") }
             return CleanupBenchmarkCleaned(text: raw)
         }
@@ -126,13 +124,57 @@ struct CleanupBenchmarkTests {
             candidates: [candidate],
             samples: samples,
             config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: []),
             warmupRepetitions: 1
         )
 
         // The plain sample keeps the config's default target, which a plain pass never reads.
         #expect(seen.withLock { $0 } == ["false:en", "true:de", "false:en", "true:de"])
         #expect(report.runs.map(\.sampleLanguage) == [nil, "ru"])
+    }
+
+    /// Stated sensitivity: a sample's vocabulary and hints must reach the candidate as the sample
+    /// wrote them, in the warmup call and in the measured one, and a sample with neither must reach
+    /// it with an empty vocabulary and empty hints; a runner that passes one shared empty
+    /// `PersonalizationContext` or `CleanupHints()` for every sample, in either path, or lends one
+    /// sample's values to the next → RED.
+    @Test
+    func sampleVocabularyAndHintsReachTheCandidateAndAPlainSampleCarriesNone() async {
+        let hints = CleanupHints(
+            inputLocale: "en",
+            spellFindings: [SpellFinding(token: "Zorp", guesses: ["Zorn"])],
+            grammarFindings: [GrammarFinding(fragment: "me and him", message: "Check the pronouns.", corrections: ["he and I"])]
+        )
+        let samples = [
+            CleanupBenchmarkSample(
+                id: "carrying", category: .vocabulary, raw: "Zorp me and him.", references: ["x"],
+                vocabulary: [.init(term: "QRV", expansion: "Quick Review"), .init(term: "Zorp")], hints: hints
+            ),
+            CleanupBenchmarkSample(id: "plain", raw: "Hello.", references: ["Hello."]),
+        ]
+        struct Seen: Equatable {
+            let id: String
+            let terms: [String]
+            let hints: CleanupHints
+        }
+        let seen = Mutex<[Seen]>([])
+        let candidate = CleanupBenchmarkCandidate(provider: "fake", model: "m") { raw, _, context, hints in
+            let terms = context.vocabulary.map { "\($0.term)|\($0.expansion ?? "-")|\($0.lang)|\($0.weight)" }
+            seen.withLock { $0.append(Seen(id: raw, terms: terms, hints: hints)) }
+            return CleanupBenchmarkCleaned(text: raw)
+        }
+
+        _ = await CleanupBenchmarkRunner().run(
+            candidates: [candidate],
+            samples: samples,
+            config: CleanupConfig(model: "unused", writingStyle: .casual),
+            warmupRepetitions: 1
+        )
+
+        let carrying = Seen(
+            id: "Zorp me and him.", terms: ["QRV|Quick Review|en|\(VocabularyQuickAdd.weight)", "Zorp|-|en|\(VocabularyQuickAdd.weight)"], hints: hints
+        )
+        let plain = Seen(id: "Hello.", terms: [], hints: CleanupHints())
+        #expect(seen.withLock { $0 } == [carrying, plain, carrying, plain])
     }
 
     /// Stated sensitivity: a driver that calls `makeTransport` without `--judge` makes the CI
@@ -208,8 +250,7 @@ struct CleanupBenchmarkTests {
         let report = await CleanupBenchmarkRunner().run(
             candidates: [CleanupBenchmarkCandidate(provider: "fake", model: "m", cleaner: RecordingCleaner(output: " \n "))],
             samples: [sample],
-            config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: [])
+            config: CleanupConfig(model: "unused", writingStyle: .casual)
         )
 
         #expect(report.runs.map(\.failures) == [["empty-output"]])
@@ -256,8 +297,7 @@ struct CleanupBenchmarkTests {
                 ),
             ],
             samples: [sample],
-            config: CleanupConfig(model: "unused", writingStyle: .casual),
-            context: PersonalizationContext(vocabulary: [])
+            config: CleanupConfig(model: "unused", writingStyle: .casual)
         )
 
         #expect(report.runs.map(\.errorKind) == [.providerError])
