@@ -47,7 +47,9 @@ struct CleanupBenchmarkOutputsFileTests {
     /// expansion, guess or locale included (the vocabulary and advisory blocks are part of what is
     /// sent); a sample with neither keeps the plain prompt digest, so no earlier file is refused → RED.
     /// The ids-and-raws digest carries no vocabulary or hints: every variant has the digest of
-    /// `["t", "x"]`, so a vocabulary folded into it → RED.
+    /// `["t", "x"]`, so a vocabulary folded into it → RED. A vocabulary moved from one sample to the
+    /// other sends the same system message from another sample, so a digest of the messages alone,
+    /// without each carrying sample's id, keeps the file → RED.
     @Test
     func digestsFollowTheVocabularyAndHintsAndStayTheSameWithoutThem() {
         func sample(_ vocabulary: [CleanupBenchmarkVocabularyEntry] = [], _ hints: CleanupHints = CleanupHints()) -> CleanupBenchmarkSample {
@@ -76,6 +78,15 @@ struct CleanupBenchmarkOutputsFileTests {
         #expect(binding(variants[0]).promptSHA256 == CleanupBenchmarkOutputsBinding(
             samples: [CleanupBenchmarkSample(id: "u", raw: "y", references: ["y"])], judgeSHA256: nil, style: .casual
         ).promptSHA256)
+
+        let vocabulary = [CleanupBenchmarkVocabularyEntry(term: "QRV")]
+        func pair(vocabularyOnFirst: Bool) -> String {
+            CleanupBenchmarkOutputsBinding(samples: [
+                CleanupBenchmarkSample(id: "a", raw: "x", references: ["x"], vocabulary: vocabularyOnFirst ? vocabulary : []),
+                CleanupBenchmarkSample(id: "b", raw: "y", references: ["y"], vocabulary: vocabularyOnFirst ? [] : vocabulary),
+            ], judgeSHA256: nil, style: .casual).promptSHA256
+        }
+        #expect(pair(vocabularyOnFirst: true) != pair(vocabularyOnFirst: false))
     }
 
     /// Stated sensitivity: a resume that repeats a complete run pays twice; one that

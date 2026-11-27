@@ -235,7 +235,7 @@ before the key existed has none), the three coefficients, each Jev question's re
 codes, the writing style, the SHA-256 of the ids, raws and `translateTo` targets of
 the dataset, the SHA-256 of the cleanup prompts (the system message sent for the
 style, with no vocabulary and no hints, one translate message per target in the
-dataset, and the whole system message of each sample that carries a vocabulary or hints), the SHA-256 of what scored the line (the judge's settings
+dataset, and the id and whole system message of each sample that carries a vocabulary or hints), the SHA-256 of what scored the line (the judge's settings
 and the sample's references) and the SHA-256 of what Jev scored it under (the
 judge's settings and the sample's first reference); the last two are empty without
 `--judge`. It holds output text, so it stays local.
