@@ -28,6 +28,72 @@ actor RecordingCleaner: Cleaner {
     }
 }
 
+/// Counts the calls in flight and the most there were at once.
+final class FlightCounter: Sendable {
+    private struct State {
+        var current = 0
+        var peak = 0
+    }
+
+    private let state = Mutex(State())
+
+    /// Counts one call in; returns the calls in flight, this one included.
+    func enter() -> Int {
+        state.withLock {
+            $0.current += 1
+            $0.peak = max($0.peak, $0.current)
+            return $0.current
+        }
+    }
+
+    func leave() {
+        state.withLock { $0.current -= 1 }
+    }
+
+    var peak: Int {
+        state.withLock { $0.peak }
+    }
+
+    /// Lets the other tasks run: a call held this long overlaps any call the runner starts beside it.
+    static func hold() async {
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+    }
+}
+
+/// Calls wait here until `open()`. A waiting call also resumes when its task is cancelled, so a
+/// test under `.timeLimit` ends instead of hanging.
+final class Gate: Sendable {
+    private struct State {
+        var isOpen = false
+        var waiters: [AsyncStream<Void>.Continuation] = []
+    }
+
+    private let state = Mutex(State())
+
+    func open() {
+        let waiters = state.withLock { state in
+            state.isOpen = true
+            defer { state.waiters = [] }
+            return state.waiters
+        }
+        for waiter in waiters {
+            waiter.finish()
+        }
+    }
+
+    func wait() async {
+        let (stream, continuation) = AsyncStream<Void>.makeStream()
+        let isOpen = state.withLock { state in
+            if !state.isOpen { state.waiters.append(continuation) }
+            return state.isOpen
+        }
+        if isOpen { return }
+        for await _ in stream {}
+    }
+}
+
 struct ThrowingSensitiveCleaner: Cleaner {
     func clean(_ raw: String, config: CleanupConfig, context: PersonalizationContext) async throws -> String {
         throw SensitiveError(payload: "\(raw)-S3NT1NEL-KEY")

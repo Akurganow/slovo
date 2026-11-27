@@ -227,8 +227,8 @@ other output on a messy one.
 `--providers catalog --judge --baseline PATH` judges every catalog model in one
 run, each against its own entry.
 
-The outputs file is append-only JSON Lines. A line is added when a run's cleanup
-finishes and again when it is judged: sample index and id (from 1), candidate,
+The outputs file is append-only JSON Lines, written in the order runs finish. A line is
+added when a run's cleanup finishes and again when it is judged: sample index and id (from 1), candidate,
 repetition (from 1), output (`null` after a provider error), duration, the cost of the
 cleanup call (`null` after a provider error or when the reply named none; a line written
 before the key existed has none), the three coefficients, each Jev question's repeats, the models that answered, the failure
@@ -276,9 +276,13 @@ While it runs, the command writes progress lines to standard error, each startin
 repetitions, calls to make, runs kept from the outputs file), each candidate's first and
 last call made by this process, each repetition in which it made a call, the end of the
 cleanup, the judge's start and end with one start and end per candidate, and the baseline
-write. A line holds names and counts only. The order of the lines follows the run, which
-goes by repetition, then sample, then candidate, so lines of different candidates
-interleave. Standard output stays the report.
+write. A line holds names and counts only. Calls start by repetition, then sample, then
+candidate, several run at once, and the lines follow the order calls finish, so lines of
+different candidates and repetitions interleave. Standard output stays the report.
+
+A cleanup call that the provider rate-limits waits as the reply asks, up to a limit, or backs off
+when the reply names no wait, and is tried again a few times before it counts as a provider error. The finish lines
+count those retries and the calls that gave up after them.
 
 The command asks for nothing interactively, so a CI step can call it. After a
 release that changes a file able to change cleanup output,

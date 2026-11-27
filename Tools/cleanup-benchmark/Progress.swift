@@ -1,5 +1,22 @@
 import Foundation
 
+/// What rate limits did to the cleanup calls of a candidate or of the run.
+public struct CleanupBenchmarkRateLimits: Equatable, Sendable {
+    /// Attempts repeated after a rate limit, summed over the calls.
+    public var retried: Int
+    /// Calls that ended as a provider error because their rate-limit attempts ran out.
+    public var gaveUp: Int
+
+    public init(retried: Int = 0, gaveUp: Int = 0) {
+        self.retried = retried
+        self.gaveUp = gaveUp
+    }
+
+    fileprivate var text: String {
+        "retried after a rate limit \(retried), gave up after rate limits \(gaveUp)"
+    }
+}
+
 /// What the benchmark reports while it runs: names and counts only, never a sample id, a text, a
 /// reference or a key. The runner, the judge and the command emit these into a sink, and `line`
 /// is the one place that words them.
@@ -8,10 +25,10 @@ public enum CleanupBenchmarkProgress: Equatable, Sendable {
     case cleanupStarted(candidates: Int, samples: Int, repetitions: Int, kept: Int)
     case candidateStarted(candidate: String)
     case repetitionFinished(repetition: Int, total: Int, calls: Int, failed: Int)
-    case candidateFinished(candidate: String, calls: Int, failed: Int)
+    case candidateFinished(candidate: String, calls: Int, failed: Int, rateLimits: CleanupBenchmarkRateLimits)
     /// Every run of the candidate came from the outputs file, so no call is made.
     case candidateKept(candidate: String, kept: Int)
-    case cleanupFinished(calls: Int, failed: Int)
+    case cleanupFinished(calls: Int, failed: Int, rateLimits: CleanupBenchmarkRateLimits)
     case judgeStarted(runs: Int)
     case judgeCandidateStarted(candidate: String, runs: Int)
     case judgeCandidateFinished(candidate: String, judged: Int, failed: Int)
@@ -32,12 +49,12 @@ public enum CleanupBenchmarkProgress: Equatable, Sendable {
             "cleanup of \(candidate) started"
         case .repetitionFinished(let repetition, let total, let calls, let failed):
             "cleanup repetition \(repetition) of \(total) finished: calls made \(calls), failed \(failed)"
-        case .candidateFinished(let candidate, let calls, let failed):
-            "cleanup of \(candidate) finished: calls made \(calls), failed \(failed)"
+        case .candidateFinished(let candidate, let calls, let failed, let rateLimits):
+            "cleanup of \(candidate) finished: calls made \(calls), failed \(failed), \(rateLimits.text)"
         case .candidateKept(let candidate, let kept):
             "cleanup of \(candidate) has no call to make: runs kept from the outputs file \(kept)"
-        case .cleanupFinished(let calls, let failed):
-            "cleanup finished: calls made \(calls), failed \(failed)"
+        case .cleanupFinished(let calls, let failed, let rateLimits):
+            "cleanup finished: calls made \(calls), failed \(failed), \(rateLimits.text)"
         case .judgeStarted(let runs):
             "judging started: runs to judge \(runs)"
         case .judgeCandidateStarted(let candidate, let runs):

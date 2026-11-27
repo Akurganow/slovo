@@ -20,6 +20,27 @@ public struct CleanupBenchmarkProviderSpec: Equatable, Sendable {
         "\(provider.rawValue):\(model)"
     }
 
+    /// The runner keeps at most `width` calls in flight across the candidates that share this key. The
+    /// switch is exhaustive, so a new provider names its own lane, such as one lane shared by the whole provider.
+    var lane: String {
+        switch provider {
+        case .openRouter, .passThrough: name
+        }
+    }
+
+    /// Calls in flight per lane. OpenRouter's limits page says paid models have "no platform-level request cap"
+    /// and "different rate limits for different models", so a lane is one model
+    /// (https://openrouter.ai/docs/api_reference/limits.md; documentation, no published revision).
+    /// The Jev cookbook gives the one published figure, "Start with 8 workers, which is what the captured run
+    /// used with no `429`s" (https://openrouter.ai/docs/cookbook/evaluate-and-optimize/jev-classification.md;
+    /// documentation, no published revision). Pass-through makes no request and takes the same width, so free
+    /// runs exercise the concurrent path.
+    var width: Int {
+        switch provider {
+        case .openRouter, .passThrough: 8
+        }
+    }
+
     /// One OpenRouter spec per model of the app's cleanup list.
     public static var catalog: [CleanupBenchmarkProviderSpec] {
         CleanupModelCatalog.options(for: .openRouter).map { CleanupBenchmarkProviderSpec(provider: .openRouter, model: $0.id) }

@@ -63,10 +63,10 @@ struct CleanupBenchmarkProgressTests {
             .candidateStarted(candidate: "fake:b"),
             .candidateStarted(candidate: "fake:a"),
             .repetitionFinished(repetition: 1, total: 2, calls: 3, failed: 1),
-            .candidateFinished(candidate: "fake:a", calls: 3, failed: 0),
-            .candidateFinished(candidate: "fake:b", calls: 4, failed: 1),
+            .candidateFinished(candidate: "fake:a", calls: 3, failed: 0, rateLimits: .init()),
+            .candidateFinished(candidate: "fake:b", calls: 4, failed: 1, rateLimits: .init()),
             .repetitionFinished(repetition: 2, total: 2, calls: 4, failed: 0),
-            .cleanupFinished(calls: 7, failed: 1),
+            .cleanupFinished(calls: 7, failed: 1, rateLimits: .init()),
         ])
     }
 
@@ -87,9 +87,9 @@ struct CleanupBenchmarkProgressTests {
             .cleanupStarted(candidates: 2, samples: 1, repetitions: 2, kept: 3),
             .candidateKept(candidate: "fake:a", kept: 2),
             .candidateStarted(candidate: "fake:b"),
-            .candidateFinished(candidate: "fake:b", calls: 1, failed: 0),
+            .candidateFinished(candidate: "fake:b", calls: 1, failed: 0, rateLimits: .init()),
             .repetitionFinished(repetition: 2, total: 2, calls: 1, failed: 0),
-            .cleanupFinished(calls: 1, failed: 0),
+            .cleanupFinished(calls: 1, failed: 0, rateLimits: .init()),
         ])
     }
 
@@ -166,22 +166,23 @@ struct CleanupBenchmarkProgressTests {
         let repetitions = try judgeSettings().bar.repetitions
         let events = fixture.progress
         #expect(events.first == .cleanupStarted(candidates: 2, samples: 2, repetitions: repetitions, kept: 0))
-        #expect(events.contains(.cleanupFinished(calls: 4 * repetitions, failed: 0)))
+        #expect(events.contains(.cleanupFinished(calls: 4 * repetitions, failed: 0, rateLimits: .init())))
         #expect(events.contains(.judgeStarted(runs: 4 * repetitions)))
         #expect(events.suffix(2) == [.baselineWriteStarted, .baselineWriteFinished(written: 1, notWritten: 1)])
     }
 
     /// Stated sensitivity: a line that loses the `progress: ` prefix breaks what a log reader greps
-    /// by, and two events worded alike hide a stage from it → RED.
+    /// by, and two events worded alike hide a stage from it → RED; a finish line that leaves out
+    /// the retry count or the give-up count, or swaps them, misses its suffix → RED.
     @Test
     func everyEventHasTheGreppablePrefixAndItsOwnWording() {
         let events: [CleanupBenchmarkProgress] = [
             .cleanupStarted(candidates: 1, samples: 2, repetitions: 3, kept: 5),
             .candidateStarted(candidate: "fake:a"),
             .repetitionFinished(repetition: 1, total: 2, calls: 3, failed: 0),
-            .candidateFinished(candidate: "fake:a", calls: 3, failed: 0),
+            .candidateFinished(candidate: "fake:a", calls: 3, failed: 1, rateLimits: .init(retried: 2, gaveUp: 1)),
             .candidateKept(candidate: "fake:a", kept: 3),
-            .cleanupFinished(calls: 3, failed: 0),
+            .cleanupFinished(calls: 3, failed: 1, rateLimits: .init(retried: 2, gaveUp: 1)),
             .judgeStarted(runs: 3),
             .judgeCandidateStarted(candidate: "fake:a", runs: 3),
             .judgeCandidateFinished(candidate: "fake:a", judged: 3, failed: 0),
@@ -195,6 +196,9 @@ struct CleanupBenchmarkProgressTests {
         #expect(Set(events.map(\.line)).count == events.count)
         // 1 candidate × 2 samples × 3 repetitions less 5 kept runs.
         #expect(events[0].line.contains("calls to make 1,"))
+        for finished in [events[3], events[5]] {
+            #expect(finished.line.hasSuffix("failed 1, retried after a rate limit 2, gave up after rate limits 1"))
+        }
     }
 
     /// Stated sensitivity: a sum that counts a run without a cost as zero prints `0.000000` for
