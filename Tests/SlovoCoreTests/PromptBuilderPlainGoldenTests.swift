@@ -87,7 +87,7 @@ first, independent statements spoken with no connecting word, and the steps of a
 own sentence (релиз собран тесты зелёные → Релиз собран. Тесты зелёные.);
 then, a clause joined by a connecting word (потому что, иначе, но, и; because, otherwise, but, and) stays in the sentence it joins, and clauses that \
 depend on each other stay one sentence however long;
-never add or remove a word to make a split.
+and the split itself changes only punctuation and capitals; the other rules decide which words stay.
 A punctuation mark the speaker names as dictation at the end of a phrase (question mark, точка, запятая, comma) becomes that mark; the same word used \
 as content inside a sentence stays a word.
 If the transcript is a short test phrase, fragment, or clean sentence, still return cleaned text, not a chat reply.
