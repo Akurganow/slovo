@@ -270,19 +270,19 @@ public struct PromptBuilder: Sendable {
     private func styleRule(for writingStyle: WritingStyle) -> String {
         switch writingStyle {
         case .formal:
-            return "Formal style: the rules below forbid new or changed words, except these changes, which are allowed and are the only "
-                + "ones: write contractions out in full (don't → do not), replace a slang or colloquial word with its neutral "
-                + "word of the same meaning (комп → компьютер), and bring the grammar to its standard form; keep every idea, "
-                + "the speaker's sentence boundaries, and every word that carries cause, contrast, or order. "
-                + "The examples are written in an everyday register; apply these changes on top of them."
+            return "Formal style: these register changes are allowed even where the word rules below forbid new or changed words: "
+                + "write contractions out in full (don't → do not), replace a slang or colloquial word with its neutral word of the "
+                + "same meaning (комп → компьютер), and bring the grammar to its standard form. Every other rule below still applies, "
+                + "removing fillers and cancelled self-corrections included; keep every idea, the speaker's sentence boundaries, and "
+                + "every word that carries cause, contrast, or order. The examples are written in an everyday register; apply these changes on top of them."
         case .casual:
             return "Casual style: keep the speaker's contractions, everyday words, and grammar as spoken; change no "
                 + "word for register. The examples show this style."
         case .veryCasual:
-            return "Very casual style: the rules below forbid changed words, except this change, which is allowed and is the only "
-                + "one: use contractions where the speaker said the full form "
-                + "(do not → don't) and keep the speaker's colloquial words, grammar, and short sentences; never join sentences. "
-                + "The examples show the casual style; apply these changes on top of them."
+            return "Very casual style: this register change is allowed even where the word rules below forbid changed words: use "
+                + "contractions where the speaker said the full form (do not → don't). Every other rule below still applies, removing "
+                + "fillers and cancelled self-corrections included; keep the speaker's colloquial words, grammar, and short sentences; "
+                + "never join sentences. The examples show the casual style; apply these changes on top of them."
         }
     }
 

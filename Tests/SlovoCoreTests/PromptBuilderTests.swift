@@ -183,15 +183,15 @@ struct PromptBuilderTests {
         #expect(!veryCasual.contains("Rewrite the transcript"))
     }
 
-    /// The formal and very casual style lines name the word changes the rules below would forbid and allow
-    /// only those. The
+    /// The formal and very casual style lines allow their register changes over the word rules below, and
+    /// every other rule still applies. The
     /// translate prompt carries no style line: its register is the "as \(style)" phrase.
     /// Stated sensitivity: return "" for the formal style line → the first expectation
     /// reddens; render the style line in translate mode → the translate expectations redden → RED.
     @Test
     func styleLinesExtendTheFixesInPlainModeOnly() {
-        #expect(Self.plainSystemText(style: .formal).contains("Formal style: the rules below forbid new or changed words, except these changes"))
-        #expect(Self.plainSystemText(style: .veryCasual).contains("Very casual style: the rules below forbid changed words, except this change"))
+        #expect(Self.plainSystemText(style: .formal).contains("Formal style: these register changes are allowed even where the word rules below forbid"))
+        #expect(Self.plainSystemText(style: .veryCasual).contains("Very casual style: this register change is allowed even where the word rules below forbid"))
 
         for style in [WritingStyle.formal, .casual, .veryCasual] {
             let translate = PromptBuilder().buildPrompt(
