@@ -6,72 +6,52 @@ import SlovoCore
 
 @Suite("Grammar hint findings")
 struct GrammarHintFindingsTests {
-    /// Builds a real grammar `NSTextCheckingResult` for `text`, or nil when this Mac
-    /// produced none (grammar rules are English-only, so a machine without English
-    /// spelling enabled legitimately yields nothing).
-    private static func grammarResult(for text: String) -> NSTextCheckingResult? {
-        let checker = NSSpellChecker.shared
-        checker.automaticallyIdentifiesLanguages = true
-        let tag = NSSpellChecker.uniqueSpellDocumentTag()
-        defer { checker.closeSpellDocument(withTag: tag) }
-        var orthography: NSOrthography?
-        var wordCount = 0
-        let results = checker.check(
-            text,
-            range: NSRange(location: 0, length: text.utf16.count),
-            types: NSTextCheckingResult.CheckingType.spelling.rawValue
-                | NSTextCheckingResult.CheckingType.grammar.rawValue,
-            options: nil,
-            inSpellDocumentWithTag: tag,
-            orthography: &orthography,
-            wordCount: &wordCount
-        )
-        return results.first { $0.resultType == .grammar }
-    }
-
-    private static var runsLocally: Bool {
-        ProcessInfo.processInfo.environment["CI"] == nil
-    }
-
-    /// THE regression this whole seam turns on. A grammar result spans the entire
-    /// sentence while `NSGrammarRange` is relative to that sentence, so a leading
-    /// clean sentence pushes the result's start away from 0 and the two readings
-    /// diverge.
+    /// A grammar result spans its whole sentence, and `NSGrammarRange` is relative to
+    /// that sentence. A leading clean sentence pushes the result off offset 0, so an
+    /// absolute reading slices different text.
     ///
     /// Stated sensitivity: reading the detail range as an absolute transcript offset
-    /// (dropping `result.range.location +`) slices " i" instead of "is" — this turns
-    /// red. Verified against the real checker on macOS 26.
-    @Test(.enabled(if: runsLocally, "real NSSpellChecker; skipped on shared CI"))
-    func grammarFragmentIsResolvedRelativeToTheSentence() throws {
+    /// (dropping `result.range.location +`) slices " i" instead of "is" → RED.
+    @Test
+    func grammarFragmentIsResolvedRelativeToTheSentence() {
         let transcript = "Everything is fine here. The datas is wrong."
-        guard let result = Self.grammarResult(for: transcript) else { return }
-        try #require(result.range.location > 0, "the padding sentence must push the result off offset 0")
+        let result = NSTextCheckingResult.grammarCheckingResult(
+            range: NSRange(location: 25, length: 19),
+            details: [
+                [
+                    NSGrammarRange: NSValue(range: NSRange(location: 10, length: 2)),
+                    NSGrammarUserDescription: "The word 'is' may not agree with the rest of the sentence.",
+                    NSGrammarCorrections: ["are"],
+                ],
+            ]
+        )
 
         let findings = SystemSpellCheckHintProvider.grammarFindings(from: result, in: transcript)
 
-        let fragments: [String] = findings.map(\.fragment)
-        #expect(!fragments.contains(" i"),
-                "a fragment sliced with an absolute offset means the detail range was misread; got \(fragments)")
-        for finding in findings where !finding.fragment.isEmpty {
-            let fragment: String = finding.fragment
-            #expect(transcript.contains(fragment),
-                    "every fragment must be real transcript text; got '\(fragment)'")
-        }
+        #expect(findings.map(\.fragment) == ["is"])
     }
 
-    /// Stated sensitivity: dropping the `NSGrammarUserDescription` guard admits
-    /// message-less details, so a finding with an empty message survives → red. The
-    /// message is the entire value of a grammar hint: "is" alone advises nothing.
-    @Test(.enabled(if: runsLocally, "real NSSpellChecker; skipped on shared CI"))
-    func everyGrammarFindingCarriesAMessage() {
-        let transcript = "He go to the store yesterday. The datas is wrong."
-        guard let result = Self.grammarResult(for: transcript) else { return }
+    /// The message is the whole value of a grammar hint: "is" alone advises nothing.
+    ///
+    /// Stated sensitivity: dropping the `NSGrammarUserDescription` guard, or only its
+    /// empty-string check, admits a detail with no message → RED.
+    @Test
+    func grammarDetailWithoutAMessageIsDropped() {
+        let transcript = "The datas is wrong."
+        let fragment = NSValue(range: NSRange(location: 10, length: 2))
+        let message = "The word 'is' may not agree with the rest of the sentence."
+        let result = NSTextCheckingResult.grammarCheckingResult(
+            range: NSRange(location: 0, length: 19),
+            details: [
+                [NSGrammarRange: fragment, NSGrammarCorrections: ["are"]],
+                [NSGrammarRange: fragment, NSGrammarUserDescription: "", NSGrammarCorrections: ["are"]],
+                [NSGrammarRange: fragment, NSGrammarUserDescription: message, NSGrammarCorrections: ["are"]],
+            ]
+        )
 
         let findings = SystemSpellCheckHintProvider.grammarFindings(from: result, in: transcript)
 
-        for finding in findings {
-            #expect(!finding.message.isEmpty, "a grammar finding without its explanation is not a hint")
-        }
+        #expect(findings.map(\.message) == [message])
     }
 
     /// Stated sensitivity: the shared language gate must cap grammar findings exactly
@@ -105,26 +85,5 @@ struct GrammarHintFindingsTests {
         )
 
         #expect(gated == [english], "only findings whose primary language is enabled survive; got \(gated)")
-    }
-
-    /// The end-to-end proof on the real API: with English enabled, a sentence with a
-    /// subject-verb disagreement produces at least one grammar finding carrying both
-    /// a message and a suggested correction.
-    ///
-    /// Stated sensitivity: a provider that never passes `.grammar` in its checking
-    /// types (the pre-change behavior) returns no grammar findings at all → red.
-    @Test(.enabled(if: runsLocally, "real NSSpellChecker; skipped on shared CI"))
-    func realProviderReturnsGrammarFindingsWhenEnglishEnabled() {
-        let englishEnabled = NSSpellChecker.shared.userPreferredLanguages
-            .contains { $0.lowercased().hasPrefix("en") }
-        let provider = SystemSpellCheckHintProvider()
-
-        let findings = provider.findings(in: "The datas is wrong.", ignoring: [])
-
-        #expect(!findings.grammar.isEmpty || !englishEnabled,
-                "with English enabled the on-device checker must flag the disagreement; got \(findings.grammar)")
-        for finding in findings.grammar {
-            #expect(!finding.message.isEmpty)
-        }
     }
 }

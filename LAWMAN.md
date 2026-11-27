@@ -27,9 +27,8 @@ contract_version: 4
 - CodeQL for Swift scans every pull request into main and every push to main: .github/workflows/codeql.yml. It is not the gate.
 - Packaging in .github/workflows/release.yml and .github/workflows/dev-build.yml builds and signs the app after the gate. It is not the gate.
 - The fence does not look for dead code. The `unused_declaration` rule is disabled, and `swiftlint analyze` skips `Tests/`.
-- The fence does not run the tests gated off while the `CI` variable is set. They call the real spell checker and the real input-source service.
 - The fence does not lint Sources/SlovoObjC. It is outside the Swift settings and the lint stages.
-- The fence builds no app bundle, so signing and notarization pass it unproven. So does every effect outside the process: microphone capture, text insertion, the Keychain and the cleanup network call.
+- The fence builds no app bundle, so signing and notarization pass it unproven. So does every effect outside the process: microphone capture, text insertion, the Keychain, the cleanup network call, the system spell and grammar check, and the read of the keyboard input source.
 - The fence proves one toolchain only, the one on the macOS 26 runner image. Runtime on the macOS 15 floor is checked by hand.
 - The complete list is .agents/rules/verification.md "What a green run does not prove".
 

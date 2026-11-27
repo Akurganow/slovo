@@ -28,7 +28,7 @@ commands, and both must hold.
 | Stage | Run by, and passes when | What it proves |
 | :-- | :-- | :-- |
 | `swift-build` | `swift build --disable-automatic-resolution`, with cache, configuration and security paths under `.build/`; exits 0 | Every target compiles against the checked-in `Package.resolved`. Every Swift target compiles with warnings as errors, complete strict concurrency checking and actor data-race checks (`Package.swift`). It lints nothing: lint is the `strict-lint` stage |
-| `swift-test` | `swift test --disable-automatic-resolution`, same paths; exits 0 | The test targets build, and every test runs and passes except those gated off when the `CI` variable is set |
+| `swift-test` | `swift test --disable-automatic-resolution`, same paths; exits 0 | The test targets build, and every test runs and passes |
 | `cleanup-benchmark-cli` | `Scripts/check-cleanup-benchmark-cli.sh`; exits 0 | The benchmark executable runs one sample through its pass-through provider and prints its CSV header and one passing row. It runs the built binary, which `swift-build` never does |
 | `strict-lint` | `Scripts/lint.sh`; exits 0 | Every stage of the next table passed |
 
@@ -143,10 +143,6 @@ cannot exist on a green `main`.
 
 ## What a green run does not prove
 
-- **Tests gated off CI.** Tests enabled only while the `CI` variable is
-  unset, because they call the real spell checker or the real input-source
-  service, are skipped on CI. A report counts them among the ignored tests
-  and names them. A run where the toolchain is present runs them.
 - **The test tree under the analyzer.** `swiftlint analyze` never reads
   `Tests/`: SourceKit crashes expanding the Swift Testing macros
   (`Scripts/lint.sh`, `generate_swiftlint_compiler_log`). A report counts
@@ -172,10 +168,11 @@ cannot exist on a green `main`.
   macOS 15 floor check (oldest-OS-only)").
 - **Effects outside the process.** Microphone capture, the Accessibility
   and Input Monitoring grants, the global key tap, insertion into the
-  focused app, muting system output, the Keychain, the cleanup provider's
-  network call and the update feed are proven only by a live run of a built
-  app: the owner's check of a dev build (`AGENTS.md`, "Standing owner
-  directives", 3).
+  focused app, muting system output, the request to the system spell and
+  grammar checker with its ignore list, the read of the keyboard input
+  source, the Keychain, the cleanup provider's network call and the update
+  feed are proven only by a live run of a built app: the owner's check of a
+  dev build (`AGENTS.md`, "Standing owner directives", 3).
 - **Recognition quality.** No stage measures recognition of mixed Russian
   and English speech against its baseline (`AGENTS.md`, "Non-negotiable
   principles", 6).

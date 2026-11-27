@@ -64,8 +64,8 @@ jobs:
         # the comment and the two env lines below, adjacent and in this order.
         env:
           # renovate: datasource=github-release-attachments depName=ast-grep/ast-grep
-          AST_GREP_VERSION: 0.51.1
-          AST_GREP_SHA256: a95772097b4d02bd9d45ed63b300c37041ae3c36632b3bf19250cc7c10187dc4
+          AST_GREP_VERSION: 0.51.3
+          AST_GREP_SHA256: 7954eab1e2803d1485f263377be7f359db6d3915312b5d773cd575eb009330b1
         run: |
           set -euo pipefail
           archive="${RUNNER_TEMP}/ast-grep.zip"

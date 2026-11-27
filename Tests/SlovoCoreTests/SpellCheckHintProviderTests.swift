@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 import SlovoCore
@@ -54,5 +55,21 @@ struct SpellCheckHintProviderTests {
 
         #expect(gated.count == 15, "the advisory spell pass is capped at 15 findings; got \(gated.count)")
         #expect(gated.first == candidates.first?.finding, "the cap must keep the EARLIEST findings")
+    }
+
+    /// Stated sensitivity: raising the guesses cap (e.g. `prefix(4)`) or removing it
+    /// keeps the fourth guess → RED.
+    @Test
+    func spellFindingKeepsTheTopThreeGuesses() {
+        let transcript = "I recieve teh package"
+        let result = NSTextCheckingResult.spellCheckingResult(range: NSRange(location: 2, length: 7))
+
+        let finding = SystemSpellCheckHintProvider.spellFinding(
+            from: result,
+            in: transcript,
+            guesses: ["receive", "relieve", "reprieve", "receiver"]
+        )
+
+        #expect(finding == SpellFinding(token: "recieve", guesses: ["receive", "relieve", "reprieve"]))
     }
 }

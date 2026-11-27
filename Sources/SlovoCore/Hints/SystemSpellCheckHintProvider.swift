@@ -17,6 +17,8 @@ public struct SystemSpellCheckHintProvider: SpellCheckHintProviding {
     /// cap is applied per kind, inside the pure pipelines below so a unit test can
     /// pin it.
     private static let maxFindings = 15
+    /// Guesses kept per misspelled token: past the top few they stop being likely.
+    private static let maxGuesses = 3
 
     public init() {}
 
@@ -51,8 +53,6 @@ public struct SystemSpellCheckHintProvider: SpellCheckHintProviding {
         for result in results {
             switch result.resultType {
             case .spelling:
-                guard let tokenRange = Range(result.range, in: transcript) else { continue }
-                let token = String(transcript[tokenRange])
                 let language = checker.language(forWordRange: result.range, in: transcript, orthography: orthography)
                     ?? checker.language()
                 let guesses = checker.guesses(
@@ -61,10 +61,8 @@ public struct SystemSpellCheckHintProvider: SpellCheckHintProviding {
                     language: language,
                     inSpellDocumentWithTag: tag
                 ) ?? []
-                spellingCandidates.append((
-                    finding: SpellFinding(token: token, guesses: Array(guesses.prefix(3))),
-                    language: language
-                ))
+                guard let finding = Self.spellFinding(from: result, in: transcript, guesses: guesses) else { continue }
+                spellingCandidates.append((finding: finding, language: language))
             case .grammar:
                 // A grammar result spans the whole SENTENCE; the flagged fragment
                 // lives in each detail. `language(forWordRange:)` returns nil for a
@@ -84,6 +82,18 @@ public struct SystemSpellCheckHintProvider: SpellCheckHintProviding {
             spelling: Self.findingsWithEnabledLanguages(spellingCandidates, enabled: enabled),
             grammar: Self.findingsWithEnabledLanguages(grammarCandidates, enabled: enabled)
         )
+    }
+
+    /// The spelling finding for one flagged word: the token under the result's range
+    /// and at most the checker's top three guesses. Nil when the range lies outside
+    /// the transcript.
+    public static func spellFinding(
+        from result: NSTextCheckingResult,
+        in transcript: String,
+        guesses: [String]
+    ) -> SpellFinding? {
+        guard let tokenRange = Range(result.range, in: transcript) else { return nil }
+        return SpellFinding(token: String(transcript[tokenRange]), guesses: Array(guesses.prefix(maxGuesses)))
     }
 
     /// The grammar findings carried by one sentence-wide result.
