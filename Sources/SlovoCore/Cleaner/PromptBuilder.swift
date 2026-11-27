@@ -242,8 +242,8 @@ public struct PromptBuilder: Sendable {
     /// mode's own hardest examples keep the few-shot recency slots.
     private func instructions(for config: CleanupConfig) -> String {
         let style = styleDescription(for: config.writingStyle)
-        let rule = styleRule(for: config.writingStyle)
         guard config.translate else {
+            let rule = styleRule(for: config.writingStyle)
             return assemble(sections: plainSections(style: style, rule: rule), examples: examples.shared + examples.cleanup)
         }
         let target = PromptBuilder.translationTargetName(for: config.translationTargetLanguage.rawValue)
@@ -264,7 +264,9 @@ public struct PromptBuilder: Sendable {
         }
     }
 
-    /// One output rule per register, rendered in the task section after the register phrase.
+    /// One output rule per register, rendered in plain mode only, in the task section after the register
+    /// phrase. Translate mode keeps only the register phrase, so the rule cannot pull against its
+    /// "read naturally" line.
     private func styleRule(for writingStyle: WritingStyle) -> String {
         switch writingStyle {
         case .formal:

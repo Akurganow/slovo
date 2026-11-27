@@ -192,7 +192,7 @@ struct PromptBuilderTests {
         #expect(Self.plainSystemText(style: .formal).contains("Formal style, in addition to the fixes below:"))
         #expect(Self.plainSystemText(style: .veryCasual).contains("Very casual style, in addition to the fixes below:"))
 
-        for style in [WritingStyle.formal, .casual] {
+        for style in [WritingStyle.formal, .casual, .veryCasual] {
             let translate = PromptBuilder().buildPrompt(
                 raw: "hello",
                 config: CleanupConfig(writingStyle: style, translationTargetLanguage: .ru, translate: true),
@@ -200,6 +200,7 @@ struct PromptBuilderTests {
             ).systemText
             #expect(!translate.contains("Formal style"))
             #expect(!translate.contains("Casual style"))
+            #expect(!translate.contains("Very casual style"))
         }
     }
 
@@ -488,7 +489,9 @@ struct PromptBuilderTests {
     /// The advisory names the standard language, not the catalogue's synonym ("Moldovan" for ro),
     /// and a translate target names its script where a language has two.
     /// Stated sensitivity: resolve the advisory language through the catalogue's displayName →
-    /// "Moldovan (ro)" and the Romanian expectation reddens; drop the "Cyrillic" qualifier → RED.
+    /// "Moldovan (ro)" and the Romanian expectation reddens; drop the "Cyrillic" qualifier → RED;
+    /// drop "ht", "lb" or "pa" from the standard names, drop "pa" from the script names, or look up
+    /// the standard names before the script names → RED.
     @Test
     func standardLanguageNamesReachTheAdvisoryAndTheTranslateTarget() {
         let advisory = PromptBuilder().buildPrompt(
@@ -506,6 +509,22 @@ struct PromptBuilderTests {
             context: PersonalizationContext(vocabulary: [])
         ).systemText
         #expect(serbian.contains("Translate the transcript into Serbian, in Cyrillic script and remove dictation artifacts"))
+
+        for (code, name) in [("ht", "Haitian Creole"), ("lb", "Luxembourgish"), ("pa", "Punjabi")] {
+            let advisory = PromptBuilder().buildPrompt(
+                raw: "hello",
+                config: CleanupConfig(writingStyle: .casual),
+                context: PersonalizationContext(vocabulary: []),
+                hints: CleanupHints(inputLocale: code)
+            ).systemText
+            #expect(advisory.contains("Keyboard input language at dictation time: \(name) (\(code))."))
+        }
+        let punjabi = PromptBuilder().buildPrompt(
+            raw: "hello",
+            config: CleanupConfig(writingStyle: .casual, translationTargetLanguage: Language(rawValue: "pa"), translate: true),
+            context: PersonalizationContext(vocabulary: [])
+        ).systemText
+        #expect(punjabi.contains("Translate the transcript into Punjabi, in Gurmukhi script and remove dictation artifacts"))
     }
 
     /// The advisory's header ends with the output of its mode: the cleaned text in plain mode,
