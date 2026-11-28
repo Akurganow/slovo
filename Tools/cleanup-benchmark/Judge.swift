@@ -12,7 +12,9 @@ public struct CleanupBenchmarkJudgeInfo: Equatable, Sendable {
 /// over the repeats, asked against the expected (first) reference.
 public struct CleanupBenchmarkJudge: Sendable {
     private static let embeddingBatchSize = 64
-    private static let concurrency = 4
+    // OpenRouter's Jev cookbook: "Start with 8 workers, which is what the captured run used with no `429`s."
+    // (https://openrouter.ai/docs/cookbook/evaluate-and-optimize/jev-classification.md; documentation, no published revision)
+    private static let concurrency = 8
     static let ownFailures: Set = ["embedding-failed", "jev-refusal", "jev-request-failed"]
 
     public let settings: CleanupBenchmarkJudgeSettings

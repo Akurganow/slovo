@@ -254,16 +254,24 @@ public struct CleanupBenchmarkSample: Decodable, Equatable, Sendable {
 public struct CleanupBenchmarkCandidate: Sendable {
     public let provider: String
     public let model: String
+    /// Candidates that share a lane run at the smallest width among them.
+    let lane: String
+    let width: Int
     public let clean: @Sendable (String, CleanupConfig, PersonalizationContext, CleanupHints) async throws -> CleanupBenchmarkCleaned
 
+    /// A candidate made by hand shares its provider's lane, one call at a time.
     @preconcurrency
     public init(
         provider: String,
         model: String,
+        lane: String? = nil,
+        width: Int = 1,
         clean: @escaping @Sendable (String, CleanupConfig, PersonalizationContext, CleanupHints) async throws -> CleanupBenchmarkCleaned
     ) {
         self.provider = provider
         self.model = model
+        self.lane = lane ?? provider
+        self.width = max(width, 1)
         self.clean = clean
     }
 
