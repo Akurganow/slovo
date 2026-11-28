@@ -13,10 +13,10 @@ struct CleanupBenchmarkDatasetTests {
     func defaultDatasetLoadsPinnedSampleSuite() throws {
         let samples = try CleanupBenchmarkDefaults.samples()
 
-        #expect(samples.count == 198)
+        #expect(samples.count == 203)
         #expect(Self.countsByCategory(samples) == [
-            .shortSmoke: 20,
-            .russianFiller: 18,
+            .shortSmoke: 22,
+            .russianFiller: 20,
             .codeSwitching: 13,
             .punctuationStructure: 18,
             .commandsEditor: 4,
@@ -25,7 +25,7 @@ struct CleanupBenchmarkDatasetTests {
             .instructionShaped: 3,
             .languages: 40,
             .mixedLanguages: 15,
-            .translation: 36,
+            .translation: 37,
             .vocabulary: 4,
             .hints: 8,
         ])

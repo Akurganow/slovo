@@ -1651,6 +1651,18 @@
       "voice": "Milena"
     },
     {
+      "id": "translation-ru-to-en-named-filler-17",
+      "category": "translation",
+      "language": "ru",
+      "translateTo": "en",
+      "raw": "Я все время говорю слово короче и это раздражает.",
+      "references": [
+        "I keep saying the word \"короче\", and it's annoying."
+      ],
+      "spoken": "я всё время говорю слово короче и это раздражает",
+      "voice": "Milena"
+    },
+    {
       "id": "short-smoke-en-nordwav-notes-07",
       "category": "short-smoke",
       "raw": "The team now keeps its notes in Nordwav since Monday um no sorry since Tuesday.",
@@ -2114,6 +2126,26 @@
       "voice": "Samantha"
     },
     {
+      "id": "short-smoke-en-named-fillers-32",
+      "category": "short-smoke",
+      "raw": "In the recording I kept saying like you know and basically.",
+      "references": [
+        "In the recording, I kept saying \"like\", \"you know\" and \"basically\"."
+      ],
+      "spoken": "in the recording i kept saying like you know and basically",
+      "voice": "Samantha"
+    },
+    {
+      "id": "short-smoke-en-named-and-pause-33",
+      "category": "short-smoke",
+      "raw": "Um the word um shows up in almost every sentence.",
+      "references": [
+        "The word \"um\" shows up in almost every sentence."
+      ],
+      "spoken": "um the word um shows up in almost every sentence",
+      "voice": "Samantha"
+    },
+    {
       "id": "russian-filler-colloquial-koroche-32",
       "category": "russian-filler",
       "raw": "Короче мы не потянем это к пятнице.",
@@ -2132,6 +2164,26 @@
         "Глянь, там какая-то фигня в логах."
       ],
       "spoken": "глянь там какая-то фигня в логах",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-named-list-34",
+      "category": "russian-filler",
+      "raw": "В докладе я слишком часто говорил короче типа.",
+      "references": [
+        "В докладе я слишком часто говорил «короче», «типа»."
+      ],
+      "spoken": "в докладе я слишком часто говорил короче и типа",
+      "voice": "Milena"
+    },
+    {
+      "id": "russian-filler-named-and-pause-35",
+      "category": "russian-filler",
+      "raw": "Вот я заметил, что часто говорю вот в начале фразы.",
+      "references": [
+        "Я заметил, что часто говорю «вот» в начале фразы."
+      ],
+      "spoken": "вот я заметил что часто говорю вот в начале фразы",
       "voice": "Milena"
     },
     {

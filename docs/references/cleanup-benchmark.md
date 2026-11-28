@@ -97,12 +97,12 @@ holds the plain account, the bar and the flags; the settings live in
 - The only lexical check left is `empty-output`.
 
 The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It has
-198 synthetic/public-style samples, grouped as:
+203 synthetic/public-style samples, grouped as:
 
 | Category | Count |
 | --- | ---: |
-| `short-smoke` | 20 |
-| `russian-filler` | 18 |
+| `short-smoke` | 22 |
+| `russian-filler` | 20 |
 | `code-switching` | 13 |
 | `punctuation-structure` | 18 |
 | `commands-editor` | 4 |
@@ -111,7 +111,7 @@ The default suite is pinned at `Benchmarks/cleanup/slovo-cleanup-v1.json`. It ha
 | `instruction-shaped-transcript` | 3 |
 | `languages` | 40 |
 | `mixed-languages` | 15 |
-| `translation` | 36 |
+| `translation` | 37 |
 | `vocabulary` | 4 |
 | `hints` | 8 |
 
