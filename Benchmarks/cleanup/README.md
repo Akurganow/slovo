@@ -11,8 +11,8 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 
 | Category | Count | Purpose |
 | --- | ---: | --- |
-| `short-smoke` | 20 | Short utterances, repetitions, numbers, minimal dictation |
-| `russian-filler` | 18 | Russian discourse fillers, false starts, self-corrections, casual speech cleanup |
+| `short-smoke` | 22 | Short utterances, repetitions, numbers, minimal dictation, and English fillers the speaker names as words, which stay |
+| `russian-filler` | 20 | Russian discourse fillers, false starts, self-corrections, casual speech cleanup, and a filler the speaker names as a word, which stays |
 | `code-switching` | 13 | Russian base with English developer and product terms and reverse embedding: every term survives cleanup with its meaning, in either script |
 | `punctuation-structure` | 18 | Long dictated streams of sequential thoughts or one connected sentence: cleanup keeps every thought; independent statements and steps split, a clause joined by a connecting word stays in its sentence |
 | `commands-editor` | 4 | Action-like editor and system commands; dictated edit commands stay content, never applied |
@@ -21,12 +21,12 @@ user transcripts, API keys, provider response bodies, or personal vocabulary.
 | `instruction-shaped-transcript` | 3 | Permanent tripwire for the executed-dictation failure class: long task-shaped dictations that an assistant would answer instead of clean |
 | `languages` | 40 | Plain dictation in uk, de, es, fr, pt, zh, ja, ko, hi and ar, four samples each: a filler with a self-correction, a long run-on, a time and a percentage, and at least one clean case |
 | `mixed-languages` | 15 | Speech mixing two languages in one utterance: de+en, es+en, zh+en, hi+en and uk+ru, three samples each |
-| `translation` | 36 | The translate hold: speech in one language, cleaned and translated into the target; the reference is in the target language |
+| `translation` | 37 | The translate hold: speech in one language, cleaned and translated into the target; the reference is in the target language |
 | `vocabulary` | 4 | A vocabulary sent with the dictation: a misheard listed term is repaired to its listed spelling, and an everyday word that matches a term keeps its everyday form |
 | `hints` | 8 | On-device hints sent with the dictation, right or planted wrong: a keyboard language, a spell guess or a grammar finding; the reference is the cleanup no hint changes |
 
-Total: **198 samples**, 55 of them clean cases: the raw text equals its first
-reference. A full run is samples × repetitions, so "990 runs" = 198 × 5.
+Total: **203 samples**, 55 of them clean cases: the raw text equals its first
+reference. A full run is samples × repetitions, so "1,015 runs" = 203 × 5.
 
 Each sample is `id`, `category`, `raw` and `references`, a non-empty list. The first
 reference is the expected cleanup. The others are equally valid forms of it: the
