@@ -280,7 +280,7 @@ write. A line holds names and counts only. Calls start by repetition, then sampl
 candidate, several run at once, and the lines follow the order calls finish, so lines of
 different candidates and repetitions interleave. Standard output stays the report.
 
-A cleanup call that the provider rate-limits waits as the reply asks, up to a limit, or backs off
+A cleanup call that the provider rate-limits waits as long as the reply asks, or backs off
 when the reply names no wait, and is tried again a few times before it counts as a provider error. The finish lines
 count those retries and the calls that gave up after them.
 

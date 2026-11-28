@@ -369,15 +369,15 @@ struct CleanupBenchmarkBarTests {
 
     /// Stated sensitivity: retrying a 400 or a 401 spends the attempts on a request that
     /// cannot succeed; never retrying a dropped connection or a 5xx lets one blip void
-    /// a paid run; sleeping after the last attempt wastes the wait; a `Retry-After`
-    /// above the cap, or none, changes the wait.
+    /// a paid run; sleeping after the last attempt wastes the wait; cutting a `Retry-After`
+    /// short, or ignoring it, changes the wait.
     @Test
     func retryPolicyRetriesTransientFailuresWithinTheAttempts() {
         typealias Policy = CleanupBenchmarkRetryPolicy
         #expect(Policy.delay(after: .network, attempt: 0) == 1)
         #expect(Policy.delay(after: .status(500, retryAfter: nil), attempt: 2) == 4)
         #expect(Policy.delay(after: .status(429, retryAfter: 3), attempt: 0) == 3)
-        #expect(Policy.delay(after: .status(402, retryAfter: 100), attempt: 0) == 30)
+        #expect(Policy.delay(after: .status(402, retryAfter: 100), attempt: 0) == 100)
         for final in [400, 401, 404] {
             #expect(Policy.delay(after: .status(final, retryAfter: nil), attempt: 0) == nil)
         }

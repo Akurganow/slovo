@@ -184,7 +184,16 @@ private struct Plan {
     ) {
         self.repetitions = repetitions
         slots = Array(repeating: nil, count: repetitions * samples.count * candidates.count)
-        var laneOf: [String: Int] = [:]
+        var laneIndex: [String: Int] = [:]
+        let laneOfCandidate = candidates.map { candidate -> Int in
+            if let lane = laneIndex[candidate.lane] {
+                lanes[lane].width = min(lanes[lane].width, candidate.width)
+                return lane
+            }
+            laneIndex[candidate.lane] = lanes.count
+            lanes.append(Lane(width: candidate.width))
+            return lanes.count - 1
+        }
         for repetition in 1...repetitions {
             for (sampleIndex, sample) in samples.enumerated() {
                 for (candidateIndex, candidate) in candidates.enumerated() {
@@ -195,15 +204,7 @@ private struct Plan {
                         keptByCandidate[candidate.name, default: 0] += 1
                         continue
                     }
-                    let lane: Int
-                    if let known = laneOf[candidate.lane] {
-                        lane = known
-                    } else {
-                        lane = lanes.count
-                        laneOf[candidate.lane] = lane
-                        lanes.append(Lane(width: candidate.width))
-                    }
-                    lanes[lane].width = min(lanes[lane].width, candidate.width)
+                    let lane = laneOfCandidate[candidateIndex]
                     lanes[lane].pending.append(WorkItem(
                         slot: slot,
                         lane: lane,

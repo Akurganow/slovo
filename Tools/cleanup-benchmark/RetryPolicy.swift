@@ -1,5 +1,6 @@
 /// When to try a failed request again. Network errors and the statuses OpenRouter
-/// documents as transient are retried; a 400 or a 401 never is.
+/// documents as transient are retried; a 400 or a 401 never is. A `Retry-After` is
+/// honoured as given; without one the wait doubles from 1 s.
 enum CleanupBenchmarkRetryPolicy {
     enum Failure: Equatable {
         case status(Int, retryAfter: Double?)
@@ -7,7 +8,6 @@ enum CleanupBenchmarkRetryPolicy {
     }
 
     static let attempts = 4
-    private static let longestWait = 30.0
 
     /// Seconds to wait before the next attempt, or nil when the failure is final or
     /// the attempts (counted from 0) are used up.
@@ -26,6 +26,6 @@ enum CleanupBenchmarkRetryPolicy {
     }
 
     private static func backoff(_ attempt: Int, retryAfter: Double?) -> Double {
-        min(retryAfter ?? Double(1 << attempt), longestWait)
+        retryAfter ?? Double(1 << attempt)
     }
 }
